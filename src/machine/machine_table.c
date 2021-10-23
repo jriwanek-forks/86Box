@@ -13215,6 +13215,7 @@ const machine_t machines[] = {
         .snd_device = &cmi8738_onboard_device,
         .net_device = NULL
     },
+    { "[VIA Apollo ProMedia] Jetway 603TCF",	"603tcf",		MACHINE_TYPE_SOCKET370,		CPU_PKG_SOCKET370, 0, 66666667, 150000000, 1300, 3500, 1.5, 8.0,						MACHINE_AGP | MACHINE_BUS_PS2 | MACHINE_IDE_DUAL,				 8192,1048576, 8192, 255,	       machine_at_603tcf_init, NULL			},
 
     /* Miscellaneous/Fake/Hypervisor machines */
     /* Has a Winbond W83977F Super I/O chip with on-chip KBC with AMIKey-2 KBC

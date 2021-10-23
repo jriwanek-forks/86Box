@@ -748,7 +748,6 @@ extern int machine_at_fw6400gx_init(const machine_t *);
 
 /* m_at_socket370.c */
 extern int machine_at_s370slm_init(const machine_t *);
-
 extern int machine_at_cubx_init(const machine_t *);
 extern int machine_at_atc7020bxii_init(const machine_t *);
 extern int machine_at_ambx133_init(const machine_t *);
@@ -759,6 +758,8 @@ extern int machine_at_apas3_init(const machine_t *);
 extern int machine_at_cuv4xls_init(const machine_t *);
 extern int machine_at_6via90ap_init(const machine_t *);
 extern int machine_at_s1857_init(const machine_t *);
+extern int machine_at_603tcf_init(const machine_t *);
+extern int machine_at_trinity371_init(const machine_t *);
 extern int machine_at_p6bap_init(const machine_t *);
 extern int machine_at_p6bat_init(const machine_t *);
 
