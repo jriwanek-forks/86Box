@@ -52,6 +52,9 @@ ifeq ($(DEV_BUILD), y)
  ifndef GUSMAX
   GUSMAX := y
  endif
+ ifndef HEDAKA
+  HEDAKA := y
+ endif
  ifndef ISAMEM_RAMPAGE
   ISAMEM_RAMPAGE := y
  endif
@@ -91,6 +94,9 @@ ifeq ($(DEV_BUILD), y)
  ifndef SIO_DETECT
   SIO_DETECT := y
  endif
+ ifndef VECT486VL
+  VECT486VL := y
+ endif
  ifndef VGAWONDER
   VGAWONDER := y
  endif
@@ -124,6 +130,9 @@ else
  endif
  ifndef GUSMAX
   GUSMAX := n
+ endif
+ ifndef HEDAKA
+  HEDAKA := n
  endif
  ifndef ISAMEM_RAMPAGE
   ISAMEM_RAMPAGE := n
@@ -163,6 +172,9 @@ else
  endif
  ifndef SIO_DETECT
   SIO_DETECT := n
+ endif
+ ifndef VECT486VL
+  VECT486VL := n
  endif
  ifndef VGAWONDER
   VGAWONDER := n
@@ -497,6 +509,10 @@ ifeq ($(DEV_BRANCH), y)
   OPTS += -DUSE_GUSMAX
  endif
 
+ ifeq ($(HEDAKA), y)
+  OPTS += -DUSE_HEDAKA
+ endif
+
  ifeq ($(ISAMEM_RAMPAGE), y)
   OPTS += -DUSE_ISAMEM_RAMPAGE
  endif
@@ -517,6 +533,11 @@ ifeq ($(DEV_BRANCH), y)
  ifeq ($(MGA), y)
   OPTS     += -DUSE_MGA
   DEVBROBJ += vid_mga.o
+ endif
+
+ ifeq ($(OLIVETTI), y)
+  OPTS     += -DUSE_OLIVETTI
+  DEVBROBJ += olivetti_eva.o
  endif
 
  ifeq ($(OPEN_AT), y)
@@ -559,11 +580,6 @@ ifeq ($(DEV_BRANCH), y)
 
  ifeq ($(XL24), y)
   OPTS += -DUSE_XL24
- endif
-
- ifeq ($(OLIVETTI), y)
-  OPTS     += -DUSE_OLIVETTI
-  DEVBROBJ += olivetti_eva.o
  endif
 
  ifeq ($(GDBSTUB), y)
