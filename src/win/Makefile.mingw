@@ -584,7 +584,7 @@ CHIPSETOBJ := 82c100.o acc2168.o \
               contaq_82c59x.o \
               cs4031.o cs8230.o \
               ali1429.o ali1435.o ali1489.o ali1531.o ali1541.o ali1543.o ali1621.o ali6117.o \
-              gc100.o headland.o \
+              gc100.o et6000.o headland.o \
               ims8848.o intel_82335.o intel_420ex.o intel_4x0.o intel_i450kx.o intel_sio.o intel_piix.o \
               ioapic.o \
               neat.o \
@@ -594,7 +594,7 @@ CHIPSETOBJ := 82c100.o acc2168.o \
               wd76c10.o vl82c480.o \
               umc_8886.o umc_hb4.o \
               via_vt82c49x.o via_vt82c505.o via_apollo.o via_pipc.o \
-              sis_85c310.o sis_85c4xx.o sis_85c496.o sis_85c50x.o sis_5511.o sis_5571.o
+              sis_85c310.o sis_85c4xx.o sis_85c496.o sis_85c50x.o sis_5511.o sis_5571.o sis_5598.o
 
 MCHOBJ := machine.o machine_table.o \
           m_xt.o m_xt_compaq.o \
