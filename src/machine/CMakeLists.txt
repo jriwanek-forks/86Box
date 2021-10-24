@@ -40,3 +40,15 @@ endif()
 if(OPEN_AT)
     target_compile_definitions(mch PRIVATE USE_OPEN_AT)
 endif()
+
+if(PS2M70T4)
+	target_compile_definitions(mch PRIVATE USE_PS2M70T4)
+endif()
+
+if(M154X)
+	target_compile_definitions(mch PRIVATE USE_M154X)
+endif()
+
+if(M6117)
+	target_compile_definitions(mch PRIVATE USE_M6117)
+endif()

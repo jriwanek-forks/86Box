@@ -805,6 +805,9 @@ extern int machine_ps2_model_60_init(const machine_t *);
 extern int machine_ps2_model_55sx_init(const machine_t *);
 extern int machine_ps2_model_65sx_init(const machine_t *);
 extern int machine_ps2_model_70_type3_init(const machine_t *);
+#if defined(DEV_BRANCH) && defined(USE_PS2M70T4)
+extern int machine_ps2_model_70_type4_init(const machine_t *);
+#endif
 extern int machine_ps2_model_80_init(const machine_t *);
 extern int machine_ps2_model_80_axx_init(const machine_t *);
 extern int machine_ps2_model_70_type4_init(const machine_t *);

@@ -67,6 +67,9 @@ ifeq ($(DEV_BUILD), y)
  ifndef MGA
   MGA := y
  endif
+ ifndef PS2M70T4
+  PS2M70T4	:= y
+ endif
  ifndef OLIVETTI
   OLIVETTI := y
  endif
@@ -130,6 +133,9 @@ else
  endif
  ifndef MGA
   MGA := n
+ endif
+ ifndef PS2M70T4
+  PS2M70T4	:= n
  endif
  ifndef OLIVETTI
   OLIVETTI := n
@@ -541,6 +547,10 @@ endif
 
 ifeq ($(RTMIDI), y)
  OPTS += -DUSE_RTMIDI
+endif
+
+ifeq ($(PS2M70T4), y)
+OPTS		+= -DUSE_PS2M70T4
 endif
 
 

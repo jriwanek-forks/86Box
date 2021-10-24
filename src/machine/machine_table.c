@@ -5968,6 +5968,11 @@ const machine_t machines[] = {
         .net_device = NULL
     },
 
+    /* 486 machines with utilize the MCA bus */
+#if defined(DEV_BRANCH) && defined(USE_PS2M70T4)
+    { "[MCA] IBM PS/2 model 70 (type 4)",	"ibmps2_m70_type4",	MACHINE_TYPE_486,		CPU_PKG_SOCKET1, 0, 0, 0, 0, 0, 0, 0,										MACHINE_MCA | MACHINE_BUS_PS2 | MACHINE_VIDEO,					 2048,  16384, 2048,  63,     machine_ps2_model_70_type4_init, NULL			},
+#endif
+
     /* 486 machines - Socket 3 */
     /* 486 machines with just the ISA slot */
     /* Has AMI MegaKey KBC firmware. */
