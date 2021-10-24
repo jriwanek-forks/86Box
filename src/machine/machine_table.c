@@ -5967,6 +5967,8 @@ const machine_t machines[] = {
         .snd_device = NULL,
         .net_device = NULL
     },
+    { "[ETEQ ET6000] Olivetti PCS-46C",		"pcs46c",		MACHINE_TYPE_486,		CPU_PKG_SOCKET1, 0, 0, 0, 0, 0, 0, 0,										MACHINE_VLB | MACHINE_IDE | MACHINE_VIDEO,					 4096, 32768, 4096, 127,	       machine_at_pcs46c_init, at_pcs46c_get_device	},
+    { "[VLSI 82C480] IBM PS/1 model 2133",	"ibmps1_2133",		MACHINE_TYPE_486,		CPU_PKG_SOCKET1, 0, 0, 0, 0, 0, 0, 0,										MACHINE_VLB | MACHINE_BUS_PS2 | MACHINE_IDE | MACHINE_NONMI | MACHINE_VIDEO,	 2048, 32768, 1024, 127,	       machine_ps1_m2133_init, ps1_m2133_get_device	},
 
     /* 486 machines with utilize the MCA bus */
 #if defined(DEV_BRANCH) && defined(USE_PS2M70T4)

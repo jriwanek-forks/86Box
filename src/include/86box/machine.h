@@ -789,6 +789,11 @@ extern int machine_pcjr_init(const machine_t *);
 /* m_ps1.c */
 extern int machine_ps1_m2011_init(const machine_t *);
 extern int machine_ps1_m2121_init(const machine_t *);
+extern int machine_ps1_m2133_init(const machine_t *);
+
+#ifdef EMU_DEVICE_H
+extern const device_t *ps1_m2133_get_device(void);
+#endif
 
 /* m_ps1_hdc.c */
 #ifdef EMU_DEVICE_H
