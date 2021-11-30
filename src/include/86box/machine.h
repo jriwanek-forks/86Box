@@ -627,6 +627,7 @@ extern int machine_at_endeavor_init(const machine_t *);
 extern int machine_at_ms5119_init(const machine_t *);
 extern int machine_at_pb640_init(const machine_t *);
 extern int machine_at_mb500n_init(const machine_t *);
+extern int machine_at_chariot_init(const machine_t *);
 extern int machine_at_fmb_init(const machine_t *);
 
 extern int machine_at_acerm3a_init(const machine_t *);

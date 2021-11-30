@@ -9245,6 +9245,7 @@ const machine_t machines[] = {
         .snd_device = NULL,
         .net_device = NULL
     },
+    { "[i430FX] QDI Chariot",		"chariot",		MACHINE_TYPE_SOCKET7_3V,	CPU_PKG_SOCKET5_7, CPU_BLOCK(CPU_WINCHIP, CPU_WINCHIP2, CPU_Cx6x86, CPU_Cx6x86L, CPU_Cx6x86MX), 50000000, 66666667, 3380, 3520, 1.5, 3.0, MACHINE_PCI | MACHINE_BUS_PS2 | MACHINE_IDE_DUAL,	 8192, 131072, 8192, 127,	      machine_at_chariot_init, NULL			},
     /* Has an AMI 'H' KBC firmware (1992). */
     {
         .name = "[i430FX] QDI FMB",
