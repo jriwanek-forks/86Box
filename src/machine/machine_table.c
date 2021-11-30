@@ -11837,6 +11837,7 @@ const machine_t machines[] = {
         .snd_device = NULL,
         .net_device = NULL
     },
+    { "[Slot 1 FX] Intel Portland",		"pd440fx",	MACHINE_TYPE_SLOT1,		CPU_PKG_SLOT1, 0, 60000000, 83333333, 1800, 3500, 1.5, 8.0,							MACHINE_PCI | MACHINE_BUS_PS2 | MACHINE_IDE_DUAL,				 8192, 768432, 8192, 127,		 machine_at_pd440fx_init, NULL		},
 
     /* 440LX */
     /* Has a Winbond W83977TF Super I/O chip with on-chip KBC with AMIKey-2 KBC
