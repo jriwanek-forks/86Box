@@ -65,6 +65,26 @@ machine_at_mr286_init(const machine_t *model)
     return ret;
 }
 
+int
+machine_at_poisk2_init(const machine_t *model)
+{
+    /*286 AT Clone made in the Soviet Union. Probably near or after collapse due to it's use of AMI BIOS*/
+    int ret;
+
+    ret = bios_load_interleaved("roms/machines/poisk2/Poisk-l.bin",
+                                "roms/machines/poisk2/Poisk-h.bin",
+                                0x000f0000, 65536, 0);
+
+    if (bios_only || !ret)
+        return ret;
+
+    machine_at_common_init(model);
+    device_add(&keyboard_at_device);
+    device_add(&fdc_at_device);
+
+    return ret;
+}
+
 static void
 machine_at_headland_common_init(int type)
 {

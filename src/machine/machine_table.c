@@ -2835,6 +2835,7 @@ const machine_t machines[] = {
         .snd_device = NULL,
         .net_device = NULL
     },
+    { "[286 ISA] POISK II 286",		"poisk2",		MACHINE_TYPE_286,		CPU_PKG_286, 0, 0, 0, 0, 0, 0, 0,										MACHINE_AT,											  512, 16384, 128,  127,		machine_at_poisk2_init, NULL		},
     /* Has IBM AT KBC firmware. */
     {
         .name = "[ISA] NCR PC8/810/710/3390/3392",
