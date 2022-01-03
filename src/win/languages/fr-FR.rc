@@ -41,9 +41,7 @@ BEGIN
             MENUITEM "&SDL (Logiciel)",         IDM_VID_SDL_SW
             MENUITEM "SDL (&Materiel)",         IDM_VID_SDL_HW
             MENUITEM "SDL (&OpenGL)",           IDM_VID_SDL_OPENGL
-#if defined(DEV_BRANCH) && defined(USE_OPENGL)
-            MENUITEM "Open&GL (3.3 Core)",      IDM_VID_OPENGL_CORE
-#endif
+            MENUITEM "Open&GL (3.0 Core)",      IDM_VID_OPENGL_CORE
 #ifdef USE_VNC
             MENUITEM "&VNC",                    IDM_VID_VNC
 #endif
@@ -51,7 +49,7 @@ BEGIN
         MENUITEM SEPARATOR
         MENUITEM "Specifier dimensions...",          IDM_VID_SPECIFY_DIM
         MENUITEM "F&orcer 4:3",    IDM_VID_FORCE43
-        POPUP "&Echelle facteurr"
+        POPUP "&Echelle facteur"
         BEGIN
             MENUITEM "&0.5x",                   IDM_VID_SCALE_1X
             MENUITEM "&1x",                     IDM_VID_SCALE_2X
@@ -101,13 +99,10 @@ BEGIN
         MENUITEM "&Réglages...",                IDM_CONFIG
         MENUITEM "Mettre à jour la barre de stat&us",	IDM_UPDATE_ICONS
         MENUITEM SEPARATOR
-        MENUITEM "&Preferences...",    IDM_PREFERENCES
-# ifdef USE_DISCORD
-        MENUITEM SEPARATOR
-        MENUITEM "Activer intégration &Discord", IDM_DISCORD
-# endif
-        MENUITEM SEPARATOR
         MENUITEM "Copie &Ecran\tCtrl+F11",  IDM_ACTION_SCREENSHOT
+        MENUITEM SEPARATOR
+        MENUITEM "&Préférences...",    IDM_PREFERENCES
+        MENUITEM "Activer intégration &Discord", IDM_DISCORD
         MENUITEM SEPARATOR
         MENUITEM "&Gain Son...",              IDM_SND_GAIN
 #ifdef MTR_ENABLED
@@ -172,7 +167,7 @@ BEGIN
         MENUITEM "&Nouvelle image...",				IDM_CASSETTE_IMAGE_NEW
         MENUITEM SEPARATOR
         MENUITEM "Image &Existante...",				IDM_CASSETTE_IMAGE_EXISTING
-        MENUITEM "Image Exsistane(&Lecture seule)...",	IDM_CASSETTE_IMAGE_EXISTING_WP
+        MENUITEM "Image Existante(&Lecture seule)...",	IDM_CASSETTE_IMAGE_EXISTING_WP
         MENUITEM SEPARATOR
         MENUITEM "En&registrer",					IDM_CASSETTE_RECORD
         MENUITEM "&Jouer",					IDM_CASSETTE_PLAY
@@ -249,7 +244,6 @@ BEGIN
     END
 END
 
-#if defined(DEV_BRANCH) && defined(USE_OPENGL)
 VidGLSubMenu MENU DISCARDABLE
 BEGIN
     POPUP "&Taux de rafraîchissement cible"
@@ -265,7 +259,6 @@ BEGIN
     MENUITEM "Sé&lectionnez le shader...", IDM_VID_GL_SHADER
     MENUITEM "S&upprimer le shader", IDM_VID_GL_NOSHADER
 END
-#endif
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -273,15 +266,15 @@ END
 // Dialog
 //
 
-#define STR_PREFERENCES		"86Box Preferences"
+#define STR_PREFERENCES		"Préférences"
 #define STR_SND_GAIN		"Gain son"
 #define STR_NEW_FLOPPY		"Nouvelle image"
-#define STR_CONFIG		"Réglages 86Box"
+#define STR_CONFIG		"Réglages"
 #define STR_SPECIFY_DIM		"Spécifier le détournement de la fenêtre principale"
 
 #define STR_OK			"OK"
 #define STR_CANCEL		"Annuler"
-#define STR_GLOBAL		"Sauver ces paramètres comme valeurs par défaut &globales"
+#define STR_GLOBAL		"Sauvegarder ces paramètres comme valeurs par défaut &globales"
 #define STR_DEFAULT		"&Défaut"
 #define STR_LANGUAGE		"Langue:"
 #define STR_ICONSET		"Ensemble d'icônes:"
@@ -485,13 +478,13 @@ BEGIN
     IDS_2118	"Côntrolleur interne"
     IDS_2119	"Sortir"
     IDS_2120	"Pas de ROMs trouvées"
-    IDS_2121	"Voulez-vous sauver les paramètres ?"
+    IDS_2121	"Voulez-vous sauvegarder les paramètres ?"
     IDS_2122	"Cela entraînera la réinitialisation complète de la machine émulée."
-    IDS_2123	"Sauver"
+    IDS_2123	"Sauvegarder"
     IDS_2124	"À propos de 86Box"
     IDS_2125	"86Box v" EMU_VERSION
 
-    IDS_2126	"Un émulateur de vieux ordinateurs\n\nAuteurs: Sarah Walker, Miran Grca, Fred N. van Kempen (waltje), SA1988, MoochMcGee, reenigne, leilei, JohnElliott, greatpsycho, and others.\n\nLibéré sous la licence GNU General Public License version 2 ou ultérieure. Pour plus d'informations, voir le fichier LICENSE."
+    IDS_2126	"Un émulateur de vieux ordinateurs\n\nAuteurs: Sarah Walker, Miran Grca, Fred N. van Kempen (waltje), SA1988, Tiseno100, reenigne, leilei, JohnElliott, greatpsycho, and others.\n\nLibéré sous la licence GNU General Public License version 2 ou ultérieure. Pour plus d'informations, voir le fichier LICENSE."
     IDS_2127	"OK"
     IDS_2128	"Matériel non disponible"
 #ifdef _WIN32
@@ -537,6 +530,8 @@ BEGIN
     IDS_2149	"Images cassette (*.PCM;*.RAW;*.WAV;*.CAS)\0*.PCM;*.RAW;*.WAV;*.CAS\0Tous les fichiers (*.*)\0*.*\0"
     IDS_2150	"Cartouche %i: %ls"
     IDS_2151	"Images cartouche (*.A;*.B;*.JRC)\0*.A;*.B;*.JRC\0Tous les fichiers (*.*)\0*.*\0"
+    IDS_2152	"Error initializing renderer"
+    IDS_2153	"OpenGL (3.0 Core) renderer could not be initialized. Use another renderer."
 END
 
 STRINGTABLE DISCARDABLE 

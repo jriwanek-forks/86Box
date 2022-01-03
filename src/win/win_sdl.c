@@ -232,6 +232,46 @@ static void
 sdl_blit(int x, int y, int w, int h)
 {
     SDL_Rect r_src;
+    int ret;
+
+    if (!sdl_enabled || (x < 0) || (y < 0) || (w <= 0) || (h <= 0) || (w > 2048) || (h > 2048) || (buffer32 == NULL) || (sdl_render == NULL) || (sdl_tex == NULL)) {
+	video_blit_complete();
+	return;
+    }
+
+    SDL_LockMutex(sdl_mutex);
+
+    r_src.x = x;
+    r_src.y = y;
+    r_src.w = w;
+    r_src.h = h;
+    SDL_UpdateTexture(sdl_tex, &r_src, &(buffer32->line[y][x]), 2048 * sizeof(uint32_t));
+
+    if (screenshots)
+	video_screenshot((uint32_t *) buffer32->dat, x, y, 2048);
+
+    video_blit_complete();
+
+    SDL_RenderClear(sdl_render);
+
+    r_src.x = x;
+    r_src.y = y;
+    r_src.w = w;
+    r_src.h = h;
+
+    ret = SDL_RenderCopy(sdl_render, sdl_tex, &r_src, 0);
+    if (ret)
+	sdl_log("SDL: unable to copy texture to renderer (%s)\n", sdl_GetError());
+
+    SDL_RenderPresent(sdl_render);
+    SDL_UnlockMutex(sdl_mutex);
+}
+
+
+static void
+sdl_blit_ex(int x, int y, int w, int h)
+{
+    SDL_Rect r_src;
     void *pixeldata;
     int pitch, ret;
 
@@ -244,10 +284,10 @@ sdl_blit(int x, int y, int w, int h)
 
     SDL_LockTexture(sdl_tex, 0, &pixeldata, &pitch);
 
-    video_copy(pixeldata, &(buffer32->line[y][x]), h * (2048 + 64) * sizeof(uint32_t));
+    video_copy(pixeldata, &(buffer32->line[y][x]), h * 2048 * sizeof(uint32_t));
 
     if (screenshots)
-	video_screenshot((uint32_t *) pixeldata, 0, 0, (2048 + 64));
+	video_screenshot((uint32_t *) pixeldata, 0, 0, 2048);
 
     SDL_UnlockTexture(sdl_tex);
 
@@ -358,7 +398,7 @@ sdl_init_texture(void)
 	sdl_render = SDL_CreateRenderer(sdl_win, -1, SDL_RENDERER_SOFTWARE);
 
     sdl_tex = SDL_CreateTexture(sdl_render, SDL_PIXELFORMAT_ARGB8888,
-				SDL_TEXTUREACCESS_STREAMING, (2048 + 64), (2048 + 64));
+				SDL_TEXTUREACCESS_STREAMING, 2048, 2048);
 }
 
 
@@ -478,7 +518,7 @@ sdl_init_common(int flags)
     atexit(sdl_close);
 
     /* Register our renderer! */
-    video_setblit(sdl_blit);
+    video_setblit((video_grayscale || invert_display) ? sdl_blit_ex : sdl_blit);
 
     sdl_enabled = 1;
     sdl_mutex = SDL_CreateMutex();
@@ -582,4 +622,6 @@ sdl_reload(void)
 
 	SDL_UnlockMutex(sdl_mutex);
     }
+
+    video_setblit((video_grayscale || invert_display) ? sdl_blit_ex : sdl_blit);
 }

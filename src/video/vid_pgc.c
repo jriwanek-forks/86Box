@@ -2600,7 +2600,7 @@ pgc_speed_changed(void *priv)
 
 
 void
-pgc_close(void *priv)
+pgc_close_common(void *priv)
 {
     pgc_t *dev = (pgc_t *)priv;
 
@@ -2624,7 +2624,7 @@ pgc_close(void *priv)
     pgc_log("PGC: waiting for thread to stop...\n");
 #endif
     // while (dev->stopped);
-    thread_wait(dev->pgc_thread, -1);
+    thread_wait(dev->pgc_thread);
 #ifdef ENABLE_PGC_LOG
     pgc_log("PGC: thread stopped, closing up.\n");
 #endif
@@ -2633,6 +2633,15 @@ pgc_close(void *priv)
        	free(dev->cga_vram);
     if (dev->vram)
        	free(dev->vram);
+}
+
+
+void
+pgc_close(void *priv)
+{
+    pgc_t *dev = (pgc_t *)priv;
+
+    pgc_close_common(priv);
 
     free(dev);
 }

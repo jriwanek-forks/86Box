@@ -60,7 +60,7 @@
 
 
 HWND		hwndSBAR;
-int		update_icons = 1;
+int		update_icons = 1, reset_occurred = 1;
 
 
 static LONG_PTR	OriginalProcedure;
@@ -122,12 +122,17 @@ hdd_count(int bus)
 void
 ui_sb_timer_callback(int pane)
 {
-    sb_part_icons[pane] &= ~1;
+    if (!(reset_occurred & 1)) {
+	sb_part_icons[pane] &= ~1;
 
-    if (sb_part_icons && sb_part_icons[pane]) {
-	SendMessage(hwndSBAR, SB_SETICON, pane,
-		    (LPARAM)hIcon[sb_part_icons[pane]]);
-    }
+	if (sb_part_icons && sb_part_icons[pane]) {
+		SendMessage(hwndSBAR, SB_SETICON, pane,
+			    (LPARAM)hIcon[sb_part_icons[pane]]);
+	}
+    } else
+	reset_occurred &= ~1;
+
+    reset_occurred &= ~2;
 }
 
 
@@ -152,6 +157,7 @@ ui_sb_update_icon(int tag, int active)
 	PostMessage(hwndSBAR, SB_SETICON, found,
 		    (LPARAM)hIcon[sb_part_icons[found]]);
 
+	reset_occurred = 2;
 	SetTimer(hwndMain, 0x8000 | found, 75, NULL);
     }
 }
@@ -479,6 +485,9 @@ StatusBarDestroyTips(void)
 
 
 /* API: mark the status bar as not ready. */
+/* Values: -1 - not ready, but don't clear POST text
+            0 - not ready 
+            1 - ready */
 void
 ui_sb_set_ready(int ready)
 {
@@ -487,6 +496,9 @@ ui_sb_set_ready(int ready)
 	ui_sb_set_text(NULL);
     }
 
+    if (ready == -1)
+      ready = 0;
+	
     sb_ready = ready;
 }
 
@@ -510,12 +522,12 @@ ui_sb_update_panes(void)
 	sb_ready = 0;
     }
 
-    cart_int = (machines[machine].flags & MACHINE_CARTRIDGE) ? 1 : 0;
-    mfm_int = (machines[machine].flags & MACHINE_MFM) ? 1 : 0;
-    xta_int = (machines[machine].flags & MACHINE_XTA) ? 1 : 0;
-    esdi_int = (machines[machine].flags & MACHINE_ESDI) ? 1 : 0;
-    ide_int = (machines[machine].flags & MACHINE_IDE_QUAD) ? 1 : 0;
-    scsi_int = (machines[machine].flags & MACHINE_SCSI_DUAL) ? 1 : 0;
+    cart_int = machine_has_cartridge(machine) ? 1 : 0;
+    mfm_int = machine_has_flags(machine, MACHINE_MFM) ? 1 : 0;
+    xta_int = machine_has_flags(machine, MACHINE_XTA) ? 1 : 0;
+    esdi_int = machine_has_flags(machine, MACHINE_ESDI) ? 1 : 0;
+    ide_int = machine_has_flags(machine, MACHINE_IDE_QUAD) ? 1 : 0;
+    scsi_int = machine_has_flags(machine, MACHINE_SCSI_DUAL) ? 1 : 0;
 
     c_mfm = hdd_count(HDD_BUS_MFM);
     c_esdi = hdd_count(HDD_BUS_ESDI);
@@ -561,7 +573,7 @@ ui_sb_update_panes(void)
     for (i=0; i<CDROM_NUM; i++) {
 	/* Could be Internal or External IDE.. */
 	if ((cdrom[i].bus_type == CDROM_BUS_ATAPI) &&
-	    !ide_int && memcmp(hdc_name, "ide", 3))
+	    !ide_int && memcmp(hdc_name, "xtide", 5) && memcmp(hdc_name, "ide", 3))
 		continue;
 
 	if ((cdrom[i].bus_type == CDROM_BUS_SCSI) && !scsi_int &&
@@ -574,7 +586,7 @@ ui_sb_update_panes(void)
     for (i=0; i<ZIP_NUM; i++) {
 	/* Could be Internal or External IDE.. */
 	if ((zip_drives[i].bus_type == ZIP_BUS_ATAPI) &&
-	    !ide_int && memcmp(hdc_name, "ide", 3))
+	    !ide_int && memcmp(hdc_name, "xtide", 5) && memcmp(hdc_name, "ide", 3))
 		continue;
 
 	if ((zip_drives[i].bus_type == ZIP_BUS_SCSI) && !scsi_int &&
@@ -587,7 +599,7 @@ ui_sb_update_panes(void)
     for (i=0; i<MO_NUM; i++) {
 	/* Could be Internal or External IDE.. */
 	if ((mo_drives[i].bus_type == MO_BUS_ATAPI) &&
-	    !ide_int && memcmp(hdc_name, "ide", 3))
+	    !ide_int && memcmp(hdc_name, "xtide", 5) && memcmp(hdc_name, "ide", 3))
 		continue;
 
 	if ((mo_drives[i].bus_type == MO_BUS_SCSI) && !scsi_int &&
@@ -654,7 +666,7 @@ ui_sb_update_panes(void)
     for (i=0; i<CDROM_NUM; i++) {
 	/* Could be Internal or External IDE.. */
 	if ((cdrom[i].bus_type == CDROM_BUS_ATAPI) &&
-	    !ide_int && memcmp(hdc_name, "ide", 3))
+	    !ide_int && memcmp(hdc_name, "xtide", 5) && memcmp(hdc_name, "ide", 3))
 		continue;
 	if ((cdrom[i].bus_type == CDROM_BUS_SCSI) && !scsi_int &&
 	    (scsi_card_current[0] == 0) && (scsi_card_current[1] == 0) &&
@@ -671,7 +683,7 @@ ui_sb_update_panes(void)
     for (i=0; i<ZIP_NUM; i++) {
 	/* Could be Internal or External IDE.. */
 	if ((zip_drives[i].bus_type == ZIP_BUS_ATAPI) &&
-	    !ide_int && memcmp(hdc_name, "ide", 3))
+	    !ide_int && memcmp(hdc_name, "xtide", 5) && memcmp(hdc_name, "ide", 3))
 		continue;
 	if ((zip_drives[i].bus_type == ZIP_BUS_SCSI) && !scsi_int &&
 	    (scsi_card_current[0] == 0) && (scsi_card_current[1] == 0) &&
@@ -688,7 +700,7 @@ ui_sb_update_panes(void)
     for (i=0; i<MO_NUM; i++) {
 	/* Could be Internal or External IDE.. */
 	if ((mo_drives[i].bus_type == MO_BUS_ATAPI) &&
-	    !ide_int && memcmp(hdc_name, "ide", 3))
+	    !ide_int && memcmp(hdc_name, "xtide", 5) && memcmp(hdc_name, "ide", 3))
 		continue;
 	if ((mo_drives[i].bus_type == MO_BUS_SCSI) && !scsi_int &&
 	    (scsi_card_current[0] == 0) && (scsi_card_current[1] == 0) &&
@@ -832,6 +844,8 @@ ui_sb_update_panes(void)
     }
 
     sb_ready = 1;
+    if (reset_occurred & 2)
+	reset_occurred |= 1;
 }
 
 
@@ -1014,7 +1028,7 @@ StatusBarCreate(HWND hwndParent, uintptr_t idStatus, HINSTANCE hInst)
 }
 
 
-static void
+void
 ui_sb_update_text()
 {
     uint8_t part = 0xff;

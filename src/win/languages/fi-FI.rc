@@ -41,9 +41,7 @@ BEGIN
             MENUITEM "&SDL (ohjelmistopohjainen)",                      IDM_VID_SDL_SW
             MENUITEM "SDL (&laitteistokiihdytetty)",                    IDM_VID_SDL_HW
             MENUITEM "SDL (&OpenGL)",                                   IDM_VID_SDL_OPENGL
-#if defined(DEV_BRANCH) && defined(USE_OPENGL)
-            MENUITEM "Open&GL (3.3 Core)",                              IDM_VID_OPENGL_CORE
-#endif
+            MENUITEM "Open&GL (3.0 Core)",                              IDM_VID_OPENGL_CORE
 #ifdef USE_VNC
             MENUITEM "&VNC",                                            IDM_VID_VNC
 #endif
@@ -101,13 +99,10 @@ BEGIN
         MENUITEM "&Kokoonpano...",                                      IDM_CONFIG
         MENUITEM "&Päivitä tilapalkin kuvakkeita",                      IDM_UPDATE_ICONS
         MENUITEM SEPARATOR
-        MENUITEM "&Sovellusasetukset...",                               IDM_PREFERENCES
-# ifdef USE_DISCORD
-        MENUITEM SEPARATOR
-        MENUITEM "Käytä &Discord integraatiota",                        IDM_DISCORD
-# endif
-        MENUITEM SEPARATOR
         MENUITEM "Ota &kuvakaappaus\tCtrl+F11",                         IDM_ACTION_SCREENSHOT
+        MENUITEM SEPARATOR
+        MENUITEM "&Sovellusasetukset...",                               IDM_PREFERENCES
+        MENUITEM "Käytä &Discord integraatiota",                        IDM_DISCORD
         MENUITEM SEPARATOR
         MENUITEM "&Äänen tulotaso...",                                  IDM_SND_GAIN
 #ifdef MTR_ENABLED
@@ -249,7 +244,6 @@ BEGIN
     END
 END
 
-#if defined(DEV_BRANCH) && defined(USE_OPENGL)
 VidGLSubMenu MENU DISCARDABLE
 BEGIN
     POPUP "&Kuvataajuustavoite"
@@ -265,7 +259,6 @@ BEGIN
     MENUITEM "Valitse varjostin&ohjelma...",    IDM_VID_GL_SHADER
     MENUITEM "&Poista varjostinohjelma",        IDM_VID_GL_NOSHADER
 END
-#endif
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -276,7 +269,7 @@ END
 #define STR_PREFERENCES     "Sovellusasetukset"
 #define STR_SND_GAIN        "Äänen tulotaso"
 #define STR_NEW_FLOPPY      "Uusi levykuva"
-#define STR_CONFIG          "Tietokoneen kokoonpano"
+#define STR_CONFIG          "Kokoonpano"
 #define STR_SPECIFY_DIM     "Määritä pääikkunan koko"
 
 #define STR_OK              "OK"
@@ -537,6 +530,8 @@ BEGIN
     IDS_2149    "Kasetti-tiedostot (*.PCM;*.RAW;*.WAV;*.CAS)\0*.PCM;*.RAW;*.WAV;*.CAS\0Kaikki tiedostot (*.*)\0*.*\0"
     IDS_2150    "ROM-moduuli %i: %ls"
     IDS_2151    "ROM-moduulikuvat (*.A;*.B;*.JRC)\0*.A;*.B;*.JRC\0Kaikki tiedostot (*.*)\0*.*\0"
+    IDS_2152	"Virhe renderöijän alustuksessa"
+    IDS_2153	"OpenGL (3.0 Core) renderöijän alustus epäonnistui. Käytä toista renderöijää."
 END
 
 STRINGTABLE DISCARDABLE

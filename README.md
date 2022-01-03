@@ -1,4 +1,4 @@
-86Box
+86Box [![Build Status](http://ci.86box.net/job/86Box/badge/icon)](http://ci.86box.net/job/86Box)
 =====
 **86Box** is a low level x86 emulator that runs older operating systems and software designed for IBM PC systems and compatibles from 1981 through fairly recent system designs based on the PCI bus.
 
@@ -27,22 +27,6 @@ It is also recommended to use a manager application with 86Box for easier handli
   * The traditional 86Box manager with simple interface.
 
 However, it is also possible to use 86Box on its own with the `--vmpath`/`-P` command line option.
-
-Downloads
----------
-The latest stable version of 86Box is version 2.07, which was released on November 20, 2019, and is available from our [GitHub repository](https://github.com/86Box/86Box/releases/tag/v2.07).
-
-### Automatic builds
-We also offer automatic builds, which are built from the latest source code and contain the latest bugfixes and improvements, but may not be as stable and/or optimized as stable builds.
-
-| Regular | Debug | Experimental |
-|:-------:|:-----:|:------------:|
-|[![Build Status](http://ci.86box.net/job/86Box/badge/icon)](http://ci.86box.net/job/86Box)|[![Build Status](http://ci.86box.net/job/86Box-Debug/badge/icon)](http://ci.86box.net/job/86Box-Debug)|[![Build Status](http://ci.86box.net/job/86Box-Dev/badge/icon)](http://ci.86box.net/job/86Box-Dev)
-
-#### Legend
-* **Regular** builds are compiled using the settings in the building guide above. Use these if you don't know which build to use.
-* **Debug** builds are same as regular builds but include debug symbols. If you don't need them, you don't need to use this build.
-* **Experimental (Dev)** builds are compiled with certain unfinished features enabled. These builds are not optimized for maximum performance.
 
 Getting started
 ---------------

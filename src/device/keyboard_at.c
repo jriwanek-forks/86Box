@@ -679,17 +679,21 @@ add_to_kbc_queue_front(atkbd_t *dev, uint8_t val, uint8_t channel, uint8_t stat_
     if (channel == 2) {
 	if (dev->mem[0] & 0x02)
 		picint(0x1000);
-	dev->last_irq = 0x1000;
+	if (kbc_ven != KBC_VEN_OLIVETTI)
+		dev->last_irq = 0x1000;
     } else {
 	if (dev->mem[0] & 0x01)
 		picint(2);
-	dev->last_irq = 2;
+	if (kbc_ven != KBC_VEN_OLIVETTI)
+		dev->last_irq = 2;
     }
     dev->out = val;
     if (channel == 2)
 	dev->status = (dev->status & ~STAT_IFULL) | (STAT_OFULL | STAT_MFULL) | stat_hi;
     else
 	dev->status = (dev->status & ~(STAT_IFULL | STAT_MFULL)) | STAT_OFULL | stat_hi;
+    if (kbc_ven == KBC_VEN_OLIVETTI)
+	dev->last_irq = 0x0000;
 }
 
 
@@ -1051,15 +1055,15 @@ add_data_kbd(uint16_t val)
 static void
 write_output(atkbd_t *dev, uint8_t val)
 {
-    uint8_t kbc_ven = dev->flags & KBC_VEN_MASK;
     uint8_t old = dev->output_port;
     kbd_log("ATkbc: write output port: %02X (old: %02X)\n", val, dev->output_port);
 
-    if ((kbc_ven == KBC_VEN_AMI) || ((dev->flags & KBC_TYPE_MASK) < KBC_TYPE_PS2_NOREF))
+    uint8_t kbc_ven = dev->flags & KBC_VEN_MASK;
+    if ((kbc_ven != KBC_VEN_OLIVETTI) && ((kbc_ven == KBC_VEN_AMI) || ((dev->flags & KBC_TYPE_MASK) < KBC_TYPE_PS2_NOREF)))
 	val |= ((dev->mem[0] << 4) & 0x10);
 
     /*IRQ 12*/
-    if ((dev->output_port ^ val) & 0x20) {
+    if ((old ^ val) & 0x20) {
 	if (val & 0x20)
 		picint(1 << 12);
 	else
@@ -1067,33 +1071,33 @@ write_output(atkbd_t *dev, uint8_t val)
     }
 
     /*IRQ 1*/
-    if ((dev->output_port ^ val) & 0x10) {
+    if ((old ^ val) & 0x10) {
 	if (val & 0x10)
 		picint(1 << 1);
 	else
 		picintc(1 << 1);
     }
 
-    if ((dev->output_port ^ val) & 0x02) { /*A20 enable change*/
+    if ((old ^ val) & 0x02) { /*A20 enable change*/
 	mem_a20_key = val & 0x02;
 	mem_a20_recalc();
 	flushmmucache();
     }
 
-    /* Do this here to avoid an infinite reset loop. */
-    dev->output_port = val;
-
     /* 0 holds the CPU in the RESET state, 1 releases it. To simplify this,
        we just do everything on release. */
-    if ((val & 0x01) && !(old & 0x01)) {
-	if (val & 0x01) {
+    if ((old ^ val) & 0x01) { /*Reset*/
+	if (! (val & 0x01)) {		/* Pin 0 selected. */
 		/* Pin 0 selected. */
-		pclog("write_output(): Pulse reset!\n");
+		kbd_log("write_output(): Pulse reset!\n");
 		softresetx86();		/*Pulse reset!*/
 		cpu_set_edx();
 		flushmmucache();
 	}
     }
+
+    /* Do this here to avoid an infinite reset loop. */
+    dev->output_port = val;
 }
 
 
@@ -1382,7 +1386,7 @@ write64_ami(void *priv, uint8_t val)
 		
 	case 0xa1:	/* get controller version */
 		kbd_log("ATkbc: AMI - get controller version\n");
-		add_data(dev, 'Z');
+		add_data(dev, 'H');
 		return 0;
 
 	case 0xa2:	/* clear keyboard controller lines P22/P23 */
@@ -1460,7 +1464,7 @@ write64_ami(void *priv, uint8_t val)
 	case 0xb0: case 0xb1: case 0xb2: case 0xb3:
 		/* set KBC lines P10-P13 (input port bits 0-3) low */
 		kbd_log("ATkbc: set KBC lines P10-P13 (input port bits 0-3) low\n");
-		if (!PCI || (val > 0xb1))
+		if (!(dev->flags & DEVICE_PCI) || (val > 0xb1))
 			dev->input_port &= ~(1 << (val & 0x03));
 		add_data(dev, 0x00);
 		return 0;
@@ -1468,7 +1472,7 @@ write64_ami(void *priv, uint8_t val)
 	case 0xb4: case 0xb5:
 		/* set KBC lines P22-P23 (output port bits 2-3) low */
 		kbd_log("ATkbc: set KBC lines P22-P23 (output port bits 2-3) low\n");
-		if (! PCI)
+		if (! (dev->flags & DEVICE_PCI))
 			write_output(dev, dev->output_port & ~(4 << (val & 0x01)));
 		add_data(dev, 0x00);
 		return 0;
@@ -1476,7 +1480,7 @@ write64_ami(void *priv, uint8_t val)
 	case 0xb8: case 0xb9: case 0xba: case 0xbb:
 		/* set KBC lines P10-P13 (input port bits 0-3) high */
 		kbd_log("ATkbc: set KBC lines P10-P13 (input port bits 0-3) high\n");
-		if (!PCI || (val > 0xb9)) {
+		if (!(dev->flags & DEVICE_PCI) || (val > 0xb9)) {
 			dev->input_port |= (1 << (val & 0x03));
 			add_data(dev, 0x00);
 		}
@@ -1485,7 +1489,7 @@ write64_ami(void *priv, uint8_t val)
 	case 0xbc: case 0xbd:
 		/* set KBC lines P22-P23 (output port bits 2-3) high */
 		kbd_log("ATkbc: set KBC lines P22-P23 (output port bits 2-3) high\n");
-		if (! PCI)
+		if (! (dev->flags & DEVICE_PCI))
 			write_output(dev, dev->output_port | (4 << (val & 0x01)));
 		add_data(dev, 0x00);
 		return 0;
@@ -2104,7 +2108,7 @@ kbd_write(uint16_t port, uint8_t val, void *priv)
 			case 0xd0:	/* read output port */
 				kbd_log("ATkbc: read output port\n");
 				mask = 0xff;
-				if (((dev->flags & KBC_TYPE_MASK) < KBC_TYPE_PS2_NOREF) && (dev->mem[0] & 0x10))
+				if ((kbc_ven != KBC_VEN_OLIVETTI) && ((dev->flags & KBC_TYPE_MASK) < KBC_TYPE_PS2_NOREF) && (dev->mem[0] & 0x10))
 					mask &= 0xbf;
 				add_to_kbc_queue_front(dev, dev->output_port & mask, 0, 0x00);
 				break;

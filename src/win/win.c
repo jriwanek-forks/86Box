@@ -35,6 +35,7 @@
 #include <direct.h>
 #include <wchar.h>
 #include <io.h>
+#include <stdatomic.h>
 #define HAVE_STDARG_H
 #include <86box/86box.h>
 #include <86box/config.h>
@@ -46,7 +47,6 @@
 #include <86box/video.h>
 #define GLOBAL
 #include <86box/plat.h>
-#include <86box/plat_midi.h>
 #include <86box/ui.h>
 #ifdef USE_VNC
 # include <86box/vnc.h>
@@ -106,11 +106,7 @@ static const struct {
   {	"SDL_Software", 1, (int(*)(void*))sdl_inits, sdl_close, NULL, sdl_pause, sdl_enable, sdl_set_fs, sdl_reload	},
   {	"SDL_Hardware", 1, (int(*)(void*))sdl_inith, sdl_close, NULL, sdl_pause, sdl_enable, sdl_set_fs, sdl_reload	},
   {	"SDL_OpenGL", 1, (int(*)(void*))sdl_initho, sdl_close, NULL, sdl_pause, sdl_enable, sdl_set_fs, sdl_reload	}
-#if defined(DEV_BRANCH) && defined(USE_OPENGL)
  ,{	"OpenGL_Core", 1, (int(*)(void*))opengl_init, opengl_close, opengl_resize, opengl_pause, NULL, opengl_set_fs, opengl_reload}
-#else
- ,{	"OpenGL_Core", 1, (int(*)(void*))sdl_initho, sdl_close, NULL, sdl_pause, sdl_enable, sdl_set_fs, NULL		} /* fall back to SDL_OpenGL */
-#endif
 #ifdef USE_VNC
  ,{	"VNC", 0, vnc_init, vnc_close, vnc_resize, vnc_pause, NULL, NULL						}
 #endif
@@ -253,28 +249,28 @@ has_language_changed(uint32_t id)
 void
 set_language(uint32_t id)
 {
-	if (id == 0xFFFF)
-	{
-		set_language(lang_sys);
-		lang_id = id;
-		return;
-	}
-	
+    if (id == 0xFFFF) {
+	set_language(lang_sys);
+	lang_id = id;
+	return;
+    }
+
     if (lang_id != id) {
-		/* Set our new language ID. */
-		lang_id = id;
-		SetThreadUILanguage(lang_id);
+	/* Set our new language ID. */
+	lang_id = id;
+	SetThreadUILanguage(lang_id);
 		
-		/* Load the strings table for this ID. */
-		LoadCommonStrings();
+	/* Load the strings table for this ID. */
+	LoadCommonStrings();
 		
-		/* Reload main menu */
-		menuMain = LoadMenu(hinstance, L"MainMenu");
+	/* Reload main menu */
+	menuMain = LoadMenu(hinstance, L"MainMenu");
+	if (hwndMain != NULL)
 		SetMenu(hwndMain, menuMain);
-		
-		/* Re-init all the menus */
-		ResetAllMenus();
-		media_menu_init();
+
+	/* Re-init all the menus */
+	ResetAllMenus();
+	media_menu_init();
     } 
 }
 
@@ -554,12 +550,11 @@ main_thread(void *param)
 		// Sleep(1);
 
 	/* If needed, handle a screen resize. */
-	if (doresize && !video_fullscreen && !is_quit) {
+	if (!atomic_flag_test_and_set(&doresize) && !video_fullscreen && !is_quit) {
 		if (vid_resize & 2)
 			plat_resize(fixed_size_x, fixed_size_y);
 		else
 			plat_resize(scrnsz_x, scrnsz_y);
-		doresize = 0;
 	}
     }
 
@@ -1005,15 +1000,9 @@ plat_vidapi_name(int api)
 	case 2:
 		name = "sdl_opengl";
 		break;
-#if defined(DEV_BRANCH) && defined(USE_OPENGL)
 	case 3:
 		name = "opengl_core";
 		break;
-#else
-	case 3:
-		name = "sdl_opengl"; /* fall back to SDL_OpenGL */
-		break;
-#endif
 #ifdef USE_VNC
 	case 4:
 		name = "vnc";
@@ -1172,7 +1161,7 @@ plat_setfullscreen(int on)
     video_fullscreen &= 1;
     video_force_resize_set(1);
     if (!(on & 1))
-	doresize = 1;
+        atomic_flag_clear(&doresize);
 
     win_mouse_init();
 
@@ -1204,6 +1193,14 @@ plat_vid_reload_options(void)
 
 	vid_apis[vid_api].reload();
 }
+
+
+void
+plat_vidapi_reload(void)
+{
+    vid_apis[vid_api].reload();
+}
+
 
 /* Sets up the program language before initialization. */
 uint32_t 

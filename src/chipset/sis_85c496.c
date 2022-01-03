@@ -143,6 +143,8 @@ sis_85c496_recalcmapping(sis_85c496_t *dev)
 	} else
 		mem_set_mem_state_both(base, 0x8000, MEM_READ_EXTANY | MEM_WRITE_EXTANY);
     }
+
+    flushmmucache_nopc();
 }
 
 
@@ -240,13 +242,8 @@ sis_85c49x_pci_write(int func, int addr, uint8_t val, void *priv)
 		break;
 	case 0x45:	/* Shadow Configure */
 		dev->pci_conf[addr] = val & 0x0f;
-		if (valxor & 0x03) {
+		if (valxor & 0x03)
 			sis_85c496_recalcmapping(dev);
-			if ((old == 0x0a) && (val == 0x09))
-				flushmmucache_nopc();
-			else
-				flushmmucache();
-		}
 		break;
 	case 0x46:	/* Cacheable Control */
 		dev->pci_conf[addr] = val;
@@ -608,7 +605,7 @@ static void
     ide_sec_disable();
 
     if (info->local)
-	dev->nvr = device_add(&ls486e_nvr_device);
+	dev->nvr = device_add(&ami_1994_nvr_device);
     else
 	dev->nvr = device_add(&at_nvr_device);
 

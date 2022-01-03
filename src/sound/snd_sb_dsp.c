@@ -46,7 +46,7 @@ static int sbe2dat[4][9] = {
 
 static int sb_commands[256]=
 {
-        -1, 2,-1,-1, 1, 2,-1, 0, 1,-1,-1,-1,-1,-1, 2, 1,
+        -1, 2,-1, 0, 1, 2,-1, 0, 1,-1,-1,-1,-1,-1, 2, 1,
          1,-1,-1,-1, 2,-1, 2, 2,-1,-1,-1,-1, 0,-1,-1, 0,
          0,-1,-1,-1, 2,-1,-1,-1,-1,-1,-1,-1, 0,-1,-1,-1,
         -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
@@ -61,7 +61,7 @@ static int sb_commands[256]=
          3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
          0, 0,-1, 0, 0, 0, 0,-1, 0, 0, 0,-1,-1,-1,-1,-1,
          1, 0, 1, 0, 1,-1,-1, 0, 0,-1,-1,-1,-1,-1,-1,-1,
-        -1,-1, 0,-1,-1,-1,-1,-1,-1, 1, 2,-1,-1,-1,-1, 0
+        -1,-1, 0, 0,-1,-1,-1,-1,-1, 1, 2,-1,-1,-1,-1, 0
 };
 
 
@@ -311,15 +311,17 @@ sb_doreset(sb_dsp_t *dsp)
 
 
     if (IS_AZTECH(dsp)) {
-        sb_commands[8] =  1;
-        sb_commands[9] =  1;
+	sb_commands[8] =  1;
+	sb_commands[9] =  1;
     } else {
-        if ((dsp->sb_type >= SB16) && (dsp->sb_type < SBAWE64))
-	    sb_commands[8] =  1;
-        else
-	    sb_commands[8] = -1;    
+	if (dsp->sb_type >= SB16)
+		sb_commands[8] =  1;
+	else
+		sb_commands[8] = -1;
     }
 
+    dsp->sb_asp_mode = 0;
+    dsp->sb_asp_ram_index = 0;
     for (c = 0; c < 256; c++)
 	dsp->sb_asp_regs[c] = 0;
 
@@ -472,13 +474,20 @@ sb_exec_command(sb_dsp_t *dsp)
 
     sb_dsp_log("sb_exec_command : SB command %02X\n", dsp->sb_command);
 
+
+    /* Update 8051 ram with the current DSP command.
+       See https://github.com/joncampbell123/dosbox-x/issues/1044 */
+    if (dsp->sb_type >= SB16)
+	dsp->sb_8051_ram[0x20] = dsp->sb_command;
+
     switch (dsp->sb_command) {
 	case 0x01:	/* ???? */
 		if (dsp->sb_type >= SB16)
 			dsp->asp_data_len = dsp->sb_data[0] + (dsp->sb_data[1] << 8) + 1;
 		break;
 	case 0x03:	/* ASP status */
-		sb_add_data(dsp, 0);
+		if (dsp->sb_type >= SB16)
+			sb_add_data(dsp, 0);
 		break;
 	case 0x10:	/* 8-bit direct mode */
 		sb_dsp_update(dsp);
@@ -581,8 +590,10 @@ sb_exec_command(sb_dsp_t *dsp)
 			dsp->sb_timei = dsp->sb_timeo;
 			if (dsp->sb_freq != temp && dsp->sb_type >= SB16)
 				recalc_sb16_filter(0, dsp->sb_freq);
+			dsp->sb_8051_ram[0x13] = dsp->sb_freq & 0xff;
+			dsp->sb_8051_ram[0x14] = (dsp->sb_freq >> 8) & 0xff;
 		}
-                break;
+		break;
 	case 0x48:	/* Set DSP block transfer size */
 		dsp->sb_8_autolen = dsp->sb_data[0] + (dsp->sb_data[1] << 8);
 		break;
@@ -655,7 +666,7 @@ sb_exec_command(sb_dsp_t *dsp)
 			sb_start_dma(dsp, 0, dsp->sb_command & 4, dsp->sb_data[0], dsp->sb_data[1] + (dsp->sb_data[2] << 8));
 			dsp->sb_16_autolen = dsp->sb_data[1] + (dsp->sb_data[2] << 8);
 		}
-                break;
+		break;
 	case 0xB8: case 0xB9: case 0xBA: case 0xBB:
 	case 0xBC: case 0xBD: case 0xBE: case 0xBF:	/* 16-bit DMA input */
 		if (dsp->sb_type >= SB16) {
@@ -763,11 +774,11 @@ sb_exec_command(sb_dsp_t *dsp)
 		sb_dsp_log("Trigger IRQ\n");
 		sb_irq(dsp, 0);
 		break;
-	case 0xE7: case 0xFA:	/* ???? */
+	case 0xE7: /* ???? */
 		break;
 	case 0x07: case 0xFF:	/* No, that's not how you program auto-init DMA */
 		break;
-	case 0x08:	/* ASP get version */
+	case 0x08:	/* ASP get version / AZTECH type/EEPROM access */
 		if (IS_AZTECH(dsp)) {
 			if ((dsp->sb_data[0] == 0x05 || dsp->sb_data[0] == 0x55)&& dsp->sb_subtype == SB_SUBTYPE_CLONE_AZT2316A_0X11)
 				sb_add_data(dsp, 0x11); /* AZTECH get type, WASHINGTON/latest - according to devkit. E.g.: The one in the Itautec Infoway Multimidia */
@@ -791,36 +802,76 @@ sb_exec_command(sb_dsp_t *dsp)
 				sb_dsp_log("AZT2316A: UNKNOWN 0x08 COMMAND: %02X\n", dsp->sb_data[0]); /* 0x08 (when shutting down, driver tries to read 1 byte of response), 0x55, 0x0D, 0x08D seen */
 			break;
 		}
-		if (dsp->sb_type >= SB16)
+		if (dsp->sb_type == SBAWE64) /* AWE64 has no ASP or a socket for it */
+			sb_add_data(dsp, 0xFF);
+		else if (dsp->sb_type >= SB16)
 			sb_add_data(dsp, 0x18);
 		break;
 	case 0x0E:	/* ASP set register */
-		if (dsp->sb_type >= SB16)
+		if (dsp->sb_type >= SB16) {
 			dsp->sb_asp_regs[dsp->sb_data[0]] = dsp->sb_data[1];
+
+			if ((dsp->sb_data[0] == 0x83) && (dsp->sb_asp_mode & 128) && (dsp->sb_asp_mode & 8)) { /* ASP memory write */
+				if (dsp->sb_asp_mode & 8)
+					dsp->sb_asp_ram_index = 0;
+
+				dsp->sb_asp_ram[dsp->sb_asp_ram_index] = dsp->sb_data[1];
+
+				if (dsp->sb_asp_mode & 2) {
+					dsp->sb_asp_ram_index++;
+					if (dsp->sb_asp_ram_index >= 2048)
+						dsp->sb_asp_ram_index = 0;
+				}
+			}
+			sb_dsp_log("SB16 ASP write reg %02X, val %02X\n", dsp->sb_data[0], dsp->sb_data[1]);
+		}
 		break;
 	case 0x0F:	/* ASP get register */
-		if (dsp->sb_type >= SB16)
+		if (dsp->sb_type >= SB16) {
+			if ((dsp->sb_data[0] == 0x83) && (dsp->sb_asp_mode & 128) && (dsp->sb_asp_mode & 8)) { /* ASP memory read */
+				if (dsp->sb_asp_mode & 8)
+					dsp->sb_asp_ram_index = 0;
+
+				dsp->sb_asp_regs[0x83] = dsp->sb_asp_ram[dsp->sb_asp_ram_index];
+
+				if (dsp->sb_asp_mode & 1) {
+					dsp->sb_asp_ram_index++;
+					if (dsp->sb_asp_ram_index >= 2048)
+						dsp->sb_asp_ram_index = 0;
+				}
+			} else if (dsp->sb_data[0] == 0x83) {
+				dsp->sb_asp_regs[0x83] = 0x18;
+			}
 			sb_add_data(dsp, dsp->sb_asp_regs[dsp->sb_data[0]]);
+			sb_dsp_log("SB16 ASP read reg %02X, val %02X\n", dsp->sb_data[0], dsp->sb_asp_regs[dsp->sb_data[0]]);
+		}
 		break;
 	case 0xF8:
 		if (dsp->sb_type < SB16)
 			sb_add_data(dsp, 0);
 		break;
-	case 0xF9:
+	case 0xF9: /* SB16 8051 RAM read */
+		if (dsp->sb_type >= SB16)
+			sb_add_data(dsp, dsp->sb_8051_ram[dsp->sb_data[0]]);
+		break;
+	case 0xFA: /* SB16 8051 RAM write */
+		if (dsp->sb_type >= SB16)
+			dsp->sb_8051_ram[dsp->sb_data[0]] = dsp->sb_data[1];
+		break;
+	case 0x04: /* ASP set mode register */
 		if (dsp->sb_type >= SB16) {
-			if (dsp->sb_data[0] == 0x0e)
-				sb_add_data(dsp, 0xff);
-			else if (dsp->sb_data[0] == 0x0f)
-				sb_add_data(dsp, 0x07);
-			else if (dsp->sb_data[0] == 0x37)
-				sb_add_data(dsp, 0x38);
-			else
-				sb_add_data(dsp, 0x00);
+			dsp->sb_asp_mode = dsp->sb_data[0];
+			if (dsp->sb_asp_mode & 4)
+				dsp->sb_asp_ram_index = 0;
+			sb_dsp_log("SB16 ASP set mode %02X\n", dsp->sb_asp_mode);
 		}
-	case 0x04: case 0x05:
+		break;
+	case 0x05: /* ASP set codec parameter */
+		if (dsp->sb_type >= SB16)
+			sb_dsp_log("SB16 ASP unknown codec params %02X, %02X\n", dsp->sb_data[0], dsp->sb_data[1]);
 		break;
 
-	case 0x09: /*AZTECH mode set*/
+	case 0x09: /* AZTECH mode set */
 		if (IS_AZTECH(dsp)) {
 			if (dsp->sb_data[0] == 0x00) {
 				sb_dsp_log("AZT2316A: WSS MODE!\n");
@@ -831,7 +882,7 @@ sb_exec_command(sb_dsp_t *dsp)
 			} else
 				sb_dsp_log("AZT2316A: UNKNOWN MODE! = %02x\n", dsp->sb_data[0]); // sequences 0x02->0xFF, 0x04->0xFF seen
 		}
-                break;
+		break;
 
 	/* TODO: Some more data about the DSP registeres
 	 * http://the.earth.li/~tfm/oldpage/sb_dsp.html
@@ -845,8 +896,14 @@ sb_exec_command(sb_dsp_t *dsp)
 	 *  0FBh           DSP Status                                          SB16
 	 *  0FCh           DSP Auxiliary Status                                SB16
 	 *  0FDh           DSP Command Status                                  SB16
-	 */                
+	 */
     }
+
+
+    /* Update 8051 ram with the last DSP command.
+       See https://github.com/joncampbell123/dosbox-x/issues/1044 */
+    if (dsp->sb_type >= SB16)
+	dsp->sb_8051_ram[0x30] = dsp->sb_command;
 }
 
 
@@ -1059,6 +1116,14 @@ sb_dsp_init(sb_dsp_t *dsp, int type, int subtype, void *parent)
        a set frequency command is sent. */
     recalc_sb16_filter(0, 3200*2);
     recalc_sb16_filter(1, 44100);
+
+    /* Initialize SB16 8051 RAM and ASP internal RAM */
+    memset(dsp->sb_8051_ram, 0x00, sizeof(dsp->sb_8051_ram));
+    dsp->sb_8051_ram[0x0e] = 0xff;
+    dsp->sb_8051_ram[0x0f] = 0x07;
+    dsp->sb_8051_ram[0x37] = 0x38;
+
+    memset(dsp->sb_asp_ram, 0xff, sizeof(dsp->sb_asp_ram));
 }
 
 
@@ -1068,12 +1133,12 @@ sb_dsp_setaddr(sb_dsp_t *dsp, uint16_t addr)
     sb_dsp_log("sb_dsp_setaddr : %04X\n", addr);
     if (dsp->sb_addr != 0) {
 	io_removehandler(dsp->sb_addr + 6,   0x0002, sb_read, NULL, NULL, sb_write, NULL, NULL, dsp);
-	io_removehandler(dsp->sb_addr + 0xa, 0x0006, sb_read, NULL, NULL, sb_write, NULL, NULL, dsp);        
+	io_removehandler(dsp->sb_addr + 0xa, 0x0006, sb_read, NULL, NULL, sb_write, NULL, NULL, dsp);
     }
     dsp->sb_addr = addr;
     if (dsp->sb_addr != 0) {
 	io_sethandler(dsp->sb_addr + 6,   0x0002, sb_read, NULL, NULL, sb_write, NULL, NULL, dsp);
-	io_sethandler(dsp->sb_addr + 0xa, 0x0006, sb_read, NULL, NULL, sb_write, NULL, NULL, dsp);        
+	io_sethandler(dsp->sb_addr + 0xa, 0x0006, sb_read, NULL, NULL, sb_write, NULL, NULL, dsp);
     }
 }
 
@@ -1106,7 +1171,7 @@ pollsb(void *p)
 			dsp->sbdat = (data[0] ^ 0x80) << 8;
 			if ((dsp->sb_type >= SBPRO) && (dsp->sb_type < SB16) && dsp->stereo) {
 				sb_dsp_log("pollsb: Mono unsigned, dsp->stereo, %s channel, %04X\n",
-				      dsp->sbleftright ? "left" : "right", dsp->sbdat);
+					  dsp->sbleftright ? "left" : "right", dsp->sbdat);
 				if (dsp->sbleftright)
 					dsp->sbdatl = dsp->sbdat;
 				else
@@ -1123,7 +1188,7 @@ pollsb(void *p)
 			dsp->sbdat = data[0] << 8;
 			if ((dsp->sb_type >= SBPRO) && (dsp->sb_type < SB16) && dsp->stereo) {
 				sb_dsp_log("pollsb: Mono signed, dsp->stereo, %s channel, %04X\n",
-				      dsp->sbleftright ? "left" : "right", data[0], dsp->sbdat);
+					  dsp->sbleftright ? "left" : "right", data[0], dsp->sbdat);
 				if (dsp->sbleftright)
 					dsp->sbdatl = dsp->sbdat;
 				else
@@ -1183,7 +1248,7 @@ pollsb(void *p)
 
 			if ((dsp->sb_type >= SBPRO) && (dsp->sb_type < SB16) && dsp->stereo) {
 				sb_dsp_log("pollsb: ADPCM 4, dsp->stereo, %s channel, %04X\n",
-				      dsp->sbleftright ? "left" : "right", dsp->sbdat);
+					  dsp->sbleftright ? "left" : "right", dsp->sbdat);
 				if (dsp->sbleftright)
 					dsp->sbdatl = dsp->sbdat;
 				else
@@ -1226,7 +1291,7 @@ pollsb(void *p)
 
 			if ((dsp->sb_type >= SBPRO) && (dsp->sb_type < SB16) && dsp->stereo) {
 				sb_dsp_log("pollsb: ADPCM 26, dsp->stereo, %s channel, %04X\n",
-				      dsp->sbleftright ? "left" : "right", dsp->sbdat);
+					  dsp->sbleftright ? "left" : "right", dsp->sbdat);
 				if (dsp->sbleftright)
 					dsp->sbdatl = dsp->sbdat;
 				else
@@ -1262,7 +1327,7 @@ pollsb(void *p)
 
 			if ((dsp->sb_type >= SBPRO) && (dsp->sb_type < SB16) && dsp->stereo) {
 				sb_dsp_log("pollsb: ADPCM 2, dsp->stereo, %s channel, %04X\n",
-				      dsp->sbleftright ? "left" : "right", dsp->sbdat);
+					  dsp->sbleftright ? "left" : "right", dsp->sbdat);
 				if (dsp->sbleftright)
 					dsp->sbdatl = dsp->sbdat;
 				else
@@ -1282,7 +1347,8 @@ pollsb(void *p)
 		}
 		sb_irq(dsp, 1);
 	}
-    } if (dsp->sb_16_enable && !dsp->sb_16_pause && (dsp->sb_pausetime < 0LL) && dsp->sb_16_output) {
+    }
+    if (dsp->sb_16_enable && !dsp->sb_16_pause && (dsp->sb_pausetime < 0LL) && dsp->sb_16_output) {
 	sb_dsp_update(dsp);
 
 	switch (dsp->sb_16_format) {
