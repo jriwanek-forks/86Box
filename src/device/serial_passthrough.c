@@ -87,7 +87,7 @@ host_to_serial_cb(void *priv)
     /* write_fifo has no failure indication, but if we write to fast, the host
      * can never fetch the bytes in time, so check if the fifo is full if in
      * fifo mode or if lsr has bit 0 set if not in fifo mode */
-    if ((dev->serial->type >= SERIAL_NS16550) && dev->serial->fifo_enabled) {
+    if ((dev->serial->type >= SERIAL_16550) && dev->serial->fifo_enabled) {
 	if (dev->serial->rcvr_fifo_full) {
             goto no_write_to_machine;
         } 
