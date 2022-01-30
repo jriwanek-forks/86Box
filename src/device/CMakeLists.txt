@@ -12,7 +12,7 @@
 #           Andreas J. Reichel <webmaster@6th-dimension.com>
 #
 #           Copyright 2020,2021 David Hrdlička.
-#           Copyright 2021      Andreas J. Reichel.
+#           Copyright 2021 Andreas J. Reichel.
 #
 
 add_library(dev OBJECT bugger.c cassette.c cartridge.c hasp.c hwm.c hwm_lm75.c hwm_lm78.c hwm_gl518sm.c

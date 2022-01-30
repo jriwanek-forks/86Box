@@ -21,7 +21,7 @@
  *		Copyright 2016-2019 Miran Grca.
  *		Copyright 2017-2019 Fred N. van Kempen.
  *		Copyright 2018,2019 David Hrdlička.
- *		Copyright 2021      Andreas J. Reichel
+ *		Copyright 2021 Andreas J. Reichel.
  *
  * NOTE:	Forcing config files to be in Unicode encoding breaks
  *		it on Windows XP, and possibly also Vista. Use the
@@ -1086,9 +1086,8 @@ load_ports(void)
         sprintf(temp, "serial%d_passthrough_enabled", c + 1);
         serial_passthrough_enabled[c] = !!config_get_int(cat, temp, 0);
 
-        if (serial_passthrough_enabled[c]) {    
+        if (serial_passthrough_enabled[c])
             config_log("Serial Port %d: passthrough enabled.\n\n", c+1);
-        }
     }
 
     for (c = 0; c < PARALLEL_MAX; c++) {
@@ -2563,17 +2562,16 @@ save_ports(void)
 
     for (c = 0; c < SERIAL_MAX; c++) {
         sprintf(temp, "serial%d_enabled", c + 1);
-        if (((c < 2) && serial_enabled[c]) || ((c >= 2) && !serial_enabled[c])) {
+        if (((c < 2) && serial_enabled[c]) || ((c >= 2) && !serial_enabled[c]))
             config_delete_var(cat, temp);
-        } else {
+        else
             config_set_int(cat, temp, serial_enabled[c]);
-        }
-        if (serial_enabled[c]) {
+
+        if (serial_enabled[c])
             if (serial_passthrough_enabled[c]) {
                 sprintf(temp, "serial%d_passthrough_enabled", c + 1);
                 config_set_int(cat, temp, 1);
             }
-        }
     }
 
     for (c = 0; c < PARALLEL_MAX; c++) {
