@@ -21,9 +21,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include <sys/select.h>
 #include <stdint.h>
-#include <sys/select.h>
 
 #include <86box/86box.h>
 #include <86box/log.h>
