@@ -1083,6 +1083,12 @@ load_ports(void)
         sprintf(temp, "serial%d_enabled", c + 1);
         serial_enabled[c] = !!config_get_int(cat, temp, (c >= 2) ? 0 : 1);
 
+/*
+	sprintf(temp, "serial%d_device", c + 1);
+	p = (char *) config_get_string(cat, temp, "none");
+	com_ports[c].device = com_device_get_from_internal_name(p);
+*/
+
         sprintf(temp, "serial%d_passthrough_enabled", c + 1);
         serial_passthrough_enabled[c] = !!config_get_int(cat, temp, 0);
 
@@ -2566,6 +2572,15 @@ save_ports(void)
             config_delete_var(cat, temp);
         else
             config_set_int(cat, temp, serial_enabled[c]);
+
+/*
+	sprintf(temp, "serial%d_device", c + 1);
+	if (com_ports[c].device == 0)
+		config_delete_var(cat, temp);
+	  else
+		config_set_string(cat, temp,
+				  (char *) com_device_get_internal_name(com_ports[c].device));
+*/
 
         if (serial_enabled[c])
             if (serial_passthrough_enabled[c]) {
