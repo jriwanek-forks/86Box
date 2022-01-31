@@ -15,7 +15,7 @@
 #           Copyright 2021 David Hrdlička.
 #
 
-target_sources(plat PRIVATE unix_serial_passthrough.c)
+add_library(ui OBJECT unix_serial_passthrough.c)
 
 if (NOT CPPTHREADS)
     target_sources(plat PRIVATE unix_thread.c)

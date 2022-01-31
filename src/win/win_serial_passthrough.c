@@ -19,7 +19,6 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <string.h>
 #include <stdint.h>
 
@@ -40,24 +39,9 @@ plat_serpt_read(void *p, uint8_t *data)
 {
         serial_passthrough_t *dev = (serial_passthrough_t *)p;
         int res;
-        struct timeval tv;
-        fd_set rdfds;
 
         switch (dev->mode) {
         case SERPT_MODE_VCON:
-                FD_ZERO(&rdfds);
-                FD_SET(dev->master_fd, &rdfds);
-                tv.tv_sec = 0;
-                tv.tv_usec = 0;
-
-                res = select(dev->master_fd + 1, &rdfds, NULL, NULL, &tv);
-                if (res <= 0 || !FD_ISSET(dev->master_fd, &rdfds)) {
-                        return 0;
-                }
-
-                if (read(dev->master_fd, data, 1) > 0) {
-                        return 1;
-                }
                 break;
         default:
                 break;
@@ -116,39 +100,7 @@ plat_serpt_write(void *p, uint8_t data)
 static int
 open_pseudo_terminal(serial_passthrough_t *dev)
 {
-        int master_fd = open("/dev/ptmx", O_RDWR);
-        char *ptname;
-
-        if (!master_fd) {
-                return 0;
-        }
-
-        /* get name of slave device */
-        if (!(ptname = ptsname(master_fd))) {
-                pclog(LOG_PREFIX "could not get name of slave pseudo terminal");
-                close(master_fd);
-                return 0;
-        }
-        memset(dev->slave_pt, 0, sizeof(dev->slave_pt));
-        strncpy(dev->slave_pt, ptname, sizeof(dev->slave_pt)-1);
-
-        pclog(LOG_PREFIX "Slave side is %s\n", dev->slave_pt);
-
-        if (grantpt(master_fd)) {
-                pclog(LOG_PREFIX "error in grantpt()\n");
-                close(master_fd);
-                return 0;
-        }
-
-        if (unlockpt(master_fd)) {
-                pclog(LOG_PREFIX "error in unlockpt()\n");
-                close(master_fd);
-                return 0;
-        }
-
-        dev->master_fd = master_fd;
-
-        return master_fd;
+    return 0;
 }
 
 
