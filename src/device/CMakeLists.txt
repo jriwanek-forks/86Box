@@ -22,10 +22,6 @@ add_library(dev OBJECT bugger.c cassette.c cartridge.c hasp.c hwm.c hwm_lm75.c h
     mouse.c mouse_bus.c mouse_serial.c mouse_ps2.c phoenix_486_jumper.c
     serial_passthrough.c)
 
-if(LASERXT)
-    target_compile_definitions(dev PRIVATE USE_LASERXT)
-endif()
-
 if(ISAMEM_RAMPAGE)
     target_compile_definitions(dev PRIVATE USE_ISAMEM_RAMPAGE)
 endif()
@@ -36,4 +32,8 @@ endif()
 
 if(ISAMEM_BRAT)
     target_compile_definitions(dev PRIVATE USE_ISAMEM_BRAT)
+endif()
+
+if(LASERXT)
+    target_compile_definitions(dev PRIVATE USE_LASERXT)
 endif()
