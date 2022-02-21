@@ -3201,6 +3201,7 @@ const machine_t machines[] = {
         .snd_device = NULL,
         .net_device = NULL
     },
+    { "[NEAT] Atari PC 4",			"ataripc4",		MACHINE_TYPE_286,		CPU_PKG_286, 0, 0, 0, 0, 0, 0, 0,										MACHINE_AT,									  512,  8192, 128,  127,	     machine_at_ataripc4_init, NULL			},
     /* This has "AMI KEYBOARD BIOS", most likely 'F'. */
     {
         .name = "[NEAT] DataExpert 286",

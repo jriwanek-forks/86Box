@@ -440,6 +440,7 @@ extern int machine_at_poisk2_init(const machine_t *);
 
 extern int machine_at_neat_init(const machine_t *);
 extern int machine_at_neat_ami_init(const machine_t *);
+extern int machine_at_ataripc4_init(const machine_t *);
 
 extern int machine_at_quadt386sx_init(const machine_t *);
 
