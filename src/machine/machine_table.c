@@ -474,6 +474,7 @@ const machine_t machines[] = {
         .snd_device = NULL,
         .net_device = NULL
     },
+    { "[8088] Atari PC 3",			"ataripc3",		MACHINE_TYPE_8088,		CPU_PKG_8088, 0, 0, 0, 0, 0, 0, 0,										MACHINE_PC,									   64,   640,  64,    0,		machine_xt_ataripc3_init, NULL			},
     {
         .name = "[8088] Bondwell BW230",
         .internal_name = "bw230",
