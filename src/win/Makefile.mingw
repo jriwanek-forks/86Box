@@ -91,6 +91,9 @@ ifeq ($(DEV_BUILD), y)
  ifndef XL24
   XL24 := y
  endif
+ ifndef RIVA128
+  RIVA128   := y
+ endif
  ifndef NEW_KBC
   NEW_KBC := n
  endif
@@ -157,6 +160,9 @@ else
  endif
  ifndef XL24
   XL24 := n
+ endif
+ ifndef RIVA128
+  RIVA128   := n
  endif
  ifndef NEW_KBC
   NEW_KBC := n
@@ -551,6 +557,36 @@ endif
 
 ifeq ($(PS2M70T4), y)
 OPTS		+= -DUSE_PS2M70T4
+endif
+
+ifeq ($(SIO_DETECT), y)
+OPTS		+= -DUSE_SIO_DETECT
+DEVBROBJ	+= sio_detect.o
+endif
+
+ifeq ($(TANDY_ISA), y)
+OPTS		+= -DUSE_TANDY_ISA
+endif
+
+ifeq ($(VGAWONDER), y)
+OPTS		+= -DUSE_VGAWONDER
+endif
+
+ifeq ($(XL24), y)
+OPTS		+= -DUSE_XL24
+endif
+
+ifeq ($(OLIVETTI), y)
+OPTS		+= -DUSE_OLIVETTI
+DEVBROBJ	+= olivetti_eva.o
+endif
+
+
+ifeq ($(RIVA128), y)
+OPTS		+= -DUSE_RIVA128
+DEVBROBJ	+= vid_riva128.o
+endif
+
 endif
 
 
