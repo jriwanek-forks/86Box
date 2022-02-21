@@ -440,6 +440,9 @@ extern const device_t mystique_220_device;
 #if defined(DEV_BRANCH) && defined(USE_RIVA128)
 extern const device_t riva128_pci_device;
 #endif
+#if defined(DEV_BRANCH) && defined(USE_RIVATNT)
+extern const device_t rivatnt_pci_device;
+#endif
 
 /* Oak OTI-0x7 */
 extern const device_t oti037c_device;
