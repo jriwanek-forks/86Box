@@ -137,6 +137,7 @@ const machine_filter_t machine_chipsets[] = {
     { "SiS 501",                    MACHINE_CHIPSET_SIS_501             },
     { "SiS 5511",                   MACHINE_CHIPSET_SIS_5511            },
     { "SiS 5571",                   MACHINE_CHIPSET_SIS_5571            },
+    { "SiS 5598",                   MACHINE_CHIPSET_SIS_5598            },
     { "SMSC VictoryBX-66",          MACHINE_CHIPSET_SMSC_VICTORYBX_66   },
     { "STPC Client",                MACHINE_CHIPSET_STPC_CLIENT         },
     { "STPC Consumer-II",           MACHINE_CHIPSET_STPC_CONSUMER_II    },
@@ -5562,6 +5563,7 @@ const machine_t machines[] = {
         .snd_device = NULL,
         .net_device = NULL
     },
+    { "[VLSI 82C480] IBM PS/1 model 2133",             "ibmps1_2133",      MACHINE_TYPE_486,        MACHINE_CHIPSET_VLSI_VL82C480,       machine_ps1_m2133_init,           0, 0, MACHINE_AVAILABLE, 0 , CPU_PKG_SOCKET1,                                 CPU_BLOCK_NONE, 0, 0, 0, 0, 0, 0, MACHINE_PS2_VLB, MACHINE_IDE | MACHINE_VIDEO, 2048, 32768, 1024, 127, ps1_m2133_get_device, NULL }, // MACHINE_NONMI
     /* According to Deksor on the Win3x.org forum, the BIOS string ends in a -0,
        indicating an unknown KBC firmware. But it does send the AMIKey get version
        command, so it must expect an AMIKey. */
@@ -5971,11 +5973,10 @@ const machine_t machines[] = {
         .net_device = NULL
     },
     { "[ETEQ ET6000] Olivetti PCS-46C",		"pcs46c",		MACHINE_TYPE_486,		CPU_PKG_SOCKET1, 0, 0, 0, 0, 0, 0, 0,										MACHINE_VLB | MACHINE_IDE | MACHINE_VIDEO,					 4096, 32768, 4096, 127,	       machine_at_pcs46c_init, at_pcs46c_get_device	},
-    { "[VLSI 82C480] IBM PS/1 model 2133",	"ibmps1_2133",		MACHINE_TYPE_486,		CPU_PKG_SOCKET1, 0, 0, 0, 0, 0, 0, 0,										MACHINE_VLB | MACHINE_BUS_PS2 | MACHINE_IDE | MACHINE_NONMI | MACHINE_VIDEO,	 2048, 32768, 1024, 127,	       machine_ps1_m2133_init, ps1_m2133_get_device	},
 
     /* 486 machines with utilize the MCA bus */
 #if defined(DEV_BRANCH) && defined(USE_PS2M70T4)
-    { "[MCA] IBM PS/2 model 70 (type 4)",	"ibmps2_m70_type4",	MACHINE_TYPE_486,		CPU_PKG_SOCKET1, 0, 0, 0, 0, 0, 0, 0,										MACHINE_MCA | MACHINE_BUS_PS2 | MACHINE_VIDEO,					 2048,  16384, 2048,  63,     machine_ps2_model_70_type4_init, NULL			},
+    { "[MCA] IBM PS/2 model 70 (type 4)",              "ibmps2_m70_type4", MACHINE_TYPE_486,        MACHINE_CHIPSET_PROPRIETARY,         machine_ps2_model_70_type4_init,  0, 0, MACHINE_AVAILABLE, 0 , CPU_PKG_SOCKET1,                   CPU_BLOCK_NONE, 0, 0, 0, 0, 0, 0, MACHINE_PS2_MCA, MACHINE_VIDEO, 2048,  16384, 2048,  63, NULL, NULL },
 #endif
 
     /* 486 machines - Socket 3 */
@@ -10929,8 +10930,8 @@ const machine_t machines[] = {
         .net_device = NULL
     },
     /* SiS 5598 */
-    { "[SiS 5598] ASUS SP97-XV",		"sp97xv",		MACHINE_TYPE_SOCKET7,		CPU_PKG_SOCKET5_7, 0, 60000000, 66666667, 2100, 3200, 1.5, 2.5,							MACHINE_PCI | MACHINE_BUS_PS2 | MACHINE_IDE_DUAL,				 8192, 262144, 8192, 255,	       machine_at_sp97xv_init, NULL			},
-    { "[SiS 5598] PC Chips M571",		"m571",			MACHINE_TYPE_SOCKET7,		CPU_PKG_SOCKET5_7, 0, 50000000, 75000000, 2500, 3500, 1.5, 3.5,							MACHINE_PCI | MACHINE_BUS_PS2 | MACHINE_IDE_DUAL,				 8192, 262144, 8192, 255,		 machine_at_m571_init, NULL			},
+    { "[SiS 5598] ASUS SP97-XV",                       "sp97xv",           MACHINE_TYPE_SOCKET7,    MACHINE_CHIPSET_SIS_5598,            machine_at_sp97xv_init,           0, 0, MACHINE_AVAILABLE, 0,  CPU_PKG_SOCKET5_7,                 CPU_BLOCK_NONE, 60000000, 66666667, 2100, 3200, 1.5, 2.5, MACHINE_PS2_PCI, MACHINE_IDE_DUAL, 8192, 262144, 8192, 255, NULL, NULL },
+    { "[SiS 5598] PC Chips M571",                      "m571",             MACHINE_TYPE_SOCKET7,    MACHINE_CHIPSET_SIS_5598,            machine_at_m571_init,             0, 0, MACHINE_AVAILABLE, 0,  CPU_PKG_SOCKET5_7,                 CPU_BLOCK_NONE, 50000000, 75000000, 2500, 3500, 1.5, 3.5, MACHINE_PS2_PCI, MACHINE_IDE_DUAL, 8192, 262144, 8192, 255, NULL, NULL },
 
     /* ALi ALADDiN IV+ */
     /* Has the ALi M1543 southbridge with on-chip KBC. */
@@ -11840,7 +11841,7 @@ const machine_t machines[] = {
         .snd_device = NULL,
         .net_device = NULL
     },
-    { "[Slot 1 FX] Intel Portland",		"pd440fx",	MACHINE_TYPE_SLOT1,		CPU_PKG_SLOT1, 0, 60000000, 83333333, 1800, 3500, 1.5, 8.0,							MACHINE_PCI | MACHINE_BUS_PS2 | MACHINE_IDE_DUAL,				 8192, 768432, 8192, 127,		 machine_at_pd440fx_init, NULL		},
+    { "[i440FX] Intel Portland",                       "pd440fx",          MACHINE_TYPE_SLOT1,      MACHINE_CHIPSET_INTEL_440FX,         machine_at_pd440fx_init,          0, 0, MACHINE_AVAILABLE, 0 , CPU_PKG_SLOT1,                     CPU_BLOCK_NONE,                       60000000, 83333333, 1800, 3500, 1.5, 8.0, MACHINE_PS2_PCI, MACHINE_IDE_DUAL, 8192, 768432, 8192, 127, NULL, NULL },
 
     /* 440LX */
     /* Has a Winbond W83977TF Super I/O chip with on-chip KBC with AMIKey-2 KBC
@@ -13186,6 +13187,7 @@ const machine_t machines[] = {
         .snd_device = NULL,
         .net_device = NULL
     },
+    { "[VIA Apollo ProMedia] Jetway 603TCF",           "603tcf",           MACHINE_TYPE_SOCKET370,  MACHINE_CHIPSET_VIA_APOLLO_PRO_133A, machine_at_603tcf_init,           0, 0, MACHINE_AVAILABLE, 0 , CPU_PKG_SOCKET370,                 CPU_BLOCK_NONE,                       66666667, 150000000, 1300, 3500, 1.5, 8.0,                 MACHINE_PS2_AGP, MACHINE_IDE_DUAL, 8192,1048576, 8192, 255, NULL, NULL },
     /* Has the VIA VT82C686B southbridge with on-chip KBC identical to the VIA
        VT82C42N. */
     {
@@ -13227,7 +13229,6 @@ const machine_t machines[] = {
         .snd_device = &cmi8738_onboard_device,
         .net_device = NULL
     },
-    { "[VIA Apollo ProMedia] Jetway 603TCF",	"603tcf",		MACHINE_TYPE_SOCKET370,		CPU_PKG_SOCKET370, 0, 66666667, 150000000, 1300, 3500, 1.5, 8.0,						MACHINE_AGP | MACHINE_BUS_PS2 | MACHINE_IDE_DUAL,				 8192,1048576, 8192, 255,	       machine_at_603tcf_init, NULL			},
 
     /* Miscellaneous/Fake/Hypervisor machines */
     /* Has a Winbond W83977F Super I/O chip with on-chip KBC with AMIKey-2 KBC
