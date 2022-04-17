@@ -236,6 +236,7 @@ enum {
     MACHINE_CHIPSET_OPTI_895_802G,
     MACHINE_CHIPSET_OPTI_547_597,
     MACHINE_CHIPSET_SARC_RC2016A,
+    MACHINE_CHIPSET_SIS_RABBIT,
     MACHINE_CHIPSET_SIS_310,
     MACHINE_CHIPSET_SIS_401,
     MACHINE_CHIPSET_SIS_460,
@@ -736,7 +737,9 @@ extern int machine_at_atc6310bxii_init(const machine_t *);
 extern int machine_at_686bx_init(const machine_t *);
 extern int machine_at_s1846_init(const machine_t *);
 extern int machine_at_p6sba_init(const machine_t *);
+extern int machine_at_ficka6100_init(const machine_t *);
 extern int machine_at_ficka6130_init(const machine_t *);
+extern int machine_at_6vx_init(const machine_t *);
 extern int machine_at_p3v133_init(const machine_t *);
 extern int machine_at_p3v4x_init(const machine_t *);
 extern int machine_at_gt694va_init(const machine_t *);
@@ -760,6 +763,7 @@ extern int machine_at_awo671r_init(const machine_t *);
 extern int machine_at_63a1_init(const machine_t *);
 extern int machine_at_s370sba_init(const machine_t *);
 extern int machine_at_apas3_init(const machine_t *);
+extern int machine_at_gt694va_init(const machine_t *);
 extern int machine_at_cuv4xls_init(const machine_t *);
 extern int machine_at_6via90ap_init(const machine_t *);
 extern int machine_at_s1857_init(const machine_t *);
@@ -767,6 +771,7 @@ extern int machine_at_603tcf_init(const machine_t *);
 extern int machine_at_trinity371_init(const machine_t *);
 extern int machine_at_p6bap_init(const machine_t *);
 extern int machine_at_p6bat_init(const machine_t *);
+extern int machine_at_ms6198_init(const machine_t *);
 
 /* m_at_misc.c */
 extern int machine_at_vpc2007_init(const machine_t *);

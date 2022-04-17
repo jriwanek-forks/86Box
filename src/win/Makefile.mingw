@@ -61,6 +61,9 @@ ifeq ($(DEV_BUILD), y)
  ifndef ISAMEM_BRAT
   ISAMEM_BRAT := y
  endif
+ ifndef HEDAKA
+  HEDAKA	:= y
+ endif
  ifndef LASERXT
   LASERXT := y
  endif
@@ -90,6 +93,12 @@ ifeq ($(DEV_BUILD), y)
  endif
  ifndef XL24
   XL24 := y
+ endif
+ ifndef VECT486VL
+  VECT486VL	:= y
+ endif
+ ifndef OLIVETTI
+  OLIVETTI	:= y
  endif
  ifndef RIVA128
   RIVA128   := y
@@ -134,6 +143,9 @@ else
  ifndef ISAMEM_BRAT
   ISAMEM_BRAT := n
  endif
+ ifndef HEDAKA
+  HEDAKA	:= n
+ endif
  ifndef LASERXT
   LASERXT := n
  endif
@@ -162,7 +174,13 @@ else
   VGAWONDER := n
  endif
  ifndef XL24
-  XL24 := n
+  XL24		:= n
+ endif
+ ifndef VECT486VL
+  VECT486VL	:= n
+ endif
+ ifndef OLIVETTI
+  OLIVETTI	:= n
  endif
  ifndef RIVA128
   RIVA128   := n

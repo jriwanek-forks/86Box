@@ -128,6 +128,7 @@ const machine_filter_t machine_chipsets[] = {
     { "OPTi 895/802G",              MACHINE_CHIPSET_OPTI_895_802G       },
     { "OPTi 547/597",               MACHINE_CHIPSET_OPTI_547_597        },
     { "SARC RC2016A",               MACHINE_CHIPSET_SARC_RC2016A        },
+    { "SiS Rabbit",                 MACHINE_CHIPSET_SIS_RABBIT          },
     { "SiS 310",                    MACHINE_CHIPSET_SIS_310             },
     { "SiS 401",                    MACHINE_CHIPSET_SIS_401             },
     { "SiS 460",                    MACHINE_CHIPSET_SIS_460             },
@@ -4707,6 +4708,7 @@ const machine_t machines[] = {
         .snd_device = NULL,
         .net_device = NULL
     },
+    { "[SiS Rabbit] ASUS 386DX ISA",                   "asus386",          MACHINE_TYPE_386DX,      MACHINE_CHIPSET_SIS_RABBIT,          machine_at_asus386_init,          0, 0, MACHINE_AVAILABLE, 0 , CPU_PKG_386DX,                                   CPU_BLOCK_NONE, 0, 0, 0, 0, 0, 0, MACHINE_AT, MACHINE_HDC, 512, 16384, 128, 127, NULL, NULL }, // {{"Intel", cpus_i386DX}, {"AMD", cpus_Am386DX}, {"Cyrix", cpus_486DLC}},
     /* Has an AMI Keyboard BIOS PLUS KBC firmware ('8'). */
     {
         .name = "[C&T 386] ECS 386/32",
@@ -12428,6 +12430,7 @@ const machine_t machines[] = {
     },
 
     /* VIA Apollo Pro */
+     { "[VIA Apollo Pro] FIC KA-6100",                 "ficka6100",        MACHINE_TYPE_SLOT1,      MACHINE_CHIPSET_VIA_APOLLO_PRO,      machine_at_ficka6100_init,        0, 0, MACHINE_AVAILABLE, 0 , CPU_PKG_SLOT1,                     CPU_BLOCK_NONE,                       0, 0, 0, 0, 0, 0,                          MACHINE_PS2_AGP, MACHINE_IDE_DUAL, 8, 768, 8, 255, NULL, NULL }, // {{"Intel", cpus_PentiumII}, {"Intel/PGA370", cpus_Celeron},{"VIA", cpus_Cyrix3}},
     /* Has the VIA VT82C596B southbridge with on-chip KBC identical to the VIA
        VT82C42N. */
     {
@@ -12469,6 +12472,7 @@ const machine_t machines[] = {
         .snd_device = NULL,
         .net_device = NULL
     },
+    { "[VIA Apollo Pro] Gigabyte GA-6VX",              "6vx",              MACHINE_TYPE_SLOT1,      MACHINE_CHIPSET_VIA_APOLLO_PRO,      machine_at_6vx_init,              0, 0, MACHINE_AVAILABLE, 0 , CPU_PKG_SLOT1,                     CPU_BLOCK_NONE,                       0, 0, 0, 0, 0, 0,                          MACHINE_PS2_PCI, MACHINE_HDC,  8,  768,   8, 255, NULL, NULL }, // {{"Intel", cpus_PentiumII},   {"Intel/PGA370", cpus_Celeron},{"VIA", cpus_Cyrix3}},
     /* Has a Winbond W83977EF Super I/O chip with on-chip KBC with AMIKey-2 KBC
        firmware. */
     {
@@ -13229,6 +13233,10 @@ const machine_t machines[] = {
         .snd_device = &cmi8738_onboard_device,
         .net_device = NULL
     },
+    /* Has a Winbond W83977EF Super I/O chip with on-chip KBC with AMIKey-2 KBC
+       firmware. */
+    { "[VIA Apollo Pro 133A] BCM GT694VA",             "gt694va",          MACHINE_TYPE_SOCKET370,  MACHINE_CHIPSET_VIA_APOLLO_PRO_133A, machine_at_gt694va_init,          0, 0, MACHINE_AVAILABLE, 0 , CPU_PKG_SOCKET370,                 CPU_BLOCK_NONE,                       66666667, 133333333, 1300, 3500, 1.5, 8.0, MACHINE_PS2_AGP,   MACHINE_IDE_DUAL | MACHINE_SOUND, 16384, 3145728, 8192, 255, at_gt694va_get_device, NULL },
+    { "[VIA Apollo Pro 133A] MSI MS-6198",             "ms6198",           MACHINE_TYPE_SOCKET370,  MACHINE_CHIPSET_VIA_APOLLO_PRO_133A, machine_at_ms6198_init,           0, 0, MACHINE_AVAILABLE, 0 , CPU_PKG_SOCKET370,                 CPU_BLOCK_NONE,                       66666667, 150000000, 1300, 3500, 2.0, 8.0, MACHINE_PS2_NOISA, MACHINE_IDE_DUAL, 16384,1572864, 8192, 255, NULL, NULL },
 
     /* Miscellaneous/Fake/Hypervisor machines */
     /* Has a Winbond W83977F Super I/O chip with on-chip KBC with AMIKey-2 KBC

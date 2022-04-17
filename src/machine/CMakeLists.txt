@@ -32,6 +32,10 @@ if(DESKPRO386)
     target_compile_definitions(mch PRIVATE USE_DESKPRO386)
 endif()
 
+if(HEDAKA)
+	target_compile_definitions(mch PRIVATE USE_HEDAKA)
+endif()
+
 if(LASERXT)
     target_sources(mch PRIVATE m_xt_laserxt.c)
     target_compile_definitions(mch PRIVATE USE_LASERXT)
