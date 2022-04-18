@@ -380,7 +380,7 @@ machine_ps1_m2133_init(const machine_t *model)
 			               0x000e0000, 131072, 0);
 
     if (bios_only || !ret)
-	return ret;
+        return ret;
 
     ps1_common_init(model);
     /* The PS/1 model 2133 expects a NVR without the century register. */

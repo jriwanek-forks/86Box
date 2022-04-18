@@ -1995,8 +1995,7 @@ const device_t acpi_intel_device = {
     .config        = NULL
 };
 
-const device_t acpi_sis_device =
-{
+const device_t acpi_sis_device = {
     .name          = "SiS ACPI",
     .internal_name = "acpi_sis",
     .flags         = DEVICE_PCI,

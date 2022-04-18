@@ -1530,11 +1530,11 @@ machine_ps2_model_70_type4_init(const machine_t *model)
     if (bios_only || !ret)
         return ret;
 
-        machine_ps2_common_init(model);
+    machine_ps2_common_init(model);
 
-        ps2.planar_id = 0xfcff;
+    ps2.planar_id = 0xfcff;
 
-        ps2_mca_board_model_70_type34_init(1, 4);
+    ps2_mca_board_model_70_type34_init(1, 4);
 
     return ret;
 }

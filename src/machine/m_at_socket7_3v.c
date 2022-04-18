@@ -499,10 +499,10 @@ machine_at_chariot_init(const machine_t *model)
     int ret;
 
     ret = bios_load_linear("roms/machines/chariot/P5IV183.ROM",
-			   0x000e0000, 131072, 0);
+                0x000e0000, 131072, 0);
 
     if (bios_only || !ret)
-	return ret;
+        return ret;
 
     machine_at_common_init(model);
 
