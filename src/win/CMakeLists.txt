@@ -11,6 +11,7 @@
 # Authors:  David Hrdlička, <hrdlickadavid@outlook.com>
 #
 #           Copyright 2020,2021 David Hrdlička.
+#           Copyright 2021-2022 Jasmine Iwanek.
 #
 
 enable_language(RC)

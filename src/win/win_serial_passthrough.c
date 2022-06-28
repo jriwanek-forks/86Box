@@ -9,10 +9,11 @@
  *              Definitions for platform specific serial to host passthrough
  *
  *
+ * Authors:     Andreas J. Reichel <webmaster@6th-dimension.com>,
+ *              Jasmine Iwanek <jasmine@iwanek.co.uk>
  *
- * Authors:     Andreas J. Reichel <webmaster@6th-dimension.com>
- *
- *              Copyright 2021          Andreas J. Reichel
+ *              Copyright 2021      Andreas J. Reichel
+ *              Copyright 2021-2022 Jasmine Iwanek
  */
 
 #define _XOPEN_SOURCE 500

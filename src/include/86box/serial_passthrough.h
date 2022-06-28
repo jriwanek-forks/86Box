@@ -9,9 +9,11 @@
  *              Definition of Serial passthrough device.
  *
  *
- * Author:      Andreas J. Reichel, <webmaster@6th-dimension.com>
+ * Authors:     Andreas J. Reichel <webmaster@6th-dimension.com>,
+ *              Jasmine Iwanek <jasmine@iwanek.co.uk>
  *
- *              Copyright 2021          Andreas J. Reichel 
+ *              Copyright 2021      Andreas J. Reichel.
+ *              Copyright 2021-2022 Jasmine Iwanek.
  */
 
 #ifndef SERIAL_PASSTHROUGH_H

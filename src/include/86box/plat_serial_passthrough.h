@@ -6,14 +6,16 @@
  *
  *              This file is part of the 86Box distribution.
  *
- *              Definitions for platform specific serial to host passthrough
+ *              Definitions for platform specific serial to host passthrough.
  *
  *
+ * Authors:     Andreas J. Reichel <webmaster@6th-dimension.com>,
+ *              Jasmine Iwanek <jasmine@iwanek.co.uk>
  *
- * Authors:     Andreas J. Reichel <webmaster@6th-dimension.com>
- *
- *              Copyright 2021          Andreas J. Reichel
+ *              Copyright 2021      Andreas J. Reichel.
+ *              Copyright 2021-2022 Jasmine Iwanek.
  */
+
 #ifndef PLAT_SERIAL_PASSTHROUGH_H
 #define PLAT_SERIAL_PASSTHROUGH_H
 

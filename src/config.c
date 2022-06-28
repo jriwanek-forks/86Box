@@ -14,14 +14,14 @@
  *		Miran Grca, <mgrca8@gmail.com>
  *		Fred N. van Kempen, <decwiz@yahoo.com>
  *		Overdoze,
- *		David Hrdlička, <hrdlickadavid@outlook.com>,
- *		Andreas J. Reichel, <webmaster@6th-dimension.com>
+ *		David Hrdlička, <hrdlickadavid@outlook.com>
  *
  *		Copyright 2008-2019 Sarah Walker.
  *		Copyright 2016-2019 Miran Grca.
  *		Copyright 2017-2019 Fred N. van Kempen.
  *		Copyright 2018,2019 David Hrdlička.
- *		Copyright 2021 Andreas J. Reichel.
+ *		Copyright 2021      Andreas J. Reichel.
+ *		Copyright 2021-2022 Jasmine Iwanek.
  *
  * NOTE:	Forcing config files to be in Unicode encoding breaks
  *		it on Windows XP, and possibly also Vista. Use the

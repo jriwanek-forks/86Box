@@ -17,6 +17,8 @@
  *		Copyright 2017-2019 Fred N. van Kempen.
  *		Copyright 2016-2019 Miran Grca.
  *		Copyright 2008-2019 Sarah Walker.
+ *		Copyright 2021      Andreas J. Reichel.
+ *		Copyright 2021-2022 Jasmine Iwanek.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -116,7 +118,7 @@ typedef struct _device_ {
 
 typedef struct {
     const device_t	*dev;
-    char name[2048];
+    char		name[2048];
     int instance;
 } device_context_t;
 
