@@ -174,7 +174,6 @@ if(RTMIDI)
     target_compile_definitions(ui PRIVATE USE_RTMIDI)
 endif()
 
-
 if(WIN32)
     enable_language(RC)
     target_sources(86Box PUBLIC ../win/86Box-qt.rc)
