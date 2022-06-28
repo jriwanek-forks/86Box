@@ -174,6 +174,11 @@ if(RTMIDI)
     target_compile_definitions(ui PRIVATE USE_RTMIDI)
 endif()
 
+if (WIN32)
+    target_sources(plat PRIVATE win_serial_passthrough.c)
+else()
+    target_sources(plat PRIVATE unix_serial_passthrough.c)
+endif()
 
 if(WIN32)
     enable_language(RC)
