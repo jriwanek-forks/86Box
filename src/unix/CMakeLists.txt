@@ -19,7 +19,7 @@
 
 add_library(plat OBJECT unix.c)
 
-target_sources(plat PRIVATE unix_serial_passthrough.c)
+target_sources(plat OBJECT unix_serial_passthrough.c)
 
 if (NOT CPPTHREADS)
     target_sources(plat PRIVATE unix_thread.c)
