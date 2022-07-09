@@ -128,7 +128,6 @@ const machine_filter_t machine_chipsets[] = {
     { "OPTi 895/802G",              MACHINE_CHIPSET_OPTI_895_802G       },
     { "OPTi 547/597",               MACHINE_CHIPSET_OPTI_547_597        },
     { "SARC RC2016A",               MACHINE_CHIPSET_SARC_RC2016A        },
-    { "SiS Rabbit",                 MACHINE_CHIPSET_SIS_RABBIT          },
     { "SiS 310",                    MACHINE_CHIPSET_SIS_310             },
     { "SiS 401",                    MACHINE_CHIPSET_SIS_401             },
     { "SiS 460",                    MACHINE_CHIPSET_SIS_460             },
@@ -4987,6 +4986,7 @@ const machine_t machines[] = {
         .snd_device = NULL,
         .net_device = NULL
     },
+//  { "[SiS 310] ASUS ISA-386C",                       "asus386",          MACHINE_TYPE_386DX,      MACHINE_CHIPSET_SIS_310,             machine_at_asus386_init,          0, 0, MACHINE_AVAILABLE, 0 , CPU_PKG_386DX,                                   CPU_BLOCK_NONE, 0, 0, 0, 0, 0, 0, MACHINE_AT, MACHINE_HDC,         512, 16384,  128, 127, NULL, NULL }, // {{"Intel", cpus_i386DX}, {"AMD", cpus_Am386DX}, {"Cyrix", cpus_486DLC}},
 
     /* 386DX machines which utilize the MCA bus */
     /* Has IBM PS/2 Type 1 KBC firmware. */
