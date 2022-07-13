@@ -100,6 +100,7 @@
 #include <86box/thread.h>
 #include <86box/version.h>
 #include <86box/gdbstub.h>
+#include <86box/machine_status.h>
 
 // Disable c99-designator to avoid the warnings about int ng
 #ifdef __clang__
@@ -896,6 +897,8 @@ pc_init_modules(void)
 
 	video_reset_close();
 
+	machine_status_init();
+
 	return(1);
 }
 
@@ -1337,7 +1340,7 @@ set_screen_size_monitor(int x, int y, int monitor_index)
         break;
     }
 
-    atomic_store(&doresize_monitors[monitor_index], 1);
+    plat_resize_request(monitors[monitor_index].mon_scrnsz_x, monitors[monitor_index].mon_scrnsz_y, monitor_index);
 }
 
 void
