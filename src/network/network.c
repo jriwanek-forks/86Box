@@ -72,6 +72,7 @@
 #include <86box/net_ne2000.h>
 #include <86box/net_pcnet.h>
 #include <86box/net_plip.h>
+#include <86box/net_rtl8139.h>
 #include <86box/net_wd8003.h>
 
 #ifdef _WIN32
@@ -115,6 +116,10 @@ static const device_t *net_cards[] = {
     &pcnet_am79c973_device,
     &pcnet_am79c970a_device,
     &rtl8029as_device,
+    &rtl8129_device,
+    &rtl8139c_device,
+    &rtl8139c_plus_device,
+    &rtl8139d_device,
     &pcnet_am79c960_vlb_device,
     NULL
 };
