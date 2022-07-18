@@ -248,7 +248,10 @@ extern const lpt_device_t lpt_plip_device;
 extern const device_t     plip_device;
 
 /* Realtek RTL8139C+ */
+extern const device_t rtl8129_device;
+extern const device_t rtl8139c_device;
 extern const device_t rtl8139c_plus_device;
+extern const device_t rtl8139d_device;
 
 /* DEC Tulip */
 extern const device_t dec_tulip_device;
