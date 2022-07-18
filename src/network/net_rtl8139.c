@@ -6,7 +6,11 @@
  *
  *          This file is part of the 86Box distribution.
  *
- *          Emulation of Realtek RTL8139C+ NIC.
+ *          Implementation of the following network controllers:
+ *            - Realtek RTL8129 (PCI)
+ *            - Realtek RTL8139C (PCI)
+ *            - Realtek RTL8139C+ (PCI)
+ *            - Realtek RTL8139D (PCI)
  *
  * Authors: Igor Kovalenko,
  *          Mark Malakanov,
@@ -14,13 +18,16 @@
  *          Frediano Ziglio,
  *          Benjamin Poirier.
  *          Cacodemon345,
+ *          Jasmine Iwanek, <jasmine@iwanek.co.uk>
  *
  *          Copyright 2006-2023 Igor Kovalenko.
  *          Copyright 2006-2023 Mark Malakanov.
  *          Copyright 2006-2023 Jurgen Lock.
  *          Copyright 2010-2023 Frediano Ziglio.
  *          Copyright 2011-2023 Benjamin Poirier.
- *          Copyright 2023 Cacodemon345.
+ *          Copyright 2023      Cacodemon345.
+ *          Copyright 2022-2023 Jasmine Iwanek.
+ *
  */
 #include <stdarg.h>
 #include <stdint.h>
@@ -3314,6 +3321,16 @@ nic_close(void *priv)
 
 // clang-format off
 static const device_config_t rtl8139c_config[] = {
+        .name           = "bios",
+        .description    = "Enable BIOS",
+        .type           = CONFIG_BINARY,
+        .default_string = NULL,
+        .default_int    = 0
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = { { 0 } },
+        .bios           = { { 0 } }
+    },
     {
         .name           = "mac",
         .description    = "MAC Address",
@@ -3329,11 +3346,39 @@ static const device_config_t rtl8139c_config[] = {
 };
 // clang-format on
 
+const device_t rtl8129_device = {
+    .name          = "Realtek RTL8129",
+    .internal_name = "rtl8129",
+    .flags         = DEVICE_PCI,
+    .local         = RTL8129,
+    .init          = nic_init,
+    .close         = nic_close,
+    .reset         = NULL,
+    .available     = NULL,
+    .speed_changed = NULL,
+    .force_redraw  = NULL,
+    .config        = NULL
+};
+
+const device_t rtl8139c_device = {
+    .name          = "Realtek RTL8139C",
+    .internal_name = "rtl8139c",
+    .flags         = DEVICE_PCI,
+    .local         = RTL8139C,
+    .init          = nic_init,
+    .close         = nic_close,
+    .reset         = NULL,
+    .available     = NULL,
+    .speed_changed = NULL,
+    .force_redraw  = NULL,
+    .config        = NULL
+};
+
 const device_t rtl8139c_plus_device = {
     .name          = "Realtek RTL8139C+",
     .internal_name = "rtl8139c+",
     .flags         = DEVICE_PCI,
-    .local         = 0,
+    .local         = RTL8139CP,
     .init          = nic_init,
     .close         = nic_close,
     .reset         = rtl8139_reset,
@@ -3341,4 +3386,18 @@ const device_t rtl8139c_plus_device = {
     .speed_changed = NULL,
     .force_redraw  = NULL,
     .config        = rtl8139c_config
+};
+
+const device_t rtl8139d_device = {
+    .name          = "Realtek RTL8139D",
+    .internal_name = "rtl8139d",
+    .flags         = DEVICE_PCI,
+    .local         = RTL8139D,
+    .init          = nic_init,
+    .close         = nic_close,
+    .reset         = NULL,
+    .available     = NULL,
+    .speed_changed = NULL,
+    .force_redraw  = NULL,
+    .config        = NULL
 };
