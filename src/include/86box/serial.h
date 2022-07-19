@@ -91,29 +91,34 @@ typedef struct serial_s {
 } serial_t;
 
 typedef struct serial_device_s {
-    void    (*rcr_callback)(struct serial_s *serial, void *priv);
-    void    (*dev_write)(struct serial_s *serial, void *priv, uint8_t data);
-    void    (*lcr_callback)(struct serial_s *serial, void *priv, uint8_t lcr);
-    void    (*transmit_period_callback)(struct serial_s *serial, void *priv, double transmit_period);
+    const char *name;
+    const char *internal_name;
+
+    void     *(*init)(void *lpt);
+    void      (*close)(void *priv);
+    void      (*rcr_callback)(struct serial_s *serial, void *priv);
+    void      (*dev_write)(struct serial_s *serial, void *priv, uint8_t data);
+    void      (*lcr_callback)(struct serial_s *serial, void *priv, uint8_t lcr);
+    void      (*transmit_period_callback)(struct serial_s *serial, void *priv, double transmit_period);
     void     *priv;
     serial_t *serial;
 } serial_device_t;
 
 typedef struct serial_port_s {
-    uint8_t enabled;
-/*
-            irq,
-            dat,
-            ctrl;
+    uint8_t  enabled;
+#if 0
+    uint8_t  irq,
+    uint8_t  dat,
+    uint8_t  ctrl;
     uint16_t addr,
-             pad0;
-*/
-    int      device;
-/*
-             enable_irq;
+    uint16_t pad0;
+    int      device,
+    int      enable_irq;
+#endif
     serial_device_t *	dt;
+#if 0
     void *   priv;
-*/
+#endif
 } serial_port_t;
 
 extern serial_port_t	com_ports[SERIAL_MAX];

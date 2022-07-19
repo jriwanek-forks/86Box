@@ -39,6 +39,59 @@
 
 serial_port_t com_ports[SERIAL_MAX];
 
+const serial_device_t serial_none_device = {
+    .name = "None",
+    .internal_name = "none",
+    .init = NULL,
+    .close = NULL,
+    .rcr_callback = NULL,
+    .dev_write = NULL,
+    .priv = NULL,
+    .serial = NULL,
+};
+
+static const struct {
+    const char *internal_name;
+    const serial_device_t *device;
+} serial_devices[] = {
+// clang-format off
+    {"none",            &serial_none_device },
+    {"",                NULL                }
+// clang-format on
+};
+
+char *
+serial_device_get_name(int id)
+{
+    if (strlen((char *) serial_devices[id].internal_name) == 0)
+        return NULL;
+    if (!serial_devices[id].device)
+        return "None";
+    return (char *) serial_devices[id].device->name;
+}
+
+char *
+serial_device_get_internal_name(int id)
+{
+    if (strlen((char *) serial_devices[id].internal_name) == 0)
+        return NULL;
+    return (char *) serial_devices[id].internal_name;
+}
+
+int
+serial_device_get_from_internal_name(char *s)
+{
+    int c = 0;
+
+    while (strlen((char *) serial_devices[c].internal_name) != 0) {
+        if (strcmp(serial_devices[c].internal_name, s) == 0)
+            return c;
+        c++;
+    }
+
+    return 0;
+}
+
 enum {
     SERIAL_INT_LSR       = 1,
     SERIAL_INT_TIMEOUT   = 2,
@@ -746,6 +799,7 @@ static void
 serial_rcvr_d_empty_evt(void *priv)
 {
     serial_t *dev = (serial_t *) priv;
+    serial_device_t *sd = (serial_device_t *) &com_ports[port].dt;
 
     dev->lsr = (dev->lsr & 0xfe) | (fifo_get_empty(dev->rcvr_fifo) ? 0 : 1);
 }
@@ -863,8 +917,8 @@ serial_init(const device_t *info)
     if (com_ports[next_inst].enabled) {
         serial_log("Adding serial port %i...\n", next_inst);
         dev->type = info->local;
-        memset(&(serial_devices[next_inst]), 0, sizeof(serial_device_t));
-        dev->sd         = &(serial_devices[next_inst]);
+        memset(&com_ports[next_inst].dt, 0, sizeof(serial_device_t));
+        dev->sd = (serial_device_t *) &com_ports[next_inst].dt;
         dev->sd->serial = dev;
         if (next_inst == 3)
             serial_setup(dev, COM4_ADDR, COM4_IRQ);
