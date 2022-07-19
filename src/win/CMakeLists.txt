@@ -17,14 +17,12 @@
 enable_language(RC)
 
 add_library(plat OBJECT win.c win_dynld.c win_cdrom.c win_keyboard.c
-    win_mouse.c)
+    win_mouse.c win_serial_passthrough.c)
 
 add_library(ui OBJECT win_ui.c win_icon.c win_stbar.c win_sdl.c win_dialog.c win_about.c
     win_settings.c win_devconf.c win_snd_gain.c win_specify_dim.c win_new_floppy.c
     win_jsconf.c win_media_menu.c win_preferences.c glad.c win_opengl.c
     win_opengl_glslp.c win_toolbar.c 86Box.rc)
-
-target_sources(plat OBJECT win_serial_passthrough.c)
 
 if(NOT CPPTHREADS)
     target_sources(plat PRIVATE win_thread.c)
