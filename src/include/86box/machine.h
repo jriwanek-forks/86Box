@@ -658,6 +658,7 @@ extern int	machine_at_5emapro_init(const machine_t *);
 
 /* m_at_socket8.c */
 extern int	machine_at_p6rp4_init(const machine_t *);
+extern int	machine_at_aurora_init(const machine_t *);
 
 extern int	machine_at_686nx_init(const machine_t *);
 extern int	machine_at_acerv60n_init(const machine_t *);
@@ -776,7 +777,9 @@ extern int	machine_ps2_m30_286_init(const machine_t *);
 
 /* m_ps2_mca.c */
 extern int	machine_ps2_model_50_init(const machine_t *);
+extern int  machine_ps2_model_60_init(const machine_t *);
 extern int	machine_ps2_model_55sx_init(const machine_t *);
+extern int	machine_ps2_model_65sx_init(const machine_t *);
 extern int	machine_ps2_model_70_type3_init(const machine_t *);
 extern int	machine_ps2_model_80_init(const machine_t *);
 extern int	machine_ps2_model_80_axx_init(const machine_t *);
