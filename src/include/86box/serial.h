@@ -101,7 +101,22 @@ typedef struct serial_device_s {
 
 typedef struct serial_port_s {
     uint8_t enabled;
+/*
+            irq,
+            dat,
+            ctrl;
+    uint16_t addr,
+             pad0;
+*/
+    int      device;
+/*
+             enable_irq;
+    serial_device_t *	dt;
+    void *   priv;
+*/
 } serial_port_t;
+
+extern serial_port_t	com_ports[SERIAL_MAX];
 
 extern serial_port_t com_ports[SERIAL_MAX];
 

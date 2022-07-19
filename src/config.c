@@ -2222,6 +2222,20 @@ save_ports(void)
         else
             ini_section_set_int(cat, temp, com_ports[c].enabled);
 
+#if 0
+        sprintf(temp, "serial%d_type", c + 1);
+        if (!com_ports[c].enabled)
+            ini_section_delete_var(cat, temp);
+//      else
+//          ini_section_set_string(cat, temp, (char *) serial_type[c])
+
+        sprintf(temp, "serial%d_device", c + 1);
+        if (com_ports[c].device == 0)
+            ini_section_delete_var(cat, temp);
+        else
+            ini_section_set_string(cat, temp,
+              (char *) com_device_get_internal_name(com_ports[c].device));
+#endif
         sprintf(temp, "serial%d_passthrough_enabled", c + 1);
         if (serial_passthrough_enabled[c]) {
             ini_section_set_int(cat, temp, 1);
