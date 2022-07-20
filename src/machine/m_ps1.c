@@ -396,9 +396,3 @@ machine_ps1_m2133_init(const machine_t *model)
 
     return ret;
 }
-
-const device_t *
-ps1_m2133_get_device(void)
-{
-    return &gd5426_onboard_device;
-}

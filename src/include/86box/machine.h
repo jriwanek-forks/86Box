@@ -236,7 +236,6 @@ enum {
     MACHINE_CHIPSET_OPTI_895_802G,
     MACHINE_CHIPSET_OPTI_547_597,
     MACHINE_CHIPSET_SARC_RC2016A,
-    MACHINE_CHIPSET_SIS_RABBIT,
     MACHINE_CHIPSET_SIS_310,
     MACHINE_CHIPSET_SIS_401,
     MACHINE_CHIPSET_SIS_460,
@@ -689,6 +688,8 @@ extern int machine_at_ms5146_init(const machine_t *);
 
 extern int machine_at_m560_init(const machine_t *);
 extern int machine_at_ms5164_init(const machine_t *);
+extern int	machine_at_sp97xv_init(const machine_t *);
+extern int	machine_at_m571_init(const machine_t *);
 
 /* m_at_sockets7.c */
 extern int machine_at_p5a_init(const machine_t *);
@@ -800,10 +801,6 @@ extern int machine_pcjr_init(const machine_t *);
 extern int machine_ps1_m2011_init(const machine_t *);
 extern int machine_ps1_m2121_init(const machine_t *);
 extern int machine_ps1_m2133_init(const machine_t *);
-
-#ifdef EMU_DEVICE_H
-extern const device_t *ps1_m2133_get_device(void);
-#endif
 
 /* m_ps1_hdc.c */
 #ifdef EMU_DEVICE_H

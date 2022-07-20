@@ -118,26 +118,12 @@ machine_at_pd440fx_init(const machine_t *model)
     device_add(&keyboard_ps2_ami_pci_device);
     device_add(&pc87307_device);
     device_add(&intel_flash_bxt_ami_device);
-
-    hwm_values_t machine_hwm = {
-        {    /* fan speeds (incorrect divisor for some reason) */
-            6000,    /* Chassis */
-            6000,    /* CPU */
-            6000     /* Power */
-        }, { /* temperatures */
-            30       /* MB */
-        }, { /* voltages */
-            2800,    /* VCORE (2.8V by default) */
-            0,       /* unused */
-            3300,    /* +3.3V */
-            RESISTOR_DIVIDER(5000,   11,  16), /* +5V  (divider values bruteforced) */
-            RESISTOR_DIVIDER(12000,  28,  10), /* +12V (28K/10K divider suggested in the W83781D datasheet) */
-            RESISTOR_DIVIDER(12000, 853, 347), /* -12V (divider values bruteforced) */
-            RESISTOR_DIVIDER(5000,    1,   2)  /* -5V  (divider values bruteforced) */
-        }
-    };
-//    hwm_set_values(machine_hwm);
     device_add(&lm78_device);
+    for (uint8_t i = 0; i < 3; i++)
+        hwm_values.fans[i] *= 2; /* BIOS reports fans with the wrong divisor for some reason */
+    hwm_values.voltages[0] = 2800; /* VCORE (2.8V by default) */
+    hwm_values.voltages[5] = RESISTOR_DIVIDER(12000, 853, 347); /* -12V (divider values bruteforced) */
+    hwm_values.voltages[6] = RESISTOR_DIVIDER(5000,    1,   2); /* -5V  (divider values bruteforced) */
 
     return ret;
 }
