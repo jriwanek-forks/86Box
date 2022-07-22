@@ -518,6 +518,7 @@ extern int machine_at_mvi486_init(const machine_t *);
 extern int machine_at_sis401_init(const machine_t *);
 extern int machine_at_isa486_init(const machine_t *);
 extern int machine_at_av4_init(const machine_t *);
+extern int machine_at_pcs46c_init(const machine_t *);
 extern int machine_at_valuepoint433_init(const machine_t *);
 
 extern int machine_at_vli486sv2g_init(const machine_t *);

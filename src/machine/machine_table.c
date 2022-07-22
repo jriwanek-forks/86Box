@@ -5454,6 +5454,40 @@ const machine_t machines[] = {
         .snd_device = NULL,
         .net_device = NULL
     },
+    {
+        .name = "[ETEQ ET6000] Olivetti PCS-46C",
+        .internal_name = "pcs46c",
+        .type = MACHINE_TYPE_486,
+        .chipset = NULL,
+        .init = machine_at_pcs46c_init,
+        .pad = 0,
+        .pad0 = 0,
+        .pad1 = MACHINE_AVAILABLE,
+        .pad2 = 0,
+        .cpu = {
+            .package = CPU_PKG_SOCKET1,
+            .block = CPU_BLOCK_NONE,
+            .min_bus = 0,
+            .max_bus = 0,
+            .min_voltage = 0,
+            .max_voltage = 0,
+            .min_multi = 0,
+            .max_multi = 0
+        },
+        .bus_flags = MACHINE_VLB,
+        .flags = MACHINE_IDE | MACHINE_VIDEO,
+        .ram = {
+            .min = 4096,
+            .max = 32768,
+            .step = 4096,
+		},
+        .nvrmask = 127,
+        .kbc = KBC_UNKNOWN,
+        .kbc_p1 = 0,
+        .gpio = 0,
+        .device = &gd5428_onboard_device,
+		.vid_device = NULL
+    },
     /* Uses some variant of Phoenix MultiKey/42 as the Intel 8242 chip has a Phoenix
        copyright. */
     {
@@ -12814,7 +12848,7 @@ const machine_t machines[] = {
         .pad0 = 0,
         .pad1 = MACHINE_AVAILABLE,
         .pad2 = 0,
-		.cpu = {
+        .cpu = {
             .package = CPU_PKG_SLOT1,
             .block = CPU_BLOCK_NONE,
             .min_bus = 0,
@@ -12823,14 +12857,14 @@ const machine_t machines[] = {
             .max_voltage = 0,
             .min_multi = 0,
             .max_multi = 0
-		},
+        },
         .bus_flags = MACHINE_PS2_PCI,
         .flags = MACHINE_HDC,
-		.ram = {
+        .ram = {
             .min = 8,
             .max = 768,
             .step = 8,
-		},
+        },
         .nvrmask = 255,
         .kbc = KBC_UNKNOWN,
         .kbc_p1 = 0,
@@ -13566,7 +13600,7 @@ const machine_t machines[] = {
         .pad0 = 0,
         .pad1 = MACHINE_AVAILABLE,
         .pad2 = 0,
-		.cpu = {
+        .cpu = {
             .package = CPU_PKG_SOCKET370,
             .block = CPU_BLOCK_NONE,
             .min_bus = 66666667,
@@ -13575,14 +13609,14 @@ const machine_t machines[] = {
             .max_voltage = 3500,
             .min_multi = 1.5,
             .max_multi = 8.0
-		},
+        },
         .bus_flags = MACHINE_PS2_AGP,
         .flags = MACHINE_IDE_DUAL,
-		.ram = {
+        .ram = {
             .min = 8192,
             .max = 1048576,
             .step = 8192
-		},
+        },
         .nvrmask = 255,
         .kbc = KBC_UNKNOWN,
         .kbc_p1 = 0,
@@ -13677,7 +13711,7 @@ const machine_t machines[] = {
         .pad0 = 0,
         .pad1 = MACHINE_AVAILABLE,
         .pad2 = 0,
-		.cpu = {
+        .cpu = {
             .package = CPU_PKG_SOCKET370,
             .block = CPU_BLOCK_NONE,
             .min_bus = 66666667,
@@ -13686,14 +13720,14 @@ const machine_t machines[] = {
             .max_voltage = 3500,
             .min_multi = 2.0,
             .max_multi = 8.0
-		},
+        },
         .bus_flags = MACHINE_PS2_NOISA,
         .flags = MACHINE_IDE_DUAL,
-		.ram = {
+        .ram = {
             .min = 16384,
             .max = 1572864,
             .step = 8192
-		},
+        },
         .nvrmask = 255,
         .kbc = KBC_UNKNOWN,
         .kbc_p1 = 0,
