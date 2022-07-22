@@ -1712,6 +1712,7 @@ cpu_set(void)
             break;
 
         case CPU_CYRIX3S:
+        case CPU_EDEN:
 #ifdef USE_DYNAREC
             x86_setopcodes(ops_386, ops_winchip2_0f, dynarec_ops_386, dynarec_ops_winchip2_0f);
 #else
@@ -2417,6 +2418,7 @@ cpu_CPUID(void)
             break;
 
         case CPU_CYRIX3S:
+ 	    case CPU_EDEN:
             switch (EAX) {
                 case 0:
                     EAX = 1;
@@ -2549,6 +2551,7 @@ cpu_RDMSR(void)
             break;
 
         case CPU_CYRIX3S:
+        case CPU_EDEN:
             EAX = EDX = 0;
             switch (ECX) {
                 case 0x00:
@@ -3076,6 +3079,7 @@ cpu_WRMSR(void)
             break;
 
         case CPU_CYRIX3S:
+        case CPU_EDEN:
             switch (ECX) {
                 case 0x00:
                 case 0x01:

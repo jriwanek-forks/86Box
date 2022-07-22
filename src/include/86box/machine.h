@@ -183,8 +183,9 @@ enum {
     MACHINE_TYPE_SLOT1_370  = 20,
     MACHINE_TYPE_SLOT2      = 21,
     MACHINE_TYPE_SOCKET370  = 22,
-    MACHINE_TYPE_MISC       = 23,
-    MACHINE_TYPE_MAX        = 24
+    MACHINE_TYPE_EBGA368    = 23,
+    MACHINE_TYPE_MISC       = 24,
+    MACHINE_TYPE_MAX        = 25
 };
 
 enum {
