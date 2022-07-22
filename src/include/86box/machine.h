@@ -776,6 +776,9 @@ extern int machine_at_p6bap_init(const machine_t *);
 extern int machine_at_p6bat_init(const machine_t *);
 extern int machine_at_ms6198_init(const machine_t *);
 
+/* m_at_ebga368.c */
+extern int	machine_at_arb9673_init(const machine_t *);
+
 /* m_at_misc.c */
 extern int machine_at_vpc2007_init(const machine_t *);
 

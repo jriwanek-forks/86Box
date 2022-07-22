@@ -77,7 +77,7 @@ const machine_filter_t machine_types[] = {
     { "Slot 1/Socket 370",         MACHINE_TYPE_SLOT1_370  },
     { "Slot 2",                    MACHINE_TYPE_SLOT2      },
     { "Socket 370",                MACHINE_TYPE_SOCKET370  },
-    { "EBGA 368",			       MACHINE_TYPE_EBGA368    },
+    { "EBGA 368",                   MACHINE_TYPE_EBGA368    },
     { "Miscellaneous",             MACHINE_TYPE_MISC       }
 };
 
@@ -5481,13 +5481,13 @@ const machine_t machines[] = {
             .min = 4096,
             .max = 32768,
             .step = 4096,
-		},
+        },
         .nvrmask = 127,
         .kbc = KBC_UNKNOWN,
         .kbc_p1 = 0,
         .gpio = 0,
         .device = &gd5428_onboard_device,
-		.vid_device = NULL
+        .vid_device = NULL
     },
     /* Uses some variant of Phoenix MultiKey/42 as the Intel 8242 chip has a Phoenix
        copyright. */
@@ -13735,6 +13735,39 @@ const machine_t machines[] = {
         .gpio = 0,
         .device = NULL,
         .vid_device = NULL
+    },
+
+    /* EBGA368 machines */
+    /* VIA Apollo Pro */
+    {
+        .name = "[VIA Apollo ProMedia] Acrosser AR-B9673",
+		.internal_name = "arb9673",
+        .type = MACHINE_TYPE_EBGA368,
+		.chipset = NULL,
+        .init = machine_at_arb9673_init,
+		.cpu = {
+            .package = CPU_PKG_EBGA368,
+            .block = CPU_BLOCK_NONE,
+            .min_bus = 100000000,
+            .max_bus = 133333333,
+            .min_voltage = 2050,
+            .max_voltage = 2050,
+            .min_multi = MACHINE_MULTIPLIER_FIXED,
+            .max_multi = MACHINE_MULTIPLIER_FIXED
+		},
+        .bus_flags = MACHINE_PS2_PCI,
+		.flags = MACHINE_IDE_DUAL,
+		.ram = {
+            .min = 131072,
+            .max = 131072,
+            .step = 0
+		},
+        .nvrmask = 31,
+        .kbc = KBC_UNKNOWN,
+        .kbc_p1 = 0,
+        .gpio = 0,
+        .device = NULL,
+		.vid_device = NULL
     },
 
     /* Miscellaneous/Fake/Hypervisor machines */
