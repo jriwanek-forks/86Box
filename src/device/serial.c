@@ -60,6 +60,20 @@ static const struct {
 // clang-format on
 };
 
+/*
+static const struct {
+    const char *internal_name;
+    const serial_port_t *port;
+} uarts[] = {
+// clang-format off
+    {"none",            &uart_none     },
+    {"uart-internal",   &uart_internal },
+    {"uart-custom",     &uart_custom   },
+    {"",                NULL           }
+// clang-format on
+};
+*/
+
 char *
 serial_device_get_name(int id)
 {
@@ -1087,3 +1101,19 @@ const device_t ns16950_device = {
     .force_redraw  = NULL,
     .config        = NULL
 };
+
+/*
+const device_t uart_custom_device = {
+    .name = "Custom UART",
+    .internal_name = "uart_custom",
+    .flags = 0,
+    .local = SERIAL_CUSTOM,
+    .init = serial_custom_init,
+    .close = serial_custom_close,
+    .reset = NULL,
+    { .available = NULL },
+    .speed_changed = serial_speed_changed,
+    .force_redraw = NULL,
+    .config = NULL
+};
+*/
