@@ -917,7 +917,6 @@ serial_init(const device_t *info)
     if (com_ports[next_inst].enabled) {
         serial_log("Adding serial port %i...\n", next_inst);
         dev->type = info->local;
-        memset(&com_ports[next_inst].dt, 0, sizeof(serial_device_t));
         dev->sd = (serial_device_t *) &com_ports[next_inst].dt;
         dev->sd->serial = dev;
         if (next_inst == 3)
