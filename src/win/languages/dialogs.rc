@@ -49,8 +49,7 @@ BEGIN
                     162, 64, 60, CFG_BTN_HEIGHT
 
     AUTOCHECKBOX    STR_GLOBAL, IDC_CHECKBOX_GLOBAL,
-                    13, 82, 217, 8,
-                    WS_DISABLED 
+                    13, 82, 217, 8
 END
 
 DLG_SND_GAIN DIALOG DISCARDABLE  0, 0, 113, 136

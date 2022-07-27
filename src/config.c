@@ -175,9 +175,19 @@ load_general(void)
     confirm_exit  = ini_section_get_int(cat, "confirm_exit", 1);
     confirm_save  = ini_section_get_int(cat, "confirm_save", 1);
 
+    void* gconf = plat_gconf_init(0);
+
     p = ini_section_get_string(cat, "language", NULL);
     if (p != NULL)
         lang_id = plat_language_code(p);
+    else {
+        char* locale_s = plat_gconf_get_string(gconf, "language", NULL);
+
+        if (locale_s != NULL) {
+            lang_id = plat_language_code(locale_s);
+            free(locale_s);
+        }
+    }
 
     mouse_sensitivity = ini_section_get_double(cat, "mouse_sensitivity", 1.0);
     if (mouse_sensitivity < 0.1)
@@ -186,10 +196,23 @@ load_general(void)
         mouse_sensitivity = 2.0;
 
     p = ini_section_get_string(cat, "iconset", NULL);
-    if (p != NULL)
-        strcpy(icon_set, p);
-    else
-        strcpy(icon_set, "");
+    if (p != NULL) {
+
+        if (!strcmp(p, "none"))
+            strcpy(icon_set, "");
+        else
+            strcpy(icon_set, p);
+    } else {
+        char* gc_icset = plat_gconf_get_string(gconf, "iconset", NULL);
+
+        if (gc_icset != NULL) {
+            strcpy(icon_set, gc_icset);
+            free(gc_icset);
+        } else
+            strcpy(icon_set, "");
+    }
+
+    plat_gconf_close(gconf);
 
     enable_discord = !!ini_section_get_int(cat, "enable_discord", 0);
 
@@ -1528,6 +1551,51 @@ load_other_peripherals(void)
     isartc_type = isartc_get_from_internal_name(p);
 }
 
+/* Fills some settings when no config file from global defaults */
+void
+config_load_gconf(void)
+{
+    void *gconf = plat_gconf_init(0);
+
+    char *value = plat_gconf_get_string(gconf, "language", NULL);
+    if (value != NULL) {
+        lang_id = plat_language_code(value);
+        free(value);
+    }
+
+    value = plat_gconf_get_string(gconf, "iconset", NULL);
+    if (value != NULL) {
+        if (!strcmp(icon_set, "none"))
+            strcpy(icon_set, "");
+        else
+            strcpy(icon_set, value);
+
+        free(value);
+    }
+
+    plat_gconf_close(gconf);
+}
+
+/* Write the current settings as global defaults (for VMs with no config) */
+void 
+config_save_gconf(void)
+{
+    void *gconf = plat_gconf_init(1);
+
+    char locale_s[512] = {0};
+    plat_language_code_r(lang_id, locale_s, 511);
+
+    plat_gconf_set_string(gconf, "language", locale_s);  
+
+    if (!strcmp(icon_set, ""))
+        plat_gconf_set_string(gconf, "iconset", "none");
+    else
+        plat_gconf_set_string(gconf, "iconset", icon_set);
+
+    plat_gconf_close(gconf);
+}
+
+
 /* Load the specified or a default configuration file. */
 void
 config_load(void)
@@ -1604,6 +1672,9 @@ config_load(void)
         cassette_append       = 0;
         cassette_pcm          = 0;
         cassette_ui_writeprot = 0;
+
+        /* Load entries from global settings */
+        config_load_gconf();
 
         config_log("Config file not present or invalid!\n");
     } else {

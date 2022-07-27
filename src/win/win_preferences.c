@@ -178,7 +178,7 @@ preferences_indexof(HWND combo, LPARAM itemdata)
 
 /* This saves the settings back to the global variables. */
 static void
-preferences_settings_save(void)
+preferences_settings_save(int save_global)
 {
     /* Language */
     set_language(temp_language);
@@ -198,6 +198,10 @@ preferences_settings_save(void)
 
     /* Save the language changes */
     config_save();
+	
+    /* Save global defaults as well if the checkbox is checked */
+    if (save_global)
+        config_save_gconf();
 }
 
 #if defined(__amd64__) || defined(__aarch64__)
@@ -221,7 +225,8 @@ PreferencesDlgProcedure(HWND hdlg, UINT message, WPARAM wParam, UNUSED(LPARAM lP
             switch (LOWORD(wParam)) {
                 case IDOK:
                     if (preferences_settings_changed())
-                        preferences_settings_save();
+                        preferences_settings_save(
+                                                  SendDlgItemMessage(hdlg, IDC_CHECKBOX_GLOBAL, BM_GETCHECK, 0, 0));
                     EndDialog(hdlg, 0);
                     return TRUE;
 

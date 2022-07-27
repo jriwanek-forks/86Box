@@ -150,6 +150,12 @@ extern void     plat_language_code_r(uint32_t lcid, char *outbuf, int len);
 extern void     plat_get_cpu_string(char *outbuf, uint8_t len);
 extern double   plat_get_dpi(void);
 
+/* Global settings (platform-dependent) */
+extern void *plat_gconf_init(int mode);
+extern void plat_gconf_close(void *context);
+extern void plat_gconf_set_string(void *context, char *key, char *val);
+extern char *plat_gconf_get_string(void *context, char *key, char *def);
+
 /* Resource management. */
 extern void     set_language(uint32_t id);
 extern wchar_t *plat_get_string(int id);
