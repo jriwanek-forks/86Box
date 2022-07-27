@@ -250,6 +250,12 @@ if (WIN32)
     )
 endif()
 
+if (WIN32)
+    target_sources(plat PRIVATE ../win/win_gconf.c)
+else ()
+    target_sources(plat PRIVATE ../unix/unix_gconf.c)
+endif ()
+
 target_link_libraries(
     plat
     PRIVATE

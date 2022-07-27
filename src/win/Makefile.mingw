@@ -11,6 +11,7 @@
 #
 # Authors: Miran Grca, <mgrca8@gmail.com>
 #          Fred N. van Kempen, <decwiz@yahoo.com>
+#          Jasmine Iwanek, <jriwanek@gmail.com>
 #
 
 # Various compile-time options.
@@ -785,7 +786,7 @@ PLATOBJ := win.o \
            win_cdrom.o win_keyboard.o \
            win_mouse.o win_serial_passthrough.o
 
-UIOBJ := win_ui.o win_icon.o win_stbar.o discord.o \
+UIOBJ := win_ui.o win_icon.o win_gconf.o win_stbar.o discord.o \
          win_sdl.o win_opengl.o win_opengl_glslp.o glad.o \
          win_dialog.o win_about.o \
          win_settings.o win_devconf.o win_snd_gain.o win_specify_dim.o win_preferences.o \
