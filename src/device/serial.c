@@ -64,6 +64,8 @@ static const struct {
 };
 */
 
+static serial_device_t serial_devices[SERIAL_MAX];
+
 char *
 serial_device_get_name(int id)
 {
@@ -109,7 +111,6 @@ enum {
 void    serial_update_ints(serial_t *dev);
 
 static int             next_inst = 0;
-static serial_device_t serial_devices[SERIAL_MAX];
 
 static void            serial_xmit_d_empty_evt(void *priv);
 
