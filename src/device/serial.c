@@ -50,16 +50,6 @@ const serial_device_t serial_none_device = {
     .serial = NULL,
 };
 
-static const struct {
-    const char *internal_name;
-    const serial_device_t *device;
-} serial_devices[] = {
-// clang-format off
-    {"none",            &serial_none_device },
-    {"",                NULL                }
-// clang-format on
-};
-
 /*
 static const struct {
     const char *internal_name;
@@ -931,7 +921,7 @@ serial_init(const device_t *info)
     if (com_ports[next_inst].enabled) {
         serial_log("Adding serial port %i...\n", next_inst);
         dev->type = info->local;
-        dev->sd = (serial_device_t *) &com_ports[next_inst].dt;
+        dev->sd   = (serial_device_t *) &com_ports[next_inst].dt;
         dev->sd->serial = dev;
         if (next_inst == 3)
             serial_setup(dev, COM4_ADDR, COM4_IRQ);
