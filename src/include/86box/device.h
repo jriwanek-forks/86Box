@@ -126,6 +126,7 @@ typedef struct _device_ {
 typedef struct {
     const device_t *dev;
     char            name[2048];
+    int             instance;
 } device_context_t;
 
 #ifdef __cplusplus
