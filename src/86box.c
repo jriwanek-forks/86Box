@@ -161,7 +161,6 @@ int video_filter_method = 1;			/* (C) video */
 int video_vsync = 0;				/* (C) video */
 int video_framerate = -1;			/* (C) video */
 char video_shader[512] = { '\0' };		/* (C) video */
-int	serial_enabled[SERIAL_MAX] = {0,0};	/* (C) enable serial ports */
 bool serial_passthrough_enabled[SERIAL_MAX] = {0}; /* (C) activation and kind of pass-through for serial ports */
 int bugger_enabled = 0;				/* (C) enable ISAbugger */
 int postcard_enabled = 0;			/* (C) enable POST card */
