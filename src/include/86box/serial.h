@@ -44,6 +44,13 @@
 #define COM4_ADDR 0x02e8
 #define COM4_IRQ  3
 
+/* Bits of Modem Control Register */
+#define MCR_LOOPBACK      (1 << 4)    /* Loop Back Mode */
+
+/* Bits of Line Status Register */
+#define LSR_DATA_READY    (1 << 0)    /* Data ready to receive */
+#define LSR_THR_EMPTY     (1 << 5)    /* Transmitter holding register empty */
+
 struct serial_device_s;
 struct serial_s;
 
