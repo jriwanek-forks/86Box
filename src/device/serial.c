@@ -66,6 +66,7 @@ static const struct {
 
 static serial_device_t serial_devices[SERIAL_MAX];
 
+/*
 char *
 serial_device_get_name(int id)
 {
@@ -75,6 +76,7 @@ serial_device_get_name(int id)
         return "None";
     return (char *) serial_devices[id].device->name;
 }
+*/
 
 char *
 serial_device_get_internal_name(int id)
