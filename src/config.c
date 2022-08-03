@@ -2739,7 +2739,7 @@ save_ports(void)
                       (char *) com_device_get_internal_name(com_ports[c].device));
         */
 
-        if (serial_enabled[c])
+        if (com_ports[c].enabled)
             if (serial_passthrough_enabled[c]) {
                 sprintf(temp, "serial%d_passthrough_enabled", c + 1);
                 config_set_int(cat, temp, 1);
