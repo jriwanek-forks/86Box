@@ -7186,6 +7186,28 @@ const cpu_family_t cpu_families[] = {
             { .name = "", 0 }
         }
     }, {
+        .package       = CPU_PKG_SLOT1,
+        .manufacturer  = "Intel",
+        .name          = "Pentium III (Katmai)",
+        .internal_name = "pentium3_katmai",
+        .cpus          = (const CPU[]) {
+            { "100",     CPU_PENTIUM3, fpus_internal, 100000000, 1.0, 1600, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 }, /* out of spec */
+            { "150",     CPU_PENTIUM3, fpus_internal, 150000000, 1.5, 1600, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 }, /* out of spec */
+            { "200",     CPU_PENTIUM3, fpus_internal, 200000000, 2.0, 1600, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 }, /* out of spec */
+            { "250",     CPU_PENTIUM3, fpus_internal, 250000000, 2.5, 1600, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 }, /* out of spec */
+            { "300",     CPU_PENTIUM3, fpus_internal, 300000000, 3.0, 1600, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 }, /* out of spec */
+            { "350",     CPU_PENTIUM3, fpus_internal, 350000000, 3.5, 1600, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 }, /* out of spec */
+            { "400",     CPU_PENTIUM3, fpus_internal, 400000000, 4.0, 1600, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 }, /* out of spec */
+            { "450",     CPU_PENTIUM3, fpus_internal, 450000000, 4.5, 2050, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 54 },
+            { "500",     CPU_PENTIUM3, fpus_internal, 500000000, 5.0, 2050, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 },
+            { "533",     CPU_PENTIUM3, fpus_internal, 533333333, 4.0, 2050, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 },
+            { "550",     CPU_PENTIUM3, fpus_internal, 550000000, 5.5, 2050, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 66 },
+            { "600",     CPU_PENTIUM3, fpus_internal, 600000000, 6.0, 2050, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
+            { "600/133", CPU_PENTIUM3, fpus_internal, 600000000, 4.5, 2050, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
+            { .name = "", 0 }
+        }
+    }, 
+    {
         .package       = CPU_PKG_SLOT2,
         .manufacturer  = "Intel",
         .name          = "Pentium II Xeon",
@@ -7991,6 +8013,149 @@ const cpu_family_t cpu_families[] = {
                 .cache_write_cycles = 18,
                 .atclk_div          = 88
             },
+            { .name = "", 0 }
+        }
+    },
+    {
+        .package       = CPU_PKG_SOCKET370,
+        .manufacturer  = "Intel",
+        .name          = "Pentium III (Coppermine)",
+        .internal_name = "pentium3_coppermine",
+        .cpus          = (const CPU[]) {
+            { "100",      CPU_PENTIUM3, fpus_internal,  100000000,  1.0, 1600, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 }, /* out of spec */
+            { "150",      CPU_PENTIUM3, fpus_internal,  150000000,  1.5, 1600, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 }, /* out of spec */
+            { "200",      CPU_PENTIUM3, fpus_internal,  200000000,  2.0, 1600, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 }, /* out of spec */
+            { "250",      CPU_PENTIUM3, fpus_internal,  250000000,  2.5, 1600, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 }, /* out of spec */
+            { "300",      CPU_PENTIUM3, fpus_internal,  300000000,  3.0, 1600, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 }, /* out of spec */
+            { "350",      CPU_PENTIUM3, fpus_internal,  350000000,  3.5, 1600, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 }, /* out of spec */
+            { "400",      CPU_PENTIUM3, fpus_internal,  400000000,  4.0, 1600, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 }, /* out of spec */
+            { "450",      CPU_PENTIUM3, fpus_internal,  450000000,  4.5, 1600, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 }, /* out of spec */
+            { "500",      CPU_PENTIUM3, fpus_internal,  500000000,  5.0, 1600, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 },
+            { "533",      CPU_PENTIUM3, fpus_internal,  533333333,  4.0, 1600, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 },
+            { "550",      CPU_PENTIUM3, fpus_internal,  550000000,  5.5, 1600, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 66 },
+            { "600",      CPU_PENTIUM3, fpus_internal,  600000000,  6.0, 1650, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
+            { "600/133",  CPU_PENTIUM3, fpus_internal,  600000000,  4.5, 1650, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
+            { "650",      CPU_PENTIUM3, fpus_internal,  650000000,  6.5, 1650, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
+            { "666",      CPU_PENTIUM3, fpus_internal,  666666666,  5.0, 1650, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
+            { "700",      CPU_PENTIUM3, fpus_internal,  700000000,  7.0, 1650, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
+            { "733",      CPU_PENTIUM3, fpus_internal,  733333333,  5.5, 1650, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
+            { "750",      CPU_PENTIUM3, fpus_internal,  750000000,  7.5, 1650, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
+            { "800",      CPU_PENTIUM3, fpus_internal,  800000000,  8.0, 1650, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
+            { "800/133",  CPU_PENTIUM3, fpus_internal,  800000000,  6.0, 1650, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
+            { "850",      CPU_PENTIUM3, fpus_internal,  850000000,  8.5, 1650, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
+            { "866",      CPU_PENTIUM3, fpus_internal,  866666666,  6.5, 1650, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
+            { "900",      CPU_PENTIUM3, fpus_internal,  900000000,  9.0, 1650, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
+            { "933",      CPU_PENTIUM3, fpus_internal,  933333333,  7.0, 1650, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
+            { "1000",     CPU_PENTIUM3, fpus_internal, 1000000000, 10.0, 1700, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
+            { "1000/133", CPU_PENTIUM3, fpus_internal, 1000000000,  7.5, 1700, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
+            { "1100",     CPU_PENTIUM3, fpus_internal, 1100000000, 11.0, 1750, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
+            { "1133",     CPU_PENTIUM3, fpus_internal, 1133333333,  8.5, 1750, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
+            { .name = "", 0 }
+        }
+    },
+    {
+        .package       = CPU_PKG_SOCKET370,
+        .manufacturer  = "Intel",
+        .name          = "Celeron (Coppermine)",
+        .internal_name = "celeron_coppermine",
+        .cpus          = (const CPU[]) {
+            { "100",  CPU_PENTIUM3, fpus_internal,  100000000,  1.0, 1500, 0x686, 0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 }, /* out of spec */
+            { "150",  CPU_PENTIUM3, fpus_internal,  150000000,  1.5, 1500, 0x686, 0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 }, /* out of spec */
+            { "200",  CPU_PENTIUM3, fpus_internal,  200000000,  2.0, 1500, 0x686, 0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 }, /* out of spec */
+            { "250",  CPU_PENTIUM3, fpus_internal,  250000000,  2.5, 1500, 0x686, 0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 }, /* out of spec */
+            { "300",  CPU_PENTIUM3, fpus_internal,  300000000,  3.0, 1500, 0x686, 0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 }, /* out of spec */
+            { "350",  CPU_PENTIUM3, fpus_internal,  350000000,  3.5, 1500, 0x686, 0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 }, /* out of spec */
+            { "400",  CPU_PENTIUM3, fpus_internal,  400000000,  4.0, 1500, 0x686, 0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 }, /* out of spec */
+            { "450",  CPU_PENTIUM3, fpus_internal,  450000000,  4.5, 1500, 0x686, 0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 }, /* out of spec */
+            { "500",  CPU_PENTIUM3, fpus_internal,  500000000,  5.0, 1500, 0x686, 0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 }, /* out of spec */
+            { "533",  CPU_PENTIUM3, fpus_internal,  533333333,  8.0, 1500, 0x686, 0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 },
+            { "566",  CPU_PENTIUM3, fpus_internal,  566666666,  8.5, 1500, 0x686, 0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 },
+            { "600",  CPU_PENTIUM3, fpus_internal,  600000000,  9.0, 1500, 0x686, 0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
+            { "633",  CPU_PENTIUM3, fpus_internal,  633333333,  9.5, 1500, 0x686, 0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
+            { "666",  CPU_PENTIUM3, fpus_internal,  666666666, 10.0, 1500, 0x686, 0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
+            { "700",  CPU_PENTIUM3, fpus_internal,  700000000, 10.5, 1650, 0x686, 0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
+            { "733",  CPU_PENTIUM3, fpus_internal,  733333333, 11.0, 1650, 0x686, 0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
+            { "766",  CPU_PENTIUM3, fpus_internal,  750000000, 11.5, 1650, 0x686, 0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
+            { "800",  CPU_PENTIUM3, fpus_internal,  800000000,  8.0, 1650, 0x686, 0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
+            { "850",  CPU_PENTIUM3, fpus_internal,  850000000,  8.5, 1700, 0x686, 0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
+            { "900",  CPU_PENTIUM3, fpus_internal,  900000000,  9.0, 1750, 0x686, 0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
+            { "950",  CPU_PENTIUM3, fpus_internal,  950000000,  9.5, 1750, 0x686, 0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
+            { "1000", CPU_PENTIUM3, fpus_internal, 1000000000, 10.0, 1750, 0x686, 0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
+            { "1100", CPU_PENTIUM3, fpus_internal, 1100000000, 11.0, 1750, 0x686, 0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
+            { .name = "", 0 }
+        }
+    },
+    {
+        .package       = CPU_PKG_SOCKET370,
+        .manufacturer  = "Intel",
+        .name          = "Pentium III (Tualatin)",
+        .internal_name = "pentium3_tualatin",
+        .cpus          = (const CPU[]) {
+            { "133",  CPU_PENTIUM3, fpus_internal,  133333333,  1.0, 1475, 0x6B1, 0x6B1, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 }, /* out of spec */
+            { "266",  CPU_PENTIUM3, fpus_internal,  266666666,  2.0, 1475, 0x6B1, 0x6B1, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 }, /* out of spec */
+            { "400",  CPU_PENTIUM3, fpus_internal,  400000000,  3.0, 1475, 0x6B1, 0x6B1, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 }, /* out of spec */
+            { "533",  CPU_PENTIUM3, fpus_internal,  533333333,  4.0, 1475, 0x6B1, 0x6B1, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 }, /* out of spec */
+            { "1000", CPU_PENTIUM3, fpus_internal, 1000000000,  7.5, 1475, 0x6B1, 0x6B1, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
+            { "1066", CPU_PENTIUM3, fpus_internal, 1066666666,  8.0, 1475, 0x6B1, 0x6B1, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 }, /* out of spec */
+            { "1133", CPU_PENTIUM3, fpus_internal, 1133333333,  8.5, 1475, 0x6B1, 0x6B1, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
+            { "1200", CPU_PENTIUM3, fpus_internal, 1200000000,  9.0, 1475, 0x6B1, 0x6B1, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
+            { "1266", CPU_PENTIUM3, fpus_internal, 1266666666,  9.5, 1450, 0x6B1, 0x6B1, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
+            { "1333", CPU_PENTIUM3, fpus_internal, 1333333333, 10.0, 1475, 0x6B1, 0x6B1, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
+            { "1400", CPU_PENTIUM3, fpus_internal, 1400000000, 10.5, 1450, 0x6B1, 0x6B1, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
+            { .name = "", 0 }
+        }
+    },
+    {
+        .package       = CPU_PKG_SOCKET370,
+        .manufacturer  = "Intel",
+        .name          = "Celeron (Tualatin)",
+        .internal_name = "celeron_tualatin",
+        .cpus          = (const CPU[]) {
+            { "100",  CPU_PENTIUM3, fpus_internal,  100000000,  1.0, 1475, 0x6B4, 0x6B4, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 }, /* out of spec */
+            { "200",  CPU_PENTIUM3, fpus_internal,  200000000,  2.0, 1475, 0x6B4, 0x6B4, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 }, /* out of spec */
+            { "300",  CPU_PENTIUM3, fpus_internal,  300000000,  3.0, 1475, 0x6B4, 0x6B4, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 }, /* out of spec */
+            { "400",  CPU_PENTIUM3, fpus_internal,  400000000,  3.0, 1475, 0x6B4, 0x6B4, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 }, /* out of spec */
+            { "500",  CPU_PENTIUM3, fpus_internal,  500000000,  3.0, 1475, 0x6B4, 0x6B4, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 }, /* out of spec */
+            { "600",  CPU_PENTIUM3, fpus_internal,  600000000,  6.0, 1475, 0x6B4, 0x6B4, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 }, /* out of spec */
+            { "700",  CPU_PENTIUM3, fpus_internal,  700000000,  7.0, 1475, 0x6B4, 0x6B4, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 }, /* out of spec */
+            { "800",  CPU_PENTIUM3, fpus_internal,  800000000,  8.0, 1475, 0x6B4, 0x6B4, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 }, /* out of spec */
+            { "900",  CPU_PENTIUM3, fpus_internal,  900000000,  9.0, 1475, 0x6B4, 0x6B4, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
+            { "1000", CPU_PENTIUM3, fpus_internal, 1000000000, 10.0, 1475, 0x6B4, 0x6B4, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
+            { "1100", CPU_PENTIUM3, fpus_internal, 1100000000, 11.0, 1500, 0x6B4, 0x6B4, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
+            { "1200", CPU_PENTIUM3, fpus_internal, 1200000000, 12.0, 1500, 0x6B4, 0x6B4, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
+            { "1300", CPU_PENTIUM3, fpus_internal, 1300000000, 13.0, 1500, 0x6B4, 0x6B4, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
+            { "1400", CPU_PENTIUM3, fpus_internal, 1400000000, 14.0, 1500, 0x6B4, 0x6B4, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
+            { "1500", CPU_PENTIUM3, fpus_internal, 1500000000, 15.0, 1500, 0x6B4, 0x6B4, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
+            { .name = "", 0 }
+        }
+    }, 
+    {
+        .package       = CPU_PKG_SOCKET370,
+        .manufacturer  = "VIA",
+        .name          = "Cyrix III (Ezra)",
+        .internal_name = "c3_ezra",
+        .cpus          = (const CPU[]) {
+            { "800",     CPU_CYRIX3S, fpus_internal, 800000000, 8.0, 2050, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 63, 63, 21, 21, 84 },
+            { "800/133", CPU_CYRIX3S, fpus_internal, 800000000, 6.0, 2050, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 63, 63, 21, 21, 84 },
+            { "850",     CPU_CYRIX3S, fpus_internal, 850000000, 8.5, 2050, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 63, 63, 21, 21, 84 },
+            { "866",     CPU_CYRIX3S, fpus_internal, 866666666, 6.5, 2050, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 63, 63, 21, 21, 84 },
+            { "900",     CPU_CYRIX3S, fpus_internal, 900000000, 9.0, 2050, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 63, 63, 21, 21, 84 },
+            { "933",     CPU_CYRIX3S, fpus_internal, 933333333, 7.0, 2050, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 63, 63, 21, 21, 84 },
+            { "1000",    CPU_CYRIX3S, fpus_internal, 1000000000,7.5, 2050, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 63, 63, 21, 21, 84 },
+            { .name = "", 0 }
+        }
+    },
+    {
+        .package       = CPU_PKG_SOCKET370,
+        .manufacturer  = "VIA",
+        .name          = "Cyrix III (Nehemiah)",
+        .internal_name = "c3_nehemiah",
+        .cpus          = (const CPU[]) {
+            { "1000", CPU_CYRIX3N, fpus_internal, 1000000000,  7.5, 2050, 0x693, 0x693, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 63, 63, 21, 21, 84 },
+            { "1133", CPU_CYRIX3N, fpus_internal, 1133333333,  8.5, 2050, 0x693, 0x693, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 63, 63, 21, 21, 84 },
+            { "1200", CPU_CYRIX3N, fpus_internal, 1200000000,  9.0, 2050, 0x693, 0x693, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 63, 63, 21, 21, 84 },
+            { "1300", CPU_CYRIX3N, fpus_internal, 1300000000, 10.0, 2050, 0x693, 0x693, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 63, 63, 21, 21, 84 },
+            { "1400", CPU_CYRIX3N, fpus_internal, 1400000000, 10.5, 2050, 0x693, 0x693, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 63, 63, 21, 21, 84 },
             { .name = "", 0 }
         }
     },
