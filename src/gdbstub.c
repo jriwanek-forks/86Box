@@ -109,6 +109,14 @@ enum {
     GDB_REG_MM5,
     GDB_REG_MM6,
     GDB_REG_MM7,
+    GDB_REG_XMM0,
+    GDB_REG_XMM1,
+    GDB_REG_XMM2,
+    GDB_REG_XMM3,
+    GDB_REG_XMM4,
+    GDB_REG_XMM5,
+    GDB_REG_XMM6,
+    GDB_REG_XMM7,
     GDB_REG_MAX
 };
 
@@ -319,6 +327,21 @@ static char      target_xml[]   = /* QEMU gdb-xml/i386-32bit.xml with modificati
                 "<field name=\"v8_int8\" type=\"v8i8\"/>"
             "</union>"
             ""
+            "<vector id=\"v16i8\" type=\"int8\" count=\"16\"/>"
+            "<vector id=\"v16u8\" type=\"uint8\" count=\"16\"/>"
+            "<vector id=\"v8i16\" type=\"int16\" count=\"8\"/>"
+            "<vector id=\"v8u16\" type=\"uint16\" count=\"8\"/>"
+            "<vector id=\"v4i32\" type=\"int32\" count=\"4\"/>"
+            "<vector id=\"v4u32\" type=\"uint32\" count=\"4\"/>"
+            "<vector id=\"v2i64\" type=\"int64\" count=\"2\"/>"
+            "<vector id=\"v2u64\" type=\"uint64\" count=\"2\"/>"
+            "<union id=\"xmm\">"
+                "<field name=\"v2_int64\" type=\"v2i64\"/>"
+                "<field name=\"v4_int32\" type=\"v4i32\"/>"
+                "<field name=\"v8_int16\" type=\"v8i16\"/>"
+                "<field name=\"v16_int8\" type=\"v16i8\"/>"
+            "</union>"
+            ""
             "<reg name=\"mm0\" bitsize=\"64\" type=\"mmx\" group=\"mmx\"/>"
             "<reg name=\"mm1\" bitsize=\"64\" type=\"mmx\" group=\"mmx\"/>"
             "<reg name=\"mm2\" bitsize=\"64\" type=\"mmx\" group=\"mmx\"/>"
@@ -327,6 +350,15 @@ static char      target_xml[]   = /* QEMU gdb-xml/i386-32bit.xml with modificati
             "<reg name=\"mm5\" bitsize=\"64\" type=\"mmx\" group=\"mmx\"/>"
             "<reg name=\"mm6\" bitsize=\"64\" type=\"mmx\" group=\"mmx\"/>"
             "<reg name=\"mm7\" bitsize=\"64\" type=\"mmx\" group=\"mmx\"/>"
+            ""
+            "<reg name=\"xmm0\" bitsize=\"128\" type=\"xmm\" group=\"xmm\"/>"
+            "<reg name=\"xmm1\" bitsize=\"128\" type=\"xmm\" group=\"xmm\"/>"
+            "<reg name=\"xmm2\" bitsize=\"128\" type=\"xmm\" group=\"xmm\"/>"
+            "<reg name=\"xmm3\" bitsize=\"128\" type=\"xmm\" group=\"xmm\"/>"
+            "<reg name=\"xmm4\" bitsize=\"128\" type=\"xmm\" group=\"xmm\"/>"
+            "<reg name=\"xmm5\" bitsize=\"128\" type=\"xmm\" group=\"xmm\"/>"
+            "<reg name=\"xmm6\" bitsize=\"128\" type=\"xmm\" group=\"xmm\"/>"
+            "<reg name=\"xmm7\" bitsize=\"128\" type=\"xmm\" group=\"xmm\"/>"
         "</feature>"
     "</target>";
 // clang-format on
@@ -597,6 +629,12 @@ gdbstub_client_write_reg(int index, uint8_t *buf)
         case GDB_REG_MM0 ... GDB_REG_MM7:
             width                               = 8;
             cpu_state.MM[index - GDB_REG_MM0].q = *((uint64_t *) buf);
+            break;
+        
+        case GDB_REG_XMM0 ... GDB_REG_XMM7:
+            width                          = 16;
+            XMM[index - GDB_REG_XMM0].q[0] = *((uint64_t *) &buf);
+            XMM[index - GDB_REG_XMM0].q[1] = *((uint64_t *) (&buf + 8));
             break;
 
         default:

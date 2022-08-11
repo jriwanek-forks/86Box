@@ -40,7 +40,9 @@
 #include <86box/hdc.h>
 #include <86box/hdc_ide.h>
 #include <86box/hdc_ide_sff8038i.h>
+#if 0
 #include <86box/snd_ac97_intel.h>
+#endif
 #include <86box/intel_ich2_gpio.h>
 #include <86box/intel_ich2_trap.h>
 #include <86box/mem.h>
@@ -75,7 +77,9 @@ typedef struct intel_ich2_t {
     uint8_t pci_slot;
 
     acpi_t            *acpi;
+#if 0
     intel_ac97_t      *ac97;
+#endif
     intel_ich2_gpio_t *gpio;
     intel_ich2_trap_t *trap_device[10];
     nvr_t             *nvr;
@@ -693,6 +697,7 @@ intel_ich2_write(int func, int addr, uint8_t val, void *priv)
         }
     }
 
+#if 0
     else if ((func == 5) && !(dev->pci_conf[0][0xf2] & 0x20)) {
         intel_ich2_log("Intel ICH2 AC'97: dev->regs[%02x] = %02x\n", addr, val);
         switch (addr) {
@@ -756,6 +761,7 @@ intel_ich2_write(int func, int addr, uint8_t val, void *priv)
                 break;
         }
     }
+#endif
 }
 
 static uint8_t
@@ -783,13 +789,15 @@ intel_ich2_read(int func, int addr, void *priv)
             return dev->pci_conf[1][addr];
 
         return dev->pci_conf[func][addr];
+#if 0
     } else if ((func == 5) && !(dev->pci_conf[0][0xf2] & 0x20)) {
         intel_ich2_log("Intel ICH2 AC'97: dev->regs[%02x] (%02x)\n", addr, dev->pci_conf[func][addr]);
         return dev->pci_conf[func][addr];
     } else if ((func == 6) && !(dev->pci_conf[0][0xf2] & 0x40)) {
         intel_ich2_log("Intel ICH2 AC'97 Modem: dev->regs[%02x] (%02x)\n", addr, dev->pci_conf[func][addr]);
-
         return dev->pci_conf[func][addr];
+#endif
+
     } else
         return 0xff;
 }
@@ -954,6 +962,7 @@ intel_ich2_reset(void *priv)
 
     intel_ich2_usb_setup(4, dev);
 
+#if 0
     /* Function 5: AC'97 */
     dev->pci_conf[5][0x00] = 0x86;
     dev->pci_conf[5][0x01] = 0x80;
@@ -998,6 +1007,7 @@ intel_ich2_reset(void *priv)
     dev->pci_conf[6][0x14] = 0x01;
 
     dev->pci_conf[6][0x3d] = 0x02;
+#endif
 }
 
 static void
@@ -1020,9 +1030,11 @@ intel_ich2_init(UNUSED(const device_t *info))
     dev->acpi = device_add(&acpi_intel_ich2_device);
     acpi_set_slot(dev->acpi, dev->pci_slot);
 
+#if 0
     /* AC'97 Audio */
     if (sound_card_current[0] == SOUND_INTERNAL)
         dev->ac97 = device_add(&intel_ac97_device);
+#endif
 
     /* DMA */
     dma_alias_set_piix();
