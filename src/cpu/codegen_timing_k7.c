@@ -1,4 +1,4 @@
-/*Basic P6 timing model by plant/nerd73. Based on the K6 timing model*/
+/*Basic K7 timing model by plant/nerd73 and qeeg. Based on the P6 timing model*/
 /*Some cycle timings come from https://www.agner.org/optimize/instruction_tables.pdf*/
 #include <stdio.h>
 #include <stdint.h>
@@ -19,8 +19,8 @@
 
 typedef enum uop_type_t
 {
-        UOP_ALU = 0,   /*Executes in Port 0 or 1 ALU units*/
-        UOP_ALUP0,     /*Executes in Port 0 ALU unit*/
+        UOP_ALU = 0,   /*Executes in any ALU unit*/
+        UOP_ALUP0,     /*Executes in Port 0 or Port 1 ALU unit*/
         UOP_LOAD,      /*Executes in Load unit*/
         UOP_STORED,    /*Executes in Data Store unit*/
         UOP_STOREA,    /*Executes in Address Store unit*/
@@ -30,10 +30,12 @@ typedef enum uop_type_t
         UOP_MLOAD,     /*Executes in Load unit*/
         UOP_MSTORED,   /*Executes in Data Store unit*/
         UOP_MSTOREA,   /*Executes in Address Store unit*/
-        UOP_FLOAT,     /*Executes in Floating Point unit*/
+        UOP_FLOAT,
+        UOP_FADD,     /*Executes in Floating Point unit*/
+        UOP_FMUL,
         UOP_MMX,       /*Executes in Port 0 or 1 ALU units as MMX*/
-        UOP_MMX_SHIFT, /*Executes in Port 1 ALU unit. Uses MMX shifter*/
         UOP_MMX_MUL,   /*Executes in Port 0 ALU unit. Uses MMX multiplier*/
+        UOP_3DNOW,
         UOP_BRANCH,    /*Executes in Branch unit*/
         UOP_FXCH       /*Does not require an execution unit*/
 } uop_type_t;
@@ -46,17 +48,17 @@ typedef enum decode_type_t
 
 #define MAX_UOPS 10
 
-typedef struct p6_uop_t
+typedef struct k7_uop_t
 {
         uop_type_t type;
         int latency;
-} p6_uop_t;
+} k7_uop_t;
 
 typedef struct macro_op_t
 {
         int nr_uops;
         decode_type_t decode_type;
-        p6_uop_t uop[MAX_UOPS];
+        k7_uop_t uop[MAX_UOPS];
 } macro_op_t;
 
 static const macro_op_t alu_op =
@@ -65,7 +67,7 @@ static const macro_op_t alu_op =
         .decode_type = DECODE_SIMPLE,
         .uop[0] = {.type = UOP_ALU, .latency = 1}
 };
-static const macro_op_t alup0_op =
+static const macro_op_t alup01_op =
 {
         .nr_uops = 1,
         .decode_type = DECODE_SIMPLE,
@@ -78,7 +80,7 @@ static const macro_op_t load_alu_op =
         .uop[0] = {.type = UOP_LOAD, .latency = 1},
         .uop[1] = {.type = UOP_ALU,  .latency = 1}
 };
-static const macro_op_t load_alup0_op =
+static const macro_op_t load_alup01_op =
 {
         .nr_uops = 2,
         .decode_type = DECODE_COMPLEX,
@@ -94,7 +96,7 @@ static const macro_op_t alu_store_op =
         .uop[2] = {.type = UOP_STORED,  .latency = 1},
         .uop[3] = {.type = UOP_STOREA,  .latency = 1}
 };
-static const macro_op_t alup0_store_op =
+static const macro_op_t alup01_store_op =
 {
         .nr_uops = 4,
         .decode_type = DECODE_COMPLEX,
@@ -139,7 +141,7 @@ static const macro_op_t bswap_op =
         .nr_uops = 2,
         .decode_type = DECODE_COMPLEX,
         .uop[0] = {.type = UOP_ALU,   .latency = 1},
-        .uop[1] = {.type = UOP_ALU,   .latency = 1},
+        .uop[1] = {.type = UOP_ALU,   .latency = 1}
 };
 static const macro_op_t leave_op =
 {
@@ -158,13 +160,10 @@ static const macro_op_t lods_op =
 };
 static const macro_op_t loop_op =
 {
-        .nr_uops = 5,
+        .nr_uops = 2,
         .decode_type = DECODE_COMPLEX,
         .uop[0] = {.type = UOP_ALU,    .latency = 1},
-        .uop[1] = {.type = UOP_ALU,    .latency = 1},
-        .uop[2] = {.type = UOP_ALU,    .latency = 1},
-        .uop[3] = {.type = UOP_ALU,    .latency = 1},
-        .uop[4] = {.type = UOP_BRANCH, .latency = 1}
+        .uop[1] = {.type = UOP_BRANCH, .latency = 2}
 };
 static const macro_op_t mov_reg_seg_op =
 {
@@ -281,7 +280,7 @@ static const macro_op_t mmx_shift_op =
 {
         .nr_uops = 1,
         .decode_type = DECODE_SIMPLE,
-        .uop[0] = {.type = UOP_MMX_SHIFT, .latency = 1}
+        .uop[0] = {.type = UOP_MMX, .latency = 1}
 };
 static const macro_op_t load_mmx_op =
 {
@@ -302,7 +301,7 @@ static const macro_op_t load_mmx_shift_op =
         .nr_uops = 2,
         .decode_type = DECODE_COMPLEX,
         .uop[0] = {.type = UOP_LOAD,      .latency =   2},
-        .uop[1] = {.type = UOP_MMX_SHIFT, .latency =   2}
+        .uop[1] = {.type = UOP_MMX, .latency =   2}
 };
 static const macro_op_t mload_op =
 {
@@ -341,13 +340,13 @@ static const macro_op_t fadd_op =
 {
         .nr_uops = 1,
         .decode_type = DECODE_SIMPLE,
-        .uop[0] = {.type = UOP_FLOAT, .latency = 2}
+        .uop[0] = {.type = UOP_FADD, .latency = 2}
 };
 static const macro_op_t fmul_op =
 {
         .nr_uops = 1,
         .decode_type = DECODE_SIMPLE,
-        .uop[0] = {.type = UOP_ALUP0, .latency = 3}
+        .uop[0] = {.type = UOP_FMUL, .latency = 3}
 };
 static const macro_op_t float2_op =
 {
@@ -376,14 +375,14 @@ static const macro_op_t load_fadd_op =
         .nr_uops = 2,
         .decode_type = DECODE_COMPLEX,
         .uop[0] = {.type = UOP_FLOAD, .latency = 1},
-        .uop[1] = {.type = UOP_FLOAT, .latency = 2}
+        .uop[1] = {.type = UOP_FADD, .latency = 2}
 };
 static const macro_op_t load_fmul_op =
 {
         .nr_uops = 2,
         .decode_type = DECODE_COMPLEX,
-        .uop[0] = {.type = UOP_LOAD, .latency = 1},
-        .uop[1] = {.type = UOP_ALU,  .latency = 4}
+        .uop[0] = {.type = UOP_FLOAD, .latency = 1},
+        .uop[1] = {.type = UOP_FMUL,  .latency = 4}
 };
 static const macro_op_t fstore_op =
 {
@@ -408,26 +407,26 @@ static const macro_op_t fdiv_op =
 {
         .nr_uops = 1,
         .decode_type = DECODE_SIMPLE,
-        .uop[0] = {.type = UOP_FLOAT, .latency = 37}
+        .uop[0] = {.type = UOP_FLOAT, .latency = 24}
 };
 static const macro_op_t fdiv_mem_op =
 {
         .nr_uops = 2,
         .decode_type = DECODE_COMPLEX,
         .uop[0] = {.type = UOP_FLOAD, .latency = 1},
-        .uop[1] = {.type = UOP_FLOAT, .latency = 37}
+        .uop[1] = {.type = UOP_FLOAT, .latency = 24}
 };
 static const macro_op_t fsin_op =
 {
         .nr_uops = 1,
         .decode_type = DECODE_SIMPLE,
-        .uop[0] = {.type = UOP_FLOAT, .latency = 62}
+        .uop[0] = {.type = UOP_FLOAT, .latency = 131}
 };
 static const macro_op_t fsqrt_op =
 {
         .nr_uops = 1,
         .decode_type = DECODE_SIMPLE,
-        .uop[0] = {.type = UOP_FLOAT, .latency = 69}
+        .uop[0] = {.type = UOP_FLOAT, .latency = 35}
 };
 
 static const macro_op_t fldcw_op =
@@ -1182,15 +1181,15 @@ static const macro_op_t *opcode_timings_0f[256] =
         &invd_op,               &wbinvd_op,             INVALID,                INVALID,
         INVALID,                &load_op,               &femms_op,              INVALID,
 
-/*10*/  &load_float_op,         &load_float_op,         &load_float_op,         &load_float_op,
-        &load_float_op,         &load_float_op,         &load_float_op,         &load_float_op,
-        &load_op,               &load_op,               &load_op,               &load_op,
-        &load_op,               &load_op,               &load_op,               &load_op,
+/*10*/  INVALID,                INVALID,                INVALID,                INVALID,
+        INVALID,                INVALID,                INVALID,                INVALID,
+        INVALID,                INVALID,                INVALID,                INVALID,
+        INVALID,                INVALID,                INVALID,                INVALID,
 
 /*20*/  &alu6_op,               &alu6_op,               &alu6_op,               &alu6_op,
         &alu6_op,               &alu6_op,               INVALID,                INVALID,
-        &load_float_op,         &load_float_op,         &float_op,              &load_float_op,
-        &float_op,              &float_op,              &float_op,              &float_op,
+        INVALID,                INVALID,                INVALID,                INVALID,
+        INVALID,                INVALID,                INVALID,                INVALID,
 
 /*30*/  &alu6_op,               &alu6_op,               &alu6_op,               INVALID,
         INVALID,                INVALID,                INVALID,                INVALID,
@@ -1202,17 +1201,17 @@ static const macro_op_t *opcode_timings_0f[256] =
         INVALID,                INVALID,                INVALID,                INVALID,
         INVALID,                INVALID,                INVALID,                INVALID,
 
-/*50*/  &load_op,               &float_op,              &float_op,              &float_op,
-        &float_op,              &float_op,              &float_op,              &float_op,
-        &float_op,              &float_op,              INVALID,                INVALID,
-        &float_op,              &float_op,              &float_op,              &float_op,
+/*50*/  INVALID,                INVALID,                INVALID,                INVALID,
+        INVALID,                INVALID,                INVALID,                INVALID,
+        INVALID,                INVALID,                INVALID,                INVALID,
+        INVALID,                INVALID,                INVALID,                INVALID,
 
 /*60*/  &load_mmx_op,           &load_mmx_op,           &load_mmx_op,           &load_mmx_op,
         &load_mmx_op,           &load_mmx_op,           &load_mmx_op,           &load_mmx_op,
         &load_mmx_op,           &load_mmx_op,           &load_mmx_op,           &load_mmx_op,
         INVALID,                INVALID,                &mload_op,              &mload_op,
 
-/*70*/  &load_mmx_op,           &load_mmx_shift_op,     &load_mmx_shift_op,     &load_mmx_shift_op,
+/*70*/  INVALID,                &load_mmx_shift_op,     &load_mmx_shift_op,     &load_mmx_shift_op,
         &load_mmx_op,           &load_mmx_op,           &load_mmx_op,           &emms_op,
         INVALID,                INVALID,                INVALID,                INVALID,
         INVALID,                INVALID,                &mstore_op,             &mstore_op,
@@ -1237,23 +1236,23 @@ static const macro_op_t *opcode_timings_0f[256] =
         INVALID,                 INVALID,                &load_alu_op,           &load_alu_op,
         &bsx_op,                 &bsx_op,                &load_alup0_op,         &load_alu_op,
 
-/*c0*/  &alup0_store_op,         &alu_store_op,          &float_op,              INVALID,
-        &load_op,                &load_op,               &load_op,               &cmpxchg_op,
+/*c0*/  &alup0_store_op,         &alu_store_op,          INVALID,                INVALID,
+        INVALID,                 INVALID,                INVALID,                &cmpxchg_op,
         &bswap_op,               &bswap_op,              &bswap_op,              &bswap_op,
         &bswap_op,               &bswap_op,              &bswap_op,              &bswap_op,
 
 /*d0*/  INVALID,                 &load_mmx_shift_op,     &load_mmx_shift_op,     &load_mmx_shift_op,
-        INVALID,                 &load_mmx_mul_op,       INVALID,                &load_op,
-        &load_mmx_op,            &load_mmx_op,           &load_mmx_op,           &load_mmx_op,
-        &load_mmx_op,            &load_mmx_op,           &load_mmx_op,           &load_mmx_op,
+        INVALID,                 &load_mmx_mul_op,       INVALID,                INVALID,
+        &load_mmx_op,            &load_mmx_op,           INVALID,                &load_mmx_op,
+        &load_mmx_op,            &load_mmx_op,           INVALID,                &load_mmx_op,
 
-/*e0*/  &load_mmx_op,            &load_mmx_shift_op,     &load_mmx_shift_op,     &load_mmx_op,
-        &pmul_mem_op,            &pmul_mem_op,           INVALID,                &load_mmx_op,
-        &load_mmx_op,            &load_mmx_op,           &load_mmx_op,           &load_mmx_op,
-        &load_mmx_op,            &load_mmx_op,           &load_mmx_op,           &load_mmx_op,
+/*e0*/  &load_mmx_op,            &load_mmx_shift_op,     &load_mmx_shift_op,     INVALID,
+        INVALID,                 &pmul_mem_op,           INVALID,                INVALID,
+        &load_mmx_op,            &load_mmx_op,           INVALID,                &load_mmx_op,
+        &load_mmx_op,            &load_mmx_op,           INVALID,                &load_mmx_op,
 
 /*f0*/  INVALID,                 &load_mmx_shift_op,     &load_mmx_shift_op,     &load_mmx_shift_op,
-        INVALID,                 &pmul_mem_op,           &load_mmx_op,           &load_mmx_op,
+        INVALID,                 &pmul_mem_op,           INVALID,                INVALID,
         &load_mmx_op,            &load_mmx_op,           &load_mmx_op,           INVALID,
         &load_mmx_op,            &load_mmx_op,           &load_mmx_op,           INVALID,
 };
@@ -1375,7 +1374,7 @@ static const macro_op_t *opcode_timings_8x[8] =
 {
         &alu_store_op,  &alu_store_op,    &alu_store_op,    &alu_store_op,
         &alu_store_op,  &alu_store_op,    &alu_store_op,    &alu_store_op,
-};
+}; 
 static const macro_op_t *opcode_timings_8x_mod3[8] =
 {
         &alu_op,        &alu_op,          &alu_store_op,    &alu_store_op,
@@ -1595,45 +1594,45 @@ static int prefixes;
 static int decode_timestamp;
 static int last_complete_timestamp;
 
-typedef struct p6_unit_t
+typedef struct k7_unit_t
 {
         uint32_t uop_mask;
         double first_available_cycle;
-} p6_unit_t;
+} k7_unit_t;
 
 static int nr_units;
-static p6_unit_t *units;
-
-/*Pentium Pro has no MMX*/
-static p6_unit_t ppro_units[] =
-{
-        {.uop_mask = (1 << UOP_ALU) | (1 << UOP_ALUP0) | (1 << UOP_FLOAT)}, /*Port 0*/
-        {.uop_mask = (1 << UOP_ALU) | (1 << UOP_BRANCH)},                   /*Port 1*/
-        {.uop_mask = (1 << UOP_LOAD)  | (1 << UOP_FLOAD)},                  /*Port 2*/
-        {.uop_mask = (1 << UOP_STORED) | (1 << UOP_FSTORED)},               /*Port 3*/
-        {.uop_mask = (1 << UOP_STOREA) | (1 << UOP_FSTOREA)},               /*Port 4*/
-};
-#define NR_PPRO_UNITS (sizeof(ppro_units) / sizeof(p6_unit_t))
+static k7_unit_t *units;
 
 /*Pentium II/Celeron assigns the multiplier to port 0, the shifter to port 1, and shares the MMX ALU*/
-static p6_unit_t p2_units[] =
+static k7_unit_t k7_units[] =
 {
-        {.uop_mask = (1 << UOP_ALU) | (1 << UOP_ALUP0) | (1 << UOP_FLOAT) |        /*Port 0*/
-                     (1 << UOP_MMX) | (1 << UOP_MMX_MUL)},
-        {.uop_mask = (1 << UOP_ALU) | (1 << UOP_BRANCH) |                          /*Port 1*/
-                     (1 << UOP_MMX) | (1 << UOP_MMX_SHIFT)},
-        {.uop_mask = (1 << UOP_LOAD)  | (1 << UOP_FLOAD)  | (1 << UOP_MLOAD)},     /*Port 2*/
-        {.uop_mask = (1 << UOP_STORED) | (1 << UOP_FSTORED) | (1 << UOP_MSTORED)}, /*Port 3*/
-        {.uop_mask = (1 << UOP_STOREA) | (1 << UOP_FSTOREA) | (1 << UOP_MSTOREA)}, /*Port 4*/
-};
-#define NR_P2_UNITS (sizeof(p2_units) / sizeof(p6_unit_t))
+        //{.uop_mask = (1 << UOP_ALU) | (1 << UOP_ALUP0) | (1 << UOP_FLOAT) |             /*Port 0*/
+        //             (1 << UOP_MMX) | (1 << UOP_MMX_MUL)},
+        //{.uop_mask = (1 << UOP_ALU) | (1 << UOP_BRANCH) |                               /*Port 1*/
+        //             (1 << UOP_MMX) | (1 << UOP_MMX_SHIFT)},           
+        //{.uop_mask = (1 << UOP_LOAD)  | (1 << UOP_FLOAD)  | (1 << UOP_MLOAD)},          /*Port 2*/
+        //{.uop_mask = (1 << UOP_STORED) | (1 << UOP_FSTORED) | (1 << UOP_MSTORED)},      /*Port 3*/
+        //{.uop_mask = (1 << UOP_STOREA) | (1 << UOP_FSTOREA) | (1 << UOP_MSTOREA)},      /*Port 4*/
+    {.uop_mask = (1 << UOP_ALU) | (1 << UOP_ALUP0) | (1 << UOP_BRANCH)}, /*Port 0*/
+    {.uop_mask = (1 << UOP_ALU) | (1 << UOP_BRANCH)}, /*Port 1*/
+    {.uop_mask = (1 << UOP_ALU) | (1 << UOP_BRANCH)}, /*Port 2*/
+    {.uop_mask = (1 << UOP_FADD) | (1 << UOP_MMX) | (1 << UOP_3DNOW)}, /*Port 3*/
+    {.uop_mask = (1 << UOP_FMUL) | (1 << UOP_MMX) | (1 << UOP_MMX_MUL) | (1 << UOP_3DNOW)
+     | (1 << UOP_FSTORED) | (1 << UOP_FSTOREA)}, /*Port 4*/
+    {.uop_mask = (1 >> UOP_LOAD) | (1 << UOP_FLOAD) | (1 << UOP_MLOAD)
+     | (1 << UOP_STORED) | (1 << UOP_STOREA) | (1 << UOP_MSTORED) | (1 << UOP_MSTOREA)}, /*Port 5*/
 
-static int uop_run(const p6_uop_t *uop, int decode_time)
+}
+
+};
+#define NR_K7_UNITS (sizeof(k7_units) / sizeof(k7_unit_t))
+
+static int uop_run(const k7_uop_t *uop, int decode_time)
 {
         int c;
-        p6_unit_t *best_unit = NULL;
+        k7_unit_t *best_unit = NULL;
         int best_start_cycle = 99999;
-
+        
         /*UOP_FXCH does not require execution*/
         if (uop->type == UOP_FXCH)
                return decode_time;
@@ -1662,14 +1661,14 @@ static int uop_run(const p6_uop_t *uop, int decode_time)
         return best_start_cycle + uop->latency;
 }
 
-/*The P6 decoders can decode, per clock :
+/*The k7 decoders can decode, per clock :
   - 1 to 3 'simple' instructions, each up to 1 uOP and 7 bytes long
   - 1 'complex' instruction, up to 4 uOPs or 3 per cycle for instructions longer than 4 uOPs
 */
 static struct
 {
         int nr_uops;
-        const p6_uop_t *uops[6];
+        const k7_uop_t *uops[6];
         /*Earliest time a uop can start. If the timestamp is -1, then the uop is
           part of a dependency chain and the start time is the completion time of
           the previous uop*/
@@ -1691,7 +1690,7 @@ static int fpu_st_timestamp[8];
   dependent uop chains*/
 static int last_uop_timestamp = 0;
 
-void decode_flush_p6(void)
+void decode_flush_k7()
 {
         int c;
         int start_timestamp, uop_timestamp = 0;
@@ -1712,7 +1711,7 @@ void decode_flush_p6(void)
                         start_timestamp = last_uop_timestamp;
                 else
                         start_timestamp = decode_buffer.earliest_start[c];
-
+                
                 last_uop_timestamp = uop_run(decode_buffer.uops[c], start_timestamp);
                 if (last_uop_timestamp > uop_timestamp)
                         uop_timestamp = last_uop_timestamp;
@@ -1736,7 +1735,7 @@ void decode_flush_p6(void)
 }
 
 /*The instruction is only of interest here if it's longer than 7 bytes, as that's the
-  limit on P6 simple decoding*/
+  limit on K7 simple decoding*/
 static int codegen_timing_instr_length(uint64_t deps, uint32_t fetchdat, int op_32)
 {
         int len = prefixes + 1; /*Opcode*/
@@ -1832,15 +1831,15 @@ static void decode_instruction(const macro_op_t *ins, uint64_t deps, uint32_t fe
                         decode_buffer.uops[decode_buffer.nr_uops] = &ins->uop[0];
                         decode_buffer.earliest_start[decode_buffer.nr_uops] = earliest_start;
                         decode_buffer.nr_uops = 3;
-                        decode_flush_p6();
+                        decode_flush_k7();
                 }
                 else if (decode_buffer.nr_uops - d == 1)
                 {
                         decode_buffer.uops[decode_buffer.nr_uops] = &ins->uop[0];
                         decode_buffer.earliest_start[decode_buffer.nr_uops] = earliest_start;
                         decode_buffer.nr_uops = 2+d;
-                    if (d)
-                        decode_flush_p6();
+                if (d)
+                        decode_flush_k7();
                 }
                 else if (decode_buffer.nr_uops)
                 {
@@ -1855,11 +1854,11 @@ static void decode_instruction(const macro_op_t *ins, uint64_t deps, uint32_t fe
                         decode_buffer.earliest_start[0] = earliest_start;
                 }
                 break;
-
+                
                 case DECODE_COMPLEX:
                 if (decode_buffer.nr_uops)
-                        decode_flush_p6(); /*The 4-1-1 arrangement implies that a complex ins. can't be decoded after a simple one*/
-
+                        decode_flush_k7(); /*The 4-1-1 arrangement implies that a complex ins. can't be decoded after a simple one*/
+                        
                 d = 0;
 
                 for (c = 0; c < ins->nr_uops; c++)
@@ -1870,17 +1869,17 @@ static void decode_instruction(const macro_op_t *ins, uint64_t deps, uint32_t fe
                         else
                                 decode_buffer.earliest_start[d] = -1;
                         d++;
-
+                                
                         if ((d == 3) && (ins->nr_uops > 4)) /*Ins. with >4 uOPs require the use of special units only present on 3 translate PLAs*/
                         {
                                 d = 0;
                                 decode_buffer.nr_uops = 3;
-                                decode_flush_p6(); /*The other two decoders are halted to preserve in-order issue*/
+                                decode_flush_k7(); /*The other two decoders are halted to preserve in-order issue*/
                         }
                 }
                 if (d)
                 {
-                        decode_buffer.nr_uops = d;
+                    decode_buffer.nr_uops = d;
                 }
                 break;
         }
@@ -1926,7 +1925,7 @@ static void decode_instruction(const macro_op_t *ins, uint64_t deps, uint32_t fe
         }
 }
 
-void codegen_timing_p6_block_start(void)
+void codegen_timing_k7_block_start()
 {
         int c;
 
@@ -1935,34 +1934,26 @@ void codegen_timing_p6_block_start(void)
 
         decode_timestamp = 0;
         last_complete_timestamp = 0;
-
+        
         for (c = 0; c < NR_OPSEQS; c++)
                 opseq_completion_timestamp[c] = 0;
         next_opseq = 0;
-
+        
         for (c = 0; c < NR_REGS; c++)
                 reg_available_timestamp[c] = 0;
         for (c = 0; c < 8; c++)
                 fpu_st_timestamp[c] = 0;
 }
 
-void codegen_timing_p6_start(void)
+void codegen_timing_k7_start()
 {
-        if (cpu_s->cpu_type == CPU_PENTIUMPRO)
-        {
-                units = ppro_units;
-                nr_units = NR_PPRO_UNITS;
-        }
-        else
-        {
-                units = p2_units;
-                nr_units = NR_P2_UNITS;
-        }
-        last_prefix = 0;
-        prefixes = 0;
+    units = k7_units;
+    nr_units = NR_K7_UNITS;
+    last_prefix = 0;
+    prefixes = 0;
 }
 
-void codegen_timing_p6_prefix(uint8_t prefix, uint32_t fetchdat)
+void codegen_timing_k7_prefix(uint8_t prefix, uint32_t fetchdat)
 {
         if (prefix != 0x0f)
                 decode_timestamp++;
@@ -1971,7 +1962,7 @@ void codegen_timing_p6_prefix(uint8_t prefix, uint32_t fetchdat)
         prefixes++;
 }
 
-void codegen_timing_p6_opcode(uint8_t opcode, uint32_t fetchdat, int op_32, uint32_t op_pc)
+void codegen_timing_k7_opcode(uint8_t opcode, uint32_t fetchdat, int op_32, uint32_t op_pc)
 {
         const macro_op_t **ins_table;
         uint64_t *deps;
@@ -1982,6 +1973,11 @@ void codegen_timing_p6_opcode(uint8_t opcode, uint32_t fetchdat, int op_32, uint
         switch (last_prefix)
         {
                 case 0x0f:
+                if(opcode == 0x0f)
+                {
+                    ins_table = mod3 ? opcode_timings_0f_mod3 : opcode_timings_0f;
+                    deps = mod3 ? opcode_deps_0f0f_mod3 : opcode_deps_0f0f;
+                }
                 ins_table = mod3 ? opcode_timings_0f_mod3 : opcode_timings_0f;
                 deps = mod3 ? opcode_deps_0f_mod3 : opcode_deps_0f;
                 break;
@@ -2046,7 +2042,7 @@ void codegen_timing_p6_opcode(uint8_t opcode, uint32_t fetchdat, int op_32, uint
                         deps = mod3 ? opcode_deps_shift_mod3 : opcode_deps_shift;
                         opcode = (fetchdat >> 3) & 7;
                         break;
-
+                        
                         case 0xc1: case 0xd1: case 0xd3:
                         ins_table = mod3 ? opcode_timings_shift_mod3 : opcode_timings_shift;
                         deps = mod3 ? opcode_deps_shift_mod3 : opcode_deps_shift;
@@ -2083,29 +2079,29 @@ void codegen_timing_p6_opcode(uint8_t opcode, uint32_t fetchdat, int op_32, uint
         codegen_block_cycles += (last_complete_timestamp - old_last_complete_timestamp);
 }
 
-void codegen_timing_p6_block_end(void)
+void codegen_timing_k7_block_end()
 {
         if (decode_buffer.nr_uops)
         {
                 int old_last_complete_timestamp = last_complete_timestamp;
-                decode_flush_p6();
+                decode_flush_k7();
                 codegen_block_cycles += (last_complete_timestamp - old_last_complete_timestamp);
         }
 }
 
-int codegen_timing_p6_jump_cycles(void)
+int codegen_timing_k7_jump_cycles()
 {
         if (decode_buffer.nr_uops)
                 return 1;
         return 0;
 }
 
-codegen_timing_t codegen_timing_p6 =
+codegen_timing_t codegen_timing_k7 =
 {
-        codegen_timing_p6_start,
-        codegen_timing_p6_prefix,
-        codegen_timing_p6_opcode,
-        codegen_timing_p6_block_start,
-        codegen_timing_p6_block_end,
-        codegen_timing_p6_jump_cycles
+        codegen_timing_k7_start,
+        codegen_timing_k7_prefix,
+        codegen_timing_k7_opcode,
+        codegen_timing_k7_block_start,
+        codegen_timing_k7_block_end,
+        codegen_timing_k7_jump_cycles
 };

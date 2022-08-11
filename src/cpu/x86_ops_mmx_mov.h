@@ -1,6 +1,9 @@
 static int
 opMOVD_l_mm_a16(uint32_t fetchdat)
 {
+    if ((cpu_features & CPU_FEATURE_SSE2) && sse_xmm)
+        return opMOVD_l_xmm_a16(fetchdat);
+
     MMX_ENTER();
 
     fetch_ea_16(fetchdat);
@@ -25,6 +28,9 @@ opMOVD_l_mm_a16(uint32_t fetchdat)
 static int
 opMOVD_l_mm_a32(uint32_t fetchdat)
 {
+    if ((cpu_features & CPU_FEATURE_SSE2) && sse_xmm)
+        return opMOVD_l_xmm_a32(fetchdat);
+
     MMX_ENTER();
 
     fetch_ea_32(fetchdat);
@@ -50,6 +56,9 @@ opMOVD_l_mm_a32(uint32_t fetchdat)
 static int
 opMOVD_mm_l_a16(uint32_t fetchdat)
 {
+    if ((cpu_features & CPU_FEATURE_SSE2) && sse_xmm)
+        return opMOVD_xmm_l_a16(fetchdat);
+
     MMX_ENTER();
 
     fetch_ea_16(fetchdat);
@@ -69,6 +78,9 @@ opMOVD_mm_l_a16(uint32_t fetchdat)
 static int
 opMOVD_mm_l_a32(uint32_t fetchdat)
 {
+    if ((cpu_features & CPU_FEATURE_SSE2) && sse_xmm)
+        return opMOVD_xmm_l_a32(fetchdat);
+
     MMX_ENTER();
 
     fetch_ea_32(fetchdat);
@@ -137,6 +149,9 @@ opMOVD_mm_l_a32_cx(uint32_t fetchdat)
 static int
 opMOVQ_q_mm_a16(uint32_t fetchdat)
 {
+    if ((cpu_features & CPU_FEATURE_SSE2) && sse_xmm)
+        return opMOVDQA_l_xmm_a16(fetchdat);
+
     MMX_ENTER();
 
     fetch_ea_16(fetchdat);
@@ -158,6 +173,9 @@ opMOVQ_q_mm_a16(uint32_t fetchdat)
 static int
 opMOVQ_q_mm_a32(uint32_t fetchdat)
 {
+    if ((cpu_features & CPU_FEATURE_SSE2) && sse_xmm)
+        return opMOVDQA_l_xmm_a32(fetchdat);
+
     MMX_ENTER();
 
     fetch_ea_32(fetchdat);
@@ -180,6 +198,9 @@ opMOVQ_q_mm_a32(uint32_t fetchdat)
 static int
 opMOVQ_mm_q_a16(uint32_t fetchdat)
 {
+    if ((cpu_features & CPU_FEATURE_SSE2) && sse_xmm)
+        return opMOVDQA_xmm_q_a16(fetchdat);
+
     MMX_ENTER();
 
     fetch_ea_16(fetchdat);
@@ -199,6 +220,9 @@ opMOVQ_mm_q_a16(uint32_t fetchdat)
 static int
 opMOVQ_mm_q_a32(uint32_t fetchdat)
 {
+    if ((cpu_features & CPU_FEATURE_SSE2) && sse_xmm)
+        return opMOVDQA_xmm_q_a32(fetchdat);
+
     MMX_ENTER();
 
     fetch_ea_32(fetchdat);

@@ -13,6 +13,9 @@
 static int
 opPSxxW_imm(uint32_t fetchdat)
 {
+    if ((cpu_features & CPU_FEATURE_SSE2) && sse_xmm)
+        return opPSxxW_xmm_imm(fetchdat);
+
     int reg   = fetchdat & 7;
     int op    = fetchdat & 0x38;
     int shift = (fetchdat >> 8) & 0xff;
@@ -62,6 +65,9 @@ opPSxxW_imm(uint32_t fetchdat)
 static int
 opPSLLW_a16(uint32_t fetchdat)
 {
+    if ((cpu_features & CPU_FEATURE_SSE2) && sse_xmm)
+        return opPSLLW_xmm_a16(fetchdat);
+
     int shift;
 
     MMX_ENTER();
@@ -83,6 +89,9 @@ opPSLLW_a16(uint32_t fetchdat)
 static int
 opPSLLW_a32(uint32_t fetchdat)
 {
+    if ((cpu_features & CPU_FEATURE_SSE2) && sse_xmm)
+        return opPSLLW_xmm_a32(fetchdat);
+
     int shift;
 
     MMX_ENTER();
@@ -105,6 +114,9 @@ opPSLLW_a32(uint32_t fetchdat)
 static int
 opPSRLW_a16(uint32_t fetchdat)
 {
+    if ((cpu_features & CPU_FEATURE_SSE2) && sse_xmm)
+        return opPSRLW_xmm_a16(fetchdat);
+
     int shift;
 
     MMX_ENTER();
@@ -126,6 +138,9 @@ opPSRLW_a16(uint32_t fetchdat)
 static int
 opPSRLW_a32(uint32_t fetchdat)
 {
+    if ((cpu_features & CPU_FEATURE_SSE2) && sse_xmm)
+        return opPSRLW_xmm_a32(fetchdat);
+
     int shift;
 
     MMX_ENTER();
@@ -148,6 +163,9 @@ opPSRLW_a32(uint32_t fetchdat)
 static int
 opPSRAW_a16(uint32_t fetchdat)
 {
+    if ((cpu_features & CPU_FEATURE_SSE2) && sse_xmm)
+        return opPSRAW_xmm_a16(fetchdat);
+
     int shift;
 
     MMX_ENTER();
@@ -168,6 +186,9 @@ opPSRAW_a16(uint32_t fetchdat)
 static int
 opPSRAW_a32(uint32_t fetchdat)
 {
+    if ((cpu_features & CPU_FEATURE_SSE2) && sse_xmm)
+        return opPSRAW_xmm_a32(fetchdat);
+
     int shift;
 
     MMX_ENTER();
@@ -189,6 +210,9 @@ opPSRAW_a32(uint32_t fetchdat)
 static int
 opPSxxD_imm(uint32_t fetchdat)
 {
+    if ((cpu_features & CPU_FEATURE_SSE2) && sse_xmm)
+        return opPSxxD_xmm_imm(fetchdat);
+
     int reg   = fetchdat & 7;
     int op    = fetchdat & 0x38;
     int shift = (fetchdat >> 8) & 0xff;
@@ -232,6 +256,9 @@ opPSxxD_imm(uint32_t fetchdat)
 static int
 opPSLLD_a16(uint32_t fetchdat)
 {
+    if ((cpu_features & CPU_FEATURE_SSE2) && sse_xmm)
+        return opPSLLD_xmm_a16(fetchdat);
+
     int shift;
 
     MMX_ENTER();
@@ -251,6 +278,9 @@ opPSLLD_a16(uint32_t fetchdat)
 static int
 opPSLLD_a32(uint32_t fetchdat)
 {
+    if ((cpu_features & CPU_FEATURE_SSE2) && sse_xmm)
+        return opPSLLD_xmm_a32(fetchdat);
+
     int shift;
 
     MMX_ENTER();
@@ -271,6 +301,9 @@ opPSLLD_a32(uint32_t fetchdat)
 static int
 opPSRLD_a16(uint32_t fetchdat)
 {
+    if ((cpu_features & CPU_FEATURE_SSE2) && sse_xmm)
+        return opPSRLD_xmm_a16(fetchdat);
+
     int shift;
 
     MMX_ENTER();
@@ -290,6 +323,9 @@ opPSRLD_a16(uint32_t fetchdat)
 static int
 opPSRLD_a32(uint32_t fetchdat)
 {
+    if ((cpu_features & CPU_FEATURE_SSE2) && sse_xmm)
+        return opPSRLD_xmm_a32(fetchdat);
+
     int shift;
 
     MMX_ENTER();
@@ -310,6 +346,9 @@ opPSRLD_a32(uint32_t fetchdat)
 static int
 opPSRAD_a16(uint32_t fetchdat)
 {
+    if ((cpu_features & CPU_FEATURE_SSE2) && sse_xmm)
+        return opPSRAD_xmm_a16(fetchdat);
+
     int shift;
 
     MMX_ENTER();
@@ -328,6 +367,9 @@ opPSRAD_a16(uint32_t fetchdat)
 static int
 opPSRAD_a32(uint32_t fetchdat)
 {
+    if ((cpu_features & CPU_FEATURE_SSE2) && sse_xmm)
+        return opPSRAD_xmm_a32(fetchdat);
+
     int shift;
 
     MMX_ENTER();
@@ -347,6 +389,9 @@ opPSRAD_a32(uint32_t fetchdat)
 static int
 opPSxxQ_imm(uint32_t fetchdat)
 {
+    if ((cpu_features & CPU_FEATURE_SSE2) && sse_xmm)
+        return opPSxxQ_xmm_imm(fetchdat);
+
     int reg   = fetchdat & 7;
     int op    = fetchdat & 0x38;
     int shift = (fetchdat >> 8) & 0xff;
@@ -385,6 +430,9 @@ opPSxxQ_imm(uint32_t fetchdat)
 static int
 opPSLLQ_a16(uint32_t fetchdat)
 {
+    if ((cpu_features & CPU_FEATURE_SSE2) && sse_xmm)
+        return opPSLLQ_xmm_a16(fetchdat);
+
     int shift;
 
     MMX_ENTER();
@@ -402,6 +450,9 @@ opPSLLQ_a16(uint32_t fetchdat)
 static int
 opPSLLQ_a32(uint32_t fetchdat)
 {
+    if ((cpu_features & CPU_FEATURE_SSE2) && sse_xmm)
+        return opPSLLQ_xmm_a32(fetchdat);
+
     int shift;
 
     MMX_ENTER();
@@ -420,6 +471,9 @@ opPSLLQ_a32(uint32_t fetchdat)
 static int
 opPSRLQ_a16(uint32_t fetchdat)
 {
+    if ((cpu_features & CPU_FEATURE_SSE2) && sse_xmm)
+        return opPSRLQ_xmm_a16(fetchdat);
+
     int shift;
 
     MMX_ENTER();
@@ -434,9 +488,13 @@ opPSRLQ_a16(uint32_t fetchdat)
 
     return 0;
 }
+
 static int
 opPSRLQ_a32(uint32_t fetchdat)
 {
+    if ((cpu_features & CPU_FEATURE_SSE2) && sse_xmm)
+        return opPSRLQ_xmm_a32(fetchdat);
+
     int shift;
 
     MMX_ENTER();
