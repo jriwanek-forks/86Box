@@ -63,7 +63,6 @@
 #include <86box/device.h>
 #include <86box/pit.h>
 #include <86box/random.h>
-#include <86box/timer.h>
 #include <86box/nvr.h>
 #include <86box/machine.h>
 #include <86box/bugger.h>
@@ -89,6 +88,7 @@
 #include <86box/mo.h>
 #include <86box/scsi_disk.h>
 #include <86box/cdrom_image.h>
+#include <86box/thread.h>
 #include <86box/network.h>
 #include <86box/sound.h>
 #include <86box/midi.h>
@@ -97,7 +97,6 @@
 #include <86box/ui.h>
 #include <86box/path.h>
 #include <86box/plat.h>
-#include <86box/thread.h>
 #include <86box/version.h>
 #include <86box/gdbstub.h>
 #include <86box/machine_status.h>
@@ -956,8 +955,6 @@ pc_reset_hard_close(void)
 	/* Close all the memory mappings. */
 	mem_close();
 
-	network_timer_stop();
-
 	/* Turn off timer processing to avoid potential segmentation faults. */
 	timer_close();
 
@@ -1178,8 +1175,6 @@ pc_close(thread_t *ptr)
 
 	/* Close all the memory mappings. */
 	mem_close();
-
-	network_timer_stop();
 
 	/* Turn off timer processing to avoid potential segmentation faults. */
 	timer_close();
