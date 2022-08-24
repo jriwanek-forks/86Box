@@ -51,6 +51,7 @@
 #include <86box/fdd.h>
 #include <86box/fdc.h>
 #include <86box/fdc_ext.h>
+#include <86box/hdc.h>
 #include <86box/nvr.h>
 #include <86box/gameport.h>
 #include <86box/keyboard.h>
@@ -122,7 +123,8 @@ machine_at_common_ide_init(const machine_t *model)
 {
     machine_at_common_init(model);
 
-    device_add(&ide_isa_device);
+    if (hdc_current == HDC_INTERNAL)
+        device_add(&ide_isa_device);
 }
 
 void
@@ -130,7 +132,8 @@ machine_at_ibm_common_ide_init(const machine_t *model)
 {
     machine_at_common_init_ex(model, 1);
 
-    device_add(&ide_isa_device);
+    if (hdc_current == HDC_INTERNAL)
+        device_add(&ide_isa_device);
 }
 
 void
@@ -138,7 +141,8 @@ machine_at_ide_init(const machine_t *model)
 {
     machine_at_init(model);
 
-    device_add(&ide_isa_device);
+    if (hdc_current == HDC_INTERNAL)
+        device_add(&ide_isa_device);
 }
 
 void
@@ -146,7 +150,8 @@ machine_at_ps2_ide_init(const machine_t *model)
 {
     machine_at_ps2_init(model);
 
-    device_add(&ide_isa_device);
+    if (hdc_current == HDC_INTERNAL)
+        device_add(&ide_isa_device);
 }
 
 int
