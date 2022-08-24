@@ -354,7 +354,8 @@ machine_at_gdc212m_init(const machine_t *model)
     if (fdc_current[0] == FDC_INTERNAL)
         device_add(&fdc_at_device);
 
-    device_add(&ide_isa_device);
+    if (hdc_current[0] == HDC_INTERNAL)
+        device_add(&ide_isa_device);
 
     return ret;
 }
@@ -374,7 +375,8 @@ machine_at_gw286ct_init(const machine_t *model)
 
     machine_at_scat_init(model, 1, 0);
 
-    device_add(&ide_isa_device);
+    if (hdc_current[0] == HDC_INTERNAL)
+        device_add(&ide_isa_device);
 
     return ret;
 }

@@ -837,9 +837,11 @@ load_storage_controllers(void)
         if (machine_has_flags(machine, MACHINE_HDC)) {
             p = (char *) malloc((strlen("internal") + 1) * sizeof(char));
             strcpy(p, "internal");
+            hdc_current[0] = HDC_INTERNAL;
         } else {
             p = (char *) malloc((strlen("none") + 1) * sizeof(char));
             strcpy(p, "none");
+            hdc_current[0] = HDC_NONE;
         }
         free_p = 1;
     }
