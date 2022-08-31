@@ -26,6 +26,7 @@
 #endif
 
 /* Configuration values. */
+#define BSC_MAX      2
 #define GFXCARD_MAX  2
 #define SERIAL_MAX   8
 #define PARALLEL_MAX 4
