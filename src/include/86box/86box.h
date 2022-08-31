@@ -21,6 +21,7 @@
 #define EMU_86BOX_H
 
 /* Configuration values. */
+#define BSC_MAX      2
 #define GFXCARD_MAX  2
 #define SERIAL_MAX   7
 #define PARALLEL_MAX 4
