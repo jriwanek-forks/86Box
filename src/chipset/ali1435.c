@@ -11,7 +11,7 @@
  *
  * Authors: Miran Grca, <mgrca8@gmail.com>
  *
- *          Copyright 2020 Miran Grca.
+ *          Copyright 2020-2023 Miran Grca.
  */
 #include <stdarg.h>
 #include <stdint.h>
