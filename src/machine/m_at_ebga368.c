@@ -45,10 +45,10 @@ machine_at_arb9673_init(const machine_t *model)
     int ret;
 
     ret = bios_load_linear("roms/machines/arb9673/W9673.v12",
-			   0x00080000, 524288, 0);
+                           0x00080000, 524288, 0);
 
     if (bios_only || !ret)
-	return ret;
+        return ret;
 
     machine_at_common_init_ex(model, 2);
 
@@ -66,6 +66,5 @@ machine_at_arb9673_init(const machine_t *model)
     device_add(&sst_flash_39sf040_device);
     spd_register(SPD_TYPE_SDRAM, 0xf, 32);
 
-	
     return ret;
 }

@@ -95,11 +95,11 @@ machine_at_pd440fx_init(const machine_t *model)
     int ret;
 
     ret = bios_load_linear_combined2("roms/machines/pd440fx/1009DT0_.bio",
-                "roms/machines/pd440fx/1009DT0_.bi1",
-                "roms/machines/pd440fx/1009DT0_.bi2",
-                "roms/machines/pd440fx/1009DT0_.bi3",
-                "roms/machines/pd440fx/1009DT0_.rcv",
-                0x3a000, 128);
+                                     "roms/machines/pd440fx/1009DT0_.bi1",
+                                     "roms/machines/pd440fx/1009DT0_.bi2",
+                                     "roms/machines/pd440fx/1009DT0_.bi3",
+                                     "roms/machines/pd440fx/1009DT0_.rcv",
+                                     0x3a000, 128);
 
     if (bios_only || !ret)
         return ret;
@@ -127,7 +127,6 @@ machine_at_pd440fx_init(const machine_t *model)
 
     return ret;
 }
-
 
 int
 machine_at_lx6_init(const machine_t *model)
@@ -517,7 +516,7 @@ machine_at_ficka6100_init(const machine_t *model)
     int ret;
 
     ret = bios_load_linear("roms/machines/ficka6100/610011ex.bin",
-                0x000e0000, 131072, 0);
+                           0x000e0000, 131072, 0);
 
     if (bios_only || !ret)
         return ret;
@@ -540,7 +539,6 @@ machine_at_ficka6100_init(const machine_t *model)
 
     return ret;
 }
-
 
 int
 machine_at_ficka6130_init(const machine_t *model)
@@ -579,7 +577,7 @@ machine_at_6vx_init(const machine_t *model)
     int ret;
 
     ret = bios_load_linear("roms/machines/6vx/6vx.f1a",
-                0x000c0000, 262144, 0);
+                           0x000c0000, 262144, 0);
 
     if (bios_only || !ret)
         return ret;
@@ -604,7 +602,6 @@ machine_at_6vx_init(const machine_t *model)
 
     return ret;
 }
-
 
 int
 machine_at_p3v133_init(const machine_t *model)

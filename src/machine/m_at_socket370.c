@@ -457,14 +457,13 @@ machine_at_6via90ap_init(const machine_t *model)
     return ret;
 }
 
-
 int
 machine_at_603tcf_init(const machine_t *model)
 {
     int ret;
 
     ret = bios_load_linear("roms/machines/603tcf/603tcfA4.BIN",
-                0x000c0000, 262144, 0);
+                           0x000c0000, 262144, 0);
 
     if (bios_only || !ret)
         return ret;
@@ -500,7 +499,7 @@ machine_at_ms6198_init(const machine_t *model)
     int ret;
 
     ret = bios_load_linear("roms/machines/ms6198/a6198vms.160",
-                0x000c0000, 262144, 0);
+                           0x000c0000, 262144, 0);
 
     if (bios_only || !ret)
         return ret;

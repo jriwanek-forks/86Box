@@ -377,7 +377,7 @@ machine_ps1_m2133_init(const machine_t *model)
     int ret;
 
     ret = bios_load_linear("roms/machines/ibmps1_2133/ps1_2133_52g2974_rom.bin",
-			               0x000e0000, 131072, 0);
+                           0x000e0000, 131072, 0);
 
     if (bios_only || !ret)
         return ret;
