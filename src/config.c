@@ -295,7 +295,7 @@ config_detect_bom(char *fn)
 #endif
     if (f == NULL)
         return (0);
-    fread(bom, 1, 3, f);
+    (void) !fread(bom, 1, 3, f);
     if (bom[0] == 0xEF && bom[1] == 0xBB && bom[2] == 0xBF) {
         fclose(f);
         return 1;
@@ -361,7 +361,7 @@ config_read(char *fn)
 #ifdef __HAIKU__
         config_fgetws(buff, sizeof_w(buff), f);
 #else
-        fgetws(buff, sizeof_w(buff), f);
+        (void) !fgetws(buff, sizeof_w(buff), f);
 #endif
         if (feof(f))
             break;
@@ -391,7 +391,7 @@ config_read(char *fn)
             c++;
             d = 0;
             while (buff[c] != L']' && buff[c])
-                wctomb(&(sname[d++]), buff[c++]);
+                (void) !wctomb(&(sname[d++]), buff[c++]);
             sname[d] = L'\0';
 
             /* Is the section name properly terminated? */
@@ -412,7 +412,7 @@ config_read(char *fn)
         /* Get the variable name. */
         d = 0;
         while ((buff[c] != L'=') && (buff[c] != L' ') && buff[c])
-            wctomb(&(ename[d++]), buff[c++]);
+            (void) !wctomb(&(ename[d++]), buff[c++]);
         ename[d] = L'\0';
 
         /* Skip incomplete lines. */
@@ -1841,6 +1841,15 @@ load_floppy_and_cdrom_drives(void)
 
         sprintf(temp, "cdrom_%02i_iso_path", c + 1);
         config_delete_var(cat, temp);
+
+        for (int i = 0; i < MAX_PREV_IMAGES; i++) {
+            cdrom[c].image_history[i] = (char *) calloc(MAX_IMAGE_PATH_LEN + 1, sizeof(char));
+            sprintf(temp, "cdrom_%02i_image_history_%02i", c + 1, i + 1);
+            p = config_get_string(cat, temp, NULL);
+            if(p) {
+                sprintf(cdrom[c].image_history[i], "%s", p);
+            }
+        }
     }
 }
 
@@ -3154,6 +3163,15 @@ save_floppy_and_cdrom_drives(void)
             config_delete_var(cat, temp);
         } else {
             config_set_string(cat, temp, cdrom[c].image_path);
+        }
+
+        for (int i = 0; i < MAX_PREV_IMAGES; i++) {
+            sprintf(temp, "cdrom_%02i_image_history_%02i", c + 1, i + 1);
+            if((cdrom[c].image_history[i] == 0) || strlen(cdrom[c].image_history[i]) == 0) {
+                config_delete_var(cat, temp);
+            } else {
+                config_set_string(cat, temp, cdrom[c].image_history[i]);
+            }
         }
     }
 
