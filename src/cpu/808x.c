@@ -328,9 +328,14 @@ readmemw(uint32_t s, uint16_t a)
     uint16_t ret;
 
     wait(4, 1);
-    if (is8086 && !(a & 1))
-	ret = read_mem_w(s + a);
-    else {
+    if (is8086 && !(a & 1)) {
+        /* NEC V20 always takes at least 4 more cycles for reads even on even addresses. */
+        if (is_nec && cpu_s->cpu_type == CPU_V20) {
+            wait(4, 1);
+        }
+
+	    ret = read_mem_w(s + a);
+    } else {
 	wait(4, 1);
 	ret = read_mem_b(s + a);
 	ret |= read_mem_b(s + ((a + 1) & 0xffff)) << 8;
@@ -406,8 +411,13 @@ writememw(uint32_t s, uint32_t a, uint16_t v)
     uint32_t addr = s + a;
 
     wait(4, 1);
-    if (is8086 && !(a & 1))
-	write_mem_w(addr, v);
+    if (is8086 && !(a & 1)) {
+        /* NEC V20 always takes at least 4 more cycles for writes even on even addresses. */
+        if (is_nec && cpu_s->cpu_type == CPU_V20) {
+            wait(4, 1);
+        }
+		write_mem_w(addr, v);
+	}
     else {
 	write_mem_b(addr, v & 0xff);
 	wait(4, 1);
