@@ -391,22 +391,22 @@ acpi_reg_read_intel(int size, uint16_t addr, void *priv)
 static uint32_t
 acpi_reg_read_sis(int size, uint16_t addr, void *priv)
 {
-    acpi_t *dev = (acpi_t *) priv;
+    const acpi_t  *dev = (acpi_t *) priv;
     uint32_t ret = 0x00000000;
-    int shift16;
-    int shift32;
+    int      shift16;
+    int      shift32;
 
     addr &= 0x2f;
     shift16 = (addr & 1) << 3;
     shift32 = (addr & 3) << 3;
 
-	switch(addr) {
+    switch (addr) {
         case 0x0c:
         case 0x0d:
         case 0x0e:
         case 0x0f:
             ret = (dev->regs.pcntrl >> shift32) & 0xff;
-        break;
+            break;
 
         case 0x12:
             ret = dev->regs.p2cntrl;
@@ -471,16 +471,15 @@ acpi_reg_read_sis(int size, uint16_t addr, void *priv)
             break;
 
         default:
-            acpi_reg_read_common_regs(size, addr, priv);
+            ret = acpi_reg_read_common_regs(size, addr, priv);
             break;
     }
 #ifdef ENABLE_ACPI_LOG
     if (size != 1)
-		acpi_log("(%i) ACPI Read  (%i) %02X: %02X\n", in_smm, size, addr, ret);
+        acpi_log("(%i) ACPI Read  (%i) %02X: %02X\n", in_smm, size, addr, ret);
 #endif
     return ret;
 }
-
 
 static uint32_t
 acpi_reg_read_via_common(int size, uint16_t addr, void *priv)
@@ -997,15 +996,15 @@ acpi_reg_write_intel(int size, uint16_t addr, uint8_t val, void *priv)
 static void
 acpi_reg_write_sis(int size, uint16_t addr, uint8_t val, void *priv)
 {
-    acpi_t *dev = (acpi_t *) p;
-    int shift16;
-    int shift32;
+    acpi_t *dev = (acpi_t *) priv;
+    int     shift16;
+    int     shift32;
 
     addr &= 0x2f;
     shift16 = (addr & 1) << 3;
     shift32 = (addr & 3) << 3;
 
-    switch(addr) {
+    switch (addr) {
         case 0x0c:
         case 0x0d:
         case 0x0e:
@@ -1078,7 +1077,7 @@ acpi_reg_write_sis(int size, uint16_t addr, uint8_t val, void *priv)
             break;
 
         default:
-            acpi_reg_write_common_regs(size, addr, val, p);
+            acpi_reg_write_common_regs(size, addr, val, priv);
             break;
     }
 
@@ -1087,7 +1086,6 @@ acpi_reg_write_sis(int size, uint16_t addr, uint8_t val, void *priv)
         acpi_log("(%i) ACPI Write (%i) %02X: %02X\n", in_smm, size, addr, val);
 #endif
 }
-
 
 static void
 acpi_reg_write_via_common(int size, uint16_t addr, uint8_t val, void *priv)
@@ -1594,7 +1592,7 @@ acpi_update_io_mapping(acpi_t *dev, uint32_t base, int chipset_en)
             size = 0x100;
             break;
         case VEN_VIA_596B:
-            size = 0x080;
+            size = 0x0080;
             break;
     }
 

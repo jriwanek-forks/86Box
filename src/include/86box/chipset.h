@@ -53,7 +53,7 @@ extern const device_t cs8230_device;
 extern const device_t cs4031_device;
 
 /* ETEQ */
-extern const device_t   et6000_device;
+extern const device_t et6000_device;
 
 /* G2 */
 extern const device_t gc100_device;

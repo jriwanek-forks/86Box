@@ -29,6 +29,7 @@
 #include <86box/timer.h>
 #include <86box/io.h>
 #include <86box/device.h>
+#include <86box/plat_unused.h>
 
 #include <86box/apm.h>
 #include <86box/mem.h>
@@ -40,6 +41,7 @@
 
 #ifdef ENABLE_UMC_8890_LOG
 int umc_8890_do_log = ENABLE_UMC_8890_LOG;
+
 static void
 umc_8890_log(const char *fmt, ...)
 {
@@ -60,9 +62,14 @@ umc_8890_log(const char *fmt, ...)
 #define DISABLE_SHADOW (MEM_READ_EXTANY | MEM_WRITE_EXTANY)
 
 typedef struct umc_8890_t {
-    smram_t *smram;
+    uint8_t pci_slot;
+    uint8_t pad;
+    uint8_t pad0;
+    uint8_t pad1;
 
     uint8_t pci_conf[256];
+
+    smram_t *smram;
 } umc_8890_t;
 
 static __inline uint16_t
@@ -77,7 +84,7 @@ um8890_shadow(umc_8890_t *dev)
     mem_set_mem_state_both(0xe0000, 0x10000, umc_8890_shadow_flag((dev->pci_conf[0x5f] & 0x0c) >> 2));
     mem_set_mem_state_both(0xf0000, 0x10000, umc_8890_shadow_flag((dev->pci_conf[0x5f] & 0xc0) >> 6));
 
-    for (int i = 0; i < 8; i++)
+    for (uint8_t i = 0; i < 8; i++)
         mem_set_mem_state_both(0xc0000 + (i << 14), 0x4000, umc_8890_shadow_flag(!!(dev->pci_conf[0x5d] & (1 << i))));
 
     flushmmucache_nopc();
@@ -131,11 +138,10 @@ um8890_write(int func, int addr, uint8_t val, void *priv)
             pclog("[%04X:%08X] [W] HB%02X: %02X\n", CS, cpu_state.pc, addr, val);
             dev->pci_conf[addr] = val;
             if ((addr == 0x65) && (val & 0x10)) {
-                int   i;
-                FILE *f = fopen("d:\\queen\\86boxnew\\um8890_bios.dmp", "wb");
-                for (i = 0; i < 131072; i++)
-                    fputc(mem_readb_phys(0xe0000 + i), f);
-                fclose(f);
+                FILE *fp = fopen("d:\\queen\\86boxnew\\um8890_bios.dmp", "wb");
+                for (uint32_t i = 0; i < 131072; i++)
+                    fputc(mem_readb_phys(0xe0000 + i), fp);
+                fclose(fp);
             }
             if (addr == 0x65)
                 um8890_smram(dev);
@@ -153,8 +159,8 @@ um8890_write(int func, int addr, uint8_t val, void *priv)
 static uint8_t
 um8890_read(int func, int addr, void *priv)
 {
-    umc_8890_t *dev = (umc_8890_t *) priv;
-    uint8_t     ret = 0xff;
+    const umc_8890_t *dev = (umc_8890_t *) priv;
+    uint8_t           ret = 0xff;
 
     if (func == 0) {
         ret = dev->pci_conf[addr];
@@ -205,11 +211,11 @@ umc_8890_close(void *priv)
 }
 
 static void *
-umc_8890_init(const device_t *info)
+umc_8890_init(UNUSED(const device_t *info))
 {
     umc_8890_t *dev = (umc_8890_t *) malloc(sizeof(umc_8890_t));
     memset(dev, 0, sizeof(umc_8890_t));
-    pci_add_card(PCI_ADD_NORTHBRIDGE, um8890_read, um8890_write, dev); /* Device 0: UMC 8890 */
+    pci_add_card(PCI_ADD_NORTHBRIDGE, um8890_read, um8890_write, dev, &dev->pci_slot); /* Device 0: UMC 8890 */
 
     /* Port 92 */
     device_add(&port_92_pci_device);

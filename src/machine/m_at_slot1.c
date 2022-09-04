@@ -263,11 +263,86 @@ machine_at_p2bls_init(const machine_t *model)
 }
 
 int
+machine_at_p2bls_coreboot_init(const machine_t *model)
+{
+    int ret;
+
+    ret = bios_load_linear("roms/machines/p2bls/coreboot.rom",
+                           0x000c0000, 262144, 0);
+
+    if (bios_only || !ret)
+        return ret;
+
+    machine_at_common_init_ex(model, 2);
+
+    pci_init(PCI_CONFIG_TYPE_1);
+    pci_register_slot(0x00, PCI_CARD_NORTHBRIDGE, 0, 0, 0, 0);
+    pci_register_slot(0x04, PCI_CARD_SOUTHBRIDGE, 1, 2, 3, 4);
+    pci_register_slot(0x06, PCI_CARD_NORMAL,      4, 1, 2, 3); /* SCSI */
+    pci_register_slot(0x07, PCI_CARD_NORMAL,      3, 4, 1, 2); /* LAN */
+    pci_register_slot(0x0B, PCI_CARD_NORMAL,      2, 3, 4, 1);
+    pci_register_slot(0x0C, PCI_CARD_NORMAL,      1, 2, 3, 4);
+    pci_register_slot(0x09, PCI_CARD_NORMAL,      4, 1, 2, 3);
+    pci_register_slot(0x0A, PCI_CARD_NORMAL,      3, 4, 1, 2);
+    pci_register_slot(0x01, PCI_CARD_AGPBRIDGE,   1, 2, 3, 4);
+    device_add(&i440bx_device);
+    device_add(&piix4e_device);
+    device_add(&keyboard_ps2_ami_pci_device);
+    device_add(&w83977ef_device);
+#if 0
+    device_add(ics9xxx_get(ICS9150_08)); /* setting proper speeds requires some interaction with the AS97127F ASIC */
+#endif
+    device_add(&sst_flash_39sf020_device);
+    spd_register(SPD_TYPE_SDRAM, 0xF, 256);
+    device_add(&w83781d_device);     /* fans: Chassis, CPU, Power; temperatures: MB, unused, CPU */
+    hwm_values.temperatures[1] = 0;  /* unused */
+    hwm_values.temperatures[2] -= 3; /* CPU offset */
+
+    return ret;
+}
+
+int
 machine_at_p3bf_init(const machine_t *model)
 {
     int ret;
 
     ret = bios_load_linear("roms/machines/p3bf/1008f.004",
+                           0x000c0000, 262144, 0);
+
+    if (bios_only || !ret)
+        return ret;
+
+    machine_at_common_init_ex(model, 2);
+
+    pci_init(PCI_CONFIG_TYPE_1);
+    pci_register_slot(0x00, PCI_CARD_NORTHBRIDGE, 0, 0, 0, 0);
+    pci_register_slot(0x04, PCI_CARD_SOUTHBRIDGE, 1, 2, 3, 4);
+    pci_register_slot(0x09, PCI_CARD_NORMAL,      4, 1, 2, 3);
+    pci_register_slot(0x0A, PCI_CARD_NORMAL,      3, 4, 1, 2);
+    pci_register_slot(0x0B, PCI_CARD_NORMAL,      2, 3, 4, 1);
+    pci_register_slot(0x0C, PCI_CARD_NORMAL,      1, 2, 3, 4);
+    pci_register_slot(0x0D, PCI_CARD_NORMAL,      4, 1, 2, 3);
+    pci_register_slot(0x0E, PCI_CARD_NORMAL,      3, 4, 1, 2);
+    pci_register_slot(0x01, PCI_CARD_AGPBRIDGE,   1, 2, 3, 4);
+    device_add(&i440bx_device);
+    device_add(&piix4e_device);
+    device_add(&keyboard_ps2_ami_pci_device);
+    device_add(&w83977ef_device);
+    device_add(ics9xxx_get(ICS9250_08));
+    device_add(&sst_flash_39sf020_device);
+    spd_register(SPD_TYPE_SDRAM, 0xF, 256);
+    device_add(&as99127f_device);                    /* fans: Chassis, CPU, Power; temperatures: MB, JTPWR, CPU */
+    hwm_values.voltages[4] = hwm_values.voltages[5]; /* +12V reading not in line with other boards; appears to be close to the -12V reading */
+
+    return ret;
+}
+
+int
+machine_at_p3bf_coreboot_init(const machine_t *model)
+{
+    int ret;
+
+    ret = bios_load_linear("roms/machines/p3bf/coreboot.rom",
                            0x000c0000, 262144, 0);
 
     if (bios_only || !ret)
@@ -592,9 +667,13 @@ machine_at_6vx_init(const machine_t *model)
     pci_register_slot(0x0A, PCI_CARD_NORMAL,      3, 4, 1, 2);
     pci_register_slot(0x0B, PCI_CARD_NORMAL,      4, 1, 2, 3);
     pci_register_slot(0x0C, PCI_CARD_NORMAL,      1, 2, 3, 4);
-//    pci_register_slot(0x01, PCI_CARD_SPECIAL,     1, 2, 3, 4);
+#if 0
+    pci_register_slot(0x01, PCI_CARD_SPECIAL,     1, 2, 3, 4);
+#endif
     device_add(&via_apro_device);
-//    device_add(&via_vt82c596_device);
+#if 0
+    device_add(&via_vt82c596_device);
+#endif
     device_add(&w83877f_device);
     device_add(&keyboard_ps2_ami_pci_device);
     device_add(&sst_flash_39sf020_device);

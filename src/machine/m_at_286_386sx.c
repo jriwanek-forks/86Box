@@ -85,7 +85,6 @@ machine_at_poisk2_init(const machine_t *model)
     return ret;
 }
 
-
 static void
 machine_at_headland_common_init(int type)
 {

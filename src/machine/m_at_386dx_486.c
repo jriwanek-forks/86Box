@@ -379,7 +379,7 @@ machine_at_pcs46c_init(const machine_t *model)
     device_add(&et6000_device);
     device_add(&keyboard_ps2_device);
 
-    if (gfxcard == VID_INTERNAL)
+    if (gfxcard[0] == VID_INTERNAL)
         device_add(&gd5428_onboard_device);
 
     return ret;

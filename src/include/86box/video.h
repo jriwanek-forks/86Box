@@ -331,6 +331,11 @@ extern const device_t compaq_ati28800_device;
 extern const device_t ati28800_wonderxl24_device;
 #    endif
 
+/* ATi Radeon R100 Series */
+#if defined(DEV_BRANCH) && defined(USE_R100)
+extern const device_t ati_r100_device;
+#endif
+
 /* Cirrus Logic GD54xx */
 extern const device_t gd5401_isa_device;
 extern const device_t gd5402_isa_device;
@@ -436,12 +441,12 @@ extern const device_t mystique_device;
 extern const device_t mystique_220_device;
 #    endif
 
-/* nVidia RIVA 128 */
+/* Nvidia RIVA 128 */
 #if defined(DEV_BRANCH) && defined(USE_RIVA128)
 extern const device_t riva128_pci_device;
 #endif
 
-/* nVidia RIVA TNT */
+/* Nvidia RIVA TNT */
 #if defined(DEV_BRANCH) && defined(USE_RIVATNT)
 extern const device_t rivatnt_pci_device;
 #endif

@@ -52,6 +52,9 @@ ifeq ($(DEV_BUILD), y)
  ifndef GUSMAX
   GUSMAX := y
  endif
+ ifndef HEDAKA
+  HEDAKA := y
+ endif
  ifndef ISAMEM_RAMPAGE
   ISAMEM_RAMPAGE := y
  endif
@@ -61,17 +64,11 @@ ifeq ($(DEV_BUILD), y)
  ifndef ISAMEM_BRAT
   ISAMEM_BRAT := y
  endif
- ifndef HEDAKA
-  HEDAKA	:= y
- endif
  ifndef LASERXT
   LASERXT := y
  endif
  ifndef MGA
   MGA := y
- endif
- ifndef PS2M70T4
-  PS2M70T4	:= y
  endif
  ifndef OLIVETTI
   OLIVETTI := y
@@ -85,26 +82,26 @@ ifeq ($(DEV_BUILD), y)
  ifndef PCI_DUMMY
   PCI_DUMMY := y
  endif
+ ifndef R100
+  R100 := y
+ endif
+ ifndef RIVA128
+  RIVA128 := y
+ endif
+ ifndef RIVATNT
+  RIVATNT := y
+ endif
  ifndef SIO_DETECT
   SIO_DETECT := y
+ endif
+ ifndef VECT486VL
+  VECT486VL := y
  endif
  ifndef VGAWONDER
   VGAWONDER := y
  endif
  ifndef XL24
   XL24 := y
- endif
- ifndef VECT486VL
-  VECT486VL	:= y
- endif
- ifndef OLIVETTI
-  OLIVETTI	:= y
- endif
- ifndef RIVA128
-  RIVA128   := y
- endif
- ifndef RIVATNT
-  RIVATNT   := y
  endif
  ifndef NEW_KBC
   NEW_KBC := n
@@ -134,6 +131,9 @@ else
  ifndef GUSMAX
   GUSMAX := n
  endif
+ ifndef HEDAKA
+  HEDAKA := n
+ endif
  ifndef ISAMEM_RAMPAGE
   ISAMEM_RAMPAGE := n
  endif
@@ -143,17 +143,11 @@ else
  ifndef ISAMEM_BRAT
   ISAMEM_BRAT := n
  endif
- ifndef HEDAKA
-  HEDAKA	:= n
- endif
  ifndef LASERXT
   LASERXT := n
  endif
  ifndef MGA
   MGA := n
- endif
- ifndef PS2M70T4
-  PS2M70T4	:= n
  endif
  ifndef OLIVETTI
   OLIVETTI := n
@@ -167,26 +161,26 @@ else
  ifndef PCI_DUMMY
   PCI_DUMMY := n
  endif
+ ifndef R100
+  R100 := n
+ endif
+ ifndef RIVA128
+  RIVA128 := n
+ endif
+ ifndef RIVATNT
+  RIVATNT := n
+ endif
  ifndef SIO_DETECT
   SIO_DETECT := n
+ endif
+ ifndef VECT486VL
+  VECT486VL := n
  endif
  ifndef VGAWONDER
   VGAWONDER := n
  endif
  ifndef XL24
-  XL24		:= n
- endif
- ifndef VECT486VL
-  VECT486VL	:= n
- endif
- ifndef OLIVETTI
-  OLIVETTI	:= n
- endif
- ifndef RIVA128
-  RIVA128   := n
- endif
- ifndef RIVATNT
-  RIVATNT   := n
+  XL24 := n
  endif
  ifndef NEW_KBC
   NEW_KBC := n
@@ -515,6 +509,10 @@ ifeq ($(DEV_BRANCH), y)
   OPTS += -DUSE_GUSMAX
  endif
 
+ ifeq ($(HEDAKA), y)
+  OPTS += -DUSE_HEDAKA
+ endif
+
  ifeq ($(ISAMEM_RAMPAGE), y)
   OPTS += -DUSE_ISAMEM_RAMPAGE
  endif
@@ -537,6 +535,11 @@ ifeq ($(DEV_BRANCH), y)
   DEVBROBJ += vid_mga.o
  endif
 
+ ifeq ($(OLIVETTI), y)
+  OPTS     += -DUSE_OLIVETTI
+  DEVBROBJ += olivetti_eva.o
+ endif
+
  ifeq ($(OPEN_AT), y)
   OPTS += -DUSE_OPEN_AT
  endif
@@ -549,6 +552,21 @@ ifeq ($(DEV_BRANCH), y)
  ifeq ($(PCI_DUMMY), y)
   OPTS     += -DUSE_PCI_DUMMY
   DEVBROBJ += pci_dummy.o
+ endif
+
+ ifeq ($(R100), y)
+  OPTS     += -DUSE_R100
+  DEVBROBJ += vid_ati_r100.o
+ endif
+
+ ifeq ($(RIVA128), y)
+  OPTS     += -DUSE_RIVA128
+  DEVBROBJ += vid_riva128.o
+ endif
+
+ ifeq ($(RIVATNT), y)
+  OPTS     += -DUSE_RIVATNT
+  DEVBROBJ += vid_rivatnt.o
  endif
 
  ifeq ($(SIO_DETECT), y)
@@ -564,11 +582,6 @@ ifeq ($(DEV_BRANCH), y)
   OPTS += -DUSE_XL24
  endif
 
- ifeq ($(OLIVETTI), y)
-  OPTS     += -DUSE_OLIVETTI
-  DEVBROBJ += olivetti_eva.o
- endif
-
  ifeq ($(GDBSTUB), y)
   OPTS     += -DUSE_GDBSTUB
   DEVBROBJ += gdbstub.o
@@ -577,46 +590,6 @@ endif
 
 ifeq ($(RTMIDI), y)
  OPTS += -DUSE_RTMIDI
-endif
-
-ifeq ($(PS2M70T4), y)
-OPTS		+= -DUSE_PS2M70T4
-endif
-
-ifeq ($(SIO_DETECT), y)
-OPTS		+= -DUSE_SIO_DETECT
-DEVBROBJ	+= sio_detect.o
-endif
-
-ifeq ($(TANDY_ISA), y)
-OPTS		+= -DUSE_TANDY_ISA
-endif
-
-ifeq ($(VGAWONDER), y)
-OPTS		+= -DUSE_VGAWONDER
-endif
-
-ifeq ($(XL24), y)
-OPTS		+= -DUSE_XL24
-endif
-
-ifeq ($(OLIVETTI), y)
-OPTS		+= -DUSE_OLIVETTI
-DEVBROBJ	+= olivetti_eva.o
-endif
-
-
-ifeq ($(RIVA128), y)
-OPTS		+= -DUSE_RIVA128
-DEVBROBJ	+= vid_riva128.o
-endif
-
-
-ifeq ($(RIVATNT), y)
-OPTS		+= -DUSE_RIVATNT
-DEVBROBJ	+= vid_rivatnt.o
-endif
-
 endif
 
 

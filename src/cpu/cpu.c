@@ -1712,7 +1712,7 @@ cpu_set(void)
             break;
 
         case CPU_CYRIX3S:
-        case CPU_EDEN:
+        case CPU_EDEN: /* This until proper timings get discovered */
 #ifdef USE_DYNAREC
             x86_setopcodes(ops_386, ops_winchip2_0f, dynarec_ops_386, dynarec_ops_winchip2_0f);
 #else
@@ -2418,7 +2418,6 @@ cpu_CPUID(void)
             break;
 
         case CPU_CYRIX3S:
- 	    case CPU_EDEN:
             switch (EAX) {
                 case 0:
                     EAX = 1;
@@ -2458,6 +2457,58 @@ cpu_CPUID(void)
                     EBX = 0x08800880; /* TLBs */
                     ECX = 0x40040120; /* L1 data cache */
                     EDX = 0x40020120; /* L1 instruction cache */
+                    break;
+                default:
+                    EAX = EBX = ECX = EDX = 0;
+                    break;
+            }
+            break;
+
+        case CPU_EDEN:
+            switch (EAX) {
+                case 0:
+                    EAX = 1;
+                    if (msr.fcr2 & (1 << 14)) {
+                        EBX = msr.fcr3 >> 32;
+                        ECX = msr.fcr3 & 0xffffffff;
+                        EDX = msr.fcr2 >> 32;
+                    } else {
+                        EBX = 0x746e6543; /* CentaurHauls */
+                        ECX = 0x736c7561;
+                        EDX = 0x48727561;
+                    }
+                    break;
+                case 1:
+                    EAX = CPUID;
+                    EBX = ECX = 0;
+                    EDX       = CPUID_FPU | CPUID_TSC | CPUID_MSR | CPUID_MMX | CPUID_MTRR;
+                    if (cpu_has_feature(CPU_FEATURE_CX8))
+                        EDX |= CPUID_CMPXCHG8B;
+                    break;
+                case 0x80000000:
+                    EAX = 0x80000006;
+                    break;
+                case 0x80000001:
+                    EAX = CPUID;
+                    EDX = CPUID_FPU | CPUID_TSC | CPUID_MSR | CPUID_MMX | CPUID_MTRR | CPUID_3DNOW;
+                    if (cpu_has_feature(CPU_FEATURE_CX8))
+                        EDX |= CPUID_CMPXCHG8B;
+                    break;
+                case 0x80000002:      /* Processor name string */
+                case 0x80000003:
+                case 0x80000004:
+                    EAX = 0x20414956; /* VIA Samuel 2 */
+                    EBX = 0x756d6153;
+                    ECX = 0x32206c65;
+                    EDX = 0x00000000;
+                    break;
+                case 0x80000005:      /* Cache information */
+                    EBX = 0x08800880; /* TLBs */
+                    ECX = 0x40040120; /* L1 data cache */
+                    EDX = 0x40020120; /* L1 instruction cache */
+                break;
+                case 0x80000006:
+                    ECX = 0x40040120; /* L2 data cache */
                     break;
                 default:
                     EAX = EBX = ECX = EDX = 0;

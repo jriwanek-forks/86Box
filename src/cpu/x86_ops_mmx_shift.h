@@ -90,6 +90,7 @@ opPSLLW_a16(uint32_t fetchdat)
 
     return 0;
 }
+
 static int
 opPSLLW_a32(uint32_t fetchdat)
 {
@@ -145,6 +146,7 @@ opPSRLW_a16(uint32_t fetchdat)
 
     return 0;
 }
+
 static int
 opPSRLW_a32(uint32_t fetchdat)
 {
@@ -199,6 +201,7 @@ opPSRAW_a16(uint32_t fetchdat)
 
     return 0;
 }
+
 static int
 opPSRAW_a32(uint32_t fetchdat)
 {
@@ -299,6 +302,7 @@ opPSLLD_a16(uint32_t fetchdat)
 
     return 0;
 }
+
 static int
 opPSLLD_a32(uint32_t fetchdat)
 {
@@ -350,6 +354,7 @@ opPSRLD_a16(uint32_t fetchdat)
 
     return 0;
 }
+
 static int
 opPSRLD_a32(uint32_t fetchdat)
 {
@@ -400,6 +405,7 @@ opPSRAD_a16(uint32_t fetchdat)
 
     return 0;
 }
+
 static int
 opPSRAD_a32(uint32_t fetchdat)
 {
@@ -493,6 +499,7 @@ opPSLLQ_a16(uint32_t fetchdat)
 
     return 0;
 }
+
 static int
 opPSLLQ_a32(uint32_t fetchdat)
 {
@@ -540,6 +547,7 @@ opPSRLQ_a16(uint32_t fetchdat)
 
     return 0;
 }
+
 static int
 opPSRLQ_a32(uint32_t fetchdat)
 {

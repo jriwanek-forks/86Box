@@ -33,6 +33,21 @@ if(MGA)
     target_sources(vid PRIVATE vid_mga.c)
 endif()
 
+if(R100)
+    target_compile_definitions(vid PRIVATE USE_R100)
+    target_sources(vid PRIVATE vid_ati_r100.c)
+endif()
+
+if(RIVA128)
+    target_compile_definitions(vid PRIVATE USE_RIVA128)
+    target_sources(vid PRIVATE vid_riva128.c)
+endif()
+
+if(RIVATNT)
+    target_compile_definitions(vid PRIVATE USE_RIVATNT)
+    target_sources(vid PRIVATE vid_rivatnt.c)
+endif()
+
 if(VGAWONDER)
     target_compile_definitions(vid PRIVATE USE_VGAWONDER)
 endif()
@@ -48,14 +63,4 @@ add_library(voodoo OBJECT vid_voodoo.c vid_voodoo_banshee.c
 
 if(NOT MSVC AND (ARCH STREQUAL "i386" OR ARCH STREQUAL "x86_64"))
     target_compile_options(voodoo PRIVATE "-msse2")
-endif()
-
-if(RIVA128)
-    target_compile_definitions(vid PRIVATE USE_RIVA128)
-    target_sources(vid PRIVATE vid_riva128.c)
-endif()
-
-if(RIVATNT)
-    target_compile_definitions(vid PRIVATE USE_RIVATNT)
-    target_sources(vid PRIVATE vid_rivatnt.c)
 endif()

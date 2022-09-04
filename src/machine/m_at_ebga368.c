@@ -1,20 +1,20 @@
 /*
- * 86Box	A hypervisor and IBM PC system emulator that specializes in
- *		running old operating systems and software designed for IBM
- *		PC systems and compatibles from 1981 through fairly recent
- *		system designs based on the PCI bus.
+ * 86Box    A hypervisor and IBM PC system emulator that specializes in
+ *          running old operating systems and software designed for IBM
+ *          PC systems and compatibles from 1981 through fairly recent
+ *          system designs based on the PCI bus.
  *
- *		This file is part of the 86Box distribution.
+ *          This file is part of the 86Box distribution.
  *
- *		Implementation of VIA EBGA368 Based Single Board Computers.
+ *          Implementation of VIA EBGA368 Based Single Board Computers.
  *
- *		Note: 86Box doesn't emulate all the components a SBC may have.
+ *          Note: 86Box doesn't emulate all the components a SBC may have.
  *
- * Authors:	Miran Grca, <mgrca8@gmail.com>
- *         	Tiseno100
+ * Authors: Miran Grca, <mgrca8@gmail.com>
+ *          Tiseno100
  *
- *		Copyright 2016-2019 Miran Grca.
- *		Copyright 2021 Tiseno100.
+ *          Copyright 2016-2019 Miran Grca.
+ *          Copyright 2021 Tiseno100.
  */
 #include <stdio.h>
 #include <stdint.h>

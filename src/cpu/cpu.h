@@ -81,7 +81,7 @@ enum {
     CPU_K6_3P,
     CPU_CYRIX3S,
     CPU_EDEN,
-    CPU_PENTIUMPRO,	/* 686 class CPUs */
+    CPU_PENTIUMPRO, /* 686 class CPUs */
     CPU_PENTIUM2,
     CPU_PENTIUM2D
 };

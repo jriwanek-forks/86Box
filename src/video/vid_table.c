@@ -260,6 +260,9 @@ video_cards[] = {
     { &ht216_32_standalone_device                    },
     { &tgui9400cxi_device                            },
     { &tgui9440_vlb_device                           },
+#if defined(DEV_BRANCH) && defined(USE_R100)
+    { &ati_r100_device                               },
+#endif
     { &s3_virge_357_agp_device                       },
     { &s3_diamond_stealth_4000_agp_device            },
     { &s3_trio3d2x_agp_device                        },

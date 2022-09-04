@@ -992,7 +992,6 @@ const cpu_family_t cpu_families[] = {
     }
     },
 #endif
-    }, {
     {
     .package = CPU_PKG_SOCKET8,
     .manufacturer = "Intel",
@@ -1010,17 +1009,6 @@ const cpu_family_t cpu_families[] = {
         {"180",             CPU_PENTIUMPRO, fpus_internal, 180000000, 3.0, 3300,  0x617,  0x617, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 18,18, 9, 9, 21},
         {"200",             CPU_PENTIUMPRO, fpus_internal, 200000000, 3.0, 3300,  0x617,  0x617, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 18,18, 9, 9, 24},
         {"", 0}
-	}
-    }, {
-	.package = CPU_PKG_EBGA368,
-	.manufacturer = "VIA",
-	.name = "Eden Model 7",
-	.internal_name = "c3_eden",
-	.cpus = (const CPU[]) {
-		{"66",      CPU_EDEN, fpus_internal,  66666666, 1.0, 2050,   0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER,  6,  6,  3,  3, 8}, /* out of spec */
-		{"100",     CPU_EDEN, fpus_internal, 100000000, 1.0, 2050,   0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER,  9,  9,  4,  4, 12}, /* out of spec */
-		{"400",     CPU_EDEN, fpus_internal, 400000000, 6.0, 2050,   0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 36, 36, 17, 17, 48},
-		{"600",     CPU_EDEN, fpus_internal, 600000000, 6.0, 2050,   0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 54, 54, 18, 18, 72},
     }
     }, {
     .package = CPU_PKG_SOCKET8,
@@ -1160,6 +1148,17 @@ const cpu_family_t cpu_families[] = {
         {"700",     CPU_CYRIX3S, fpus_internal, 700000000, 7.0, 2050,   0x663, 0x663, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 63, 63, 21, 21, 84},
         {"733",     CPU_CYRIX3S, fpus_internal, 733333333, 5.5, 2050,   0x663, 0x663, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 66, 66, 18, 18, 88},
         {"", 0}
+    }
+    }, {
+    .package = CPU_PKG_EBGA368,
+    .manufacturer = "VIA",
+    .name = "Eden Model 7",
+    .internal_name = "c3_eden",
+    .cpus = (const CPU[]) {
+        {"66",      CPU_EDEN, fpus_internal,  66666666, 1.0, 2050,   0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER,  6,  6,  3,  3, 8}, /* out of spec */
+        {"100",     CPU_EDEN, fpus_internal, 100000000, 1.0, 2050,   0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER,  9,  9,  4,  4, 12}, /* out of spec */
+        {"400",     CPU_EDEN, fpus_internal, 400000000, 6.0, 2050,   0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 36, 36, 17, 17, 48},
+        {"600",     CPU_EDEN, fpus_internal, 600000000, 6.0, 2050,   0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 54, 54, 18, 18, 72},
     }
     }, {
     .package = 0,

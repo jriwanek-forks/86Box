@@ -391,7 +391,7 @@ machine_ps1_m2133_init(const machine_t *model)
 
     nmi_mask = 0x80;
 
-    if (gfxcard == VID_INTERNAL)
+    if (gfxcard[0] == VID_INTERNAL)
         device_add(&gd5426_onboard_device);
 
     return ret;
