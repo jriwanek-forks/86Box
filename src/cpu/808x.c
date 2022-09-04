@@ -1753,7 +1753,7 @@ execx86(int cycs)
 						break;
 					}
 				}
-			} else handled = 1;
+			} else handled = 0;
 			if (handled) break;
 			access(22, 16);
 			if (opcode == 0x0F) {
