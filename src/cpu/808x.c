@@ -1981,6 +1981,11 @@ execx86(int cycs)
 						break;
 					}
 					
+					case 0xFF: { /* BRKEM */
+						/* Unimplemented for now. */
+						fatal("808x: Unsupported 8080 emulation mode attempted to enter into!");
+						break;
+					}
 					default: {
 						opcode = orig_opcode;
 						cpu_state.pc--;
