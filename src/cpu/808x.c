@@ -1983,6 +1983,7 @@ execx86(int cycs)
 					
 					default: {
 						opcode = orig_opcode;
+						cpu_state.pc--;
 						break;
 					}
 				}
