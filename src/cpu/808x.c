@@ -67,7 +67,7 @@ static uint16_t last_addr = 0x0000;
 
 static uint32_t *ovr_seg = NULL;
 static int prefetching = 1, completed = 1;
-static int in_rep = 0, repeating = 0;
+static int in_rep = 0, repeating = 0, rep_c_flag = 0;
 static int oldc, clear_lock = 0;
 static int refresh = 0, cycdiff;
 
@@ -2218,7 +2218,14 @@ execx86(int cycs)
 		case 0x74:	/*JE*/
 		case 0x65:	/*JNE alias*/
 		case 0x75:	/*JNE*/
-			jcc(opcode, cpu_state.flags & Z_FLAG);
+			if (is_nec && (opcode & 0xFE) == 0x64) {
+				/* REPC/REPNC */
+				wait(1, 0);
+				in_rep = (opcode == 0x64 ? 1 : 2);
+				rep_c_flag = 1;
+				completed = 0;
+			}
+			else jcc(opcode, cpu_state.flags & Z_FLAG);
 			break;
 		case 0x66:	/*JBE alias*/
 		case 0x76:	/*JBE*/
@@ -2537,7 +2544,7 @@ execx86(int cycs)
 				wait(3, 0);
 				break;
 			}
-			if ((!!(cpu_state.flags & Z_FLAG)) == (in_rep == 1)) {
+			if ((!!(cpu_state.flags & (rep_c_flag ? C_FLAG : Z_FLAG))) == (in_rep == 1)) {
 				completed = 1;
 				wait(4, 0);
 				break;
@@ -3130,6 +3137,7 @@ execx86(int cycs)
 		repeating = 0;
 		ovr_seg = NULL;
 		in_rep = 0;
+		rep_c_flag = 0;
 		if (in_lock)
 			clear_lock = 1;
 		clock_end();
