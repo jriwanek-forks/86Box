@@ -846,6 +846,11 @@ seteaq(uint64_t val)
 static void
 push(uint16_t *val)
 {
+	if (is186 && SP == 1) {
+		writememw(ss - 1, 0, *val);
+		SP = cpu_state.eaaddr = 0xFFFF;
+		return;
+	}
     SP -= 2;
     cpu_state.eaaddr = (SP & 0xffff);
     writememw(ss, cpu_state.eaaddr, *val);
@@ -2334,6 +2339,17 @@ execx86(int cycs)
 			}
 		case 0x78:	/*JS*/
 		case 0x69:	/*JNS alias*/
+			if (is186) { /* IMUL reg16,reg16/mem16,imm16 */
+				uint16_t immediate = 0;
+				bits = 16;
+				do_mod_rm();
+				read_ea(0, 16);
+				immediate = pfq_fetchw();
+				mul(cpu_data & 0xFFFF, immediate);
+				set_reg(cpu_reg, cpu_data);
+				set_co_mul(16, cpu_dest != 0);
+				break;
+			}
 		case 0x79:	/*JNS*/
 			jcc(opcode, cpu_state.flags & N_FLAG);
 			break;
@@ -2349,6 +2365,17 @@ execx86(int cycs)
 			}
 		case 0x7A:	/*JP*/
 		case 0x6B: /*JNP alias*/
+			if (is186) { /* IMUL reg16,reg16/mem16,imm8 */
+				uint16_t immediate = 0;
+				bits = 16;
+				do_mod_rm();
+				read_ea(0, 16);
+				immediate = pfq_fetchb();
+				mul(cpu_data & 0xFFFF, immediate);
+				set_reg(cpu_reg, cpu_data);
+				set_co_mul(16, cpu_dest != 0);
+				break;
+			}
 		case 0x7B: /*JNP*/
 			jcc(opcode, cpu_state.flags & P_FLAG);
 			break;
