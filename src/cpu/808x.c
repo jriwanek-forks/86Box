@@ -1710,6 +1710,35 @@ execx86(int cycs)
 	// pclog("[%04X:%04X] Opcode: %02X\n", CS, cpu_state.pc, opcode);
 	if (is186) {
 		switch (opcode) {
+		case 0xC8: /* ENTER/PREPARE */
+		{
+			uint16_t temp = 0;
+			uint16_t size = pfq_fetchw();
+			uint8_t nests = pfq_fetchb();
+			uint32_t i = 0;
+
+			push(&BP);
+			temp = SP;
+			if (nests > 0) {
+				while (--nests) {
+					uint16_t tempbp = 0;
+					BP -= 2;
+					tempbp = readmemw(ss, BP);
+					push(&tempbp);
+				}
+				push(&temp);
+			}
+			BP = temp;
+			SP -= size;
+			handled = 1;
+			break;
+		}
+		case 0xC9: /* LEAVE/DISPOSE */
+		{
+			SP = BP;
+			BP = pop();
+			break;
+		}
 		case 0xC0: case 0xC1: /*rot imm8 */
 			bits = 8 << (opcode & 1);
 			do_mod_rm();
