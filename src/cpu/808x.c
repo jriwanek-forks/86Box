@@ -1720,6 +1720,8 @@ execx86(int cycs)
 			cpu_src = pfq_fetchb();
 
 			wait((cpu_mod != 3) ? 9 : 6, 0);
+
+			if (!is_nec) cpu_src &= 0x1F;
 			while (cpu_src != 0) {
 				cpu_dest = cpu_data;
 				oldc = cpu_state.flags & C_FLAG;
@@ -2841,6 +2843,7 @@ execx86(int cycs)
 				cpu_src = CL;
 				wait((cpu_mod != 3) ? 9 : 6, 0);
 			}
+			if (is186 && !is_nec) cpu_src &= 0x1F;
 			while (cpu_src != 0) {
 				cpu_dest = cpu_data;
 				oldc = cpu_state.flags & C_FLAG;
