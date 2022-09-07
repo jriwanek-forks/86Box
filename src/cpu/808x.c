@@ -1739,6 +1739,22 @@ execx86(int cycs)
 			BP = pop();
 			break;
 		}
+		case 0x62: /* BOUND r/m */
+		{
+			uint16_t oldpc = cpu_state.oldpc;
+			uint16_t lowbound = 0, highbound = 0;
+			uint16_t regval = 0;
+			do_mod_rm();
+
+			lowbound = readmemw(easeg, cpu_state.eaaddr);
+			highbound = readmemw(easeg, cpu_state.eaaddr + 2);
+			regval = get_reg(cpu_reg);
+			if (lowbound > regval || highbound < regval) {
+				cpu_state.pc = cpu_state.oldpc;
+				interrupt(5);
+			}
+			break;
+		}
 		case 0xC0: case 0xC1: /*rot imm8 */
 			bits = 8 << (opcode & 1);
 			do_mod_rm();
