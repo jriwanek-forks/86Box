@@ -15,6 +15,7 @@
 
 
 #include <stdint.h>
+#include <stdlib.h>
 #include "cpu.h"
 #include <86box/timer.h>
 #include <86box/i8080.h>
