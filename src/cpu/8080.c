@@ -75,7 +75,22 @@ ins_fetch(i8080* cpu)
 }
 
 void
-transfer_to_vxx(i8080* cpu)
+transfer_from_808x(i8080* cpu)
+{
+    cpu->hl = BX;
+    cpu->bc = CX;
+    cpu->de = DX;
+    cpu->a = AL;
+    cpu->flags = cpu_state.flags & 0xFF;
+    cpu->sp = BP;
+    cpu->pc = cpu_state.pc;
+    cpu->oldpc = cpu_state.oldpc;
+    cpu->pmembase = cs;
+    cpu->dmembase = ds;
+}
+
+void
+transfer_to_808x(i8080* cpu)
 {
     BX = cpu->hl;
     CX = cpu->bc;
@@ -85,6 +100,35 @@ transfer_to_vxx(i8080* cpu)
     cpu_state.flags |= cpu->flags & 0xFF;
     BP = cpu->sp;
     cpu_state.pc = cpu->pc;
+}
+
+uint8_t
+getreg_i8080(i8080 *cpu, uint8_t reg)
+{
+    uint8_t ret = 0xFF;
+    switch(reg)
+    {
+        case 0x0: ret = cpu->b; break;
+        case 0x1: ret = cpu->c; break;
+        case 0x2: ret = cpu->d; break;
+        case 0x3: ret = cpu->e; break;
+        case 0x4: ret = cpu->h; break;
+        case 0x5: ret = cpu->l; break;
+        case 0x6: ret = readmemb(cpu->dmembase + cpu->sp); break;
+        case 0x7: ret = cpu->a; break;
+    }
+    return ret;
+}
+
+void
+interpret_exec8080(i8080* cpu, uint8_t opcode, uint8_t (*fetch_instruction)(i8080*))
+{
+    switch (opcode) {
+        case 0x00:
+        {
+            break;
+        }
+    }
 }
 
 /* Actually implement i8080 emulation. */
@@ -110,12 +154,6 @@ exec8080(i8080* cpu, int cycs)
             wait(1, 0);
         }
         completed = 1;
-        switch (opcode) {
-            case 0x00:
-            {
-                break;
-            }
-        }
         if (completed) {
             repeating = 0;
             in_rep = 0;
