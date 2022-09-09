@@ -608,6 +608,7 @@ reset_808x(int hard)
 
     load_cs(0xFFFF);
     cpu_state.pc = 0;
+	cpu_state.flags |= 0x8000;
     rammask = 0xfffff;
 
     prefetching = 1;
@@ -971,7 +972,7 @@ interrupt(uint16_t addr)
     pfq_clear();
     ovr_seg = NULL;
     access(39, 16);
-    tempf = cpu_state.flags & 0x0fd7;
+    tempf = cpu_state.flags & (is_nec && cpu_state.inside_emulation_mode ? 0x8fd7 : 0x0fd7);
     push(&tempf);
     cpu_state.flags &= ~(I_FLAG | T_FLAG);
     access(40, 16);
@@ -984,6 +985,11 @@ interrupt(uint16_t addr)
     push(&old_ip);
 }
 
+void
+interrupt_808x(uint16_t addr)
+{
+	interrupt(addr);
+}
 
 static void
 custom_nmi(void)
@@ -2687,7 +2693,7 @@ execx86(int cycs)
 			break;
 		case 0x9C:	/*PUSHF*/
 			access(33, 16);
-			tempw = (cpu_state.flags & 0x0fd7) | 0xf000;
+			tempw = cpu_state.flags & (is_nec && cpu_state.inside_emulation_mode ? 0x8fd7 : 0x0fd7);
 			push(&tempw);
 			break;
 		case 0x9D:	/*POPF*/
@@ -2931,7 +2937,7 @@ execx86(int cycs)
 			access(62, 8);
 			set_ip(new_ip);
 			access(45, 8);
-			cpu_state.flags = pop() | 2;
+			cpu_state.flags = pop() | 2 | (!is_nec ? 0 : (!cpu_state.inside_emulation_mode ? 0x8000 : 0));
 			wait(5, 0);
 			noint = 1;
 			nmi_enable = 1;
