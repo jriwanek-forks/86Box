@@ -39,6 +39,7 @@ typedef struct i8080
     uint16_t pc, sp;
     uint16_t oldpc, ei;
     uint32_t pmembase, dmembase; /* Base from where i8080 starts. */
+    uint8_t emulated; /* 0 = not emulated, use separate registers, 1 = emulated, use x86 registers. */
 } i8080;
 
 #define C_FLAG_I8080 (1 << 0)
