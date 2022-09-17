@@ -457,6 +457,9 @@ dma_sg_int_status_read(UNUSED(uint16_t addr), UNUSED(void *priv))
 static uint8_t
 dma_read(uint16_t addr, UNUSED(void *priv))
 {
+    if(addr >= 0x1000) /* ICH2 Alias to Proper */
+        addr = addr - ((addr >= 0x1100) ? 0x1100 : 0x1000);
+
     int     channel = (addr >> 1) & 3;
     int     count;
     uint8_t ret = (dmaregs[0][addr & 0xf]);
@@ -493,6 +496,7 @@ dma_read(uint16_t addr, UNUSED(void *priv))
             break;
 
         case 0xd: /*Temporary register*/
+        case 0xe: /*Temporary register*/
             ret = 0x00;
             break;
 
@@ -508,6 +512,9 @@ dma_read(uint16_t addr, UNUSED(void *priv))
 static void
 dma_write(uint16_t addr, uint8_t val, UNUSED(void *priv))
 {
+    if(addr >= 0x1000) /* ICH2 Alias to Proper */
+        addr = addr - ((addr >= 0x1100) ? 0x1100 : 0x1000);
+
     int channel = (addr >> 1) & 3;
 
     dma_log("DMA: [W] %04X = %02X\n", addr, val);
@@ -779,6 +786,9 @@ dma_ps2_write(uint16_t addr, uint8_t val, UNUSED(void *priv))
 static uint8_t
 dma16_read(uint16_t addr, UNUSED(void *priv))
 {
+    if(addr >= 0x1000) /* ICH2 Alias to Proper */
+        addr = addr - ((addr >= 0x1100) ? 0x1100 : 0x1000);
+
     int     channel = ((addr >> 2) & 3) + 4;
 #ifdef ENABLE_DMA_LOG
     uint16_t port = addr;
@@ -839,6 +849,9 @@ dma16_read(uint16_t addr, UNUSED(void *priv))
 static void
 dma16_write(uint16_t addr, uint8_t val, UNUSED(void *priv))
 {
+    if(addr >= 0x1000) /* ICH2 Alias to Proper */
+        addr = addr - ((addr >= 0x1100) ? 0x1100 : 0x1000);
+
     int channel = ((addr >> 2) & 3) + 4;
 
     dma_log("dma16_write(%08X, %02X)\n", addr, val);
@@ -943,6 +956,9 @@ dma16_write(uint16_t addr, uint8_t val, UNUSED(void *priv))
 static void
 dma_page_write(uint16_t addr, uint8_t val, UNUSED(void *priv))
 {
+    if(addr >= 0x1000) /* ICH2 Alias to Proper */
+        addr = addr - ((addr >= 0x1100) ? 0x1100 : 0x1000);
+
     uint8_t convert[8] = CHANNELS;
 
     dma_log("DMA: [W] %04X = %02X\n", addr, val);
@@ -978,6 +994,9 @@ dma_page_write(uint16_t addr, uint8_t val, UNUSED(void *priv))
 static uint8_t
 dma_page_read(uint16_t addr, UNUSED(void *priv))
 {
+    if(addr >= 0x1000) /* ICH2 Alias to Proper */
+        addr = addr - ((addr >= 0x1100) ? 0x1100 : 0x1000);
+
     uint8_t convert[8] = CHANNELS;
     uint8_t ret        = 0xff;
 
@@ -1236,6 +1255,37 @@ dma_alias_set_piix(void)
     io_sethandler(0x0098, 1,
                   dma_page_read, NULL, NULL, dma_page_write, NULL, NULL, NULL);
     io_sethandler(0x009C, 3,
+                  dma_page_read, NULL, NULL, dma_page_write, NULL, NULL, NULL);
+}
+
+void
+dma_lpc_init(void) /* Addresses LPC DMA uses */
+{
+    io_sethandler(0x1000, 16,
+                  dma_read, NULL, NULL, dma_write, NULL, NULL, NULL);
+    io_sethandler(0x1080, 8,
+                  dma_page_read, NULL, NULL, dma_page_write, NULL, NULL, NULL);
+    io_sethandler(0x10C0, 32,
+                  dma16_read, NULL, NULL, dma16_write, NULL, NULL, NULL);
+    io_sethandler(0x1088, 8,
+                  dma_page_read, NULL, NULL, dma_page_write, NULL, NULL, NULL);
+    io_sethandler(0x1090, 1,
+                  dma_page_read, NULL, NULL, dma_page_write, NULL, NULL, NULL);
+    io_sethandler(0x1094, 3,
+                  dma_page_read, NULL, NULL, dma_page_write, NULL, NULL, NULL);
+    io_sethandler(0x1098, 1,
+                  dma_page_read, NULL, NULL, dma_page_write, NULL, NULL, NULL);
+    io_sethandler(0x109C, 3,
+                  dma_page_read, NULL, NULL, dma_page_write, NULL, NULL, NULL);
+
+    /*Unchecked */
+    io_sethandler(0x1100, 16,
+                  dma_read, NULL, NULL, dma_write, NULL, NULL, NULL);
+    io_sethandler(0x1180, 8,
+                  dma_page_read, NULL, NULL, dma_page_write, NULL, NULL, NULL);
+    io_sethandler(0x11C0, 32,
+                  dma16_read, NULL, NULL, dma16_write, NULL, NULL, NULL);
+    io_sethandler(0x1188, 8,
                   dma_page_read, NULL, NULL, dma_page_write, NULL, NULL, NULL);
 }
 

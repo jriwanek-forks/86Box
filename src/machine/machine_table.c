@@ -124,6 +124,10 @@ const machine_filter_t machine_chipsets[] = {
     { "Intel 440BX",                MACHINE_CHIPSET_INTEL_440BX         },
     { "Intel 440ZX",                MACHINE_CHIPSET_INTEL_440ZX         },
     { "Intel 440GX",                MACHINE_CHIPSET_INTEL_440GX         },
+    { "Intel i815EP",               MACHINE_CHIPSET_INTEL_I815EP        },
+    { "Intel i845",                 MACHINE_CHIPSET_INTEL_I845          },
+    { "Intel i845E",                MACHINE_CHIPSET_INTEL_I845E         },
+    { "Intel i845PE",               MACHINE_CHIPSET_INTEL_I845PE        },
     { "OPTi 283",                   MACHINE_CHIPSET_OPTI_283            },
     { "OPTi 291",                   MACHINE_CHIPSET_OPTI_291            },
     { "OPTi 381",                   MACHINE_CHIPSET_OPTI_381            },
@@ -15685,6 +15689,49 @@ const machine_t machines[] = {
         .snd_device = NULL,
         .net_device = NULL
     },
+
+    /* Intel ICH2 */
+    /* Has a NSC PC87366 LPC Super I/O with on-chip AMIKey-2 KBC firmware*/
+#if defined(DEV_BRANCH) && defined(INTEL_ICH2)
+    {
+        .name = "[Intel i815EP] Tyan Tomcat i815T",
+        .internal_name = "s2080",
+        .type = MACHINE_TYPE_SOCKET370,
+        .chipset = MACHINE_CHIPSET_INTEL_I815EP,
+        .init = machine_at_s2080_init,
+        .pad = 0,
+        .pad0 = 0,
+        .pad1 = MACHINE_AVAILABLE,
+        .pad2 = 0,
+        .cpu = {
+            .package = CPU_PKG_SOCKET370,
+            .block = CPU_BLOCK_NONE,
+            .min_bus = 66666667,
+            .max_bus = 133333333,
+            .min_voltage = 1300,
+            .max_voltage = 3500,
+            .min_multi = 1.5,
+            .max_multi = 8.0
+        },
+        .bus_flags = MACHINE_PS2_AGP,
+        .flags = MACHINE_IDE_DUAL,
+        .ram = {
+            .min = 32768,
+            .max = 524288,
+            .step = 32768
+        },
+        .nvrmask = 255,
+        .kbc_device = NULL,
+        .kbc_p1 = 0,
+        .gpio = 0,
+        .device = NULL,
+        .fdc_device = NULL,
+        .sio_device = NULL,
+        .vid_device = NULL,
+        .snd_device = NULL,
+        .net_device = NULL
+    },
+#endif
 
     {
         .name = NULL,

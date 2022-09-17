@@ -28,8 +28,9 @@
 #define SMBUS_SIS5595_BLOCK_DATA_MASK (SMBUS_ALI7101_BLOCK_DATA_SIZE - 1)
 
 enum {
-    SMBUS_PIIX4 = 0,
-    SMBUS_VIA   = 1
+    SMBUS_PIIX4      = 0,
+    SMBUS_INTEL_ICH2 = 1,
+    SMBUS_VIA        = 2
 };
 
 typedef struct smbus_piix4_t {
@@ -46,6 +47,8 @@ typedef struct smbus_piix4_t {
     uint8_t    data1;
     uint8_t    index;
     uint8_t    data[SMBUS_PIIX4_BLOCK_DATA_SIZE];
+    uint8_t    smlink_pin_ctl;
+    uint8_t    smbus_pin_ctl;
     pc_timer_t response_timer;
     void      *i2c;
 } smbus_piix4_t;
@@ -102,6 +105,7 @@ extern void    smbus_sis5595_write_data(void *priv, uint8_t val);
 
 #ifdef EMU_DEVICE_H
 extern const device_t piix4_smbus_device;
+extern const device_t intel_ich2_smbus_device;
 extern const device_t via_smbus_device;
 
 extern const device_t ali7101_smbus_device;

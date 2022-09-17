@@ -501,3 +501,117 @@ machine_at_6via90ap_init(const machine_t *model)
 
     return ret;
 }
+
+#if defined(DEV_BRANCH) && defined(INTEL_ICH2)
+int
+machine_at_cusl2cbp_init(const machine_t *model)
+{
+    int ret;
+
+    ret = bios_load_linear("roms/machines/cusl2cbp/1014cb.001",
+                           0x00080000, 524288, 0);
+
+    if (bios_only || !ret)
+        return ret;
+
+    intel_ich2_setup(815, 0, 0, 3, model);
+    /* CUSL2-C BP PCI Bus Masters */
+    pci_register_bus_slot(2, 0x09, PCI_CARD_NORMAL, 6, 7, 8, 5);
+    pci_register_bus_slot(2, 0x0a, PCI_CARD_NORMAL, 7, 8, 5, 6);
+    pci_register_bus_slot(2, 0x0b, PCI_CARD_NORMAL, 8, 5, 6, 7);
+    pci_register_bus_slot(2, 0x0c, PCI_CARD_NORMAL, 5, 6, 7, 8);
+    pci_register_bus_slot(2, 0x0d, PCI_CARD_NORMAL, 6, 7, 8, 5);
+    pci_register_bus_slot(2, 0x0e, PCI_CARD_NORMAL, 3, 4, 1, 2);
+    pci_register_bus_slot(2, 0x08, PCI_CARD_NORMAL, 5, 0, 0, 0);
+
+    device_add(&w83627hf_no_hwm_device);   /* Winbond */
+    device_add(&as99127f_rev2_device);
+    device_add(&sst_flash_39sf040_device); /* SST 4Mbit Firmware Hub */
+    device_add(ics9xxx_get(ICS9250_18));   /* ICS Clock Chip */
+
+    return ret;
+}
+
+/*
+ *  Jetway J-815EPDA 
+ *
+ * North Bridge: Intel 815EP
+ * Super I/O: Winbond w83627hf
+ * BIOS: AwardBIOS 6.00PG
+ * Notes: Has LAN
+ */
+int
+machine_at_j815epda_init(const machine_t *model)
+{
+    int ret;
+
+    ret = bios_load_linear("roms/machines/j815epda/815EPAA2.BIN",
+                           0x000c0000, 262144, 0);
+
+    if (bios_only || !ret)
+        return ret;
+
+    intel_ich2_setup(815, 0, 0, 2, model);
+    /* J-815EPDA PCI Bus Masters */
+    pci_register_bus_slot(2, 0x08, PCI_CARD_NORMAL, 5, 6, 7, 8);
+    pci_register_bus_slot(2, 0x07, PCI_CARD_NORMAL, 1, 2, 3, 4);
+    pci_register_bus_slot(2, 0x09, PCI_CARD_NORMAL, 2, 3, 4, 1);
+    pci_register_bus_slot(2, 0x0A, PCI_CARD_NORMAL, 3, 4, 1, 2);
+    pci_register_bus_slot(2, 0x0B, PCI_CARD_NORMAL, 4, 1, 2, 3);
+    pci_register_bus_slot(2, 0x0D, PCI_CARD_NORMAL, 5, 6, 7, 8);
+    pci_register_bus_slot(2, 0x0C, PCI_CARD_NORMAL, 6, 7, 8, 5);
+
+    device_add(&w83627hf_device);
+    w83627hf_stabilizer(0x6f,    /* 1.8V Rail */
+                        0x1c,    /* FAN 2 */
+                        0x1e,    /* FAN 3 */
+                        0x1d     /* FAN 1 */
+    );
+
+    device_add(&sst_flash_39sf020_device);
+    device_add(ics9xxx_get(ICS9250_18));
+
+    return ret;
+}
+
+/*
+ * Tyan Tomcat 815T (S2080)
+ *
+ * North Bridge: Intel 815EP
+ * Super I/O: National Semiconductor NSC366 (PC87366)
+ * BIOS: AMIBIOS 7 (AMI Home BIOS Fork)
+ * Notes: None
+ */
+int
+machine_at_s2080_init(const machine_t *model)
+{
+    int ret;
+
+    ret = bios_load_linear("roms/machines/s2080/2080V110.ROM",
+                           0x00080000, 524288, 0);
+
+    if (bios_only || !ret)
+        return ret;
+
+    machine_at_common_init_ex(model, 2);
+
+    pci_init(PCI_CONFIG_TYPE_1);
+    pci_register_bus_slot(0, 0x00, PCI_CARD_NORTHBRIDGE, 0, 0, 0, 0);
+    pci_register_bus_slot(0, 0x01, PCI_CARD_AGPBRIDGE,   1, 2, 0, 0);
+    pci_register_bus_slot(0, 0x1e, PCI_CARD_BRIDGE,      0, 0, 0, 0);
+    pci_register_bus_slot(0, 0x1f, PCI_CARD_SOUTHBRIDGE, 1, 2, 8, 4);
+    pci_register_bus_slot(2, 0x04, PCI_CARD_NORMAL,      2, 3, 4, 5);
+    pci_register_bus_slot(2, 0x05, PCI_CARD_NORMAL,      3, 4, 5, 6);
+    pci_register_bus_slot(2, 0x06, PCI_CARD_NORMAL,      4, 5, 6, 7);
+    pci_register_bus_slot(2, 0x07, PCI_CARD_NORMAL,      5, 6, 7, 8);
+    pci_register_bus_slot(2, 0x0a, PCI_CARD_NORMAL,      6, 7, 8, 2);
+    pci_register_bus_slot(2, 0x09, PCI_CARD_NORMAL,      7, 8, 2, 3);
+
+    device_add(&intel_815ep_device);        /* Intel 815EP MCH */
+    device_add(&intel_ich2_device);         /* Intel ICH2 */
+    device_add(&nsc366_device);             /* National Semiconductor NSC366 */
+    device_add(&sst_flash_39sf040_device);
+    spd_register(SPD_TYPE_SDRAM, 0x7, 512); /* SPD */
+    return ret;
+}
+#endif

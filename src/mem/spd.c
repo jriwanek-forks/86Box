@@ -587,6 +587,104 @@ spd_write_drbs_ali1621(uint8_t *regs, uint8_t reg_min, uint8_t reg_max)
     }
 }
 
+void
+spd_write_drbs_intel_815ep(uint8_t *regs)
+{
+    /* All Intel MCH based boards demand SPD so we ignore completely the non-SPD calculations */
+
+    /* Clear previous configurations */
+    regs[0x52] = regs[0x54] = 0;
+
+    /* Write DRBs for each row. */
+    for (int slot = 0; slot <= 2; slot++) {
+        int size = spd_modules[slot]->row1 + spd_modules[slot]->row2;
+        uint8_t reg_apply = 0;
+//        spd_log("Intel i815EP-SPD: Assigning %dMB on DIMM %d\n", size, dimm);
+        spd_log("Intel MCH: Registering Slot %d with size %dMB.\n", slot, size);
+
+        /* Calculate Size. Nullify if the size is illegal. */
+        switch (size) {
+            default:
+                reg_apply = 0;
+                spd_log("Illegal Size on Slot %d. Size not divisible by 32.\n", slot);
+                break;
+
+            case 32:
+                reg_apply = 1;
+                break;
+
+            case 48:
+                reg_apply = 3; // 2
+                break;
+
+            case 64:
+                reg_apply = 4; // 3
+                break;
+
+            case 80: // Test
+                reg_apply = 5;
+                break;
+            case 96:
+                reg_apply = 6;
+                break;
+
+            case 128:
+                reg_apply = 7;
+                break;
+
+            case 144: // Test
+                reg_apply = 8;
+                break;
+
+            case 160: // Test
+                reg_apply = 9;
+                break;
+
+            case 176: // Test
+                reg_apply = 0x0a;
+                break;
+
+            case 192:
+                reg_apply = 0x0b; // 11
+                break;
+
+            case 256:
+                reg_apply = 0x0c; // 12
+                break;
+
+            case 320: // Test
+                reg_apply = 0x0d; // 13
+                break;
+
+            case 384: // Test
+                reg_apply = 0x0e; // 14
+                break;
+
+            case 512:
+                reg_apply = 0x0f; // 15
+                break;
+        }
+
+        /* Write on the representative register */
+        switch (slot) {
+            case 0:
+                regs[0x52] |= reg_apply;
+                break;
+
+            case 1:
+                regs[0x52] |= (reg_apply << 4);
+                break;
+
+            case 2:
+                regs[0x54] |= reg_apply;
+                break;
+
+            default:
+                break;
+        }
+    }
+}
+
 static const device_t spd_device = {
     .name          = "Serial Presence Detect ROMs",
     .internal_name = "spd",

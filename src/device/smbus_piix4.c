@@ -112,9 +112,13 @@ smbus_piix4_write(uint16_t addr, uint8_t val, void *priv)
     dev->next_stat = 0x00;
     switch (addr - dev->io_base) {
         case 0x00:
-            for (smbus_addr = 0x02; smbus_addr <= 0x10; smbus_addr <<= 1) { /* handle clearable bits */
-                if (val & smbus_addr)
-                    dev->stat &= ~smbus_addr;
+            if (dev->local == SMBUS_INTEL_ICH2)
+                dev->stat &= ~val;
+            else {
+                for (smbus_addr = 0x02; smbus_addr <= 0x10; smbus_addr <<= 1) { /* handle clearable bits */
+                    if (val & smbus_addr)
+                        dev->stat &= ~smbus_addr;
+                }
             }
             break;
 
@@ -216,6 +220,9 @@ smbus_piix4_write(uint16_t addr, uint8_t val, void *priv)
                         fallthrough;
 
                     case 0xd: /* I2C block R/W */
+                        if ((dev->local == SMBUS_INTEL_ICH2) && !!(dev->stat & 0x80))
+                            dev->stat &= 0x80;
+
                         i2c_write(i2c_smbus, smbus_addr, dev->cmd);
                         timer_bytes++;
 
@@ -236,6 +243,8 @@ smbus_piix4_write(uint16_t addr, uint8_t val, void *priv)
                         }
                         timer_bytes += i;
 
+                        if(dev->local == SMBUS_INTEL_ICH2)
+                            dev->next_stat |= 0x80;
                         break;
 
                     case 0x6:                        /* I2C with 10-bit address */
@@ -389,6 +398,20 @@ const device_t piix4_smbus_device = {
     .internal_name = "piix4_smbus",
     .flags         = DEVICE_AT,
     .local         = SMBUS_PIIX4,
+    .init          = smbus_piix4_init,
+    .close         = smbus_piix4_close,
+    .reset         = NULL,
+    { .available = NULL },
+    .speed_changed = NULL,
+    .force_redraw  = NULL,
+    .config        = NULL
+};
+
+const device_t intel_ich2_smbus_device = {
+    .name          = "Intel ICH2 SMBus Host Controller",
+    .internal_name = "intel_ich2_smbus",
+    .flags         = DEVICE_AT,
+    .local         = SMBUS_INTEL_ICH2,
     .init          = smbus_piix4_init,
     .close         = smbus_piix4_close,
     .reset         = NULL,

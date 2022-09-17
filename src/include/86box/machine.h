@@ -230,6 +230,10 @@ enum {
     MACHINE_CHIPSET_INTEL_440BX,
     MACHINE_CHIPSET_INTEL_440ZX,
     MACHINE_CHIPSET_INTEL_440GX,
+    MACHINE_CHIPSET_INTEL_I815EP,
+    MACHINE_CHIPSET_INTEL_I845,
+    MACHINE_CHIPSET_INTEL_I845E,
+    MACHINE_CHIPSET_INTEL_I845PE,
     MACHINE_CHIPSET_OPTI_283,
     MACHINE_CHIPSET_OPTI_291,
     MACHINE_CHIPSET_OPTI_381,
@@ -842,6 +846,12 @@ extern int machine_at_s1857_init(const machine_t *);
 extern int machine_at_p6bap_init(const machine_t *);
 extern int machine_at_p6bat_init(const machine_t *);
 
+#if defined(DEV_BRANCH) && defined(INTEL_ICH2)
+extern int machine_at_cusl2cbp_init(const machine_t *);
+extern int machine_at_j815epda_init(const machine_t *);
+extern int machine_at_s2080_init(const machine_t *);
+#endif
+
 /* m_at_misc.c */
 extern int machine_at_vpc2007_init(const machine_t *);
 
@@ -960,5 +970,7 @@ extern int machine_xt_z159_init(const machine_t *);
 
 /* m_xt_xi8088.c */
 extern int machine_xt_xi8088_init(const machine_t *);
+
+extern void intel_ich2_setup(int northbridge, int lan, int dimm_type, int dimm_slots, const machine_t *model);
 
 #endif /*EMU_MACHINE_H*/

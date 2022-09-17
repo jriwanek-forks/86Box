@@ -122,6 +122,8 @@ extern uint64_t HERCCONST;
 extern uint64_t VGACONST1;
 extern uint64_t VGACONST2;
 extern uint64_t RTCCONST;
+extern uint64_t ACPICONST;
+extern uint64_t TCOCONST;
 
 extern int refresh_at_enable;
 

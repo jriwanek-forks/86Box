@@ -108,6 +108,15 @@ extern const device_t slc90e66_device;
 
 extern const device_t ioapic_device;
 
+#if defined(DEV_BRANCH) && defined(INTEL_ICH2)
+extern const device_t intel_815ep_device;
+extern const device_t intel_gmch_device;
+extern const device_t intel_845_device;
+extern const device_t intel_845_ddr_device;
+extern const device_t intel_ich2_device;
+extern const device_t intel_ich2_no_lan_device;
+#endif
+
 /* OPTi */
 extern const device_t opti283_device;
 extern const device_t opti291_device;
