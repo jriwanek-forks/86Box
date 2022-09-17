@@ -25,6 +25,8 @@ extern "C" {
 #include <stdatomic.h>
 #endif
 
+#include <86box/tco.h>
+
 #define ACPI_TIMER_FREQ 3579545
 #define PM_FREQ         ACPI_TIMER_FREQ
 
@@ -54,6 +56,7 @@ extern "C" {
 
 #define VEN_ALI         0x010b9
 #define VEN_INTEL       0x08086
+#define VEN_INTEL_ICH2  0x18086
 #define VEN_SIS         0x01039
 #define VEN_SMC         0x01055
 #define VEN_VIA         0x01106
@@ -63,6 +66,7 @@ typedef struct acpi_regs_t {
     uint8_t  acpitst;
     uint8_t  auxen;
     uint8_t  auxsts;
+    uint8_t  bus_cyc_track;
     uint8_t  plvl2;
     uint8_t  plvl3;
     uint8_t  smicmd;
@@ -74,11 +78,15 @@ typedef struct acpi_regs_t {
     uint8_t  smireg;
     uint8_t  gpireg[3];
     uint8_t  gporeg[4];
+    uint8_t  tco[17];
     uint8_t  extiotrapsts;
     uint8_t  extiotrapen;
     uint16_t pmsts;
     uint16_t pmen;
     uint16_t pmcntrl;
+    uint16_t bus_addr_track;
+    uint16_t devact_sts;
+    uint16_t devtrap_en;
     uint16_t gpsts;
     uint16_t gpsts1;
     uint16_t gpen;
@@ -91,6 +99,7 @@ typedef struct acpi_regs_t {
     uint16_t gpsmien;
     uint16_t pscntrl;
     uint16_t gpscists;
+    uint16_t mon_smi;
     int      smi_lock;
     int      smi_active;
     uint32_t pcntrl;
@@ -107,7 +116,10 @@ typedef struct acpi_regs_t {
     uint32_t gpo_val;
     uint32_t gpi_val;
     uint32_t extsmi_val;
+    uint32_t smi_en;
+    uint32_t smi_sts;
     uint32_t pad0;
+    uint64_t tmr_overflow_time;
 } acpi_regs_t;
 
 typedef struct acpi_t {
@@ -130,6 +142,7 @@ typedef struct acpi_t {
     pc_timer_t  pwrbtn_timer;
     nvr_t      *nvr;
     apm_t      *apm;
+    tco_t      *tco;
     void       *i2c;
     void      (*trap_update)(void *priv);
     void       *trap_priv;
@@ -142,6 +155,7 @@ extern int        acpi_enabled;
 
 extern const device_t acpi_ali_device;
 extern const device_t acpi_intel_device;
+extern const device_t acpi_intel_ich2_device;
 extern const device_t acpi_smc_device;
 extern const device_t acpi_via_device;
 extern const device_t acpi_via_596b_device;
@@ -160,6 +174,7 @@ extern void    acpi_set_irq_line(acpi_t *dev, int irq_line);
 extern void    acpi_set_mirq_is_level(acpi_t *dev, int mirq_is_level);
 extern void    acpi_set_gpireg2_default(acpi_t *dev, uint8_t gpireg2_default);
 extern void    acpi_set_nvr(acpi_t *dev, nvr_t *nvr);
+extern void    acpi_set_tco(acpi_t *dev, tco_t *tco);
 extern void    acpi_set_trap_update(acpi_t *dev, void (*update)(void *priv), void *priv);
 extern uint8_t acpi_ali_soft_smi_status_read(acpi_t *dev);
 extern void    acpi_ali_soft_smi_status_write(acpi_t *dev, uint8_t soft_smi);

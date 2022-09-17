@@ -519,8 +519,8 @@ cpu_set(void)
     is_k5      = !strcmp(cpu_f->manufacturer, "AMD") && (cpu_s->cpu_type > CPU_ENH_Am486DX) && (cpu_s->cpu_type < CPU_K6);
     is_k6      = (cpu_s->cpu_type >= CPU_K6) && !strcmp(cpu_f->manufacturer, "AMD");
     /* The Samuel 2 datasheet claims it's Celeron-compatible. */
-    is_p6    = (cpu_isintel && (cpu_s->cpu_type >= CPU_PENTIUMPRO)) || !strcmp(cpu_f->manufacturer, "VIA");
-    is_cxsmm = (!strcmp(cpu_f->manufacturer, "Cyrix") || !strcmp(cpu_f->manufacturer, "ST")) && (cpu_s->cpu_type >= CPU_Cx486S);
+    is_p6       = (cpu_isintel && (cpu_s->cpu_type >= CPU_PENTIUMPRO)) || !strcmp(cpu_f->manufacturer, "VIA");
+    is_cxsmm    = (!strcmp(cpu_f->manufacturer, "Cyrix") || !strcmp(cpu_f->manufacturer, "ST")) && (cpu_s->cpu_type >= CPU_Cx486S);
 
     cpu_isintel = cpu_isintel || !strcmp(cpu_f->manufacturer, "AMD");
 
@@ -2928,6 +2928,22 @@ amd_k_invalid_rdmsr:
                     EAX = msr.ecx187 & 0xffffffff;
                     EDX = msr.ecx187 >> 32;
                     break;
+                case 0x198:
+                    EAX = msr.ecx198 & 0xffffffff;
+                    EDX = msr.ecx198 >> 32;
+                    break;
+                case 0x19a:
+                    EAX = msr.ecx19a & 0xffffffff;
+                    EDX = msr.ecx19a >> 32;
+                    break;
+                case 0x19d:
+                    EAX = msr.ecx19d & 0xffffffff;
+                    EDX = msr.ecx19d >> 32;
+                    break;
+                case 0x1a0:
+                    EAX = msr.ecx1a0 & 0xffffffff;
+                    EDX = msr.ecx1a0 >> 32;
+                    break;
                 case 0x1d9:
                     EAX = msr.debug_ctl & 0xffffffff;
                     EDX = msr.debug_ctl >> 32;
@@ -3374,6 +3390,18 @@ amd_k_invalid_wrmsr:
                     break;
                 case 0x187:
                     msr.ecx187 = EAX | ((uint64_t) EDX << 32);
+                    break;
+                case 0x198:
+                    msr.ecx198 = EAX | ((uint64_t) EDX << 32);
+                    break;
+                case 0x19a:
+                    msr.ecx19a = EAX | ((uint64_t) EDX << 32);
+                    break;
+                case 0x19d:
+                    msr.ecx19d = EAX | ((uint64_t) EDX << 32);
+                    break;
+                case 0x1a0:
+                    msr.ecx1a0 = EAX | ((uint64_t) EDX << 32);
                     break;
                 case 0x1d9:
                     msr.debug_ctl = EAX | ((uint64_t) EDX << 32);

@@ -16,6 +16,7 @@
  *          Copyright 2016-2020 Miran Grca.
  *          Copyright 2022-2023 Jasmine Iwanek.
  */
+
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
