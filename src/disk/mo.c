@@ -17,6 +17,8 @@
  *          Copyright 2020-2025 Miran Grca.
  *          Copyright 2020-2025 Fred N. van Kempen
  */
+#define ENABLE_MO_LOG 1
+
 #ifdef ENABLE_MO_LOG
 #include <stdarg.h>
 #endif

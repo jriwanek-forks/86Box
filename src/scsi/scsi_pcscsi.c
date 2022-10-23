@@ -212,6 +212,7 @@ typedef struct esp_t {
 uint8_t esp_pci_regs[256];
 bar_t   esp_pci_bar[2];
 
+#define ENABLE_ESP_LOG 1
 #ifdef ENABLE_ESP_LOG
 int esp_do_log = ENABLE_ESP_LOG;
 

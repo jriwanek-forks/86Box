@@ -30,6 +30,7 @@
 #include "cpu.h"
 #include <86box/plat_unused.h>
 
+#define ENABLE_USB_LOG 1
 #ifdef ENABLE_USB_LOG
 int usb_do_log = ENABLE_USB_LOG;
 

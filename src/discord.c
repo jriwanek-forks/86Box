@@ -50,6 +50,7 @@ static dllimp_t discord_imports[] = {
     { NULL,           NULL           }
 };
 
+#define ENABLE_DISCORD_LOG 1
 #ifdef ENABLE_DISCORD_LOG
 int discord_do_log = 1;
 

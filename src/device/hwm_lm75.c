@@ -29,6 +29,7 @@
 
 #define LM75_TEMP_TO_REG(t) ((t) << 8)
 
+#define ENABLE_LM75_LOG 1
 #ifdef ENABLE_LM75_LOG
 int lm75_do_log = ENABLE_LM75_LOG;
 

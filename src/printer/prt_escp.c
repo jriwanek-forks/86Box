@@ -328,6 +328,7 @@ static const uint16_t intCharSets[15][12] = {
       0x00b6, 0x0060, 0x00a9, 0x00ae, 0x2020, 0x2122}
 };
 
+#define ENABLE_ESCP_LOG 1
 #ifdef ENABLE_ESCP_LOG
 int escp_do_log = ENABLE_ESCP_LOG;
 

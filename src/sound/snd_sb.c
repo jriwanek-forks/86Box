@@ -126,6 +126,7 @@ static const double sb_att_3dbstep_3bits[] = {
 static const uint16_t sb_mcv_addr[8]     = { 0x200, 0x210, 0x220, 0x230, 0x240, 0x250, 0x260, 0x270 };
 static const int      sb_pro_mcv_irqs[4] = { 7, 5, 3, 3 };
 
+#define ENABLE_SB_LOG 1
 #ifdef ENABLE_SB_LOG
 int sb_do_log = ENABLE_SB_LOG;
 

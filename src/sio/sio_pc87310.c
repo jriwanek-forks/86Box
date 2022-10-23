@@ -43,6 +43,7 @@
 #define FLAG_IDE    0x00000001
 #define FLAG_ALI    0x00000002
 
+#define ENABLE_PC87310_LOG 1
 #ifdef ENABLE_PC87310_LOG
 int pc87310_do_log = ENABLE_PC87310_LOG;
 

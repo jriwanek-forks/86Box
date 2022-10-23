@@ -324,6 +324,7 @@ typedef struct ncr53c8xx_t {
 #endif
 } ncr53c8xx_t;
 
+#define ENABLE_NCR53C8XX_LOG 1
 #ifdef ENABLE_NCR53C8XX_LOG
 int ncr53c8xx_do_log = ENABLE_NCR53C8XX_LOG;
 

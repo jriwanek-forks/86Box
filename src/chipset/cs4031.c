@@ -37,6 +37,7 @@ typedef struct cs4031_t {
     port_92_t *port_92;
 } cs4031_t;
 
+#define ENABLE_CS4031_LOG 1
 #ifdef ENABLE_CS4031_LOG
 int cs4031_do_log = ENABLE_CS4031_LOG;
 

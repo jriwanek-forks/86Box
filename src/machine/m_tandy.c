@@ -673,6 +673,7 @@ static int eep_data_out;
 static uint8_t vid_in(uint16_t addr, void *priv);
 static void    vid_out(uint16_t addr, uint8_t val, void *priv);
 
+#define ENABLE_TANDY_LOG 1
 #ifdef ENABLE_TANDY_LOG
 int tandy_do_log = ENABLE_TANDY_LOG;
 

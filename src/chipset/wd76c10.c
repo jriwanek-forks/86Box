@@ -46,6 +46,7 @@
 
 #define WD76C10_ADDR_INVALID    0x80000000
 
+#define ENABLE_WD76C10_LOG 1
 #ifdef ENABLE_WD76C10_LOG
 int wd76c10_do_log = ENABLE_WD76C10_LOG;
 static void

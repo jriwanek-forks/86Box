@@ -72,6 +72,7 @@ typedef struct i420ex_t {
     port_92_t *port_92;
 } i420ex_t;
 
+#define ENABLE_I420EX_LOG 1
 #ifdef ENABLE_I420EX_LOG
 int i420ex_do_log = ENABLE_I420EX_LOG;
 

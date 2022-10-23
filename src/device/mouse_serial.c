@@ -107,6 +107,7 @@ typedef struct mouse_t {
 #define FLAG_FROZEN  0x02 /* do not update counters */
 #define FLAG_ENABLED 0x01 /* dev is enabled for use */
 
+#define ENABLE_MOUSE_SERIAL_LOG 1
 #ifdef ENABLE_MOUSE_SERIAL_LOG
 int mouse_serial_do_log = ENABLE_MOUSE_SERIAL_LOG;
 

@@ -392,6 +392,7 @@ static void     pcnet_bcr_writew(nic_t *dev, uint16_t rap, uint16_t val);
 static void     pcnet_csr_writew(nic_t *dev, uint16_t rap, uint16_t val);
 static int      pcnetCanReceive(nic_t *dev);
 
+#define ENABLE_PCNET_LOG 4
 #ifdef ENABLE_PCNET_LOG
 int pcnet_do_log = ENABLE_PCNET_LOG;
 

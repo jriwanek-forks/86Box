@@ -12,6 +12,8 @@
  *
  *          Copyright 2017-2018 Miran Grca.
  */
+#define ENABLE_SCSI_DISK_LOG 1
+
 #include <inttypes.h>
 #include <math.h>
 #ifdef ENABLE_SCSI_DISK_LOG

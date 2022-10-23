@@ -131,6 +131,7 @@ typedef struct ims8848_t {
     smram_t *smram;
 } ims8848_t;
 
+#define ENABLE_IMS8848_LOG 1
 #ifdef ENABLE_IMS8848_LOG
 int ims8848_do_log = ENABLE_IMS8848_LOG;
 

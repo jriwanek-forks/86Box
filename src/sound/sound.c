@@ -166,6 +166,7 @@ static const SOUND_CARD sound_cards[] = {
     // clang-format on
 };
 
+#define ENABLE_SOUND_LOG 1
 #ifdef ENABLE_SOUND_LOG
 int sound_do_log = ENABLE_SOUND_LOG;
 

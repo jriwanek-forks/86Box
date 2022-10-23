@@ -55,6 +55,7 @@ typedef struct cmd640_t {
 
 static int next_id = 0;
 
+#define ENABLE_CMD640_LOG 1
 #ifdef ENABLE_CMD640_LOG
 int cmd640_do_log = ENABLE_CMD640_LOG;
 

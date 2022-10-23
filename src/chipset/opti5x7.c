@@ -38,6 +38,7 @@ typedef struct opti5x7_t {
     uint8_t regs[18];
 } opti5x7_t;
 
+#define ENABLE_OPTI5X7_LOG 1
 #ifdef ENABLE_OPTI5X7_LOG
 int opti5x7_do_log = ENABLE_OPTI5X7_LOG;
 

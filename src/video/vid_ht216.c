@@ -110,6 +110,7 @@ static video_timings_t timing_v7vga_isa = { .type = VIDEO_ISA, .write_b = 3, .wr
 static video_timings_t timing_v7vga_mca = { .type = VIDEO_MCA, .write_b = 4, .write_w = 5, .write_l = 10, .read_b = 5, .read_w = 5, .read_l = 10 };
 static video_timings_t timing_v7vga_vlb = { .type = VIDEO_BUS, .write_b = 5, .write_w = 5, .write_l = 9, .read_b = 20, .read_w = 20, .read_l = 30 };
 
+#define ENABLE_HT216_LOG 1
 #ifdef ENABLE_HT216_LOG
 int ht216_do_log = ENABLE_HT216_LOG;
 

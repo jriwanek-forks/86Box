@@ -52,6 +52,7 @@ struct pcjs_error_description {
     { -1,                 "Unknown error"                          },
 };
 
+#define ENABLE_PCJS_LOG 1
 #ifdef ENABLE_PCJS_LOG
 int pcjs_do_log = ENABLE_PCJS_LOG;
 static void

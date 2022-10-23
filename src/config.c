@@ -26,6 +26,7 @@
  *          it on Windows XP, and possibly also Vista. Use the
  *          -DANSI_CFG for use on these systems.
  */
+#define ENABLE_CONFIG_LOG 1
 
 #include <inttypes.h>
 #ifdef ENABLE_CONFIG_LOG

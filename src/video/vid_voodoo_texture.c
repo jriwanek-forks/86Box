@@ -40,6 +40,7 @@
 #include <86box/vid_voodoo_render.h>
 #include <86box/vid_voodoo_texture.h>
 
+#define ENABLE_VOODOO_TEXTURE_LOG 1
 #ifdef ENABLE_VOODOO_TEXTURE_LOG
 int voodoo_texture_do_log = ENABLE_VOODOO_TEXTURE_LOG;
 

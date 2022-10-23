@@ -37,6 +37,7 @@ typedef struct i2c_eeprom_t {
     uint8_t  addr_pos;
 } i2c_eeprom_t;
 
+#define ENABLE_I2C_EEPROM_LOG 1
 #ifdef ENABLE_I2C_EEPROM_LOG
 int i2c_eeprom_do_log = ENABLE_I2C_EEPROM_LOG;
 

@@ -16,6 +16,8 @@
  *          Copyright 2016-2025 RichardG.
  *          Copyright 2024-2025 Cacodemon345.
  */
+#define ENABLE_IMAGE_LOG 1
+
 #define __STDC_FORMAT_MACROS
 #include <ctype.h>
 #include <inttypes.h>

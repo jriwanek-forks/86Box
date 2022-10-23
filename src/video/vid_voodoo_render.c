@@ -92,6 +92,7 @@ typedef struct voodoo_state_t {
     int lod_frac[2];
 } voodoo_state_t;
 
+#define ENABLE_VOODOO_RENDER_LOG 1
 #ifdef ENABLE_VOODOO_RENDER_LOG
 int voodoo_render_do_log = ENABLE_VOODOO_RENDER_LOG;
 

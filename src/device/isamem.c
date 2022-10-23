@@ -176,6 +176,7 @@ typedef struct memdev_t {
     emsreg_t ems[EMS_MAXPAGE * 2]; /* EMS controller registers */
 } memdev_t;
 
+#define ENABLE_ISAMEM_LOG 1
 #ifdef ENABLE_ISAMEM_LOG
 int isamem_do_log = ENABLE_ISAMEM_LOG;
 

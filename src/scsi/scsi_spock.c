@@ -208,6 +208,7 @@ typedef struct {
 #define IRQ_TYPE_SW_SEQ_ERROR       0xf
 #define IRQ_TYPE_RESET_COMPLETE     0x10
 
+#define ENABLE_SPOCK_LOG 1
 #ifdef ENABLE_SPOCK_LOG
 int spock_do_log = ENABLE_SPOCK_LOG;
 

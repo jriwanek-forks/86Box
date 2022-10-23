@@ -244,6 +244,7 @@ static uint8_t defaults[16] = { 0x0a, 0x45, 0xfc, 0x00, 0x00, 0xfe, 0x00, 0x00,
 static uint8_t masks[4]     = { RB10_P0EXT, RB10_P1EXT, RB10_P2EXT, RB10_P3EXT };
 static uint8_t shifts[4]    = { RB10_P0EXT_SH, RB10_P1EXT_SH, RB10_P2EXT_SH, RB10_P3EXT_SH };
 
+#define ENABLE_NEAT_LOG 1
 #ifdef ENABLE_NEAT_LOG
 int neat_do_log = ENABLE_NEAT_LOG;
 

@@ -16,6 +16,8 @@
  *          Copyright 2023 TheCollector1995.
  *          Copyright 2023 Miran Grca.
  */
+#define ENABLE_IOCTL_LOG 1
+
 #include <inttypes.h>
 #ifdef ENABLE_IOCTL_LOG
 #include <stdarg.h>

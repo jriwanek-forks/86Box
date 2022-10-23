@@ -304,6 +304,7 @@ extern "C" {
 #include <86box/io.h>
 #include <86box/snd_opl.h>
 
+#define ENABLE_OPL_LOG 1
 #ifdef ENABLE_OPL_LOG
 int ymfm_do_log = ENABLE_OPL_LOG;
 

@@ -46,6 +46,7 @@ typedef struct vt82c49x_t {
     smram_t *smram_high;
 } vt82c49x_t;
 
+#define ENABLE_VT82C49X_LOG 1
 #ifdef ENABLE_VT82C49X_LOG
 int vt82c49x_do_log = ENABLE_VT82C49X_LOG;
 

@@ -40,6 +40,7 @@
 #include <86box/vid_voodoo_regs.h>
 #include <86box/vid_voodoo_render.h>
 
+#define ENABLE_VOODOODISP_LOG 1
 #ifdef ENABLE_VOODOODISP_LOG
 int voodoodisp_do_log = ENABLE_VOODOODISP_LOG;
 

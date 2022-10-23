@@ -12,6 +12,8 @@
  *
  *          Copyright 2022 RichardG.
  */
+#define IMAGE_VISO_LOG 1
+
 #ifndef _LARGEFILE_SOURCE
 #    define _LARGEFILE_SOURCE
 #endif

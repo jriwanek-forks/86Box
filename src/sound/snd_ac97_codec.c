@@ -114,6 +114,7 @@ static const struct {
   // clang-format on
 };
 
+#define ENABLE_AC97_CODEC_LOG 1
 #ifdef ENABLE_AC97_CODEC_LOG
 int ac97_codec_do_log = ENABLE_AC97_CODEC_LOG;
 

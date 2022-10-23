@@ -46,6 +46,7 @@ const uint8_t         isapnp_init_key[32] = { 0x6A, 0xB5, 0xDA, 0xED, 0xF6, 0xFB
                                               0xE8, 0x74, 0x3A, 0x9D, 0xCE, 0xE7, 0x73, 0x39 };
 static const device_t isapnp_device;
 
+#define ENABLE_ISAPNP_LOG 1
 #ifdef ENABLE_ISAPNP_LOG
 int isapnp_do_log = ENABLE_ISAPNP_LOG;
 

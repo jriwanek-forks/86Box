@@ -85,6 +85,7 @@ typedef struct ncr53c400_t {
     pc_timer_t timer;
 } ncr53c400_t;
 
+#define ENABLE_NCR53C400_LOG 1
 #ifdef ENABLE_NCR53C400_LOG
 int ncr53c400_do_log = ENABLE_NCR53C400_LOG;
 

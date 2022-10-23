@@ -63,6 +63,7 @@
 #define VLAN_TCI_LEN   2
 #define VLAN_HLEN      (ETHER_TYPE_LEN + VLAN_TCI_LEN)
 
+#define ENABLE_RTL8139_LOG 1
 #ifdef ENABLE_RTL8139_LOG
 int rtl8139_do_log = ENABLE_RTL8139_LOG;
 

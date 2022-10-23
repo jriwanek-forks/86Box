@@ -89,6 +89,7 @@ static char bug_str[UISTR_LEN]; /* UI output string */
 
 extern void ui_sb_bugui(char *__str);
 
+#define ENABLE_BUGGER_LOG 1
 #ifdef ENABLE_BUGGER_LOG
 int bugger_do_log = ENABLE_BUGGER_LOG;
 

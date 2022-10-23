@@ -41,6 +41,7 @@ typedef struct opti499_t {
 /* According to The Last Byte, register 2Dh bit 7 must still be writable, even if it is unused. */
 static uint8_t masks[0x0e] = { 0x3f, 0xff, 0xff, 0xff, 0xf7, 0xff, 0xff, 0xff, 0xe3, 0xff, 0xfb, 0xff, 0x00, 0xff };
 
+#define ENABLE_OPTI499_LOG 1
 #ifdef ENABLE_OPTI499_LOG
 int opti499_do_log = ENABLE_OPTI499_LOG;
 

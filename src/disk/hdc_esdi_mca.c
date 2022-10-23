@@ -204,6 +204,7 @@ enum {
 #define STATUS_DEVICE(x)           ((x) << 5)
 #define STATUS_DEVICE_HOST_ADAPTER (7 << 5)
 
+#define ENABLE_ESDI_MCA_LOG 1
 #ifdef ENABLE_ESDI_MCA_LOG
 int esdi_mca_do_log = ENABLE_ESDI_MCA_LOG;
 

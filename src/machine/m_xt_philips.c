@@ -45,6 +45,7 @@ typedef struct philips_t {
     uint8_t reg;
 } philips_t;
 
+#define ENABLE_PHILIPS_LOG 1
 #ifdef ENABLE_PHILIPS_LOG
 int philips_do_log = ENABLE_PHILIPS_LOG;
 static void

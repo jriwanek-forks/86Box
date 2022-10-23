@@ -82,6 +82,7 @@ typedef struct entry_t {
             (head)->next = (old)->next; \
     }
 
+#define ENABLE_INI_LOG 1
 #ifdef ENABLE_INI_LOG
 int ini_do_log = ENABLE_INI_LOG;
 
