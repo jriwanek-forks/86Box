@@ -43,6 +43,7 @@
 
 extern int codegen_flags_changed;
 
+#define ENABLE_386_LOG 1
 #ifdef ENABLE_386_LOG
 int x386_do_log = ENABLE_386_LOG;
 

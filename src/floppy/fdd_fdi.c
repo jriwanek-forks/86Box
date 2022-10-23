@@ -53,6 +53,7 @@ typedef struct fdi_t {
 static fdi_t *fdi[FDD_NUM];
 static fdc_t *fdi_fdc;
 
+#define ENABLE_FDI_LOG 1
 #ifdef ENABLE_FDI_LOG
 int fdi_do_log = ENABLE_FDI_LOG;
 

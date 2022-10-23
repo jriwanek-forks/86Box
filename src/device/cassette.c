@@ -57,6 +57,7 @@ static int cassette_cycles = -1;
 
 static void pc_cas_reset(pc_cassette_t *cas);
 
+#define ENABLE_CASSETTE_LOG 1
 #ifdef ENABLE_CASSETTE_LOG
 int cassette_do_log = ENABLE_CASSETTE_LOG;
 

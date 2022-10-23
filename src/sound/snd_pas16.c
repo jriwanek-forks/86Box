@@ -664,6 +664,7 @@ recalc_pas16_filter(const int playback_freq)
         low_fir_pas16_coef[n] /= gain;
 }
 
+#define ENABLE_PAS16_LOG 1
 #ifdef ENABLE_PAS16_LOG
 int pas16_do_log = ENABLE_PAS16_LOG;
 

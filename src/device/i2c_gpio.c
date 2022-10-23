@@ -38,6 +38,7 @@ typedef struct i2c_gpio_t {
     uint8_t byte;
 } i2c_gpio_t;
 
+#define ENABLE_I2C_GPIO_LOG 1
 #ifdef ENABLE_I2C_GPIO_LOG
 int i2c_gpio_do_log = ENABLE_I2C_GPIO_LOG;
 

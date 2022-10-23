@@ -89,6 +89,7 @@ typedef struct ati28800_t {
 static video_timings_t timing_ati28800     = { .type = VIDEO_ISA, .write_b = 3, .write_w = 3, .write_l = 6, .read_b = 5, .read_w = 5, .read_l = 10 };
 static video_timings_t timing_ati28800_spc = { .type = VIDEO_ISA, .write_b = 2, .write_w = 2, .write_l = 4, .read_b = 4, .read_w = 4, .read_l = 8 };
 
+#define ENABLE_ATI28800_LOG 1
 #ifdef ENABLE_ATI28800_LOG
 int ati28800_do_log = ENABLE_ATI28800_LOG;
 

@@ -116,6 +116,7 @@ typedef struct mfm_t {
 static uint8_t mfm_read(uint16_t port, void *priv);
 static void    mfm_write(uint16_t port, uint8_t val, void *priv);
 
+#define ENABLE_ST506_AT_LOG 1
 #ifdef ENABLE_ST506_AT_LOG
 int st506_at_do_log = ENABLE_ST506_AT_LOG;
 

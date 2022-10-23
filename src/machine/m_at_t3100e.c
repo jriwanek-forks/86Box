@@ -224,6 +224,7 @@ struct t3100e_ems_regs {
 
 void t3100e_ems_out(uint16_t addr, uint8_t val, void *priv);
 
+#define ENABLE_T3100E_LOG 1
 #ifdef ENABLE_T3100E_LOG
 int t3100e_do_log = ENABLE_T3100E_LOG;
 

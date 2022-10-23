@@ -51,6 +51,7 @@
 
 static void x54x_cmd_callback(void *priv);
 
+#define ENABLE_X54X_LOG 1
 #ifdef ENABLE_X54X_LOG
 int x54x_do_log = ENABLE_X54X_LOG;
 

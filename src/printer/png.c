@@ -73,6 +73,7 @@
 
 #define PNGFUNC(x) png_##x
 
+#define ENABLE_PNG_LOG 1
 #ifdef ENABLE_PNG_LOG
 int png_do_log = ENABLE_PNG_LOG;
 

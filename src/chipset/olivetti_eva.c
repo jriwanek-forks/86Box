@@ -40,6 +40,7 @@ typedef struct olivetti_eva_t {
     uint8_t reg_069;
 } olivetti_eva_t;
 
+#define ENABLE_OLIVETTI_EVA_LOG 1
 #ifdef ENABLE_OLIVETTI_EVA_LOG
 int olivetti_eva_do_log = ENABLE_OLIVETTI_EVA_LOG;
 

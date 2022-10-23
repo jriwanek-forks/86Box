@@ -108,6 +108,7 @@ typedef struct esdi_t {
 static uint8_t esdi_read(uint16_t port, void *priv);
 static void    esdi_write(uint16_t port, uint8_t val, void *priv);
 
+#define ENABLE_ESDI_AT_LOG 1
 #ifdef ENABLE_ESDI_AT_LOG
 int esdi_at_do_log = ENABLE_ESDI_AT_LOG;
 

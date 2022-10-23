@@ -39,6 +39,7 @@ typedef struct et6000_t {
     uint8_t regs[256];
 } et6000_t;
 
+#define ENABLE_ET6000_LOG 1
 #ifdef ENABLE_ET6000_LOG
 int et6000_do_log = ENABLE_ET6000_LOG;
 

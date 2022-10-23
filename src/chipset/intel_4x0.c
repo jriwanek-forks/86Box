@@ -70,6 +70,7 @@ typedef struct i4x0_t {
     void     (*write_drbs)(uint8_t *regs, uint8_t reg_min, uint8_t reg_max, uint8_t drb_unit);
 } i4x0_t;
 
+#define ENABLE_I4X0_LOG 1
 #ifdef ENABLE_I4X0_LOG
 int i4x0_do_log = ENABLE_I4X0_LOG;
 

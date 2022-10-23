@@ -269,6 +269,7 @@ typedef struct hdc_t {
     uint8_t sector_buf[512]; /* sector buffer */
 } hdc_t;
 
+#define ENABLE_XTA_LOG 1
 #ifdef ENABLE_XTA_LOG
 int xta_do_log = ENABLE_XTA_LOG;
 

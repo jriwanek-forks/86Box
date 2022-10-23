@@ -119,6 +119,7 @@ static void (*mouse_poll_ex)(void) = NULL;
 
 static double          sample_rate = 200.0;
 
+#define ENABLE_MOUSE_LOG 1
 #ifdef ENABLE_MOUSE_LOG
 int mouse_do_log = ENABLE_MOUSE_LOG;
 

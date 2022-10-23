@@ -160,6 +160,7 @@ typedef struct rtcdev_t {
 #define MM67_STBYIRQ     22   /* standby IRQ */
 #define MM67_TEST        31   /* test mode */
 
+#define ENABLE_ISARTC_LOG 1
 #ifdef ENABLE_ISARTC_LOG
 int isartc_do_log = ENABLE_ISARTC_LOG;
 

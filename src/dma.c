@@ -70,6 +70,7 @@ static struct dma_ps2_t {
 #define DMA_PS2_DEC2           (1 << 4)
 #define DMA_PS2_SIZE16         (1 << 6)
 
+#define ENABLE_DMA_LOG 1
 #ifdef ENABLE_DMA_LOG
 int dma_do_log = ENABLE_DMA_LOG;
 

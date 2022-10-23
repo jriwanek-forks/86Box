@@ -35,6 +35,7 @@ static smram_t *last_smram;
 static uint8_t use_separate_smram = 0;
 static uint8_t smram[0x40000];
 
+#define ENABLE_ROM_LOG 1
 #ifdef ENABLE_SMRAM_LOG
 int smram_do_log = ENABLE_SMRAM_LOG;
 

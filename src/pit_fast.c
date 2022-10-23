@@ -47,6 +47,7 @@
 #define PIT_CUSTOM_CLOCK 64  /* The PIT uses custom clock inputs provided by another provider. */
 #define PIT_SECONDARY    128 /* The PIT is secondary (ports 0048-004B). */
 
+#define ENABLE_PIT_FAST_LOG 1
 #ifdef ENABLE_PIT_FAST_LOG
 int pit_fast_do_log = ENABLE_PIT_FAST_LOG;
 

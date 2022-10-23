@@ -15,6 +15,7 @@
 #include <86box/snd_opl.h>
 #include <86box/plat_unused.h>
 
+#define ENABLE_ADLIB_LOG 1
 #ifdef ENABLE_ADLIB_LOG
 int adlib_do_log = ENABLE_ADLIB_LOG;
 

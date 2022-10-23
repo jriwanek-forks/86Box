@@ -46,6 +46,7 @@ typedef struct ali1541_t {
     void    *agp_bridge;
 } ali1541_t;
 
+#define ENABLE_ALI1541_LOG 1
 #ifdef ENABLE_ALI1541_LOG
 int ali1541_do_log = ENABLE_ALI1541_LOG;
 

@@ -13,6 +13,8 @@
  *
  *          Copyright 2016-2025 Miran Grca.
  */
+#define ENABLE_SCSI_CDROM_LOG 1
+
 #include <inttypes.h>
 #include <math.h>
 #ifdef ENABLE_SCSI_CDROM_LOG

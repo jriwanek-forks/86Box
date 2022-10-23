@@ -124,6 +124,7 @@ typedef struct nic_t {
     void       *pnp_card;
 } nic_t;
 
+#define ENABLE_NE2K_LOG 1
 #ifdef ENABLE_NE2K_LOG
 int ne2k_do_log = ENABLE_NE2K_LOG;
 

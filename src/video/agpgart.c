@@ -26,6 +26,7 @@
 #include <86box/agpgart.h>
 #include <86box/plat_unused.h>
 
+#define ENABLE_AGPGART_LOG 1
 #ifdef ENABLE_AGPGART_LOG
 int agpgart_do_log = ENABLE_AGPGART_LOG;
 

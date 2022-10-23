@@ -41,6 +41,7 @@ struct nmc93cxx_eeprom_t {
 
 typedef struct nmc93cxx_eeprom_t nmc93cxx_eeprom_t;
 
+#define ENABLE_NMC93CXX_EEPROM_LOG 1
 #ifdef ENABLE_NMC93CXX_EEPROM_LOG
 int nmc93cxx_eeprom_do_log = ENABLE_NMC93CXX_EEPROM_LOG;
 

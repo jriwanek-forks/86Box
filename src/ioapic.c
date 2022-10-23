@@ -33,6 +33,7 @@ typedef struct ioapic_t {
     uint8_t dummy;
 } ioapic_t;
 
+#define ENABLE_IOAPIC_LOG 1
 #ifdef ENABLE_IOAPIC_LOG
 int ioapic_do_log = ENABLE_IOAPIC_LOG;
 

@@ -50,6 +50,7 @@ typedef struct ct_82c100_t {
     mem_mapping_t ems_mappings[4];
 } ct_82c100_t;
 
+#define ENABLE_CT_82C100_LOG 1
 #ifdef ENABLE_CT_82C100_LOG
 int ct_82c100_do_log = ENABLE_CT_82C100_LOG;
 

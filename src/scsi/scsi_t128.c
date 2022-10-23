@@ -45,6 +45,7 @@
 
 #define T128_ROM                "roms/scsi/ncr5380/trantor_t128_bios_v1.12.bin"
 
+#define ENABLE_T128_LOG 1
 #ifdef ENABLE_T128_LOG
 int t128_do_log = ENABLE_T128_LOG;
 

@@ -146,7 +146,8 @@ static struct ps2_t {
 static uint8_t ps2_cache[65536];
 static int     ps2_cache_valid[65536 / 8];
 static void mem_encoding_update(void);
-// #define ENABLE_PS2_MCA_LOG 1
+
+#define ENABLE_PS2_MCA_LOG 1
 #ifdef ENABLE_PS2_MCA_LOG
 int ps2_mca_do_log = ENABLE_PS2_MCA_LOG;
 

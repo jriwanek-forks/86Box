@@ -621,6 +621,7 @@ static int keysyms_ff[] = {
     0xe053 /* 0xff (XK_Delete) */
 };
 
+#define ENABLE_VNC_KEYMAP_LOG 1
 #ifdef ENABLE_VNC_KEYMAP_LOG
 int vnc_keymap_do_log = ENABLE_VNC_KEYMAP_LOG;
 

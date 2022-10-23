@@ -128,6 +128,7 @@ int  network_ndev;
 netdev_t network_devs[NET_HOST_INTF_MAX];
 
 /* Local variables. */
+#define ENABLE_NETWORK_LOG 1
 #ifdef ENABLE_NETWORK_LOG
 int             network_do_log = ENABLE_NETWORK_LOG;
 static FILE    *network_dump   = NULL;

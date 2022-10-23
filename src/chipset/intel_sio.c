@@ -55,6 +55,7 @@ typedef struct sio_t {
     port_92_t *port_92;
 } sio_t;
 
+#define ENABLE_SIO_LOG 1
 #ifdef ENABLE_SIO_LOG
 int sio_do_log = ENABLE_SIO_LOG;
 

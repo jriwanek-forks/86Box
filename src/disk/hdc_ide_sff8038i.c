@@ -55,6 +55,7 @@ void            sff_bus_master_write(uint16_t port, uint8_t val, void *priv);
 static void     sff_bus_master_writew(uint16_t port, uint16_t val, void *priv);
 static void     sff_bus_master_writel(uint16_t port, uint32_t val, void *priv);
 
+#define ENABLE_SFF_LOG 1
 #ifdef ENABLE_SFF_LOG
 int sff_do_log = ENABLE_SFF_LOG;
 

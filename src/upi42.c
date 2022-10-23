@@ -39,6 +39,7 @@
 #    include <86box/io.h>
 #    include <86box/timer.h>
 
+#define ENABLE_UPI42_LOG 1
 #    ifdef ENABLE_UPI42_LOG
 int upi42_do_log = ENABLE_UPI42_LOG;
 

@@ -30,6 +30,7 @@
 #include <86box/smram.h>
 #include <86box/chipset.h>
 
+#define ENABLE_CONTAQ_82C59X_LOG 1
 #ifdef ENABLE_CONTAQ_82C59X_LOG
 int contaq_82c59x_do_log = ENABLE_CONTAQ_82C59X_LOG;
 

@@ -37,6 +37,7 @@
 
 #include <86box/chipset.h>
 
+#define ENABLE_UM8673F_LOG 1
 #ifdef ENABLE_UM8673F_LOG
 int um8673f_do_log = ENABLE_UM8673F_LOG;
 

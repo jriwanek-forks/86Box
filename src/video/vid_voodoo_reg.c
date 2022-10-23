@@ -51,6 +51,7 @@ enum {
     CHIP_TREX2 = 0x8
 };
 
+#define ENABLE_VOODOO_REG_LOG 1
 #ifdef ENABLE_VOODOO_REG_LOG
 int voodoo_reg_do_log = ENABLE_VOODOO_REG_LOG;
 

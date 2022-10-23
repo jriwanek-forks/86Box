@@ -158,6 +158,7 @@ typedef struct mouse {
     pc_timer_t timer; /* mouse event timer */
 } mouse_t;
 
+#define ENABLE_MOUSE_BUS_LOG 1
 #ifdef ENABLE_MOUSE_BUS_LOG
 int bm_do_log = ENABLE_MOUSE_BUS_LOG;
 

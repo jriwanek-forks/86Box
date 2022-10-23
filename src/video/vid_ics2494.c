@@ -30,6 +30,7 @@ typedef struct ics2494_t {
     float freq[16];
 } ics2494_t;
 
+#define ENABLE_ICS2494_LOG 1
 #ifdef ENABLE_ICS2494_LOG
 int ics2494_do_log = ENABLE_ICS2494_LOG;
 

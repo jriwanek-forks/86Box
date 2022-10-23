@@ -151,6 +151,7 @@ typedef struct _gdbstub_breakpoint_ {
     struct _gdbstub_breakpoint_ *next;
 } gdbstub_breakpoint_t;
 
+#define ENABLE_GDBSTUB_LOG 1
 #ifdef ENABLE_GDBSTUB_LOG
 int gdbstub_do_log = ENABLE_GDBSTUB_LOG;
 

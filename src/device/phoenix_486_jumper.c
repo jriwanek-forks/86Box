@@ -47,6 +47,7 @@ typedef struct phoenix_486_jumper_t {
     uint8_t jumper;
 } phoenix_486_jumper_t;
 
+#define ENABLE_PHOENIX_486_JUMPER_LOG 1
 #ifdef ENABLE_PHOENIX_486_JUMPER_LOG
 int phoenix_486_jumper_do_log = ENABLE_PHOENIX_486_JUMPER_LOG;
 

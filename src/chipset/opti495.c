@@ -39,6 +39,7 @@ typedef struct opti495_t {
     uint8_t scratch[2];
 } opti495_t;
 
+#define ENABLE_OPTI495_LOG 1
 #ifdef ENABLE_OPTI495_LOG
 int opti495_do_log = ENABLE_OPTI495_LOG;
 

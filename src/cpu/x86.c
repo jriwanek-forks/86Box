@@ -82,6 +82,7 @@ int fpu_cycles = 0;
 
 int in_lock = 0;
 
+#define ENABLE_X86_LOG 1
 #ifdef ENABLE_X86_LOG
 #if 0
 void dumpregs(int);

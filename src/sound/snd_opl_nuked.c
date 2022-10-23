@@ -82,6 +82,7 @@ enum {
     egk_drum = 0x02
 };
 
+#define ENABLE_OPL_LOG 1
 #ifdef ENABLE_OPL_LOG
 int nuked_do_log = ENABLE_OPL_LOG;
 

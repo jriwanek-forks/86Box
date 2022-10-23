@@ -46,6 +46,7 @@ typedef struct i2c_bus_t {
 
 void *i2c_smbus;
 
+#define ENABLE_I2C_LOG 1
 #ifdef ENABLE_I2C_LOG
 int i2c_do_log = ENABLE_I2C_LOG;
 

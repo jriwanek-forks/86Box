@@ -97,6 +97,7 @@
 
 #define GREEN dev->is_g /* Is G Variant */
 
+#define ENABLE_ALI1429_LOG 1
 #ifdef ENABLE_ALI1429_LOG
 int ali1429_do_log = ENABLE_ALI1429_LOG;
 

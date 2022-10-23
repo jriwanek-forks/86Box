@@ -307,6 +307,7 @@ uint32_t rep_count_w = 0;
 #    define WRITE16(addr, var, val) WRITE16_SWITCH(addr, var, val)
 #endif // EMU8K_DEBUG_REGISTERS
 
+#define ENABLE_EMU8K_LOG 1
 #ifdef ENABLE_EMU8K_LOG
 int emu8k_do_log = ENABLE_EMU8K_LOG;
 

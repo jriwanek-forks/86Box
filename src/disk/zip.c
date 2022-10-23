@@ -13,6 +13,8 @@
  *
  *          Copyright 2018-2025 Miran Grca.
  */
+#define ENABLE_ZIP_LOG 1
+
 #ifdef ENABLE_ZIP_LOG
 #include <stdarg.h>
 #endif

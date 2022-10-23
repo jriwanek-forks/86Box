@@ -30,6 +30,7 @@
 #include <86box/plat_unused.h>
 #include <86box/chipset.h>
 
+#define ENABLE_OPTI391_LOG 1
 #ifdef ENABLE_OPTI391_LOG
 int opti391_do_log = ENABLE_OPTI391_LOG;
 

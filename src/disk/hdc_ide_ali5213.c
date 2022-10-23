@@ -41,6 +41,7 @@
 
 #include <86box/chipset.h>
 
+#define ENABLE_ALI5213_LOG 1
 #ifdef ENABLE_ALI5213_LOG
 int ali5213_do_log = ENABLE_ALI5213_LOG;
 

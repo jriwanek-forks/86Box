@@ -42,6 +42,7 @@ typedef struct icd2061_t {
     uint32_t ctrl;
 } icd2061_t;
 
+#define ENABLE_ICD2061_LOG 1
 #ifdef ENABLE_ICD2061_LOG
 int icd2061_do_log = ENABLE_ICD2061_LOG;
 

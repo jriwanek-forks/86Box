@@ -66,6 +66,7 @@ static uint16_t latched_irqs   = 0x0000;
 
 static void (*update_pending)(void);
 
+#define ENABLE_PIC_LOG 1
 #ifdef ENABLE_PIC_LOG
 int pic_do_log = ENABLE_PIC_LOG;
 

@@ -14,6 +14,8 @@
  *
  *          Copyright 2018-2021 Miran Grca.
  */
+#define ENABLE_CDROM_LOG 1
+
 #include <inttypes.h>
 #ifdef ENABLE_CDROM_LOG
 #include <stdarg.h>

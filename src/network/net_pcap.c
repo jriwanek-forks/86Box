@@ -213,6 +213,7 @@ static dllimp_t pcap_imports[] = {
     { NULL,                      NULL                      },
 };
 
+#define ENABLE_PCAP_LOG 1
 #ifdef ENABLE_PCAP_LOG
 int pcap_do_log = ENABLE_PCAP_LOG;
 

@@ -44,6 +44,7 @@
 #include <86box/vid_voodoo_render.h>
 #include <86box/vid_voodoo_texture.h>
 
+#define ENABLE_VOODOO_FIFO_LOG 1
 #ifdef ENABLE_VOODOO_FIFO_LOG
 int voodoo_fifo_do_log = ENABLE_VOODOO_FIFO_LOG;
 

@@ -83,6 +83,7 @@ typedef struct {
 
 static video_timings_t timing_im1024 = { .type = VIDEO_ISA, .write_b = 8, .write_w = 16, .write_l = 32, .read_b = 8, .read_w = 16, .read_l = 32 };
 
+#define ENABLE_IM1024_LOG 1
 #ifdef ENABLE_IM1024_LOG
 int im1024_do_log = ENABLE_IM1024_LOG;
 

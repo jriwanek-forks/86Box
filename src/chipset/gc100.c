@@ -48,6 +48,7 @@ typedef struct gc100_t {
     uint8_t reg[0x10];
 } gc100_t;
 
+#define ENABLE_GC100_LOG 1
 #ifdef ENABLE_GC100_LOG
 int gc100_do_log = ENABLE_GC100_LOG;
 

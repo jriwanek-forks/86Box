@@ -37,6 +37,7 @@
 #include <86box/gameport.h>
 #include <86box/sio.h>
 
+#define ENABLE_W83787_LOG 1
 #ifdef ENABLE_W83787_LOG
 int w83787_do_log = ENABLE_W83787_LOG;
 

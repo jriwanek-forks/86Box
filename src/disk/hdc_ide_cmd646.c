@@ -54,6 +54,7 @@ typedef struct cmd646_t {
     sff8038i_t *bm[2];
 } cmd646_t;
 
+#define ENABLE_CMD646_LOG 1
 #ifdef ENABLE_CMD646_LOG
 int cmd646_do_log = ENABLE_CMD646_LOG;
 

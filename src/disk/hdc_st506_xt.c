@@ -326,6 +326,7 @@ hd_type_t hd_types_olivetti[16] = {
   // clang-format on
 };
 
+#define ENABLE_ST506_XT_LOG 1
 #ifdef ENABLE_ST506_XT_LOG
 int st506_xt_do_log = ENABLE_ST506_XT_LOG;
 

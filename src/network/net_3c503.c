@@ -89,6 +89,7 @@ typedef struct threec503_t {
     int dma_channel;
 } threec503_t;
 
+#define ENABLE_3COM503_LOG 1
 #ifdef ENABLE_3COM503_LOG
 int threec503_do_log = ENABLE_3COM503_LOG;
 

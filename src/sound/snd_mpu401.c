@@ -55,6 +55,7 @@ static void MPU401_EOIHandler(void *priv);
 static void MPU401_EOIHandlerDispatch(void *priv);
 static __inline void MPU401_NotesOff(mpu_t *mpu, unsigned int i);
 
+#define ENABLE_MPU401_LOG 1
 #ifdef ENABLE_MPU401_LOG
 int mpu401_do_log = ENABLE_MPU401_LOG;
 

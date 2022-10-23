@@ -122,6 +122,7 @@ static const uint32_t init_palette[6][256] = {
 
 static video_timings_t timing_pgc = { .type = VIDEO_ISA, .write_b = 8, .write_w = 16, .write_l = 32, .read_b = 8, .read_w = 16, .read_l = 32 };
 
+#define ENABLE_PGC_LOG 1
 #ifdef ENABLE_PGC_LOG
 int pgc_do_log = ENABLE_PGC_LOG;
 

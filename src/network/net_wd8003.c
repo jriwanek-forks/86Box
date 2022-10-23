@@ -124,6 +124,7 @@ typedef struct wd_t {
     uint8_t board_chip;
 } wd_t;
 
+#define ENABLE_WD_LOG 1
 #ifdef ENABLE_WD_LOG
 int wd_do_log = ENABLE_WD_LOG;
 

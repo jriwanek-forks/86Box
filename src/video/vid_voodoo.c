@@ -57,6 +57,7 @@ rgba8_t ai88[0x10000];
 
 int tris = 0;
 
+#define ENABLE_VOODOO_LOG 1
 #ifdef ENABLE_VOODOO_LOG
 int voodoo_do_log = ENABLE_VOODOO_LOG;
 
