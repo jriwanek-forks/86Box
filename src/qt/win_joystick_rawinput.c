@@ -35,6 +35,7 @@
 #include <86box/gameport.h>
 #include <86box/win.h>
 
+#define ENABLE_JOYSTICK_LOG 1
 #ifdef ENABLE_JOYSTICK_LOG
 int joystick_do_log = ENABLE_JOYSTICK_LOG;
 

@@ -315,6 +315,7 @@ const int gap3_sizes[5][8][48] = {
     }
 };
 
+#define ENABLE_IMG_LOG 1
 #ifdef ENABLE_IMG_LOG
 int img_do_log = ENABLE_IMG_LOG;
 

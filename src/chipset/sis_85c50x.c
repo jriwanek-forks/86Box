@@ -39,6 +39,7 @@
 
 #include <86box/chipset.h>
 
+#define ENABLE_SIS_85C50X_LOG 1
 #ifdef ENABLE_SIS_85C50X_LOG
 int sis_85c50x_do_log = ENABLE_SIS_85C50X_LOG;
 

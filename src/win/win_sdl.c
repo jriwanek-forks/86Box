@@ -135,6 +135,7 @@ typedef struct
     SDL_Window *next;
 } SDL_Window_Ex;
 
+#define ENABLE_SDL_LOG 1
 #ifdef ENABLE_SDL_LOG
 int sdl_do_log = ENABLE_SDL_LOG;
 

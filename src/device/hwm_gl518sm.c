@@ -57,6 +57,7 @@ static uint8_t  gl518sm_i2c_write(void *bus, uint8_t addr, uint8_t data, void *p
 static uint8_t  gl518sm_write(gl518sm_t *dev, uint8_t reg, uint16_t val);
 static void     gl518sm_reset(gl518sm_t *dev);
 
+#define ENABLE_GL518SM_LOG 1
 #ifdef ENABLE_GL518SM_LOG
 int gl518sm_do_log = ENABLE_GL518SM_LOG;
 

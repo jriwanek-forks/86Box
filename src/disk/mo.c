@@ -287,6 +287,7 @@ static const mode_sense_pages_t mo_mode_sense_pages_changeable =
 static void mo_command_complete(mo_t *dev);
 static void mo_init(mo_t *dev);
 
+#define ENABLE_MO_LOG 1
 #ifdef ENABLE_MO_LOG
 int mo_do_log = ENABLE_MO_LOG;
 

@@ -44,6 +44,7 @@
 
 #define HAS_IDE_FUNCTIONALITY dev->ide_function
 
+#define ENABLE_PC87310_LOG 1
 #ifdef ENABLE_PC87310_LOG
 int pc87310_do_log = ENABLE_PC87310_LOG;
 

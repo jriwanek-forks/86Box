@@ -52,6 +52,7 @@
 #define XINPUT_NAME_LS       "Left Stick"
 #define XINPUT_NAME_RS       "Right Stick"
 
+#define ENABLE_JOYSTICK_LOG 1
 #ifdef ENABLE_JOYSTICK_LOG
 int joystick_do_log = ENABLE_JOYSTICK_LOG;
 

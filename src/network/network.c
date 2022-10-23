@@ -150,6 +150,7 @@ netdev_t network_devs[NET_HOST_INTF_MAX];
 
 /* Local variables. */
 
+#define ENABLE_NETWORK_LOG 1
 #if defined     ENABLE_NETWORK_LOG && !defined(_WIN32)
 int             network_do_log = ENABLE_NETWORK_LOG;
 static FILE    *network_dump   = NULL;

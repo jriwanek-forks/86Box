@@ -40,6 +40,7 @@ i450GX is way more popular of an option but needs more stuff.
 #include <86box/spd.h>
 #include <86box/chipset.h>
 
+#define ENABLE_450KX_LOG 1
 #ifdef ENABLE_450KX_LOG
 int i450kx_do_log = ENABLE_450KX_LOG;
 

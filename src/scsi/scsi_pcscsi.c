@@ -204,6 +204,7 @@ typedef struct esp_t {
 #define READ_FROM_DEVICE 1
 #define WRITE_TO_DEVICE  0
 
+#define ENABLE_ESP_LOG 1
 #ifdef ENABLE_ESP_LOG
 int esp_do_log = ENABLE_ESP_LOG;
 

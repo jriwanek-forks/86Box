@@ -39,6 +39,7 @@
 #define PDR                   dev->regs[0xa2]
 #define HAS_IDE_FUNCTIONALITY dev->ide_function
 
+#define ENABLE_PRIME3B_LOG 1
 #ifdef ENABLE_PRIME3B_LOG
 int prime3b_do_log = ENABLE_PRIME3B_LOG;
 

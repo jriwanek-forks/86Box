@@ -42,6 +42,7 @@
 #define VERBOSE
 #undef VERBOSE
 
+#define ENABLE_FDI2RAW_LOG 1
 #ifdef ENABLE_FDI2RAW_LOG
 int fdi2raw_do_log = ENABLE_FDI2RAW_LOG;
 

@@ -41,6 +41,7 @@ static LPDIRECTINPUT8       lpdi;
 static LPDIRECTINPUTDEVICE8 lpdi_joystick[2] = { NULL, NULL };
 static GUID                 joystick_guids[MAX_JOYSTICKS];
 
+#define ENABLE_JOYSTICK_LOG 1
 #ifdef ENABLE_JOYSTICK_LOG
 int joystick_do_log = ENABLE_JOYSTICK_LOG;
 

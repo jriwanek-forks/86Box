@@ -56,6 +56,7 @@
 #define SECONDARY_NATIVE_SIDE     (((dev->pci_conf_sb[1][0x1d] << 8) | (dev->pci_conf_sb[1][0x1c] & 0xfc)) + 2)
 #define BUS_MASTER_BASE           ((dev->pci_conf_sb[1][0x20] & 0xf0) | (dev->pci_conf_sb[1][0x21] << 8))
 
+#define ENABLE_SIS_5571_LOG 1
 #ifdef ENABLE_SIS_5571_LOG
 int sis_5571_do_log = ENABLE_SIS_5571_LOG;
 

@@ -48,6 +48,7 @@
 
 static char temp_keyword[1024];
 
+#define ENABLE_CDROM_IMAGE_BACKEND_LOG 1
 #ifdef ENABLE_CDROM_IMAGE_BACKEND_LOG
 int cdrom_image_backend_do_log = ENABLE_CDROM_IMAGE_BACKEND_LOG;
 

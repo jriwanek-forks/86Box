@@ -186,6 +186,7 @@ enum {
     PAS16_FILT_MUTE = 0x20
 };
 
+#define ENABLE_PAS16_LOG 1
 #ifdef ENABLE_PAS16_LOG
 int pas16_do_log = ENABLE_PAS16_LOG;
 

@@ -76,6 +76,7 @@ typedef struct net_slirp_t {
 #endif
 } net_slirp_t;
 
+#define ENABLE_SLIRP_LOG 1
 #ifdef ENABLE_SLIRP_LOG
 int slirp_do_log = ENABLE_SLIRP_LOG;
 

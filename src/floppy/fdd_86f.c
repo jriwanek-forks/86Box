@@ -258,6 +258,7 @@ uint8_t  d86f_poll_read_data(int drive, int side, uint16_t pos);
 void     d86f_poll_write_data(int drive, int side, uint16_t pos, uint8_t data);
 int      d86f_format_conditions(int drive);
 
+#define ENABLE_D86F_LOG 1
 #ifdef ENABLE_D86F_LOG
 int d86f_do_log = ENABLE_D86F_LOG;
 

@@ -38,6 +38,7 @@ typedef struct opti499_t {
     uint8_t scratch[2];
 } opti499_t;
 
+#define ENABLE_OPTI499_LOG 1
 #ifdef ENABLE_OPTI499_LOG
 int opti499_do_log = ENABLE_OPTI499_LOG;
 

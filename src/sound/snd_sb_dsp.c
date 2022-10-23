@@ -117,6 +117,7 @@ uint8_t adjustMap2[24] = {
 
 double low_fir_sb16_coef[3][SB16_NCoef];
 
+#define ENABLE_SB_DSP_LOG 1
 #ifdef ENABLE_SB_DSP_LOG
 int sb_dsp_do_log = ENABLE_SB_DSP_LOG;
 

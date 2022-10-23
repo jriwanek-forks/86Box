@@ -83,6 +83,7 @@ static uint32_t ali6117_modes[32][5] = {
 // clang-format on
 };
 
+#define ENABLE_ALI6117_LOG 1
 #ifdef ENABLE_ALI6117_LOG
 int ali6117_do_log = ENABLE_ALI6117_LOG;
 

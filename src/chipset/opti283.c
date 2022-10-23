@@ -33,6 +33,7 @@
 #include <86box/plat_unused.h>
 #include <86box/chipset.h>
 
+#define ENABLE_OPTI283_LOG 1
 #ifdef ENABLE_OPTI283_LOG
 int opti283_do_log = ENABLE_OPTI283_LOG;
 

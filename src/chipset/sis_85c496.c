@@ -62,6 +62,7 @@ typedef struct sis_85c496_t {
     nvr_t     *nvr;
 } sis_85c496_t;
 
+#define ENABLE_SIS_85C496_LOG 1
 #ifdef ENABLE_SIS_85C496_LOG
 int sis_85c496_do_log = ENABLE_SIS_85C496_LOG;
 

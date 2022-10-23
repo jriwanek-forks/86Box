@@ -86,6 +86,7 @@ typedef struct stpc_lpt_t {
     uint8_t reg4;
 } stpc_lpt_t;
 
+#define ENABLE_STPC_LOG 1
 #ifdef ENABLE_STPC_LOG
 int stpc_do_log = ENABLE_STPC_LOG;
 

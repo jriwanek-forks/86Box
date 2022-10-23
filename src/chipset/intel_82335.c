@@ -64,6 +64,7 @@ typedef struct intel_82335_t {
 
 } intel_82335_t;
 
+#define ENABLE_INTEL_82335_LOG 1
 #ifdef ENABLE_INTEL_82335_LOG
 int intel_82335_do_log = ENABLE_INTEL_82335_LOG;
 

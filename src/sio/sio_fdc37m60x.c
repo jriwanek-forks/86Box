@@ -50,6 +50,7 @@
 #define SOFT_RESET    (val & 0x01)
 #define POWER_CONTROL dev->regs[0x22]
 
+#define ENABLE_FDC37M60X_LOG 1
 #ifdef ENABLE_FDC37M60X_LOG
 int fdc37m60x_do_log = ENABLE_FDC37M60X_LOG;
 

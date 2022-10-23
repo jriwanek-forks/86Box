@@ -90,6 +90,7 @@
 
 #define IDE_BIT 0x01
 
+#define ENABLE_UMC_8886_LOG 1
 #ifdef ENABLE_UMC_8886_LOG
 int umc_8886_do_log = ENABLE_UMC_8886_LOG;
 

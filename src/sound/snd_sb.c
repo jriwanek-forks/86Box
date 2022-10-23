@@ -158,6 +158,7 @@ static uint8_t sb_16_pnp_rom[] = {
     // clang-format on
 };
 
+#define ENABLE_SB_LOG 1
 #ifdef ENABLE_SB_LOG
 int sb_do_log = ENABLE_SB_LOG;
 

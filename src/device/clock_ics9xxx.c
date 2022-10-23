@@ -28,6 +28,7 @@
 #include <86box/clock.h>
 #include <86box/plat_unused.h>
 
+#define ENABLE_ICS9xxx_LOG 1
 #ifdef ENABLE_ICS9xxx_LOG
 int ics9xxx_do_log = ENABLE_ICS9xxx_LOG;
 

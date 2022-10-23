@@ -194,6 +194,7 @@ static const struct
     }
 };
 
+#define ENABLE_FDD_LOG 1
 #ifdef ENABLE_FDD_LOG
 int fdd_do_log = ENABLE_FDD_LOG;
 

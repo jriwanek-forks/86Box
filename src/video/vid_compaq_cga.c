@@ -48,6 +48,7 @@ typedef struct compaq_cga_t {
     cga_t cga;
 } compaq_cga_t;
 
+#define ENABLE_COMPAQ_CGA_LOG 1
 #ifdef ENABLE_COMPAQ_CGA_LOG
 int compaq_cga_do_log = ENABLE_COMPAQ_CGA_LOG;
 

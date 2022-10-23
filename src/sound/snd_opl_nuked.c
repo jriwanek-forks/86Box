@@ -213,6 +213,7 @@ enum {
     CTRL_TMR1_START = 0x01
 };
 
+#define ENABLE_OPL_LOG 1
 #ifdef ENABLE_OPL_LOG
 int nuked_do_log = ENABLE_OPL_LOG;
 

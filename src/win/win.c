@@ -119,6 +119,7 @@ static const struct {
 
 extern int title_update;
 
+#define ENABLE_WIN_LOG 1
 #ifdef ENABLE_WIN_LOG
 int win_do_log = ENABLE_WIN_LOG;
 
