@@ -34,6 +34,7 @@
 #include <86box/sio.h>
 #include <86box/plat_unused.h>
 
+#define ENABLE_PRIME3C_LOG 1
 #ifdef ENABLE_PRIME3C_LOG
 int prime3c_do_log = ENABLE_PRIME3C_LOG;
 

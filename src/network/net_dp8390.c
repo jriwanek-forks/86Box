@@ -37,6 +37,7 @@ int         dp8390_rx(void *priv, uint8_t *buf, int io_len);
 
 int dp3890_inst = 0;
 
+#define ENABLE_DP8390_LOG 1
 #ifdef ENABLE_DP8390_LOG
 int dp8390_do_log = ENABLE_DP8390_LOG;
 

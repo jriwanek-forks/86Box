@@ -117,6 +117,7 @@
 #include <86box/smram.h>
 #include <86box/chipset.h>
 
+#define ENABLE_HB4_LOG 1
 #ifdef ENABLE_HB4_LOG
 int hb4_do_log = ENABLE_HB4_LOG;
 

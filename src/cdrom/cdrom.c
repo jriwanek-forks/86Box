@@ -96,6 +96,7 @@ cdrom_t cdrom[CDROM_NUM];
 
 int cdrom_interface_current;
 
+#define ENABLE_CDROM_LOG 1
 #ifdef ENABLE_CDROM_LOG
 int cdrom_do_log = ENABLE_CDROM_LOG;
 

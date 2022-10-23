@@ -612,6 +612,7 @@ static int     is_tandy = 0;
 static int     is_t1x00 = 0;
 static int     is_amstrad = 0;
 
+#define ENABLE_KEYBOARD_XT_LOG 1
 #ifdef ENABLE_KEYBOARD_XT_LOG
 int keyboard_xt_do_log = ENABLE_KEYBOARD_XT_LOG;
 

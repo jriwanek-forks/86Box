@@ -251,6 +251,7 @@ video_cards[] = {
   // clang-format on
 };
 
+#define ENABLE_VID_TABLE_LOG 1
 #ifdef ENABLE_VID_TABLE_LOG
 int vid_table_do_log = ENABLE_VID_TABLE_LOG;
 

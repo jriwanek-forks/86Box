@@ -139,6 +139,7 @@ static void et4000w32_blit(int count, int cpu_input, uint32_t src_dat, uint32_t 
 static void et4000w32p_blit(int count, uint32_t mix, uint32_t sdat, int cpu_input, et4000w32p_t *et4000);
 uint8_t     et4000w32p_in(uint16_t addr, void *priv);
 
+#define ENABLE_ET4000W32_LOG 1
 #ifdef ENABLE_ET4000W32_LOG
 int et4000w32_do_log = ENABLE_ET4000W32_LOG;
 

@@ -45,6 +45,7 @@
                                 ((dev->regs[0x14] & 0x20) ? MEM_WRITE_INTERNAL : MEM_WRITE_EXTANY))
 #define DISABLED_SHADOW         (MEM_READ_EXTANY | MEM_WRITE_EXTANY)
 
+#define ENABLE_ALI1489_LOG 1
 #ifdef ENABLE_ALI1489_LOG
 int ali1489_do_log = ENABLE_ALI1489_LOG;
 

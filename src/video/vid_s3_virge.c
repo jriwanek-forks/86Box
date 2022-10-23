@@ -377,6 +377,7 @@ enum {
 #define SERIAL_PORT_SCR (1 << 2)
 #define SERIAL_PORT_SDR (1 << 3)
 
+#define ENABLE_S3_VIRGE_LOG 1
 #ifdef ENABLE_S3_VIRGE_LOG
 int s3_virge_do_log = ENABLE_S3_VIRGE_LOG;
 

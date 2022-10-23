@@ -35,6 +35,7 @@
 #include <86box/cdrom.h>
 #include <86box/cdrom_image.h>
 
+#define ENABLE_CDROM_IMAGE_LOG 1
 #ifdef ENABLE_CDROM_IMAGE_LOG
 int cdrom_image_do_log = ENABLE_CDROM_IMAGE_LOG;
 

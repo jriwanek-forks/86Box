@@ -207,6 +207,7 @@ typedef struct es1371_t {
 static void es1371_fetch(es1371_t *dev, int dac_nr);
 static void update_legacy(es1371_t *dev, uint32_t old_legacy_ctrl);
 
+#define ENABLE_AUDIOPCI_LOG 1
 #ifdef ENABLE_AUDIOPCI_LOG
 int audiopci_do_log = ENABLE_AUDIOPCI_LOG;
 

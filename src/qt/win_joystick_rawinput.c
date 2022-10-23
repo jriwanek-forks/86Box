@@ -58,6 +58,7 @@
 #    define HID_USAGE_SIMULATION_STEERING ((USAGE) 0xc8)
 #endif
 
+#define ENABLE_JOYSTICK_LOG 1
 #ifdef ENABLE_JOYSTICK_LOG
 int joystick_do_log = ENABLE_JOYSTICK_LOG;
 

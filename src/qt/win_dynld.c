@@ -25,6 +25,7 @@
 #include <86box/86box.h>
 #include <86box/plat_dynld.h>
 
+#define ENABLE_DYNLD_LOG 1
 #ifdef ENABLE_DYNLD_LOG
 int dynld_do_log = ENABLE_DYNLD_LOG;
 

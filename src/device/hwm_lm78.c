@@ -81,6 +81,7 @@ typedef struct lm78_t {
 
 static void lm78_remap(lm78_t *dev, uint8_t addr);
 
+#define ENABLE_LM78_LOG 1
 #ifdef ENABLE_LM78_LOG
 int lm78_do_log = ENABLE_LM78_LOG;
 

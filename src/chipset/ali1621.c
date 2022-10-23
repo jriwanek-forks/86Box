@@ -46,6 +46,7 @@ typedef struct ali1621_t {
     smram_t *smram[2];
 } ali1621_t;
 
+#define ENABLE_ALI1621_LOG 1
 #ifdef ENABLE_ALI1621_LOG
 int ali1621_do_log = ENABLE_ALI1621_LOG;
 

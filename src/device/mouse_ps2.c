@@ -46,6 +46,7 @@ enum {
 
 int mouse_scan = 0;
 
+#define ENABLE_MOUSE_PS2_LOG 1
 #ifdef ENABLE_MOUSE_PS2_LOG
 int mouse_ps2_do_log = ENABLE_MOUSE_PS2_LOG;
 

@@ -441,6 +441,7 @@ static const mode_sense_pages_t zip_250_mode_sense_pages_changeable =
 static void zip_command_complete(zip_t *dev);
 static void zip_init(zip_t *dev);
 
+#define ENABLE_ZIP_LOG 1
 #ifdef ENABLE_ZIP_LOG
 int zip_do_log = ENABLE_ZIP_LOG;
 

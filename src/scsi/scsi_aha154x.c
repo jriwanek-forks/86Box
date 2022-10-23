@@ -86,6 +86,7 @@ typedef struct aha_setup_t {
 } aha_setup_t;
 #pragma pack(pop)
 
+#define ENABLE_AHA154X_LOG 1
 #ifdef ENABLE_AHA154X_LOG
 int aha_do_log = ENABLE_AHA154X_LOG;
 

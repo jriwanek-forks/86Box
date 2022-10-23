@@ -225,6 +225,7 @@ typedef struct neat_t {
     emspage_t ems[EMS_MAXPAGE]; /* EMS page registers */
 } neat_t;
 
+#define ENABLE_NEAT_LOG 1
 #ifdef ENABLE_NEAT_LOG
 int neat_do_log = ENABLE_NEAT_LOG;
 

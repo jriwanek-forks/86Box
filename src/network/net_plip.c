@@ -85,6 +85,7 @@ static void plip_receive_packet(plip_t *dev);
 
 plip_t *instance;
 
+#define ENABLE_PLIP_LOG 1
 #ifdef ENABLE_PLIP_LOG
 int plip_do_log = ENABLE_PLIP_LOG;
 

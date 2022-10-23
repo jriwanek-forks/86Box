@@ -47,6 +47,7 @@
 #define UART2_BA ((FUNCTION_ADDRESS >> 4) & 0x03)
 #define COM_BA   ((FUNCTION_ADDRESS >> 6) & 0x03)
 
+#define ENABLE_PC87311_LOG 1
 #ifdef ENABLE_PC87311_LOG
 int pc87311_do_log = ENABLE_PC87311_LOG;
 

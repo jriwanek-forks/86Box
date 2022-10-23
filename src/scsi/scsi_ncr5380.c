@@ -44,6 +44,7 @@
 
 int ncr5380_cmd_len[8] = { 6, 10, 10, 6, 16, 12, 10, 6 };
 
+#define ENABLE_NCR5380_LOG 1
 #ifdef ENABLE_NCR5380_LOG
 int ncr5380_do_log = ENABLE_NCR5380_LOG;
 

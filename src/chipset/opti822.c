@@ -50,7 +50,7 @@ typedef struct opti822_t {
     uint8_t pci_regs[256];
 } opti822_t;
 
-// #define ENABLE_OPTI822_LOG 1
+#define ENABLE_OPTI822_LOG 1
 #ifdef ENABLE_OPTI822_LOG
 int opti822_do_log = ENABLE_OPTI822_LOG;
 
