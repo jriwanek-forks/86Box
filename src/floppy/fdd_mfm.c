@@ -84,6 +84,7 @@ typedef struct mfm_t {
 static mfm_t *mfm[FDD_NUM];
 static fdc_t *mfm_fdc;
 
+#define ENABLE_MFM_LOG 1
 #ifdef ENABLE_MFM_LOG
 int mfm_do_log = ENABLE_MFM_LOG;
 

@@ -86,6 +86,7 @@ typedef struct ali1543_t {
 int ali1533_irq_routing[16] = { PCI_IRQ_DISABLED, 9, 3, 10, 4, 5, 7, 6,
                                 1, 11, PCI_IRQ_DISABLED, 12, PCI_IRQ_DISABLED, 14, PCI_IRQ_DISABLED, 15 };
 
+#define ENABLE_ALI1543_LOG 1
 #ifdef ENABLE_ALI1543_LOG
 int ali1543_do_log = ENABLE_ALI1543_LOG;
 

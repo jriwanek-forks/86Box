@@ -46,6 +46,7 @@ static int              ptr_x;
 static int              ptr_y;
 static int              ptr_but;
 
+#define ENABLE_VNC_LOG 1
 #ifdef ENABLE_VNC_LOG
 int vnc_do_log = ENABLE_VNC_LOG;
 

@@ -148,6 +148,7 @@ typedef struct _pipc_ {
     uint16_t fmnmi_base;
 } pipc_t;
 
+#define ENABLE_PIPC_LOG 1
 #ifdef ENABLE_PIPC_LOG
 int pipc_do_log = ENABLE_PIPC_LOG;
 

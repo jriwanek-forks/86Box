@@ -119,6 +119,7 @@ typedef struct _cmi8x38_ {
     int cd_vol_r;
 } cmi8x38_t;
 
+#define ENABLE_CMI8X38_LOG 1
 #ifdef ENABLE_CMI8X38_LOG
 int cmi8x38_do_log = ENABLE_CMI8X38_LOG;
 

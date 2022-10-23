@@ -131,6 +131,7 @@ static const isapnp_device_config_t um8669f_pnp_defaults[] = {
     }
 };
 
+#define ENABLE_UM8669F_LOG 1
 #ifdef ENABLE_UM8669F_LOG
 int um8669f_do_log = ENABLE_UM8669F_LOG;
 

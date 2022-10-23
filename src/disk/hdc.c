@@ -32,6 +32,7 @@
 
 int hdc_current[HDC_MAX] = { 0, 0 };
 
+#define ENABLE_HDC_LOG 1
 #ifdef ENABLE_HDC_LOG
 int hdc_do_log = ENABLE_HDC_LOG;
 

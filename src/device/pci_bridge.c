@@ -59,6 +59,7 @@ typedef struct pci_bridge_t {
     uint8_t slot;
 } pci_bridge_t;
 
+#define ENABLE_PCI_BRIDGE_LOG 1
 #ifdef ENABLE_PCI_BRIDGE_LOG
 int pci_bridge_do_log = ENABLE_PCI_BRIDGE_LOG;
 

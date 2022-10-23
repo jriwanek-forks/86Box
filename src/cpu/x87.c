@@ -27,6 +27,7 @@ uint32_t x87_op_off;
 uint16_t x87_pc_seg;
 uint16_t x87_op_seg;
 
+#define ENABLE_FPU_X87_LOG 1
 #ifdef ENABLE_FPU_X87_LOG
 int fpu_x87_do_log = ENABLE_FPU_X87_LOG;
 

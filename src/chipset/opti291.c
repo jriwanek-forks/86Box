@@ -32,6 +32,7 @@
 #include <86box/port_92.h>
 #include <86box/chipset.h>
 
+#define ENABLE_OPTI291_LOG 1
 #ifdef ENABLE_OPTI291_LOG
 int opti291_do_log = ENABLE_OPTI291_LOG;
 

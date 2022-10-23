@@ -140,6 +140,7 @@ typedef struct europc_t {
 
 static europc_t europc;
 
+#define ENABLE_EUROPC_LOG 1
 #ifdef ENABLE_EUROPC_LOG
 int europc_do_log = ENABLE_EUROPC_LOG;
 

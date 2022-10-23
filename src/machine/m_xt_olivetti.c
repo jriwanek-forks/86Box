@@ -150,6 +150,7 @@ video_timings_t timing_m19_vid = { VIDEO_ISA, 8, 16, 32, 8, 16, 32 };
 
 const device_t m19_vid_device;
 
+#define ENABLE_XT_OLIVETTI_LOG 1
 #ifdef ENABLE_XT_OLIVETTI_LOG
 int xt_olivetti_do_log = ENABLE_XT_OLIVETTI_LOG;
 

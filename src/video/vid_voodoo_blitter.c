@@ -78,6 +78,7 @@ enum {
     BLIT_ROP_SRC_PASS = (1 << 1)
 };
 
+#define ENABLE_VOODOOBLT_LOG 1
 #ifdef ENABLE_VOODOOBLT_LOG
 int voodooblt_do_log = ENABLE_VOODOOBLT_LOG;
 

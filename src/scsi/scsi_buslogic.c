@@ -238,6 +238,7 @@ enum {
     CHIP_BUSLOGIC_PCI_958D_1995_12_30
 };
 
+#define ENABLE_BUSLOGIC_LOG 1
 #ifdef ENABLE_BUSLOGIC_LOG
 int buslogic_do_log = ENABLE_BUSLOGIC_LOG;
 

@@ -42,6 +42,9 @@
 #include <86box/scsi_device.h>
 #include <86box/scsi_ncr5380.h>
 
+int ncr5380_cmd_len[8] = { 6, 10, 10, 6, 16, 12, 10, 6 };
+
+#define ENABLE_NCR5380_LOG 1
 #ifdef ENABLE_NCR5380_LOG
 int ncr5380_do_log = ENABLE_NCR5380_LOG;
 

@@ -121,6 +121,7 @@ typedef struct mcd_t {
 #define CD_BCD(x)         (((x) % 10) | (((x) / 10) << 4))
 #define CD_DCB(x)         ((((x) &0xf0) >> 4) * 10 + ((x) &0x0f))
 
+#define ENABLE_MITSUMI_CDROM_LOG 1
 #ifdef ENABLE_MITSUMI_CDROM_LOG
 int mitsumi_cdrom_do_log = ENABLE_MITSUMI_CDROM_LOG;
 

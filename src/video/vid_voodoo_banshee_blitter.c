@@ -94,6 +94,7 @@ enum {
     COLORKEY_32
 };
 
+#define ENABLE_BANSHEEBLT_LOG 1
 #ifdef ENABLE_BANSHEEBLT_LOG
 int bansheeblt_do_log = ENABLE_BANSHEEBLT_LOG;
 

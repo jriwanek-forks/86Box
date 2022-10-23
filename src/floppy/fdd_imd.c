@@ -68,6 +68,7 @@ typedef struct imd_t {
 static imd_t *imd[FDD_NUM];
 static fdc_t *imd_fdc;
 
+#define ENABLE_IMD_LOG 1
 #ifdef ENABLE_IMD_LOG
 int imd_do_log = ENABLE_IMD_LOG;
 

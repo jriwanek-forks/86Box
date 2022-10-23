@@ -95,6 +95,7 @@ typedef struct cd_image_t {
     uint32_t     *bad_sectors;
 } cd_image_t;
 
+#define ENABLE_IMAGE_LOG 1
 #ifdef ENABLE_IMAGE_LOG
 int image_do_log = ENABLE_IMAGE_LOG;
 

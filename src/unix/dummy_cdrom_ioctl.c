@@ -44,6 +44,7 @@ typedef struct ioctl_t {
     char                    path[256];
 } ioctl_t;
 
+#define ENABLE_IOCTL_LOG 1
 #ifdef ENABLE_IOCTL_LOG
 int ioctl_do_log = ENABLE_IOCTL_LOG;
 

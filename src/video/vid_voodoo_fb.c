@@ -40,6 +40,7 @@
 #include <86box/vid_voodoo_render.h>
 #include <86box/vid_voodoo_fb.h>
 
+#define ENABLE_VOODOO_FB_LOG 1
 #ifdef ENABLE_VOODOO_FB_LOG
 int voodoo_fb_do_log = ENABLE_VOODOO_FB_LOG;
 

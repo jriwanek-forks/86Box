@@ -39,6 +39,7 @@
 #include <86box/vid_voodoo_render.h>
 #include <86box/vid_voodoo_setup.h>
 
+#define ENABLE_VOODOO_SETUP_LOG 1
 #ifdef ENABLE_VOODOO_SETUP_LOG
 int voodoo_setup_do_log = ENABLE_VOODOO_SETUP_LOG;
 

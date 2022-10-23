@@ -176,6 +176,7 @@ typedef struct t1000_t {
 
 static t1000_t t1000;
 
+#define ENABLE_T1000_LOG 1
 #ifdef ENABLE_T1000_LOG
 int t1000_do_log = ENABLE_T1000_LOG;
 

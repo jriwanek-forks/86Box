@@ -252,6 +252,7 @@ typedef struct threec501_t {
     netcard_t *netcard;
 } threec501_t;
 
+#define ENABLE_3COM501_LOG 1
 #ifdef ENABLE_3COM501_LOG
 int threec501_do_log = ENABLE_3COM501_LOG;
 

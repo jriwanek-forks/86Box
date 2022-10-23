@@ -86,6 +86,7 @@ typedef struct _ac97_via_ {
     int cd_vol_r;
 } ac97_via_t;
 
+#define ENABLE_AC97_VIA_LOG 1
 #ifdef ENABLE_AC97_VIA_LOG
 int ac97_via_do_log = ENABLE_AC97_VIA_LOG;
 

@@ -270,6 +270,7 @@ uint16_t espcm3_dpcm_tables[1024] =
 
 double low_fir_sb16_coef[5][SB16_NCoef];
 
+#define ENABLE_SB_DSP_LOG 1
 #ifdef ENABLE_SB_DSP_LOG
 int sb_dsp_do_log = ENABLE_SB_DSP_LOG;
 

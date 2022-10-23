@@ -46,6 +46,7 @@ int bios_only = 0;
 int machine;
 // int AT, PCI;
 
+#define ENABLE_MACHINE_LOG 1
 #ifdef ENABLE_MACHINE_LOG
 int machine_do_log = ENABLE_MACHINE_LOG;
 
