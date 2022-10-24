@@ -766,7 +766,7 @@ void
 pc_full_speed(void)
 {
     if (!atfullspeed) {
-        pc_log("Set fullspeed - %i %i\n", is386, AT);
+        pc_log("Set fullspeed - %i %i\n", is386, is486);
         pc_speed_changed();
     }
     atfullspeed = 1;
@@ -967,6 +967,8 @@ pc_reset_hard_close(void)
     video_reset_close();
 
     cpu_close();
+
+    serial_set_next_inst(0);
 }
 
 /*
