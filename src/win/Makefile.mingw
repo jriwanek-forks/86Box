@@ -407,7 +407,7 @@ RFLAGS		+= -DUSE_VNC
   OPTS		+= -I$(VNC_PATH)\INCLUDE
   VNCLIB	:= -L$(VNC_PATH)\LIB
  endif
-VNCLIB		+= -lvncserver
+VNCLIB		+= -lvncserver.dll
 VNCOBJ		:= vnc.o vnc_keymap.o
 endif
 
@@ -510,7 +510,7 @@ endif
 
 # Final versions of the toolchain flags.
 CFLAGS		:= $(WX_FLAGS) $(OPTS) $(DFLAGS) $(COPTIM) $(AOPTIM) \
-		   $(AFLAGS) -fomit-frame-pointer -mstackrealign -Wall \
+		   $(AFLAGS) -fcommon -fomit-frame-pointer -mstackrealign -Wall \
 		   -fno-strict-aliasing -funroll-loops
 
 # Add freetyp2 references through pkgconfig

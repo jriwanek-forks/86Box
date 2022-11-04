@@ -271,7 +271,7 @@ vnc_resize(int x, int y)
     if (rfb == NULL) return;
 
     /* TightVNC doesn't like certain sizes.. */
-    if (x < VNC_MIN_X || x > VNC_MAX_X || y < VNC_MIN_Y || y > VNC_MAX_Y) {
+    if ((x < VNC_MIN_X) || (x > VNC_MAX_X) || (y < VNC_MIN_Y) || (y > VNC_MAX_Y)) {
 	vnc_log("VNC: invalid resoltion %dx%d requested!\n", x, y);
 	return;
     }
