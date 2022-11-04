@@ -1,3 +1,4 @@
+config.log
 src/*.o
 src/*.exe
 src/*.res
