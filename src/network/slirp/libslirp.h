@@ -10,10 +10,7 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <in6addr.h>
-typedef int slirp_ssize_t;
 #else
-#include <sys/types.h>
-typedef ssize_t slirp_ssize_t;
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #endif
@@ -47,8 +44,8 @@ enum {
     SLIRP_POLL_HUP = 1 << 4,
 };
 
-typedef slirp_ssize_t (*SlirpReadCb)(void *buf, size_t len, void *opaque);
-typedef slirp_ssize_t (*SlirpWriteCb)(const void *buf, size_t len, void *opaque);
+typedef ssize_t (*SlirpReadCb)(void *buf, size_t len, void *opaque);
+typedef ssize_t (*SlirpWriteCb)(const void *buf, size_t len, void *opaque);
 typedef void (*SlirpTimerCb)(void *opaque);
 typedef int (*SlirpAddPollCb)(int fd, int events, void *opaque);
 typedef int (*SlirpGetREventsCb)(int idx, void *opaque);
@@ -104,7 +101,7 @@ typedef struct SlirpCb {
 } SlirpCb;
 
 #define SLIRP_CONFIG_VERSION_MIN 1
-#define SLIRP_CONFIG_VERSION_MAX 5
+#define SLIRP_CONFIG_VERSION_MAX 4
 
 typedef struct SlirpConfig {
     /* Version must be provided */
@@ -154,15 +151,6 @@ typedef struct SlirpConfig {
      * Fields introduced in SlirpConfig version 4 begin
      */
     bool disable_dhcp; /* slirp will not reply to any DHCP requests */
-    /*
-     * Fields introduced in SlirpConfig version 5 begin
-     */
-    uint32_t mfr_id; /* Manufacturer ID (IANA Private Enterprise number) */
-    /*
-     * MAC address allocated for an out-of-band management controller, to be
-     * retrieved through NC-SI.
-     */
-    uint8_t oob_eth_addr[6];
 } SlirpConfig;
 
 /* Create a new instance of a slirp stack */
@@ -264,7 +252,7 @@ char *slirp_neighbor_info(Slirp *slirp);
 
 /* Save the slirp state through the write_cb. The opaque pointer is passed as
  * such to the write_cb. */
-int slirp_state_save(Slirp *s, SlirpWriteCb write_cb, void *opaque);
+void slirp_state_save(Slirp *s, SlirpWriteCb write_cb, void *opaque);
 
 /* Returns the version of the slirp state, to be saved along the state */
 int slirp_state_version(void);

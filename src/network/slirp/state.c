@@ -307,7 +307,7 @@ static const VMStateDescription vmstate_slirp = {
                                 VMSTATE_END_OF_LIST() }
 };
 
-int slirp_state_save(Slirp *slirp, SlirpWriteCb write_cb, void *opaque)
+void slirp_state_save(Slirp *slirp, SlirpWriteCb write_cb, void *opaque)
 {
     struct gfwd_list *ex_ptr;
     SlirpOStream f = {
@@ -330,8 +330,6 @@ int slirp_state_save(Slirp *slirp, SlirpWriteCb write_cb, void *opaque)
     slirp_ostream_write_u8(&f, 0);
 
     slirp_vmstate_save_state(&f, &vmstate_slirp, slirp);
-
-    return 0;
 }
 
 

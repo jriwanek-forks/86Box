@@ -294,9 +294,8 @@ static void ndp_send_na(Slirp *slirp, struct ip6 *ip, struct icmp6 *icmp)
     ricmp->icmp6_nna.R = NDP_IsRouter;
     ricmp->icmp6_nna.S = !IN6_IS_ADDR_MULTICAST(&rip->ip_dst);
     ricmp->icmp6_nna.O = 1;
-    ricmp->icmp6_nna.reserved_1 = 0;
-    ricmp->icmp6_nna.reserved_2 = 0;
-    ricmp->icmp6_nna.reserved_3 = 0;
+    ricmp->icmp6_nna.reserved_hi = 0;
+    ricmp->icmp6_nna.reserved_lo = 0;
     ricmp->icmp6_nna.target = icmp->icmp6_nns.target;
 
     /* Build NDP option */
@@ -367,7 +366,7 @@ static void ndp_input(struct mbuf *m, Slirp *slirp, struct ip6 *ip,
             ntohs(ip->ip_pl) >= ICMP6_NDP_NA_MINLEN &&
             !IN6_IS_ADDR_MULTICAST(&icmp->icmp6_nna.target) &&
             (!IN6_IS_ADDR_MULTICAST(&ip->ip_dst) || icmp->icmp6_nna.S == 0)) {
-            ndp_table_add(slirp, icmp->icmp6_nna.target, eth->h_source);
+            ndp_table_add(slirp, ip->ip_src, eth->h_source);
         }
         break;
 

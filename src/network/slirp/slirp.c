@@ -139,7 +139,7 @@ int get_dns_addr(struct in_addr *pdns_addr)
     return 0;
 }
 
-static int is_site_local_dns_broadcast(struct in6_addr *address)
+int is_site_local_dns_broadcast(struct in6_addr *address)
 {
     int i;
     for (i = 0; i < G_N_ELEMENTS(SITE_LOCAL_DNS_BROADCAST_ADDRS); i++) {
@@ -150,7 +150,7 @@ static int is_site_local_dns_broadcast(struct in6_addr *address)
     return 0;
 }
 
-static void print_dns_v6_address(struct in6_addr address)
+void print_dns_v6_address(struct in6_addr address)
 {
     char address_str[INET6_ADDRSTRLEN] = "";
     if (inet_ntop(AF_INET6, &address, address_str, INET6_ADDRSTRLEN)
@@ -158,7 +158,7 @@ static void print_dns_v6_address(struct in6_addr address)
         DEBUG_ERROR("Failed to stringify IPv6 address for logging.");
         return;
     }
-    DEBUG_RAW_CALL("IPv6 DNS server found: %s", address_str);
+    DEBUG_CALL("IPv6 DNS server found: %s", address_str);
 }
 
 // Gets the first valid DNS resolver with an IPv6 address.
@@ -166,7 +166,7 @@ static void print_dns_v6_address(struct in6_addr address)
 // are on deprecated addresses and not generally expected
 // to work. Further details at:
 // https://www.ietf.org/proceedings/52/I-D/draft-ietf-ipngwg-dns-discovery-03.txt
-static int get_ipv6_dns_server(struct in6_addr *dns_server_address, uint32_t *scope_id)
+int get_ipv6_dns_server(struct in6_addr *dns_server_address, uint32_t *scope_id)
 {
     PIP_ADAPTER_ADDRESSES addresses = NULL;
     PIP_ADAPTER_ADDRESSES address = NULL;
@@ -532,7 +532,7 @@ static void ra_timer_handler_cb(void *opaque)
 {
     Slirp *slirp = opaque;
 
-    ra_timer_handler(slirp, NULL);
+    return ra_timer_handler(slirp, NULL);
 }
 
 void slirp_handle_timer(Slirp *slirp, SlirpTimerId id, void *cb_opaque)
@@ -541,8 +541,7 @@ void slirp_handle_timer(Slirp *slirp, SlirpTimerId id, void *cb_opaque)
 
     switch (id) {
     case SLIRP_TIMER_RA:
-        ra_timer_handler(slirp, cb_opaque);
-        return;
+        return ra_timer_handler(slirp, cb_opaque);
     default:
         abort();
     }
@@ -647,14 +646,6 @@ Slirp *slirp_new(const SlirpConfig *cfg, const SlirpCb *callbacks, void *opaque)
 
     if (slirp->cfg_version >= 4 && slirp->cb->init_completed) {
         slirp->cb->init_completed(slirp, slirp->opaque);
-    }
-
-    if (cfg->version >= 5) {
-        slirp->mfr_id = cfg->mfr_id;
-        memcpy(slirp->oob_eth_addr, cfg->oob_eth_addr, ETH_ALEN);
-    } else {
-        slirp->mfr_id = 0;
-        memset(slirp->oob_eth_addr, 0, ETH_ALEN);
     }
 
     ip6_post_init(slirp);
@@ -1077,9 +1068,9 @@ static void arp_input(Slirp *slirp, const uint8_t *pkt, int pkt_len)
 {
     const struct slirp_arphdr *ah =
         (const struct slirp_arphdr *)(pkt + ETH_HLEN);
-    uint8_t arp_reply[MAX(2 + ETH_HLEN + sizeof(struct slirp_arphdr), 2 + 64)];
-    struct ethhdr *reh = (struct ethhdr *)(arp_reply + 2);
-    struct slirp_arphdr *rah = (struct slirp_arphdr *)(arp_reply + 2 + ETH_HLEN);
+    uint8_t arp_reply[MAX(ETH_HLEN + sizeof(struct slirp_arphdr), 64)];
+    struct ethhdr *reh = (struct ethhdr *)arp_reply;
+    struct slirp_arphdr *rah = (struct slirp_arphdr *)(arp_reply + ETH_HLEN);
     int ar_op;
     struct gfwd_list *ex_ptr;
 
@@ -1132,7 +1123,7 @@ static void arp_input(Slirp *slirp, const uint8_t *pkt, int pkt_len)
             rah->ar_sip = ah->ar_tip;
             memcpy(rah->ar_tha, ah->ar_sha, ETH_ALEN);
             rah->ar_tip = ah->ar_sip;
-            slirp_send_packet_all(slirp, arp_reply + 2, sizeof(arp_reply) - 2);
+            slirp_send_packet_all(slirp, arp_reply, sizeof(arp_reply));
         }
         break;
     case ARPOP_REPLY:
@@ -1161,8 +1152,8 @@ void slirp_input(Slirp *slirp, const uint8_t *pkt, int pkt_len)
         m = m_get(slirp);
         if (!m)
             return;
-        /* Note: we add 2 to align the IP header on 8 bytes despite the ethernet
-         * header, and add the margin for the tcpiphdr overhead  */
+        /* Note: we add 2 to align the IP header on 4 bytes,
+         * and add the margin for the tcpiphdr overhead  */
         if (M_FREEROOM(m) < pkt_len + TCPIPHDR_DELTA + 2) {
             m_inc(m, pkt_len + TCPIPHDR_DELTA + 2);
         }
@@ -1198,9 +1189,9 @@ static int if_encap4(Slirp *slirp, struct mbuf *ifm, struct ethhdr *eh,
     const struct ip *iph = (const struct ip *)ifm->m_data;
 
     if (!arp_table_search(slirp, iph->ip_dst.s_addr, ethaddr)) {
-        uint8_t arp_req[2 + ETH_HLEN + sizeof(struct slirp_arphdr)];
-        struct ethhdr *reh = (struct ethhdr *)(arp_req + 2);
-        struct slirp_arphdr *rah = (struct slirp_arphdr *)(arp_req + 2 + ETH_HLEN);
+        uint8_t arp_req[ETH_HLEN + sizeof(struct slirp_arphdr)];
+        struct ethhdr *reh = (struct ethhdr *)arp_req;
+        struct slirp_arphdr *rah = (struct slirp_arphdr *)(arp_req + ETH_HLEN);
 
         if (!ifm->resolution_requested) {
             /* If the client addr is not known, send an ARP request */
@@ -1227,7 +1218,7 @@ static int if_encap4(Slirp *slirp, struct mbuf *ifm, struct ethhdr *eh,
             /* target IP */
             rah->ar_tip = iph->ip_dst.s_addr;
             slirp->client_ipaddr = iph->ip_dst;
-            slirp_send_packet_all(slirp, arp_req + 2, sizeof(arp_req) - 2);
+            slirp_send_packet_all(slirp, arp_req, sizeof(arp_req));
             ifm->resolution_requested = true;
 
             /* Expire request and drop outgoing packet after 1 second */
@@ -1277,13 +1268,13 @@ static int if_encap6(Slirp *slirp, struct mbuf *ifm, struct ethhdr *eh,
 int if_encap(Slirp *slirp, struct mbuf *ifm)
 {
     uint8_t buf[IF_MTU_MAX + 100];
-    struct ethhdr *eh = (struct ethhdr *)(buf + 2);
+    struct ethhdr *eh = (struct ethhdr *)buf;
     uint8_t ethaddr[ETH_ALEN];
     const struct ip *iph = (const struct ip *)ifm->m_data;
     int ret;
     char ethaddr_str[ETH_ADDRSTRLEN];
 
-    if (ifm->m_len + ETH_HLEN > sizeof(buf) - 2) {
+    if (ifm->m_len + ETH_HLEN > sizeof(buf)) {
         return 1;
     }
 
@@ -1311,8 +1302,8 @@ int if_encap(Slirp *slirp, struct mbuf *ifm)
                                            sizeof(ethaddr_str)));
     DEBUG_ARG("dst = %s", slirp_ether_ntoa(eh->h_dest, ethaddr_str,
                                            sizeof(ethaddr_str)));
-    memcpy(buf + 2 + sizeof(struct ethhdr), ifm->m_data, ifm->m_len);
-    slirp_send_packet_all(slirp, buf + 2, ifm->m_len + ETH_HLEN);
+    memcpy(buf + sizeof(struct ethhdr), ifm->m_data, ifm->m_len);
+    slirp_send_packet_all(slirp, buf, ifm->m_len + ETH_HLEN);
     return 1;
 }
 
@@ -1512,7 +1503,7 @@ int slirp_remove_guestfwd(Slirp *slirp, struct in_addr guest_addr,
                            htons(guest_port));
 }
 
-slirp_ssize_t slirp_send(struct socket *so, const void *buf, size_t len, int flags)
+ssize_t slirp_send(struct socket *so, const void *buf, size_t len, int flags)
 {
     if (so->s == -1 && so->guestfwd) {
         /* XXX this blocks entire thread. Rewrite to use
@@ -1588,7 +1579,7 @@ void slirp_socket_recv(Slirp *slirp, struct in_addr guest_addr, int guest_port,
 
 void slirp_send_packet_all(Slirp *slirp, const void *buf, size_t len)
 {
-    slirp_ssize_t ret = slirp->cb->send_packet(buf, len, slirp->opaque);
+    ssize_t ret = slirp->cb->send_packet(buf, len, slirp->opaque);
 
     if (ret < 0) {
         g_critical("Failed to send packet, ret: %ld", (long)ret);

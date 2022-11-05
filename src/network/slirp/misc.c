@@ -15,7 +15,7 @@ extern gsize g_strlcpy(gchar* dest, const gchar* src, gsize dest_size);
 #endif
 #endif
 
-extern void slirp_insque(void *a, void *b)
+extern inline void slirp_insque(void *a, void *b)
 {
     register struct slirp_quehead *element = (struct slirp_quehead *)a;
     register struct slirp_quehead *head = (struct slirp_quehead *)b;
@@ -26,7 +26,7 @@ extern void slirp_insque(void *a, void *b)
         (struct slirp_quehead *)element;
 }
 
-extern void slirp_remque(void *a)
+extern inline void slirp_remque(void *a)
 {
     register struct slirp_quehead *element = (struct slirp_quehead *)a;
     ((struct slirp_quehead *)(element->qh_link))->qh_rlink = element->qh_rlink;

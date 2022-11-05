@@ -67,7 +67,9 @@ struct ethhdr {
     unsigned short h_proto; /* packet type ID field */
 };
 
-SLIRP_PACKED_BEGIN
+#if defined(_MSC_VER) && !defined (__clang__)
+#pragma pack(push, 1)
+#endif
 struct slirp_arphdr {
     unsigned short ar_hrd; /* format of hardware address */
     unsigned short ar_pro; /* format of protocol address */
@@ -82,7 +84,10 @@ struct slirp_arphdr {
     uint32_t ar_sip; /* sender IP address       */
     uint8_t ar_tha[ETH_ALEN]; /* target hardware address */
     uint32_t ar_tip; /* target IP address       */
-} SLIRP_PACKED_END;
+} SLIRP_PACKED;
+#if defined(_MSC_VER) && !defined (__clang__)
+#pragma pack(pop)
+#endif
 
 #define ARP_TABLE_SIZE 16
 
@@ -151,9 +156,6 @@ struct Slirp {
     int if_mru;
 
     bool disable_host_loopback;
-
-    uint32_t mfr_id;
-    uint8_t oob_eth_addr[ETH_ALEN];
 
     /* mbuf states */
     struct slirp_quehead m_freelist;

@@ -56,15 +56,13 @@ G_STATIC_ASSERT(sizeof(struct ndp_ns) == 20);
 
 struct ndp_na { /* Neighbor Advertisement Message */
 #if (G_BYTE_ORDER == G_BIG_ENDIAN) && !defined(_MSC_VER)
-    uint8_t R : 1, /* Router Flag */
+    uint32_t R : 1, /* Router Flag */
         S : 1, /* Solicited Flag */
         O : 1, /* Override Flag */
-        reserved_1 : 5
+        reserved_hi : 5, reserved_lo : 24;
 #else
-    uint8_t reserved_1 : 5, O : 1, S : 1, R : 1;
+    uint32_t reserved_hi : 5, O : 1, S : 1, R : 1, reserved_lo : 24;
 #endif
-    uint8_t reserved_2;
-    uint16_t reserved_3;
     struct in6_addr target; /* Target Address */
 };
 
@@ -117,15 +115,19 @@ G_STATIC_ASSERT(sizeof(struct icmp6) == 40);
 /*
  * NDP Options
  */
-SLIRP_PACKED_BEGIN
+#if defined(_MSC_VER) && !defined (__clang__)
+#pragma pack(push, 1)
+#endif
 struct ndpopt {
     uint8_t ndpopt_type; /* Option type */
     uint8_t ndpopt_len; /* /!\ In units of 8 octets */
     union {
         unsigned char linklayer_addr[6]; /* Source/Target Link-layer */
 #define ndpopt_linklayer ndpopt_body.linklayer_addr
-        SLIRP_PACKED_BEGIN
-            struct prefixinfo { /* Prefix Information */
+#if defined(_MSC_VER) && !defined (__clang__)
+#pragma pack(push, 1)
+#endif
+        struct prefixinfo { /* Prefix Information */
             uint8_t prefix_length;
 #if (G_BYTE_ORDER == G_BIG_ENDIAN) && !defined(_MSC_VER)
             uint8_t L : 1, A : 1, reserved1 : 6;
@@ -136,17 +138,28 @@ struct ndpopt {
             uint32_t pref_lt; /* Preferred Lifetime */
             uint32_t reserved2;
             struct in6_addr prefix;
-        } SLIRP_PACKED_END prefixinfo;
+        } SLIRP_PACKED prefixinfo;
+#if defined(_MSC_VER) && !defined (__clang__)
+#pragma pack(pop)
+#endif
 #define ndpopt_prefixinfo ndpopt_body.prefixinfo
-        SLIRP_PACKED_BEGIN
-            struct rdnss {
+#if defined(_MSC_VER) && !defined (__clang__)
+#pragma pack(push, 1)
+#endif
+        struct rdnss {
             uint16_t reserved;
             uint32_t lifetime;
             struct in6_addr addr;
-        } SLIRP_PACKED_END rdnss;
+        } SLIRP_PACKED rdnss;
+#if defined(_MSC_VER) && !defined (__clang__)
+#pragma pack(pop)
+#endif
 #define ndpopt_rdnss ndpopt_body.rdnss
     } ndpopt_body;
-} SLIRP_PACKED_END;
+} SLIRP_PACKED;
+#if defined(_MSC_VER) && !defined (__clang__)
+#pragma pack(pop)
+#endif
 
 /* NDP options type */
 #define NDPOPT_LINKLAYER_SOURCE 1 /* Source Link-Layer Address */
