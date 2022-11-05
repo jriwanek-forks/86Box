@@ -34,8 +34,9 @@
 #ifndef UDP_H
 #define UDP_H
 
+#include "socket.h"
+
 #define UDP_TTL 0x60
-#define UDP_UDPDATALEN 16192
 
 /*
  * Udp protocol header.
@@ -80,6 +81,10 @@ void udp_input(register struct mbuf *, int);
 int udp_attach(struct socket *, unsigned short af);
 void udp_detach(struct socket *);
 struct socket *udp_listen(Slirp *, uint32_t, unsigned, uint32_t, unsigned, int);
+struct socket *udpx_listen(Slirp *,
+                           const struct sockaddr *haddr, socklen_t haddrlen,
+                           const struct sockaddr *laddr, socklen_t laddrlen,
+                           int flags);
 int udp_output(struct socket *so, struct mbuf *m, struct sockaddr_in *saddr,
                struct sockaddr_in *daddr, int iptos);
 
