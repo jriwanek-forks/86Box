@@ -46,6 +46,7 @@
 #include <86box/fdc.h>
 #include <86box/fdc_ext.h>
 #include <86box/gameport.h>
+#include <86box/hdc.h>
 #include <86box/port_6x.h>
 #include <86box/sound.h>
 #include <86box/snd_speaker.h>
@@ -1187,6 +1188,9 @@ machine_xt_m240_init(const machine_t *model)
     memset(nvr, 0x00, sizeof(nvr_t));
 
     mm58274_init(nvr, model->nvrmask + 1);
+
+    if (hdc_current == HDC_INTERNAL)
+        device_add(&st506_xt_wd1002a_wx1_nobios_device);
 
     return ret;
 }

@@ -28,6 +28,9 @@
                       * least 7 devices, with each device being  \
                       * able to support 8 units, but hey... */
 
+#define HDC_NONE     0
+#define HDC_INTERNAL 1
+
 extern int hdc_current;
 
 extern const device_t st506_xt_xebec_device;         /* st506_xt_xebec */
@@ -35,6 +38,7 @@ extern const device_t st506_xt_dtc5150x_device;      /* st506_xt_dtc */
 extern const device_t st506_xt_st11_m_device;        /* st506_xt_st11_m */
 extern const device_t st506_xt_st11_r_device;        /* st506_xt_st11_m */
 extern const device_t st506_xt_wd1002a_wx1_device;   /* st506_xt_wd1002a_wx1 */
+extern const device_t st506_xt_wd1002a_wx1_nobios_device;   /* st506_xt_wd1002a_wx1 */
 extern const device_t st506_xt_wd1002a_27x_device;   /* st506_xt_wd1002a_27x */
 extern const device_t st506_at_wd1003_device;        /* st506_at_wd1003 */
 extern const device_t st506_xt_wd1004a_wx1_device;   /* st506_xt_wd1004a_wx1 */
