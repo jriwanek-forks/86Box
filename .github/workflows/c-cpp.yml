@@ -94,6 +94,9 @@ jobs:
             rtmidi:p
             libslirp:p
             fluidsynth:p
+            libvncserver:p
+            glib2:p
+            libiconv:p
 
       - name: Checkout repository
         uses: actions/checkout@v4
