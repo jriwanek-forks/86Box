@@ -108,6 +108,8 @@ jobs:
             libslirp:p
             fluidsynth:p
             libvncserver:p
+            glib2:p
+            libiconv:p
             ${{ matrix.ui.packages }}
 
       - name: Checkout repository
