@@ -537,7 +537,7 @@ static void ra_timer_handler_cb(void *opaque)
 
 void slirp_handle_timer(Slirp *slirp, SlirpTimerId id, void *cb_opaque)
 {
-    g_return_if_fail(id >= 0 && id < SLIRP_TIMER_NUM);
+//    g_return_if_fail(id >= 0 && id < SLIRP_TIMER_NUM);
 
     switch (id) {
     case SLIRP_TIMER_RA:
@@ -1272,7 +1272,7 @@ int if_encap(Slirp *slirp, struct mbuf *ifm)
     uint8_t ethaddr[ETH_ALEN];
     const struct ip *iph = (const struct ip *)ifm->m_data;
     int ret;
-    char ethaddr_str[ETH_ADDRSTRLEN];
+//    char ethaddr_str[ETH_ADDRSTRLEN];
 
     if (ifm->m_len + ETH_HLEN > sizeof(buf)) {
         return 1;
@@ -1298,10 +1298,12 @@ int if_encap(Slirp *slirp, struct mbuf *ifm)
     }
 
     memcpy(eh->h_dest, ethaddr, ETH_ALEN);
+/*
     DEBUG_ARG("src = %s", slirp_ether_ntoa(eh->h_source, ethaddr_str,
                                            sizeof(ethaddr_str)));
     DEBUG_ARG("dst = %s", slirp_ether_ntoa(eh->h_dest, ethaddr_str,
                                            sizeof(ethaddr_str)));
+*/
     memcpy(buf + sizeof(struct ethhdr), ifm->m_data, ifm->m_len);
     slirp_send_packet_all(slirp, buf, ifm->m_len + ETH_HLEN);
     return 1;

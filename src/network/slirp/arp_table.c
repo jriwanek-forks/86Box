@@ -34,6 +34,7 @@ void arp_table_add(Slirp *slirp, uint32_t ip_addr,
         ~slirp->vnetwork_mask.s_addr | slirp->vnetwork_addr.s_addr;
     ArpTable *arptbl = &slirp->arp_table;
     int i;
+/*
     char ethaddr_str[ETH_ADDRSTRLEN];
     char addr[INET_ADDRSTRLEN];
 
@@ -42,6 +43,7 @@ void arp_table_add(Slirp *slirp, uint32_t ip_addr,
                                    addr, sizeof(addr)));
     DEBUG_ARG("hw addr = %s", slirp_ether_ntoa(ethaddr, ethaddr_str,
                                                sizeof(ethaddr_str)));
+*/
 
     if (ip_addr == 0 || ip_addr == 0xffffffff || ip_addr == broadcast_addr) {
         /* Do not register broadcast addresses */
@@ -70,12 +72,14 @@ bool arp_table_search(Slirp *slirp, uint32_t ip_addr,
         ~slirp->vnetwork_mask.s_addr | slirp->vnetwork_addr.s_addr;
     ArpTable *arptbl = &slirp->arp_table;
     int i;
+/*
     char ethaddr_str[ETH_ADDRSTRLEN];
     char addr[INET_ADDRSTRLEN];
 
     DEBUG_CALL("arp_table_search");
     DEBUG_ARG("ip = %s", inet_ntop(AF_INET, &(struct in_addr){ .s_addr = ip_addr },
                                    addr, sizeof(addr)));
+*/
 
     /* If broadcast address */
     if (ip_addr == 0 || ip_addr == 0xffffffff || ip_addr == broadcast_addr) {
@@ -87,9 +91,11 @@ bool arp_table_search(Slirp *slirp, uint32_t ip_addr,
     for (i = 0; i < ARP_TABLE_SIZE; i++) {
         if (arptbl->table[i].ar_sip == ip_addr) {
             memcpy(out_ethaddr, arptbl->table[i].ar_sha, ETH_ALEN);
+/*
             DEBUG_ARG("found hw addr = %s",
                       slirp_ether_ntoa(out_ethaddr, ethaddr_str,
                                        sizeof(ethaddr_str)));
+*/
             return 1;
         }
     }

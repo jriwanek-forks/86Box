@@ -15,6 +15,10 @@ extern gsize g_strlcpy(gchar* dest, const gchar* src, gsize dest_size);
 #endif
 #endif
 
+#ifdef __APPLE__
+#include <signal.h>
+#endif
+
 extern inline void slirp_insque(void *a, void *b)
 {
     register struct slirp_quehead *element = (struct slirp_quehead *)a;
@@ -431,7 +435,7 @@ char *slirp_neighbor_info(Slirp *slirp)
                                ip);
     }
 
-    return g_string_free(str, FALSE);
+    return g_string_free(str, false);
 }
 
 int slirp_bind_outbound(struct socket *so, unsigned short af)
