@@ -17,6 +17,7 @@
 #include <86box/cassette.h>
 #include <86box/cdrom.h>
 #include <86box/zip.h>
+#include <86box/superdisk.h>
 #include <86box/mo.h>
 #include <86box/hdd.h>
 #include <86box/thread.h>
@@ -32,14 +33,22 @@ machine_status_init(void)
         machine_status.fdd[i].empty  = (strlen(floppyfns[i]) == 0);
         machine_status.fdd[i].active = false;
     }
+
     for (size_t i = 0; i < CDROM_NUM; ++i) {
         machine_status.cdrom[i].empty  = (strlen(cdrom[i].image_path) == 0);
         machine_status.cdrom[i].active = false;
     }
+
     for (size_t i = 0; i < ZIP_NUM; i++) {
         machine_status.zip[i].empty  = (strlen(zip_drives[i].image_path) == 0);
         machine_status.zip[i].active = false;
     }
+
+    for (size_t i = 0; i < SUPERDISK_NUM; i++) {
+        machine_status.superdisk[i].empty  = (strlen(superdisk_drives[i].image_path) == 0);
+        machine_status.superdisk[i].active = false;
+    }
+
     for (size_t i = 0; i < MO_NUM; i++) {
         machine_status.mo[i].empty  = (strlen(mo_drives[i].image_path) == 0);
         machine_status.mo[i].active = false;

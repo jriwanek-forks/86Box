@@ -35,6 +35,7 @@
 #include <86box/hdc_ide.h>
 #include <86box/hdc_ide_sff8038i.h>
 #include <86box/zip.h>
+#include <86box/superdisk.h>
 #include <86box/mo.h>
 
 typedef struct cmd640_t {
@@ -417,11 +418,19 @@ cmd640_reset(void *priv)
             (cdrom[i].ide_channel <= max_channel) && cdrom[i].priv)
             scsi_cdrom_reset((scsi_common_t *) cdrom[i].priv);
     }
+
     for (i = 0; i < ZIP_NUM; i++) {
         if ((zip_drives[i].bus_type == ZIP_BUS_ATAPI) && (zip_drives[i].ide_channel >= min_channel) &&
             (zip_drives[i].ide_channel <= max_channel) && zip_drives[i].priv)
             zip_reset((scsi_common_t *) zip_drives[i].priv);
     }
+
+    for (i = 0; i < SUPERDISK_NUM; i++) {
+        if ((superdisk_drives[i].bus_type == SUPERDISK_BUS_ATAPI) && (superdisk_drives[i].ide_channel >= min_channel) &&
+            (superdisk_drives[i].ide_channel <= max_channel) && superdisk_drives[i].priv)
+            superdisk_reset((scsi_common_t *) superdisk_drives[i].priv);
+    }
+
     for (i = 0; i < MO_NUM; i++) {
         if ((mo_drives[i].bus_type == MO_BUS_ATAPI) && (mo_drives[i].ide_channel >= min_channel) &&
             (mo_drives[i].ide_channel <= max_channel) && mo_drives[i].priv)
