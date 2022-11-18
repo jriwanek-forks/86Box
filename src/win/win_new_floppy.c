@@ -32,7 +32,9 @@
 #include <86box/random.h>
 #include <86box/ui.h>
 #include <86box/scsi_device.h>
+#include <86box/superdisk.h>
 #include <86box/mo.h>
+#include <86box/superdisk.h>
 #include <86box/zip.h>
 #include <86box/win.h>
 
@@ -141,8 +143,11 @@ create_86f(char *file_name, disk_size_t disk_size, uint8_t rpm_mode)
     return 1;
 }
 
+#if 0
 static int is_zip;
+#endif
 static int is_mo;
+static int is_superdisk;
 
 static int
 create_sector_image(char *file_name, disk_size_t disk_size, uint8_t is_fdi)
@@ -164,8 +169,10 @@ create_sector_image(char *file_name, disk_size_t disk_size, uint8_t is_fdi)
 
     sector_bytes  = (128 << disk_size.sector_len);
     total_sectors = disk_size.sides * disk_size.tracks * disk_size.sectors;
+#if 0
     if (total_sectors > ZIP_SECTORS)
         total_sectors = ZIP_250_SECTORS;
+#endif
     total_size     = total_sectors * sector_bytes;
     root_dir_bytes = (disk_size.root_dir_entries << 5);
     fat_size       = (disk_size.spfat * sector_bytes);
@@ -173,7 +180,11 @@ create_sector_image(char *file_name, disk_size_t disk_size, uint8_t is_fdi)
     fat2_offs      = fat1_offs + fat_size;
     zero_bytes     = fat2_offs + fat_size + root_dir_bytes;
 
+#if 0
     if (!is_zip && !is_mo && is_fdi) {
+#else
+    if (!is_superdisk && !is_mo && is_fdi) {
+#endif
         empty = (unsigned char *) malloc(base);
         memset(empty, 0, base);
 
@@ -191,7 +202,11 @@ create_sector_image(char *file_name, disk_size_t disk_size, uint8_t is_fdi)
     empty = (unsigned char *) malloc(total_size);
     memset(empty, 0x00, zero_bytes);
 
+#if 0
     if (!is_zip && !is_mo) {
+#else
+    if (!is_superdisk && !is_mo) {
+#endif
         memset(empty + zero_bytes, 0xF6, total_size - zero_bytes);
 
         empty[0x00] = 0xEB; /* Jump to make MS-DOS happy. */
@@ -249,6 +264,7 @@ create_sector_image(char *file_name, disk_size_t disk_size, uint8_t is_fdi)
     return 1;
 }
 
+#if 0
 static int
 create_zip_sector_image(char *file_name, disk_size_t disk_size, uint8_t is_zdi, HWND hwnd)
 {
@@ -483,6 +499,7 @@ create_zip_sector_image(char *file_name, disk_size_t disk_size, uint8_t is_zdi, 
 
     return 1;
 }
+#endif
 
 static int
 create_mo_sector_image(char *file_name, int8_t disk_size, uint8_t is_mdi, HWND hwnd)
@@ -609,6 +626,242 @@ create_mo_sector_image(char *file_name, int8_t disk_size, uint8_t is_mdi, HWND h
     return 1;
 }
 
+static int
+create_superdisk_sector_image(char *file_name, disk_size_t disk_size, uint8_t is_zdi, HWND hwnd)
+{
+    HWND     h;
+    FILE    *f;
+    uint32_t total_size     = 0;
+    uint32_t total_sectors  = 0;
+    uint32_t sector_bytes   = 0;
+    uint32_t root_dir_bytes = 0;
+    uint32_t fat_size       = 0;
+    uint32_t fat1_offs      = 0;
+    uint32_t fat2_offs      = 0;
+    uint32_t zero_bytes     = 0;
+    uint16_t base           = 0x1000;
+    uint32_t pbar_max       = 0;
+    uint32_t i;
+    MSG      msg;
+
+    f = plat_fopen(file_name, "wb");
+    if (!f)
+        return 0;
+
+    sector_bytes  = (128 << disk_size.sector_len);
+    total_sectors = disk_size.sides * disk_size.tracks * disk_size.sectors;
+    if (total_sectors > SUPERDISK_SECTORS)
+        total_sectors = SUPERDISK_240_SECTORS;
+    total_size     = total_sectors * sector_bytes;
+    root_dir_bytes = (disk_size.root_dir_entries << 5);
+    fat_size       = (disk_size.spfat * sector_bytes);
+    fat1_offs      = sector_bytes;
+    fat2_offs      = fat1_offs + fat_size;
+    zero_bytes     = fat2_offs + fat_size + root_dir_bytes;
+
+    pbar_max = total_size;
+    if (is_zdi)
+        pbar_max += base;
+    pbar_max >>= 11;
+    pbar_max--;
+
+    h = GetDlgItem(hwnd, IDC_COMBO_RPM_MODE);
+    EnableWindow(h, FALSE);
+    ShowWindow(h, SW_HIDE);
+    h = GetDlgItem(hwnd, IDT_FLP_RPM_MODE);
+    EnableWindow(h, FALSE);
+    ShowWindow(h, SW_HIDE);
+    h = GetDlgItem(hwnd, IDC_PBAR_IMG_CREATE);
+    SendMessage(h, PBM_SETRANGE32, (WPARAM) 0, (LPARAM) pbar_max);
+    SendMessage(h, PBM_SETPOS, (WPARAM) 0, (LPARAM) 0);
+    EnableWindow(h, TRUE);
+    ShowWindow(h, SW_SHOW);
+    h = GetDlgItem(hwnd, IDT_FLP_PROGRESS);
+    EnableWindow(h, TRUE);
+    ShowWindow(h, SW_SHOW);
+
+    h = GetDlgItem(hwnd, IDC_PBAR_IMG_CREATE);
+    pbar_max++;
+
+    if (is_zdi) {
+        empty = (unsigned char *) malloc(base);
+        memset(empty, 0, base);
+
+        *(uint32_t *) &(empty[0x08]) = (uint32_t) base;
+        *(uint32_t *) &(empty[0x0C]) = total_size;
+        *(uint16_t *) &(empty[0x10]) = (uint16_t) sector_bytes;
+        *(uint8_t *) &(empty[0x14])  = (uint8_t) disk_size.sectors;
+        *(uint8_t *) &(empty[0x18])  = (uint8_t) disk_size.sides;
+        *(uint8_t *) &(empty[0x1C])  = (uint8_t) disk_size.tracks;
+
+        fwrite(empty, 1, 2048, f);
+        SendMessage(h, PBM_SETPOS, (WPARAM) 1, (LPARAM) 0);
+
+        while (PeekMessage(&msg, 0, 0, 0, PM_REMOVE | PM_NOYIELD)) {
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
+        }
+
+        fwrite(&empty[0x0800], 1, 2048, f);
+        free(empty);
+
+        SendMessage(h, PBM_SETPOS, (WPARAM) 2, (LPARAM) 0);
+
+        while (PeekMessage(&msg, 0, 0, 0, PM_REMOVE | PM_NOYIELD)) {
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
+        }
+
+        pbar_max -= 2;
+    }
+
+    empty = (unsigned char *) malloc(total_size);
+    memset(empty, 0x00, zero_bytes);
+
+    if (total_sectors == SUPERDISK_SECTORS) {
+        /* LS-120 */
+        /* MBR */
+        *(uint64_t *) &(empty[0x0000]) = 0x2054524150492EEBLL;
+        *(uint64_t *) &(empty[0x0008]) = 0x3930302065646F63LL;
+        *(uint64_t *) &(empty[0x0010]) = 0x67656D6F49202D20LL;
+        *(uint64_t *) &(empty[0x0018]) = 0x726F70726F432061LL;
+        *(uint64_t *) &(empty[0x0020]) = 0x202D206E6F697461LL;
+        *(uint64_t *) &(empty[0x0028]) = 0x30392F33322F3131LL;
+
+        *(uint64_t *) &(empty[0x01AE]) = 0x0116010100E90644LL;
+        *(uint64_t *) &(empty[0x01B6]) = 0xED08BBE5014E0135LL;
+        *(uint64_t *) &(empty[0x01BE]) = 0xFFFFFE06FFFFFE80LL;
+        *(uint64_t *) &(empty[0x01C6]) = 0x0002FFE000000020LL;
+
+        *(uint16_t *) &(empty[0x01FE]) = 0xAA55;
+
+        /* 31 sectors filled with 0x48 */
+        memset(&(empty[0x0200]), 0x48, 0x3E00);
+
+        /* Boot sector */
+        *(uint64_t *) &(empty[0x4000]) = 0x584F4236389058EBLL;
+        *(uint64_t *) &(empty[0x4008]) = 0x0008040200302E35LL;
+        *(uint64_t *) &(empty[0x4010]) = 0x00C0F80000020002LL;
+        *(uint64_t *) &(empty[0x4018]) = 0x0000002000FF003FLL;
+        *(uint32_t *) &(empty[0x4020]) = 0x0002FFE0;
+        *(uint16_t *) &(empty[0x4024]) = 0x0080;
+
+        empty[0x4026] = 0x29; /* ')' followed by randomly-generated volume serial number. */
+        empty[0x4027] = random_generate();
+        empty[0x4028] = random_generate();
+        empty[0x4029] = random_generate();
+        empty[0x402A] = random_generate();
+
+        memset(&(empty[0x402B]), 0x00, 0x000B);
+        memset(&(empty[0x4036]), 0x20, 0x0008);
+
+        empty[0x4036] = 'F';
+        empty[0x4037] = 'A';
+        empty[0x4038] = 'T';
+        empty[0x4039] = '1';
+        empty[0x403A] = '6';
+        memset(&(empty[0x403B]), 0x20, 0x0003);
+
+        empty[0x41FE] = 0x55;
+        empty[0x41FF] = 0xAA;
+
+        empty[0x5000] = empty[0x1D000] = empty[0x4015];
+        empty[0x5001] = empty[0x1D001] = 0xFF;
+        empty[0x5002] = empty[0x1D002] = 0xFF;
+        empty[0x5003] = empty[0x1D003] = 0xFF;
+
+        /* Root directory = 0x35000
+           Data = 0x39000 */
+    } else {
+        /* LS-240 */
+        /* MBR */
+        *(uint64_t *) &(empty[0x0000]) = 0x2054524150492EEBLL;
+        *(uint64_t *) &(empty[0x0008]) = 0x3930302065646F63LL;
+        *(uint64_t *) &(empty[0x0010]) = 0x67656D6F49202D20LL;
+        *(uint64_t *) &(empty[0x0018]) = 0x726F70726F432061LL;
+        *(uint64_t *) &(empty[0x0020]) = 0x202D206E6F697461LL;
+        *(uint64_t *) &(empty[0x0028]) = 0x30392F33322F3131LL;
+
+        *(uint64_t *) &(empty[0x01AE]) = 0x0116010100E900E9LL;
+        *(uint64_t *) &(empty[0x01B6]) = 0x2E32A7AC014E0135LL;
+
+        *(uint64_t *) &(empty[0x01EE]) = 0xEE203F0600010180LL;
+        *(uint64_t *) &(empty[0x01F6]) = 0x000777E000000020LL;
+        *(uint16_t *) &(empty[0x01FE]) = 0xAA55;
+
+        /* 31 sectors filled with 0x48 */
+        memset(&(empty[0x0200]), 0x48, 0x3E00);
+
+        /* The second sector begins with some strange data
+           in my reference image. */
+        *(uint64_t *) &(empty[0x0200]) = 0x3831393230334409LL;
+        *(uint64_t *) &(empty[0x0208]) = 0x6A57766964483130LL;
+        *(uint64_t *) &(empty[0x0210]) = 0x3C3A34676063653FLL;
+        *(uint64_t *) &(empty[0x0218]) = 0x586A56A8502C4161LL;
+        *(uint64_t *) &(empty[0x0220]) = 0x6F2D702535673D6CLL;
+        *(uint64_t *) &(empty[0x0228]) = 0x255421B8602D3456LL;
+        *(uint64_t *) &(empty[0x0230]) = 0x577B22447B52603ELL;
+        *(uint64_t *) &(empty[0x0238]) = 0x46412CC871396170LL;
+        *(uint64_t *) &(empty[0x0240]) = 0x704F55237C5E2626LL;
+        *(uint64_t *) &(empty[0x0248]) = 0x6C7932C87D5C3C20LL;
+        *(uint64_t *) &(empty[0x0250]) = 0x2C50503E47543D6ELL;
+        *(uint64_t *) &(empty[0x0258]) = 0x46394E807721536ALL;
+        *(uint64_t *) &(empty[0x0260]) = 0x505823223F245325LL;
+        *(uint64_t *) &(empty[0x0268]) = 0x365C79B0393B5B6ELL;
+
+        /* Boot sector */
+        *(uint64_t *) &(empty[0x4000]) = 0x584F4236389058EBLL;
+        *(uint64_t *) &(empty[0x4008]) = 0x0001080200302E35LL;
+        *(uint64_t *) &(empty[0x4010]) = 0x00EFF80000020002LL;
+        *(uint64_t *) &(empty[0x4018]) = 0x0000002000400020LL;
+        *(uint32_t *) &(empty[0x4020]) = 0x000777E0;
+        *(uint16_t *) &(empty[0x4024]) = 0x0080;
+
+        empty[0x4026] = 0x29; /* ')' followed by randomly-generated volume serial number. */
+        empty[0x4027] = random_generate();
+        empty[0x4028] = random_generate();
+        empty[0x4029] = random_generate();
+        empty[0x402A] = random_generate();
+
+        memset(&(empty[0x402B]), 0x00, 0x000B);
+        memset(&(empty[0x4036]), 0x20, 0x0008);
+
+        empty[0x4036] = 'F';
+        empty[0x4037] = 'A';
+        empty[0x4038] = 'T';
+        empty[0x4039] = '1';
+        empty[0x403A] = '6';
+        memset(&(empty[0x403B]), 0x20, 0x0003);
+
+        empty[0x41FE] = 0x55;
+        empty[0x41FF] = 0xAA;
+
+        empty[0x4200] = empty[0x22000] = empty[0x4015];
+        empty[0x4201] = empty[0x22001] = 0xFF;
+        empty[0x4202] = empty[0x22002] = 0xFF;
+        empty[0x4203] = empty[0x22003] = 0xFF;
+
+        /* Root directory = 0x3FE00
+           Data = 0x38200 */
+    }
+
+    for (i = 0; i < pbar_max; i++) {
+        fwrite(&empty[i << 11], 1, 2048, f);
+        SendMessage(h, PBM_SETPOS, (WPARAM) i + 2, (LPARAM) 0);
+
+        while (PeekMessage(&msg, 0, 0, 0, PM_REMOVE | PM_NOYIELD)) {
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
+        }
+    }
+
+    free(empty);
+
+    fclose(f);
+
+    return 1;
+}
+
 static int fdd_id;
 static int sb_part;
 
@@ -664,8 +917,11 @@ NewFloppyDialogProcedure(HWND hdlg, UINT message, WPARAM wParam, UNUSED(LPARAM l
     uint8_t        rpm_mode;
     int            ret;
     FILE          *fp;
+#if 0
     int            zip_types;
+#endif
     int            mo_types;
+    int            superdisk_types;
     int            floppy_types;
     wchar_t       *twcs;
 
@@ -674,15 +930,23 @@ NewFloppyDialogProcedure(HWND hdlg, UINT message, WPARAM wParam, UNUSED(LPARAM l
             plat_pause(1);
             memset(fd_file_name, 0, 1024);
             h = GetDlgItem(hdlg, IDC_COMBO_DISK_SIZE);
+#if 0
             if (is_zip) {
                 zip_types = zip_drives[fdd_id].is_250 ? 2 : 1;
                 for (i = 0; i < zip_types; i++)
                     SendMessage(h, CB_ADDSTRING, 0, win_get_string(IDS_5900 + i));
             } else if (is_mo) {
+#else
+            if (is_mo) {
+#endif
                 mo_types = 10;
                 /* TODO: Proper string ID's. */
                 for (i = 0; i < mo_types; i++)
                     SendMessage(h, CB_ADDSTRING, 0, win_get_string(IDS_5902 + i));
+            } else if (is_superdisk) {
+                superdisk_types = superdisk_drives[fdd_id].is_240 ? 2 : 1;
+                for (i = 0; i < superdisk_types; i++)
+                    SendMessage(h, CB_ADDSTRING, 0, win_get_string(IDS_5900 + i));
             } else {
                 floppy_types = 12;
                 for (i = 0; i < floppy_types; i++)
@@ -714,25 +978,44 @@ NewFloppyDialogProcedure(HWND hdlg, UINT message, WPARAM wParam, UNUSED(LPARAM l
                 case IDOK:
                     h         = GetDlgItem(hdlg, IDC_COMBO_DISK_SIZE);
                     disk_size = SendMessage(h, CB_GETCURSEL, 0, 0);
+#if 0
                     if (is_zip)
                         disk_size += 12;
+#endif
+                    // TODO: superdisk_drivess
+#if 0
                     if (!is_zip && !is_mo && (file_type == 2)) {
+#else
+                    if (!is_superdisk && !is_mo && (file_type == 2)) {
+#endif
                         h        = GetDlgItem(hdlg, IDC_COMBO_RPM_MODE);
                         rpm_mode = SendMessage(h, CB_GETCURSEL, 0, 0);
                         ret      = create_86f(fd_file_name, disk_sizes[disk_size], rpm_mode);
                     } else {
+#if 0
                         if (is_zip)
                             ret = create_zip_sector_image(fd_file_name, disk_sizes[disk_size], file_type, hdlg);
+                        else if (is_mo)
+#else
                         if (is_mo)
+#endif
                             ret = create_mo_sector_image(fd_file_name, disk_size, file_type, hdlg);
+                        else if (is_superdisk)
+                            ret = create_superdisk_sector_image(fd_file_name, disk_sizes[disk_size], file_type, hdlg);
                         else
                             ret = create_sector_image(fd_file_name, disk_sizes[disk_size], file_type);
                     }
                     if (ret) {
+#if 0
                         if (is_zip)
                             zip_mount(fdd_id, fd_file_name, 0);
                         else if (is_mo)
+#else
+                        if (is_mo)
+#endif
                             mo_mount(fdd_id, fd_file_name, 0);
+                        else if (is_superdisk)
+                            superdisk_mount(fdd_id, fd_file_name, 0);
                         else
                             floppy_mount(fdd_id, fd_file_name, 0);
                     } else {
@@ -746,12 +1029,21 @@ NewFloppyDialogProcedure(HWND hdlg, UINT message, WPARAM wParam, UNUSED(LPARAM l
                     return TRUE;
 
                 case IDC_CFILE:
+                    // TODO: Superdisks
+#if 0
                     if (!file_dlg_w(hdlg, plat_get_string(is_mo ? IDS_2140 : (is_zip ? IDS_2055 : IDS_2062)), L"", NULL, 1)) {
+#else
+                    if (!file_dlg_w(hdlg, plat_get_string(is_mo ? IDS_2140 : (is_superdisk ? IDS_2055 : IDS_2062)), L"", NULL, 1)) {
+#endif
                         if (!wcschr(wopenfilestring, L'.')) {
                             if (wcslen(wopenfilestring) && (wcslen(wopenfilestring) <= 256)) {
                                 twcs    = &wopenfilestring[wcslen(wopenfilestring)];
                                 twcs[0] = L'.';
+#if 0
                                 if (!is_zip && !is_mo && (filterindex == 3)) {
+#else
+                                if (!is_superdisk && !is_mo && (filterindex == 3)) {
+#endif
                                     twcs[1] = L'8';
                                     twcs[2] = L'6';
                                     twcs[3] = L'f';
@@ -773,18 +1065,30 @@ NewFloppyDialogProcedure(HWND hdlg, UINT message, WPARAM wParam, UNUSED(LPARAM l
                         memset(fd_file_name, 0, sizeof(fd_file_name));
                         c16stombs(fd_file_name, wopenfilestring, sizeof(fd_file_name));
                         h = GetDlgItem(hdlg, IDC_COMBO_DISK_SIZE);
+                        // TODO: superdisk_drivess
+#if 0
                         if (!is_zip || zip_drives[fdd_id].is_250)
                             EnableWindow(h, TRUE);
+#endif
                         wcs_len  = wcslen(wopenfilestring);
                         ext_offs = wcs_len - 4;
                         ext      = &(wopenfilestring[ext_offs]);
+#if 0
                         if (is_zip) {
                             if ((wcs_len >= 4) && !wcsicmp(ext, L".ZDI"))
                                 file_type = 1;
                             else
                                 file_type = 0;
                         } else if (is_mo) {
+#else
+                        if (is_mo) {
+#endif
                             if ((wcs_len >= 4) && !wcsicmp(ext, L".MDI"))
+                                file_type = 1;
+                            else
+                                file_type = 0;
+                        } else if (is_superdisk) {
+                            if ((wcs_len >= 4) && !wcsicmp(ext, L".ZDI"))
                                 file_type = 1;
                             else
                                 file_type = 0;
@@ -832,9 +1136,16 @@ NewFloppyDialogCreate(HWND hwnd, int id, int part)
 {
     fdd_id  = id & 0x7f;
     sb_part = part;
+#if 0
     is_zip  = !!(id & 0x80);
+#endif
     is_mo   = !!(id & 0x100);
+    is_superdisk  = !!(id & 0x80);
+#if 0
     if (is_zip && is_mo) {
+#else
+    if (is_superdisk && is_mo) {
+#endif
         fatal("Attempting to create a new image dialog that is for both ZIP and MO at the same time\n");
         return;
     }

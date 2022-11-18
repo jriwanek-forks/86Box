@@ -17,6 +17,7 @@
 #include <86box/language.h>
 #include <86box/machine.h>
 #include <86box/scsi_device.h>
+#include <86box/superdisk.h>
 #include <86box/mo.h>
 #include <86box/plat.h>
 #include <86box/scsi.h>
@@ -33,11 +34,12 @@
 #define FDD_FIRST        CARTRIDGE_FIRST + 2
 #define CDROM_FIRST      FDD_FIRST + FDD_NUM
 #define ZIP_FIRST        CDROM_FIRST + CDROM_NUM
-#define MO_FIRST         ZIP_FIRST + ZIP_NUM
+#define SUPERDISK_FIRST  CDROM_FIRST + CDROM_NUM
+#define MO_FIRST         SUPERDISK_FIRST + SUPERDISK_NUM
 
 static HMENU media_menu;
 static HMENU stbar_menu;
-static HMENU menus[1 + 2 + FDD_NUM + CDROM_NUM + ZIP_NUM + MO_NUM];
+static HMENU menus[1 + 2 + FDD_NUM + CDROM_NUM + SUPERDISK_NUM + MO_NUM];
 
 static char index_map[255];
 
@@ -207,6 +209,37 @@ media_menu_set_name_zip(int drive)
 }
 
 static void
+media_menu_set_name_superdisk(int drive)
+{
+    wchar_t      name[512];
+    wchar_t     *temp;
+    wchar_t      fn[512];
+    MENUITEMINFO mii = { 0 };
+
+    int bus = superdisk_drives[drive].bus_type;
+    int id  = IDS_5377 + (bus - 1);
+
+    temp = plat_get_string(id);
+
+    int type = superdisk_drives[drive].is_240 ? 240 : 120;
+
+    if (strlen(superdisk_drives[drive].image_path) == 0) {
+        _swprintf(name, plat_get_string(IDS_2169),
+                  type, drive + 1, temp, plat_get_string(IDS_2057));
+    } else {
+        mbstoc16s(fn, superdisk_drives[drive].image_path, sizeof_w(fn));
+        _swprintf(name, plat_get_string(IDS_2169),
+                  type, drive + 1, temp, fn);
+    }
+
+    mii.cbSize     = sizeof(mii);
+    mii.fMask      = MIIM_STRING;
+    mii.dwTypeData = name;
+
+    SetMenuItemInfo(media_menu, (UINT_PTR) menus[SUPERDISK_FIRST + drive], FALSE, &mii);
+}
+
+static void
 media_menu_set_name_mo(int drive)
 {
     wchar_t      name[512];
@@ -343,6 +376,24 @@ media_menu_update_zip(int id)
 }
 
 void
+media_menu_update_superdisk(int id)
+{
+    int i = SUPERDISK_FIRST + id;
+
+    if (strlen(superdisk_drives[id].image_path) == 0)
+        EnableMenuItem(menus[i], IDM_SUPERDISK_EJECT | id, MF_BYCOMMAND | MF_GRAYED);
+    else
+        EnableMenuItem(menus[i], IDM_SUPERDISK_EJECT | id, MF_BYCOMMAND | MF_ENABLED);
+
+    if (strlen(superdisk_drives[id].prev_image_path) == 0)
+        EnableMenuItem(menus[i], IDM_SUPERDISK_RELOAD | id, MF_BYCOMMAND | MF_GRAYED);
+    else
+        EnableMenuItem(menus[i], IDM_SUPERDISK_RELOAD | id, MF_BYCOMMAND | MF_ENABLED);
+
+    media_menu_set_name_superdisk(id);
+}
+
+void
 media_menu_update_mo(int id)
 {
     int i = MO_FIRST + id;
@@ -385,8 +436,15 @@ media_menu_load_submenus(void)
         media_menu_set_ids(menus[curr++], i);
     }
 
+#if 0
     for (int i = 0; i < ZIP_NUM; i++) {
         menus[curr] = media_menu_load_resource(ZIP_SUBMENU_NAME);
+        media_menu_set_ids(menus[curr++], i);
+    }
+#endif
+
+    for (int i = 0; i < SUPERDISK_NUM; i++) {
+        menus[curr] = media_menu_load_resource(SUPERDISK_SUBMENU_NAME);
         media_menu_set_ids(menus[curr++], i);
     }
 
@@ -418,6 +476,7 @@ is_valid_cdrom(int i)
     return cdrom[i].bus_type != 0;
 }
 
+#if 0
 static inline int
 is_valid_zip(int i)
 {
@@ -426,6 +485,17 @@ is_valid_zip(int i)
     if ((zip_drives[i].bus_type == ZIP_BUS_SCSI) && !MACHINE_HAS_SCSI && (scsi_card_current[0] == 0) && (scsi_card_current[1] == 0) && (scsi_card_current[2] == 0) && (scsi_card_current[3] == 0))
         return 0;
     return zip_drives[i].bus_type != 0;
+}
+#endif
+
+static inline int
+is_valid_superdisk(int i)
+{
+    if ((superdisk_drives[i].bus_type == SUPERDISK_BUS_ATAPI) && !MACHINE_HAS_IDE && memcmp(hdc_get_internal_name(hdc_current), "xtide", 5) && memcmp(hdc_get_internal_name(hdc_current), "ide", 3))
+        return 0;
+    if ((superdisk_drives[i].bus_type == SUPERDISK_BUS_SCSI) && !MACHINE_HAS_SCSI && (scsi_card_current[0] == 0) && (scsi_card_current[1] == 0) && (scsi_card_current[2] == 0) && (scsi_card_current[3] == 0))
+        return 0;
+    return superdisk_drives[i].bus_type != 0;
 }
 
 static inline int
@@ -480,10 +550,20 @@ media_menu_reset(void)
         curr++;
     }
 
+#if 0
     for (int i = 0; i < ZIP_NUM; i++) {
         if (is_valid_zip(i)) {
             AppendMenu(media_menu, MF_POPUP | MF_STRING, (UINT_PTR) menus[curr], L"Test");
             media_menu_update_zip(i);
+        }
+        curr++;
+    }
+#endif
+
+    for (int i = 0; i < SUPERDISK_NUM; i++) {
+        if (is_valid_superdisk(i)) {
+            AppendMenu(media_menu, MF_POPUP | MF_STRING, (UINT_PTR) menus[curr], L"Test");
+            media_menu_update_superdisk(i);
         }
         curr++;
     }
@@ -680,6 +760,7 @@ media_menu_proc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
             }
             break;
 
+#if 0
         case IDM_ZIP_IMAGE_NEW:
             NewFloppyDialogCreate(hwnd, id | 0x80, 0); /* NewZIPDialogCreate */
             break;
@@ -699,6 +780,28 @@ media_menu_proc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
 
         case IDM_ZIP_RELOAD:
             zip_reload(id);
+            break;
+#endif
+
+        case IDM_SUPERDISK_IMAGE_NEW:
+            NewFloppyDialogCreate(hwnd, id | 0x80, 0); /* NewZIPDialogCreate */
+            break;
+
+        case IDM_SUPERDISK_IMAGE_EXISTING_WP:
+            wp = 1;
+            /* FALLTHROUGH */
+        case IDM_SUPERDISK_IMAGE_EXISTING:
+            ret = file_dlg_st(hwnd, IDS_2058, superdisk_drives[id].image_path, NULL, 0);
+            if (!ret)
+                superdisk_mount(id, openfilestring, wp);
+            break;
+
+        case IDM_SUPERDISK_EJECT:
+            superdisk_eject(id);
+            break;
+
+        case IDM_SUPERDISK_RELOAD:
+            superdisk_reload(id);
             break;
 
         case IDM_MO_IMAGE_NEW:
@@ -753,10 +856,18 @@ media_menu_get_cdrom(int id)
     return menus[CDROM_FIRST + id];
 }
 
+#if 0
 HMENU
 media_menu_get_zip(int id)
 {
     return menus[ZIP_FIRST + id];
+}
+#endif
+
+HMENU
+media_menu_get_superdisk(int id)
+{
+    return menus[SUPERDISK_FIRST + id];
 }
 
 HMENU

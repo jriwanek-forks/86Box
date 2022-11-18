@@ -56,8 +56,11 @@
 #include <86box/hdd.h>
 #include <86box/hdc.h>
 #include <86box/hdc_ide.h>
+#if 0
 #include <86box/zip.h>
+#endif
 #include <86box/mo.h>
+#include <86box/superdisk.h>
 #include <86box/fdd.h>
 #include <86box/fdc.h>
 #include <86box/fdc_ext.h>
@@ -78,10 +81,13 @@
 /* Icon, Bus, File, C, H, S, Size, Speed */
 #define C_COLUMNS_HARD_DISKS    7
 
-#define C_COLUMNS_FLOPPY_DRIVES 3
-#define C_COLUMNS_CDROM_DRIVES  3
-#define C_COLUMNS_MO_DRIVES     2
-#define C_COLUMNS_ZIP_DRIVES    2
+#define C_COLUMNS_FLOPPY_DRIVES    3
+#define C_COLUMNS_CDROM_DRIVES     3
+#define C_COLUMNS_MO_DRIVES        2
+#if 0
+#define C_COLUMNS_ZIP_DRIVES       2
+#endif
+#define C_COLUMNS_SUPERDISK_DRIVES 2
 
 static int first_cat = 0;
 
@@ -151,9 +157,12 @@ static int temp_fdd_turbo[FDD_NUM];
 static int temp_fdd_check_bpb[FDD_NUM];
 
 /* Other removable devices category */
-static cdrom_t     temp_cdrom[CDROM_NUM];
-static zip_drive_t temp_zip_drives[ZIP_NUM];
-static mo_drive_t  temp_mo_drives[MO_NUM];
+static cdrom_t            temp_cdrom[CDROM_NUM];
+#if 0
+static zip_drive_t        temp_zip_drives[ZIP_NUM];
+#endif
+static mo_drive_t         temp_mo_drives[MO_NUM];
+static superdisk_drive_t temp_superdisk_drives[SUPERDISK_NUM];
 
 static HWND hwndParentDialog;
 static HWND hwndChildDialog;
@@ -451,6 +460,7 @@ win_settings_init(void)
         else if (cdrom[i].bus_type == CDROM_BUS_SCSI)
             scsi_tracking[cdrom[i].scsi_device_id >> 3] |= (1 << ((cdrom[i].scsi_device_id & 0x07) << 3));
     }
+#if 0
     memcpy(temp_zip_drives, zip_drives, ZIP_NUM * sizeof(zip_drive_t));
     for (i = 0; i < ZIP_NUM; i++) {
         if (zip_drives[i].bus_type == ZIP_BUS_ATAPI)
@@ -458,12 +468,20 @@ win_settings_init(void)
         else if (zip_drives[i].bus_type == ZIP_BUS_SCSI)
             scsi_tracking[zip_drives[i].scsi_device_id >> 3] |= (1 << ((zip_drives[i].scsi_device_id & 0x07) << 3));
     }
+#endif
     memcpy(temp_mo_drives, mo_drives, MO_NUM * sizeof(mo_drive_t));
     for (i = 0; i < MO_NUM; i++) {
         if (mo_drives[i].bus_type == MO_BUS_ATAPI)
             ide_tracking |= (1 << (mo_drives[i].ide_channel << 3));
         else if (mo_drives[i].bus_type == MO_BUS_SCSI)
             scsi_tracking[mo_drives[i].scsi_device_id >> 3] |= (1 << ((mo_drives[i].scsi_device_id & 0x07) << 3));
+    }
+    memcpy(temp_superdisk_drives, superdisk_drives, SUPERDISK_NUM * sizeof(superdisk_drive_t));
+    for (i = 0; i < SUPERDISK_NUM; i++) {
+        if (superdisk_drives[i].bus_type == SUPERDISK_BUS_ATAPI)
+            ide_tracking |= (4 << (superdisk_drives[i].ide_channel << 3));
+        else if (superdisk_drives[i].bus_type == SUPERDISK_BUS_SCSI)
+            scsi_tracking[superdisk_drives[i].scsi_device_id >> 3] |= (1 << ((superdisk_drives[i].scsi_device_id & 0x07) << 3));
     }
 
     /* Other peripherals category */
@@ -555,8 +573,11 @@ win_settings_changed(void)
 
     /* Other removable devices category */
     i = i || memcmp(cdrom, temp_cdrom, CDROM_NUM * sizeof(cdrom_t));
+#if 0
     i = i || memcmp(zip_drives, temp_zip_drives, ZIP_NUM * sizeof(zip_drive_t));
+#endif
     i = i || memcmp(mo_drives, temp_mo_drives, MO_NUM * sizeof(mo_drive_t));
+    i = i || memcmp(superdisk_drives, temp_superdisk_drives, SUPERDISK_NUM * sizeof(superdisk_drive_t));
 
     /* Other peripherals category */
     i = i || (temp_bugger != bugger_enabled);
@@ -662,15 +683,22 @@ win_settings_save(void)
         cdrom[i].get_volume  = NULL;
         cdrom[i].get_channel = NULL;
     }
+#if 0
     memcpy(zip_drives, temp_zip_drives, ZIP_NUM * sizeof(zip_drive_t));
     for (uint8_t i = 0; i < ZIP_NUM; i++) {
         zip_drives[i].fp   = NULL;
         zip_drives[i].priv = NULL;
     }
+#endif
     memcpy(mo_drives, temp_mo_drives, MO_NUM * sizeof(mo_drive_t));
     for (uint8_t i = 0; i < MO_NUM; i++) {
         mo_drives[i].fp   = NULL;
         mo_drives[i].priv = NULL;
+    }
+    memcpy(superdisk_drives, temp_superdisk_drives, SUPERDISK_NUM * sizeof(superdisk_drive_t));
+    for (uint8_t i = 0; i < SUPERDISK_NUM; i++) {
+        superdisk_drives[i].fp   = NULL;
+        superdisk_drives[i].priv = NULL;
     }
 
     /* Other peripherals category */
@@ -4153,6 +4181,57 @@ win_settings_mo_drives_recalc_list(HWND hdlg)
 }
 
 static BOOL
+win_settings_superdisk_drives_recalc_list(HWND hdlg)
+{
+    LVITEM lvI;
+    int    fsid = 0;
+    WCHAR  szText[256];
+    HWND   hwndList = GetDlgItem(hdlg, IDC_LIST_SUPERDISK_DRIVES);
+
+    lvI.mask      = LVIF_TEXT | LVIF_IMAGE | LVIF_STATE;
+    lvI.stateMask = lvI.iSubItem = lvI.state = 0;
+
+    for (uint8_t i = 0; i < SUPERDISK_NUM; i++) {
+        fsid = combo_id_to_format_string_id(temp_superdisk_drives[i].bus_type);
+
+        lvI.iSubItem = 0;
+        switch (temp_superdisk_drives[i].bus_type) {
+            default:
+            case SUPERDISK_BUS_DISABLED:
+                lvI.pszText = plat_get_string(fsid);
+                lvI.iImage  = 0;
+                break;
+            case SUPERDISK_BUS_ATAPI:
+                wsprintf(szText, plat_get_string(fsid), temp_superdisk_drives[i].ide_channel >> 1, temp_superdisk_drives[i].ide_channel & 1);
+                lvI.pszText = szText;
+                lvI.iImage  = 1;
+                break;
+            case SUPERDISK_BUS_SCSI:
+                wsprintf(szText, plat_get_string(fsid), temp_superdisk_drives[i].scsi_device_id >> 4, temp_superdisk_drives[i].scsi_device_id & 15);
+                lvI.pszText = szText;
+                lvI.iImage  = 1;
+                break;
+        }
+
+        lvI.iItem = i;
+
+        if (ListView_InsertItem(hwndList, &lvI) == -1)
+            return FALSE;
+
+        lvI.iSubItem = 1;
+        lvI.pszText  = plat_get_string(temp_superdisk_drives[i].is_240 ? IDS_5903 : IDS_5902);
+        lvI.iItem    = i;
+        lvI.iImage   = 0;
+
+        if (ListView_SetItem(hwndList, &lvI) == -1)
+            return FALSE;
+    }
+
+    return TRUE;
+}
+
+#if 0
+static BOOL
 win_settings_zip_drives_recalc_list(HWND hdlg)
 {
     LVITEM lvI;
@@ -4201,6 +4280,7 @@ win_settings_zip_drives_recalc_list(HWND hdlg)
 
     return TRUE;
 }
+#endif
 
 #define C_COLUMNS_FLOPPY_DRIVES_TYPE  292
 #define C_COLUMNS_FLOPPY_DRIVES_TURBO 58
@@ -4390,6 +4470,59 @@ win_settings_mo_drives_init_columns(HWND hdlg)
     return TRUE;
 }
 
+#define C_COLUMNS_SUPERDISK_DRIVES_BUS  292
+#define C_COLUMNS_SUPERDISK_DRIVES_TYPE 147
+
+static void
+win_settings_superdisk_drives_resize_columns(HWND hdlg)
+{
+    int  width[C_COLUMNS_SUPERDISK_DRIVES] = {
+                                               C_COLUMNS_SUPERDISK_DRIVES_BUS,
+                                               C_COLUMNS_SUPERDISK_DRIVES_TYPE
+                                             };
+    HWND hwndList                   = GetDlgItem(hdlg, IDC_LIST_SUPERDISK_DRIVES);
+    RECT r;
+
+    GetWindowRect(hwndList, &r);
+    width[0] = MulDiv(width[0], dpi, 96);
+    ListView_SetColumnWidth(hwndList, 0, MulDiv(width[0], dpi, 96));
+    width[C_COLUMNS_SUPERDISK_DRIVES - 1] = (r.right - r.left) - 4 - width[0];
+    ListView_SetColumnWidth(hwndList, 1, width[C_COLUMNS_SUPERDISK_DRIVES - 1]);
+}
+
+static BOOL
+win_settings_superdisk_drives_init_columns(HWND hdlg)
+{
+    LVCOLUMN lvc;
+    HWND     hwndList = GetDlgItem(hdlg, IDC_LIST_SUPERDISK_DRIVES);
+
+    lvc.mask = LVCF_FMT | LVCF_WIDTH | LVCF_TEXT | LVCF_SUBITEM;
+
+    /* Bus */
+    lvc.iSubItem = 0;
+    lvc.pszText  = plat_get_string(IDS_BUS);
+
+    lvc.cx  = C_COLUMNS_SUPERDISK_DRIVES_BUS;
+    lvc.fmt = LVCFMT_LEFT;
+
+    if (ListView_InsertColumn(hwndList, 0, &lvc) == -1)
+        return FALSE;
+
+    /* Type */
+    lvc.iSubItem = 1;
+    lvc.pszText  = plat_get_string(IDS_TYPE);
+
+    lvc.cx  = C_COLUMNS_SUPERDISK_DRIVES_TYPE;
+    lvc.fmt = LVCFMT_LEFT;
+
+    if (ListView_InsertColumn(hwndList, 1, &lvc) == -1)
+        return FALSE;
+
+    win_settings_superdisk_drives_resize_columns(hdlg);
+    return TRUE;
+}
+
+#if 0
 #define C_COLUMNS_ZIP_DRIVES_BUS  292
 #define C_COLUMNS_ZIP_DRIVES_TYPE 147
 
@@ -4441,6 +4574,7 @@ win_settings_zip_drives_init_columns(HWND hdlg)
     win_settings_zip_drives_resize_columns(hdlg);
     return TRUE;
 }
+#endif
 
 static int
 get_selected_drive(HWND hdlg, int id, int max)
@@ -4625,6 +4759,53 @@ win_settings_mo_drives_update_item(HWND hdlg, int i)
 }
 
 static void
+win_settings_superdisk_drives_update_item(HWND hdlg, int i)
+{
+    LVITEM lvI;
+    WCHAR  szText[256];
+    int    fsid;
+    HWND   hwndList = GetDlgItem(hdlg, IDC_LIST_SUPERDISK_DRIVES);
+
+    lvI.mask      = LVIF_TEXT | LVIF_IMAGE | LVIF_STATE;
+    lvI.stateMask = lvI.iSubItem = lvI.state = 0;
+
+    lvI.iSubItem = 0;
+    lvI.iItem    = i;
+
+    fsid = combo_id_to_format_string_id(temp_superdisk_drives[i].bus_type);
+
+    switch (temp_superdisk_drives[i].bus_type) {
+        default:
+        case SUPERDISK_BUS_DISABLED:
+            lvI.pszText = plat_get_string(fsid);
+            lvI.iImage  = 0;
+            break;
+        case SUPERDISK_BUS_ATAPI:
+            wsprintf(szText, plat_get_string(fsid), temp_superdisk_drives[i].ide_channel >> 1, temp_superdisk_drives[i].ide_channel & 1);
+            lvI.pszText = szText;
+            lvI.iImage  = 1;
+            break;
+        case SUPERDISK_BUS_SCSI:
+            wsprintf(szText, plat_get_string(fsid), temp_superdisk_drives[i].scsi_device_id >> 4, temp_superdisk_drives[i].scsi_device_id & 15);
+            lvI.pszText = szText;
+            lvI.iImage  = 1;
+            break;
+    }
+
+    if (ListView_SetItem(hwndList, &lvI) == -1)
+        return;
+
+    lvI.iSubItem = 1;
+    lvI.pszText  = plat_get_string(temp_superdisk_drives[i].is_240 ? IDS_5903 : IDS_5902);
+    lvI.iItem    = i;
+    lvI.iImage   = 0;
+
+    if (ListView_SetItem(hwndList, &lvI) == -1)
+        return;
+}
+
+#if 0
+static void
 win_settings_zip_drives_update_item(HWND hdlg, int i)
 {
     LVITEM lvI;
@@ -4669,6 +4850,7 @@ win_settings_zip_drives_update_item(HWND hdlg, int i)
     if (ListView_SetItem(hwndList, &lvI) == -1)
         return;
 }
+#endif
 
 static void
 cdrom_add_locations(HWND hdlg)
@@ -4823,6 +5005,69 @@ mo_recalc_location_controls(HWND hdlg, int assign_id)
 }
 
 static void
+superdisk_add_locations(HWND hdlg)
+{
+    LPTSTR lptsTemp;
+    int    i = 0;
+
+    lptsTemp = (LPTSTR) malloc(512 * sizeof(WCHAR));
+
+    for (i = SUPERDISK_BUS_DISABLED; i <= SUPERDISK_BUS_SCSI; i++) {
+        if ((i == SUPERDISK_BUS_DISABLED) || (i >= SUPERDISK_BUS_ATAPI))
+            settings_add_string(hdlg, IDC_COMBO_SUPERDISK_BUS, win_get_string(combo_id_to_string_id(i)));
+    }
+
+    for (i = 0; i < (SCSI_BUS_MAX * SCSI_LUN_MAX); i++) {
+        wsprintf(lptsTemp, plat_get_string(IDS_4135), i >> 4, i & 15);
+        settings_add_string(hdlg, IDC_COMBO_SUPERDISK_ID, (LPARAM) lptsTemp);
+    }
+
+    for (i = 0; i < (IDE_BUS_MAX * IDE_CHAN_MAX); i++) {
+        wsprintf(lptsTemp, plat_get_string(IDS_4097), i >> 1, i & 1);
+        settings_add_string(hdlg, IDC_COMBO_SUPERDISK_CHANNEL_IDE, (LPARAM) lptsTemp);
+    }
+
+    free(lptsTemp);
+}
+
+static void
+superdisk_recalc_location_controls(HWND hdlg, int assign_id)
+{
+    int bus = temp_superdisk_drives[lv2_current_sel].bus_type;
+
+    for (int i = IDT_SUPERDISK_ID; i <= IDT_SUPERDISK_LUN; i++)
+        settings_show_window(hdlg, i, FALSE);
+    settings_show_window(hdlg, IDC_COMBO_SUPERDISK_ID, FALSE);
+    settings_show_window(hdlg, IDC_COMBO_SUPERDISK_CHANNEL_IDE, FALSE);
+    settings_show_window(hdlg, IDC_CHECK240, bus != SUPERDISK_BUS_DISABLED);
+
+    if (bus != SUPERDISK_BUS_DISABLED)
+        settings_set_check(hdlg, IDC_CHECK240, temp_superdisk_drives[lv2_current_sel].is_240);
+
+    switch (bus) {
+        case SUPERDISK_BUS_ATAPI: /* ATAPI */
+            settings_show_window(hdlg, IDT_SUPERDISK_LUN, TRUE);
+            settings_show_window(hdlg, IDC_COMBO_SUPERDISK_CHANNEL_IDE, TRUE);
+
+            if (assign_id)
+                temp_superdisk_drives[lv2_current_sel].ide_channel = next_free_ide_channel();
+
+            settings_set_cur_sel(hdlg, IDC_COMBO_SUPERDISK_CHANNEL_IDE, temp_superdisk_drives[lv2_current_sel].ide_channel);
+            break;
+        case SUPERDISK_BUS_SCSI: /* SCSI */
+            settings_show_window(hdlg, IDT_SUPERDISK_ID, TRUE);
+            settings_show_window(hdlg, IDC_COMBO_SUPERDISK_ID, TRUE);
+
+            if (assign_id)
+                next_free_scsi_id(&temp_superdisk_drives[lv2_current_sel].scsi_device_id);
+
+            settings_set_cur_sel(hdlg, IDC_COMBO_SUPERDISK_ID, temp_superdisk_drives[lv2_current_sel].scsi_device_id);
+            break;
+    }
+}
+
+#if 0
+static void
 zip_add_locations(HWND hdlg)
 {
     LPTSTR lptsTemp;
@@ -4883,6 +5128,7 @@ zip_recalc_location_controls(HWND hdlg, int assign_id)
             break;
     }
 }
+#endif
 
 static void
 cdrom_track(uint8_t id)
@@ -4902,6 +5148,7 @@ cdrom_untrack(uint8_t id)
         scsi_tracking[temp_cdrom[id].scsi_device_id >> 3] &= ~(1 << (temp_cdrom[id].scsi_device_id & 0x07));
 }
 
+#if 0
 static void
 zip_track(uint8_t id)
 {
@@ -4918,6 +5165,25 @@ zip_untrack(uint8_t id)
         ide_tracking &= ~(1 << temp_zip_drives[id].ide_channel);
     else if (temp_zip_drives[id].bus_type == ZIP_BUS_SCSI)
         scsi_tracking[temp_zip_drives[id].scsi_device_id >> 3] &= ~(1 << (temp_zip_drives[id].scsi_device_id & 0x07));
+}
+#endif
+
+static void
+superdisk_track(uint8_t id)
+{
+    if (temp_superdisk_drives[id].bus_type == SUPERDISK_BUS_ATAPI)
+        ide_tracking |= (1 << temp_superdisk_drives[id].ide_channel);
+    else if (temp_superdisk_drives[id].bus_type == SUPERDISK_BUS_SCSI)
+        scsi_tracking[temp_superdisk_drives[id].scsi_device_id >> 3] |= (1 << (temp_superdisk_drives[id].scsi_device_id & 0x07));
+}
+
+static void
+superdisk_untrack(uint8_t id)
+{
+    if (temp_superdisk_drives[id].bus_type == SUPERDISK_BUS_ATAPI)
+        ide_tracking &= ~(1 << temp_superdisk_drives[id].ide_channel);
+    else if (temp_superdisk_drives[id].bus_type == SUPERDISK_BUS_SCSI)
+        scsi_tracking[temp_superdisk_drives[id].scsi_device_id >> 3] &= ~(1 << (temp_superdisk_drives[id].scsi_device_id & 0x07));
 }
 
 static void
@@ -5141,9 +5407,12 @@ win_settings_other_removable_devices_proc(HWND hdlg, UINT message, WPARAM wParam
     int           old_sel = 0;
     int           b = 0;
     int           assign = 0;
-    uint32_t      b2           = 0;
-    const uint8_t mo_icons[3]  = { 251, 56, 0 };
-    const uint8_t zip_icons[3] = { 250, 48, 0 };
+    uint32_t      b2                 = 0;
+    const uint8_t mo_icons[3]        = { 251, 56, 0 };
+    const uint8_t superdisk_icons[3] = { 250, 48, 0 };
+#if 0
+    const uint8_t zip_icons[3]       = { 250, 48, 0 };
+#endif
 
     switch (message) {
         case WM_INITDIALOG:
@@ -5174,6 +5443,31 @@ win_settings_other_removable_devices_proc(HWND hdlg, UINT message, WPARAM wParam
             settings_listview_enable_styles(hdlg, IDC_LIST_MO_DRIVES);
 
             lv2_current_sel = 0;
+            win_settings_superdisk_drives_init_columns(hdlg);
+            image_list_init(hdlg, IDC_LIST_SUPERDISK_DRIVES, (const uint8_t *) superdisk_icons);
+            win_settings_superdisk_drives_recalc_list(hdlg);
+            settings_listview_select(hdlg, IDC_LIST_SUPERDISK_DRIVES, 0);
+            superdisk_add_locations(hdlg);
+
+            switch (temp_superdisk_drives[lv2_current_sel].bus_type) {
+                default:
+                case SUPERDISK_BUS_DISABLED:
+                    b = 0;
+                    break;
+                case SUPERDISK_BUS_ATAPI:
+                    b = 1;
+                    break;
+                case SUPERDISK_BUS_SCSI:
+                    b = 2;
+                    break;
+            }
+            settings_set_cur_sel(hdlg, IDC_COMBO_SUPERDISK_BUS, b);
+            superdisk_recalc_location_controls(hdlg, 0);
+
+            settings_listview_enable_styles(hdlg, IDC_LIST_SUPERDISK_DRIVES);
+
+#if 0
+            lv2_current_sel = 0;
             win_settings_zip_drives_init_columns(hdlg);
             image_list_init(hdlg, IDC_LIST_ZIP_DRIVES, (const uint8_t *) zip_icons);
             win_settings_zip_drives_recalc_list(hdlg);
@@ -5196,6 +5490,7 @@ win_settings_other_removable_devices_proc(HWND hdlg, UINT message, WPARAM wParam
             zip_recalc_location_controls(hdlg, 0);
 
             settings_listview_enable_styles(hdlg, IDC_LIST_ZIP_DRIVES);
+#endif
 
             ignore_change = 0;
             return TRUE;
@@ -5227,6 +5522,30 @@ win_settings_other_removable_devices_proc(HWND hdlg, UINT message, WPARAM wParam
 
                 mo_recalc_location_controls(hdlg, 0);
                 ignore_change = 0;
+            } else if ((((LPNMHDR) lParam)->code == LVN_ITEMCHANGED) && (((LPNMHDR) lParam)->idFrom == IDC_LIST_SUPERDISK_DRIVES)) {
+                old_sel         = lv2_current_sel;
+                lv2_current_sel = get_selected_drive(hdlg, IDC_LIST_SUPERDISK_DRIVES, SUPERDISK_NUM);
+                if (lv2_current_sel == old_sel)
+                    return FALSE;
+                ignore_change = 1;
+
+                switch (temp_superdisk_drives[lv2_current_sel].bus_type) {
+                    default:
+                    case SUPERDISK_BUS_DISABLED:
+                        b = 0;
+                        break;
+                    case SUPERDISK_BUS_ATAPI:
+                        b = 1;
+                        break;
+                    case SUPERDISK_BUS_SCSI:
+                        b = 2;
+                        break;
+                }
+                settings_set_cur_sel(hdlg, IDC_COMBO_SUPERDISK_BUS, b);
+
+                superdisk_recalc_location_controls(hdlg, 0);
+                ignore_change = 0;
+#if 0
             } else if ((((LPNMHDR) lParam)->code == LVN_ITEMCHANGED) && (((LPNMHDR) lParam)->idFrom == IDC_LIST_ZIP_DRIVES)) {
                 old_sel         = lv2_current_sel;
                 lv2_current_sel = get_selected_drive(hdlg, IDC_LIST_ZIP_DRIVES, ZIP_NUM);
@@ -5250,6 +5569,7 @@ win_settings_other_removable_devices_proc(HWND hdlg, UINT message, WPARAM wParam
 
                 zip_recalc_location_controls(hdlg, 0);
                 ignore_change = 0;
+#endif
             }
             break;
 
@@ -5303,6 +5623,49 @@ win_settings_other_removable_devices_proc(HWND hdlg, UINT message, WPARAM wParam
                     win_settings_mo_drives_update_item(hdlg, lv1_current_sel);
                     break;
 
+                case IDC_COMBO_SUPERDISK_BUS:
+                    b = settings_get_cur_sel(hdlg, IDC_COMBO_SUPERDISK_BUS);
+                    switch (b) {
+                        case 0:
+                            b2 = SUPERDISK_BUS_DISABLED;
+                            break;
+                        case 1:
+                            b2 = SUPERDISK_BUS_ATAPI;
+                            break;
+                        case 2:
+                            b2 = SUPERDISK_BUS_SCSI;
+                            break;
+                    }
+                    if (b2 == temp_superdisk_drives[lv2_current_sel].bus_type)
+                        break;
+                    superdisk_untrack(lv2_current_sel);
+                    assign                                    = (temp_superdisk_drives[lv2_current_sel].bus_type == b2) ? 0 : 1;
+                    temp_superdisk_drives[lv2_current_sel].bus_type = b2;
+                    superdisk_recalc_location_controls(hdlg, assign);
+                    superdisk_track(lv2_current_sel);
+                    win_settings_superdisk_drives_update_item(hdlg, lv2_current_sel);
+                    break;
+
+                case IDC_COMBO_SUPERDISK_ID:
+                    superdisk_untrack(lv2_current_sel);
+                    temp_superdisk_drives[lv2_current_sel].scsi_device_id = settings_get_cur_sel(hdlg, IDC_COMBO_SUPERDISK_ID);
+                    superdisk_track(lv2_current_sel);
+                    win_settings_superdisk_drives_update_item(hdlg, lv2_current_sel);
+                    break;
+
+                case IDC_COMBO_SUPERDISK_CHANNEL_IDE:
+                    superdisk_untrack(lv2_current_sel);
+                    temp_superdisk_drives[lv2_current_sel].ide_channel = settings_get_cur_sel(hdlg, IDC_COMBO_SUPERDISK_CHANNEL_IDE);
+                    superdisk_track(lv2_current_sel);
+                    win_settings_superdisk_drives_update_item(hdlg, lv2_current_sel);
+                    break;
+
+                case IDC_CHECK240:
+                    temp_superdisk_drives[lv2_current_sel].is_240 = settings_get_check(hdlg, IDC_CHECK240);
+                    win_settings_superdisk_drives_update_item(hdlg, lv2_current_sel);
+                    break;
+
+#if 0
                 case IDC_COMBO_ZIP_BUS:
                     b = settings_get_cur_sel(hdlg, IDC_COMBO_ZIP_BUS);
                     switch (b) {
@@ -5344,14 +5707,19 @@ win_settings_other_removable_devices_proc(HWND hdlg, UINT message, WPARAM wParam
                     temp_zip_drives[lv2_current_sel].is_250 = settings_get_check(hdlg, IDC_CHECK250);
                     win_settings_zip_drives_update_item(hdlg, lv2_current_sel);
                     break;
+#endif
             }
             ignore_change = 0;
 
         case WM_DPICHANGED_AFTERPARENT:
             win_settings_mo_drives_resize_columns(hdlg);
             image_list_init(hdlg, IDC_LIST_MO_DRIVES, (const uint8_t *) mo_icons);
+            win_settings_superdisk_drives_resize_columns(hdlg);
+            image_list_init(hdlg, IDC_LIST_SUPERDISK_DRIVES, (const uint8_t *) superdisk_icons);
+#if 0
             win_settings_zip_drives_resize_columns(hdlg);
             image_list_init(hdlg, IDC_LIST_ZIP_DRIVES, (const uint8_t *) zip_icons);
+#endif
             break;
         default:
             return FALSE;

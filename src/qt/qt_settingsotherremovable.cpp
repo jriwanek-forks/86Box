@@ -23,7 +23,10 @@ extern "C" {
 #include <86box/timer.h>
 #include <86box/scsi_device.h>
 #include <86box/mo.h>
+#include <86box/superdisk.h>
+#if 0
 #include <86box/zip.h>
+#endif
 }
 
 #include <QStandardItemModel>
@@ -75,6 +78,7 @@ setMOType(QAbstractItemModel *model, const QModelIndex &idx, uint32_t type)
     model->setData(i, type, Qt::UserRole);
 }
 
+#if 0
 static void
 setZIPBus(QAbstractItemModel *model, const QModelIndex &idx, uint8_t bus, uint8_t channel)
 {
@@ -106,6 +110,7 @@ setZIPType(QAbstractItemModel *model, const QModelIndex &idx, bool is250)
     model->setData(i, is250 ? "ZIP 250" : "ZIP 100");
     model->setData(i, is250, Qt::UserRole);
 }
+#endif
 
 SettingsOtherRemovable::SettingsOtherRemovable(QWidget *parent)
     : QWidget(parent)
@@ -136,6 +141,7 @@ SettingsOtherRemovable::SettingsOtherRemovable(QWidget *parent)
     connect(ui->tableViewMO->selectionModel(), &QItemSelectionModel::currentRowChanged, this, &SettingsOtherRemovable::onMORowChanged);
     ui->tableViewMO->setCurrentIndex(model->index(0, 0));
 
+#if 0
     Harddrives::populateRemovableBuses(ui->comboBoxZIPBus->model());
 
     model = new QStandardItemModel(0, 2, this);
@@ -154,6 +160,7 @@ SettingsOtherRemovable::SettingsOtherRemovable(QWidget *parent)
 
     connect(ui->tableViewZIP->selectionModel(), &QItemSelectionModel::currentRowChanged, this, &SettingsOtherRemovable::onZIPRowChanged);
     ui->tableViewZIP->setCurrentIndex(model->index(0, 0));
+#endif
 }
 
 SettingsOtherRemovable::~SettingsOtherRemovable()
@@ -173,6 +180,7 @@ SettingsOtherRemovable::save()
         mo_drives[i].type     = model->index(i, 1).data(Qt::UserRole).toUInt();
     }
 
+#if 0
     model = ui->tableViewZIP->model();
     for (uint8_t i = 0; i < ZIP_NUM; i++) {
         zip_drives[i].fp       = NULL;
@@ -181,6 +189,7 @@ SettingsOtherRemovable::save()
         zip_drives[i].res      = model->index(i, 0).data(Qt::UserRole + 1).toUInt();
         zip_drives[i].is_250   = model->index(i, 1).data(Qt::UserRole).toBool() ? 1 : 0;
     }
+#endif
 }
 
 void
@@ -203,6 +212,7 @@ SettingsOtherRemovable::onMORowChanged(const QModelIndex &current)
     ui->comboBoxMOType->setCurrentIndex(type);
 }
 
+#if 0
 void
 SettingsOtherRemovable::onZIPRowChanged(const QModelIndex &current)
 {
@@ -222,6 +232,7 @@ SettingsOtherRemovable::onZIPRowChanged(const QModelIndex &current)
         ui->comboBoxZIPChannel->setCurrentIndex(match.first().row());
     ui->checkBoxZIP250->setChecked(is250);
 }
+#endif
 
 void
 SettingsOtherRemovable::on_comboBoxMOBus_currentIndexChanged(int index)
@@ -286,6 +297,7 @@ SettingsOtherRemovable::on_comboBoxMOType_activated(int)
     ui->tableViewMO->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);
 }
 
+#if 0
 void
 SettingsOtherRemovable::on_comboBoxZIPBus_currentIndexChanged(int index)
 {
@@ -340,3 +352,4 @@ SettingsOtherRemovable::on_checkBoxZIP250_stateChanged(int state)
                ui->tableViewZIP->selectionModel()->currentIndex(),
                state == Qt::Checked);
 }
+#endif

@@ -887,6 +887,7 @@ BEGIN
                     33, 105, 328, 12,
                     CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
 
+#if 0
     LTEXT           STR_ZIP_DRIVES, IDT_ZIP_DRIVES,
                     CFG_HMARGIN, 127, 258, CFG_PANE_LTEXT_HEIGHT
     CONTROL         "List1", IDC_LIST_ZIP_DRIVES,
@@ -914,6 +915,37 @@ BEGIN
                     CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
 
     CONTROL         STR_250, IDC_CHECK250,
+                    "Button", BS_AUTOCHECKBOX | WS_TABSTOP,
+                    329, 206, 44, CFG_CHECKBOX_HEIGHT
+#endif
+
+    LTEXT           STR_SUPERDISK_DRIVES, IDT_SUPERDISK_DRIVES,
+                    CFG_HMARGIN, 127, 258, CFG_PANE_LTEXT_HEIGHT
+    CONTROL         "List1", IDC_LIST_SUPERDISK_DRIVES,
+                    "SysListView32",
+                    LVS_REPORT | LVS_SHOWSELALWAYS | LVS_SINGLESEL | 
+                    WS_BORDER | WS_TABSTOP,
+                    CFG_HMARGIN, 137, CFG_SYSLISTVIEW32_WIDTH, 60
+
+    LTEXT           STR_BUS, IDT_SUPERDISK_BUS,
+                    CFG_HMARGIN, 207, 24, CFG_PANE_LTEXT_HEIGHT
+    COMBOBOX        IDC_COMBO_ZIP_BUS,
+                    33, 205, 140, 12,
+                    CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+
+    LTEXT           STR_CHANNEL, IDT_SUPERDISK_CHANNEL,
+                    181, 207, 38, CFG_PANE_LTEXT_HEIGHT
+    COMBOBOX        IDC_COMBO_SUPERDISK_CHANNEL_IDE,
+                    221, 205, 105, 12,
+                    CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+
+    LTEXT           STR_ID, IDT_SUPERDISK_ID,
+                    181, 207, 38, CFG_PANE_LTEXT_HEIGHT
+    COMBOBOX        IDC_COMBO_SUPERDISK_ID,
+                    221, 205, 105, 12,
+                    CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+
+    CONTROL         STR_240, IDC_CHECK240,
                     "Button", BS_AUTOCHECKBOX | WS_TABSTOP,
                     329, 206, 44, CFG_CHECKBOX_HEIGHT
 END

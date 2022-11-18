@@ -17,7 +17,10 @@ typedef struct dev_status_empty_t {
 typedef struct machine_status_t {
     dev_status_empty_active_t fdd[FDD_NUM];
     dev_status_empty_active_t cdrom[CDROM_NUM];
+#if 0
     dev_status_empty_active_t zip[ZIP_NUM];
+#endif
+    dev_status_empty_active_t superdisk[SUPERDISK_NUM];
     dev_status_empty_active_t mo[MO_NUM];
     dev_status_empty_active_t cassette;
     dev_status_active_t       hdd[HDD_BUS_USB];

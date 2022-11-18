@@ -68,6 +68,7 @@ DECLARE_HANDLE(DPI_AWARENESS_CONTEXT);
 #define CDROM_SUBMENU_NAME     L"CdromSubmenu"
 #define ZIP_SUBMENU_NAME       L"ZIPSubmenu"
 #define MO_SUBMENU_NAME        L"MOSubmenu"
+#define SUPERDISK_SUBMENU_NAME L"SUPERDISKSubmenu"
 
 #define VID_GL_SUBMENU         L"VidGLSubMenu"
 
@@ -236,12 +237,14 @@ extern HMENU media_menu_get_floppy(int id);
 extern HMENU media_menu_get_cdrom(int id);
 extern HMENU media_menu_get_zip(int id);
 extern HMENU media_menu_get_mo(int id);
+extern HMENU media_menu_get_superdisk(int id);
 extern void  media_menu_update_cassette(void);
 extern void  media_menu_update_cartridge(int id);
 extern void  media_menu_update_floppy(int id);
 extern void  media_menu_update_cdrom(int id);
 extern void  media_menu_update_zip(int id);
 extern void  media_menu_update_mo(int id);
+extern void  media_menu_update_superdisk(int id);
 
 /* Functions in win_ui.c */
 extern HMENU menuMain;

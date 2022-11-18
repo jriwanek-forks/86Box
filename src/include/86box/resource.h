@@ -157,12 +157,18 @@
 #define IDT_ZIP_LUN     1778 /* LUN: */
 #define IDT_ZIP_CHANNEL 1779 /* Channel: */
 
+#define IDT_SUPERDISK_DRIVES  1780 /* Super drives: */
+#define IDT_SUPERDISK_BUS     1781 /* Bus: */
+#define IDT_SUPERDISK_ID      1782 /* ID: */
+#define IDT_SUPERDISK_LUN     1783 /* LUN: */
+#define IDT_SUPERDISK_CHANNEL 1784 /* Channel: */
+
 /* DLG_CFG_PERIPHERALS */
-#define IDT_ISARTC   1780 /* ISA RTC: */
-#define IDT_ISAMEM_1 1781 /* ISAMEM Board #1: */
-#define IDT_ISAMEM_2 1782 /* ISAMEM Board #2: */
-#define IDT_ISAMEM_3 1783 /* ISAMEM Board #3: */
-#define IDT_ISAMEM_4 1784 /* ISAMEM Board #4: */
+#define IDT_ISARTC   1785 /* ISA RTC: */
+#define IDT_ISAMEM_1 1786 /* ISAMEM Board #1: */
+#define IDT_ISAMEM_2 1787 /* ISAMEM Board #2: */
+#define IDT_ISAMEM_3 1788 /* ISAMEM Board #3: */
+#define IDT_ISAMEM_4 1789 /* ISAMEM Board #4: */
 
 /*
  * To try to keep these organized, we now group the
@@ -305,19 +311,25 @@
 #define IDC_COMBO_CD_CHANNEL_IDE  1159
 #define IDC_COMBO_CD_TYPE         1160
 
-#define IDC_LIST_ZIP_DRIVES       1170 /* other removable devices config */
-#define IDC_COMBO_ZIP_BUS         1171
-#define IDC_COMBO_ZIP_ID          1172
-#define IDC_COMBO_ZIP_LUN         1173
-#define IDC_COMBO_ZIP_CHANNEL_IDE 1174
-#define IDC_CHECK250              1175
-#define IDC_COMBO_CD_SPEED        1176
-#define IDC_LIST_MO_DRIVES        1177
-#define IDC_COMBO_MO_BUS          1178
-#define IDC_COMBO_MO_ID           1179
-#define IDC_COMBO_MO_LUN          1170
-#define IDC_COMBO_MO_CHANNEL_IDE  1181
-#define IDC_COMBO_MO_TYPE         1182
+#define IDC_LIST_ZIP_DRIVES             1170 /* other removable devices config */
+#define IDC_COMBO_ZIP_BUS               1171
+#define IDC_COMBO_ZIP_ID                1172
+#define IDC_COMBO_ZIP_LUN               1173
+#define IDC_COMBO_ZIP_CHANNEL_IDE       1174
+#define IDC_CHECK250                    1175
+#define IDC_COMBO_CD_SPEED              1176
+#define IDC_LIST_MO_DRIVES              1177
+#define IDC_COMBO_MO_BUS                1178
+#define IDC_COMBO_MO_ID                 1179
+#define IDC_COMBO_MO_LUN                1170
+#define IDC_COMBO_MO_CHANNEL_IDE        1181
+#define IDC_COMBO_MO_TYPE               1182
+#define IDC_LIST_SUPERDISK_DRIVES       1183
+#define IDC_COMBO_SUPERDISK_BUS         1184
+#define IDC_COMBO_SUPERDISK_ID          1185
+#define IDC_COMBO_SUPERDISK_LUN         1186
+#define IDC_COMBO_SUPERDISK_CHANNEL_IDE 1187
+#define IDC_CHECK240                    1188
 
 #define IDC_CHECK_BUGGER          1190 /* other periph config */
 #define IDC_CHECK_POSTCARD        1191
@@ -509,6 +521,12 @@
 #define IDM_MO_IMAGE_EXISTING_WP       0x6400
 #define IDM_MO_EJECT                   0x6500
 #define IDM_MO_RELOAD                  0x6600
+
+#define IDM_SUPERDISK_IMAGE_NEW         0x7200
+#define IDM_SUPERDISK_IMAGE_EXISTING    0x7300
+#define IDM_SUPERDISK_IMAGE_EXISTING_WP 0x7400
+#define IDM_SUPERDISK_EJECT             0x7500
+#define IDM_SUPERDISK_RELOAD            0x7600
 
 /* Next default values for new objects */
 #ifdef APSTUDIO_INVOKED
