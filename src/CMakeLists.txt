@@ -99,8 +99,30 @@ if(INSTRUMENT)
     add_compile_definitions(USE_INSTRUMENT)
 endif()
 
-target_link_libraries(86Box cpu chipset mch dev mem fdd game cdrom zip mo hdd
-    net print scsi sio snd utils vid voodoo plat ui)
+target_link_libraries(86Box
+    cpu
+    chipset
+    mch
+    dev
+    mem
+    fdd
+    game
+    cdrom
+    zip
+    mo
+    superdisk
+    hdd
+    net
+    print
+    scsi
+    sio
+    snd
+    utils
+    vid
+    voodoo
+    plat
+    ui
+)
 
 if(HAIKU)
     target_link_libraries(86Box be)
