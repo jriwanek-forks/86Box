@@ -63,6 +63,13 @@ public:
     void moReload(int i);
     void moUpdateMenu(int i);
 
+    void superdiskNewImage(int i);
+    void superdiskSelectImage(int i, bool wp);
+    void superdiskMount(int i, const QString& filename, bool wp);
+    void superdiskEject(int i);
+    void superdiskReload(int i);
+    void superdiskUpdateMenu(int i);
+
     void nicConnect(int i);
     void nicDisconnect(int i);
     void nicUpdateMenu(int i);
@@ -82,6 +89,7 @@ private:
     QMap<int, QMenu *> cdromMenus;
     QMap<int, QMenu *> zipMenus;
     QMap<int, QMenu *> moMenus;
+    QMap<int, QMenu *> superdiskMenus;
     QMap<int, QMenu *> netMenus;
 
     QString                 getMediaOpenDirectory();
@@ -112,6 +120,9 @@ private:
 
     int moEjectPos;
     int moReloadPos;
+
+    int superdiskEjectPos;
+    int superdiskReloadPos;
 
     int netDisconnPos;
 

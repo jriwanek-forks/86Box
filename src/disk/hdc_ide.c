@@ -46,7 +46,9 @@
 #include <86box/hdc.h>
 #include <86box/hdc_ide.h>
 #include <86box/hdd.h>
+#if 0
 #include <86box/zip.h>
+#endif
 #include <86box/version.h>
 
 /* Bits of 'atastat' */

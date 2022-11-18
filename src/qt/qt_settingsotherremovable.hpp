@@ -20,7 +20,9 @@ public:
 
 signals:
     void moChannelChanged();
+#if 0
     void zipChannelChanged();
+
 private slots:
     void on_checkBoxZIP250_stateChanged(int arg1);
 
@@ -32,6 +34,7 @@ private slots:
 
 private slots:
     void on_comboBoxZIPBus_currentIndexChanged(int index);
+#endif
 
 private slots:
     void on_comboBoxMOType_activated(int index);
@@ -47,7 +50,9 @@ private slots:
 
 private slots:
     void onMORowChanged(const QModelIndex &current);
+#if 0
     void onZIPRowChanged(const QModelIndex &current);
+#endif
 
 private:
     Ui::SettingsOtherRemovable *ui;
