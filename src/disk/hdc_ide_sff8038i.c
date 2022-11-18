@@ -43,6 +43,7 @@
 #include <86box/hdc_ide.h>
 #include <86box/hdc_ide_sff8038i.h>
 #include <86box/zip.h>
+#include <86box/superdisk.h>
 #include <86box/mo.h>
 #include <86box/plat_unused.h>
 
@@ -478,14 +479,22 @@ sff_reset(void *priv)
         if ((hdd[i].bus == HDD_BUS_ATAPI) && (hdd[i].ide_channel < 4) && hdd[i].priv)
             scsi_disk_reset((scsi_common_t *) hdd[i].priv);
     }
+
     for (uint8_t i = 0; i < CDROM_NUM; i++) {
         if ((cdrom[i].bus_type == CDROM_BUS_ATAPI) && (cdrom[i].ide_channel < 4) && cdrom[i].priv)
             scsi_cdrom_reset((scsi_common_t *) cdrom[i].priv);
     }
+
     for (uint8_t i = 0; i < ZIP_NUM; i++) {
         if ((zip_drives[i].bus_type == ZIP_BUS_ATAPI) && (zip_drives[i].ide_channel < 4) && zip_drives[i].priv)
             zip_reset((scsi_common_t *) zip_drives[i].priv);
     }
+
+    for (uint8_t i = 0; i < SUPERDISK_NUM; i++) {
+        if ((superdisk_drives[i].bus_type == SUPERDISK_BUS_ATAPI) && (superdisk_drives[i].ide_channel < 4) && superdisk_drives[i].priv)
+            superdisk_reset((scsi_common_t *) superdisk_drives[i].priv);
+    }
+
     for (uint8_t i = 0; i < MO_NUM; i++) {
         if ((mo_drives[i].bus_type == MO_BUS_ATAPI) && (mo_drives[i].ide_channel < 4) && mo_drives[i].priv)
             mo_reset((scsi_common_t *) mo_drives[i].priv);

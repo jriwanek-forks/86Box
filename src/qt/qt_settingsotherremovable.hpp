@@ -21,6 +21,7 @@ public:
 signals:
     void moChannelChanged();
     void zipChannelChanged();
+
 private slots:
     void on_checkBoxZIP250_stateChanged(int arg1);
 
@@ -47,6 +48,9 @@ private slots:
 
 private slots:
     void onMORowChanged(const QModelIndex &current);
+#if 0
+    void onSuperDiskRowChanged(const QModelIndex &current);
+#endif
     void onZIPRowChanged(const QModelIndex &current);
 
 private:
