@@ -42,8 +42,10 @@ extern "C" {
 #include <86box/cdrom.h>
 #include <86box/scsi_device.h>
 #include <86box/zip.h>
+#include <86box/superdisk.h>
 #include <86box/mo.h>
 #include <86box/sound.h>
+#include <86box/superdisk.h>
 #include <86box/ui.h>
 #include <86box/thread.h>
 #include <86box/network.h>
@@ -145,6 +147,7 @@ MediaMenu::refresh(QMenu *parentMenu)
         cdromUpdateMenu(i);
     });
 
+#if 0
     zipMenus.clear();
     MachineStatus::iterateZIP([this, parentMenu](int i) {
         auto *menu = parentMenu->addMenu("");
@@ -160,6 +163,7 @@ MediaMenu::refresh(QMenu *parentMenu)
         zipMenus[i] = menu;
         zipUpdateMenu(i);
     });
+#endif
 
     moMenus.clear();
     MachineStatus::iterateMO([this, parentMenu](int i) {
@@ -318,7 +322,9 @@ MediaMenu::cartridgeUpdateMenu(int i)
     auto    childs    = menu->children();
     auto   *ejectMenu = dynamic_cast<QAction *>(childs[cartridgeEjectPos]);
     ejectMenu->setEnabled(!name.isEmpty());
-    // menu->setTitle(tr("Cartridge %1: %2").arg(QString::number(i+1), name.isEmpty() ? tr("(empty)") : name));
+#if 0
+    menu->setTitle(tr("Cartridge %1: %2").arg(QString::number(i+1), name.isEmpty() ? tr("(empty)") : name));
+#endif
     menu->setTitle(QString::asprintf(tr("Cartridge %i: %ls").toUtf8().constData(), i + 1, name.isEmpty() ? tr("(empty)").toStdU16String().data() : name.toStdU16String().data()));
 }
 
@@ -422,7 +428,9 @@ MediaMenu::floppyUpdateMenu(int i)
     }
 
     int type = fdd_get_type(i);
-    // floppyMenus[i]->setTitle(tr("Floppy %1 (%2): %3").arg(QString::number(i+1), fdd_getname(type), name.isEmpty() ? tr("(empty)") : name));
+#if 0
+    floppyMenus[i]->setTitle(tr("Floppy %1 (%2): %3").arg(QString::number(i+1), fdd_getname(type), name.isEmpty() ? tr("(empty)") : name));
+#endif
     floppyMenus[i]->setTitle(QString::asprintf(tr("Floppy %i (%s): %ls").toUtf8().constData(), i + 1, fdd_getname(type), name.isEmpty() ? tr("(empty)").toStdU16String().data() : name.toStdU16String().data()));
 }
 
@@ -606,7 +614,9 @@ MediaMenu::cdromUpdateMenu(int i)
 	        break;
     }
 
-    // menu->setTitle(tr("CD-ROM %1 (%2): %3").arg(QString::number(i+1), busName, name.isEmpty() ? tr("(empty)") : name));
+#if 0
+    menu->setTitle(tr("CD-ROM %1 (%2): %3").arg(QString::number(i+1), busName, name.isEmpty() ? tr("(empty)") : name));
+#endif
     menu->setTitle(QString::asprintf(tr("CD-ROM %i (%s): %s").toUtf8().constData(), i + 1, busName.toUtf8().data(), name.isEmpty() ? tr("(empty)").toUtf8().data() : name.toUtf8().data()));
 }
 
@@ -716,7 +726,9 @@ MediaMenu::zipUpdateMenu(int i)
             break;
     }
 
-    // menu->setTitle(tr("ZIP %1 %2 (%3): %4").arg((zip_drives[i].is_250 > 0) ? "250" : "100", QString::number(i+1), busName, name.isEmpty() ? tr("(empty)") : name));
+#if 0
+    menu->setTitle(tr("ZIP %1 %2 (%3): %4").arg((zip_drives[i].is_250 > 0) ? "250" : "100", QString::number(i+1), busName, name.isEmpty() ? tr("(empty)") : name));
+#endif
     menu->setTitle(QString::asprintf(tr("ZIP %03i %i (%s): %ls").toUtf8().constData(), (zip_drives[i].is_250 > 0) ? 250 : 100, i + 1, busName.toUtf8().data(), name.isEmpty() ? tr("(empty)").toStdU16String().data() : name.toStdU16String().data()));
 }
 
@@ -833,6 +845,121 @@ MediaMenu::moUpdateMenu(int i)
 }
 
 void
+MediaMenu::superdiskNewImage(int i)
+{
+    NewFloppyDialog dialog(NewFloppyDialog::MediaType::SuperDisk, parentWidget);
+    switch (dialog.exec()) {
+        case QDialog::Accepted:
+            QByteArray filename = dialog.fileName().toUtf8();
+            superdiskMount(i, filename, false);
+            break;
+    }
+}
+
+void
+MediaMenu::superdiskSelectImage(int i, bool wp)
+{
+    auto filename = QFileDialog::getOpenFileName(
+        parentWidget,
+        QString(),
+        QString(),
+        tr("Superdisk images") %
+        util::DlgFilter({ "im?", "sdi" }) %
+        tr("All files") %
+        util::DlgFilter({ "*" }, true));
+
+    if (!filename.isEmpty())
+        superdiskMount(i, filename, wp);
+}
+
+void
+MediaMenu::superdiskMount(int i, const QString &filename, bool wp)
+{
+    superdisk_t *dev = (superdisk_t *) superdisk_drives[i].priv;
+
+    superdisk_disk_close(dev);
+    superdisk_drives[i].read_only = wp;
+    if (!filename.isEmpty()) {
+        QByteArray filenameBytes = filename.toUtf8();
+        superdisk_load(dev, filenameBytes.data());
+        superdisk_insert(dev);
+    }
+
+    ui_sb_update_icon_state(SB_SUPERDISK | i, filename.isEmpty() ? 1 : 0);
+    superdiskUpdateMenu(i);
+    ui_sb_update_tip(SB_SUPERDISK | i);
+
+    config_save();
+}
+
+void
+MediaMenu::superdiskEject(int i)
+{
+    superdisk_t *dev = (superdisk_t *) superdisk_drives[i].priv;
+
+    superdisk_disk_close(dev);
+    superdisk_drives[i].image_path[0] = 0;
+    if (superdisk_drives[i].bus_type) {
+        /* Signal disk change to the emulated machine. */
+        superdisk_insert(dev);
+    }
+
+    ui_sb_update_icon_state(SB_SUPERDISK | i, 1);
+    superdiskUpdateMenu(i);
+    ui_sb_update_tip(SB_SUPERDISK | i);
+    config_save();
+}
+
+void
+MediaMenu::superdiskReload(int i)
+{
+    superdisk_t *dev = (superdisk_t *) superdisk_drives[i].priv;
+
+    superdisk_disk_reload(dev);
+    if (strlen(superdisk_drives[i].image_path) == 0) {
+        ui_sb_update_icon_state(SB_SUPERDISK| i, 1);
+    } else {
+        ui_sb_update_icon_state(SB_SUPERDISK| i, 0);
+    }
+
+    superdiskUpdateMenu(i);
+    ui_sb_update_tip(SB_SUPERDISK| i);
+
+    config_save();
+}
+
+void
+MediaMenu::superdiskUpdateMenu(int i)
+{
+    QString name      = superdisk_drives[i].image_path;
+    QString prev_name = superdisk_drives[i].prev_image_path;
+    if (!superdiskMenus.contains(i))
+        return;
+    auto *menu   = superdiskMenus[i];
+    auto  childs = menu->children();
+
+    auto *ejectMenu  = dynamic_cast<QAction*>(childs[superdiskEjectPos]);
+    auto *reloadMenu = dynamic_cast<QAction*>(childs[superdiskReloadPos]);
+    ejectMenu->setEnabled(!name.isEmpty());
+    reloadMenu->setEnabled(!prev_name.isEmpty());
+
+    QString busName = tr("Unknown Bus");
+    switch (superdisk_drives[i].bus_type) {
+        case SUPERDISK_BUS_ATAPI:
+            busName = "ATAPI";
+            break;
+        case SUPERDISK_BUS_SCSI:
+            busName = "SCSI";
+            break;
+    }
+
+#if 0
+    menu->setTitle(tr("SUPERDISK %1 %2 (%3): %4").arg((superdisk_drives[i].is_240 > 0) ? "240" : "120", QString::number(i+1), busName, name.isEmpty() ? tr("(empty)") : name));
+#endif
+    menu->setTitle(QString::asprintf(tr("SUPERDISK %03i %i (%s): %ls").toUtf8().constData(), (superdisk_drives[i].is_240 > 0) ? 240 : 120, i + 1, busName.toUtf8().data(), name.isEmpty() ? tr("(empty)").toStdU16String().data() : name.toStdU16String().data()));
+}
+
+void
 MediaMenu::nicConnect(int i)
 {
     network_connect(i, 1);
@@ -915,4 +1042,17 @@ mo_reload(uint8_t id)
 {
     MediaMenu::ptr->moReload(id);
 }
+
+void
+superdisk_eject(uint8_t id)
+{
+    MediaMenu::ptr->superdiskEject(id);
+}
+
+void
+superdisk_reload(uint8_t id)
+{
+    MediaMenu::ptr->superdiskReload(id);
+}
+
 }

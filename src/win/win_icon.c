@@ -68,6 +68,11 @@ const _ICON_DATA icon_files[] = {
     { 33,  "cdrom_active.ico"           },
     { 48,  "zip.ico"                    },
     { 49,  "zip_active.ico"             },
+#if 0
+    { 48,  "superdisk.ico"              },
+    { 49,  "superdisk_active.ico"       },
+#endif
+
     { 56,  "mo.ico"                     },
     { 57,  "mo_active.ico"              },
     { 64,  "cassette.ico"               },
@@ -85,6 +90,10 @@ const _ICON_DATA icon_files[] = {
     { 161, "cdrom_empty_active.ico"     },
     { 176, "zip_empty.ico"              },
     { 177, "zip_empty_active.ico"       },
+#if 0
+    { 176, "superdisk_empty.ico"        },
+    { 177, "superdisk_empty_active.ico" },
+#endif
     { 184, "mo_empty.ico"               },
     { 185, "mo_empty_active.ico"        },
     { 192, "cassette_empty.ico"         },
@@ -108,6 +117,9 @@ const _ICON_DATA icon_files[] = {
     { 248, "floppy_disabled.ico"        },
     { 249, "cdrom_disabled.ico"         },
     { 250, "zip_disabled.ico"           },
+#if 0
+    { 250, "superdisk_disabled.ico"     },
+#endif
     { 251, "mo_disabled.ico"            },
     { 252, "storage_controllers.ico"    }
 };

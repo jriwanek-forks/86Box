@@ -6,7 +6,7 @@
  *
  *          This file is part of the 86Box distribution.
  *
- *          Handle the platform-side of CDROM/ZIP/MO drives.
+ *          Handle the platform-side of CD-ROM, Zip, MO * SuperDisk drives.
  *
  *
  *
@@ -32,6 +32,7 @@
 #include <86box/hdd.h>
 #include <86box/scsi_device.h>
 #include <86box/cdrom.h>
+#include <86box/superdisk.h>
 #include <86box/mo.h>
 #include <86box/zip.h>
 #include <86box/scsi_disk.h>
@@ -161,6 +162,64 @@ cdrom_mount(uint8_t id, char *fn)
     media_menu_update_cdrom(id);
 #endif
     ui_sb_update_tip(SB_CDROM | id);
+    config_save();
+}
+
+void
+superdisk_eject(uint8_t id)
+{
+    superdisk_t *dev = (superdisk_t *) superdisk_drives[id].priv;
+
+    superdisk_disk_close(dev);
+    if (superdisk_drives[id].bus_type) {
+        /* Signal disk change to the emulated machine. */
+        superdisk_insert(dev);
+    }
+
+    ui_sb_update_icon_state(SB_SUPERDISK | id, 1);
+#if 0
+    media_menu_update_superdisk(id);
+#endif
+    ui_sb_update_tip(SB_SUPERDISK | id);
+    config_save();
+}
+
+void
+superdisk_mount(uint8_t id, char *fn, uint8_t wp)
+{
+    superdisk_t *dev = (superdisk_t *) superdisk_drives[id].priv;
+
+    superdisk_disk_close(dev);
+    superdisk_drives[id].read_only = wp;
+    superdisk_load(dev, fn);
+    superdisk_insert(dev);
+
+    ui_sb_update_icon_state(SB_SUPERDISK | id, strlen(superdisk_drives[id].image_path) ? 0 : 1);
+#if 0
+    media_menu_update_superdisk(id);
+#endif
+    ui_sb_update_tip(SB_SUPERDISK | id);
+
+    config_save();
+}
+
+void
+superdisk_reload(uint8_t id)
+{
+    superdisk_t *dev = (superdisk_t *) superdisk_drives[id].priv;
+
+    superdisk_disk_reload(dev);
+    if (strlen(superdisk_drives[id].image_path) == 0) {
+        ui_sb_update_icon_state(SB_SUPERDISK | id, 1);
+    } else {
+        ui_sb_update_icon_state(SB_SUPERDISK | id, 0);
+    }
+
+#if 0
+    media_menu_update_superdisk(id);
+#endif
+    ui_sb_update_tip(SB_SUPERDISK | id);
+
     config_save();
 }
 

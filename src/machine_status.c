@@ -16,7 +16,10 @@
 #include <86box/cartridge.h>
 #include <86box/cassette.h>
 #include <86box/cdrom.h>
+#if 0
 #include <86box/zip.h>
+#endif
+#include <86box/superdisk.h>
 #include <86box/mo.h>
 #include <86box/hdd.h>
 #include <86box/thread.h>
@@ -36,9 +39,15 @@ machine_status_init(void)
         machine_status.cdrom[i].empty  = cdrom[i].host_drive != 200 || (strlen(cdrom[i].image_path) == 0);
         machine_status.cdrom[i].active = false;
     }
+#if 0
     for (size_t i = 0; i < ZIP_NUM; i++) {
         machine_status.zip[i].empty  = (strlen(zip_drives[i].image_path) == 0);
         machine_status.zip[i].active = false;
+    }
+#endif
+    for (size_t i = 0; i < SUPERDISK_NUM; i++) {
+        machine_status.superdisk[i].empty  = (strlen(superdisk_drives[i].image_path) == 0);
+        machine_status.superdisk[i].active = false;
     }
     for (size_t i = 0; i < MO_NUM; i++) {
         machine_status.mo[i].empty  = (strlen(mo_drives[i].image_path) == 0);

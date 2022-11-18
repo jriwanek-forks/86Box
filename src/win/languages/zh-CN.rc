@@ -218,6 +218,20 @@ BEGIN
     END
 END
 
+SUPERDISKSubmenu MENU DISCARDABLE
+BEGIN
+    POPUP ""
+    BEGIN
+        MENUITEM "新建镜像(&N)...", IDM_SUPERDISK_IMAGE_NEW
+        MENUITEM SEPARATOR
+        MENUITEM "打开已存在的镜像(&E)...", IDM_SUPERDISK_IMAGE_EXISTING
+        MENUITEM "打开已存在的镜像并写保护(&W)...", IDM_SUPERDISK_IMAGE_EXISTING_WP
+        MENUITEM SEPARATOR
+        MENUITEM "弹出(&J)", IDM_SUPERDISK_EJECT
+        MENUITEM "载入上一个镜像(&R)", IDM_SUPERDISK_RELOAD
+    END
+END
+
 VidGLSubMenu MENU DISCARDABLE
 BEGIN
     POPUP "目标帧率(&F)"
@@ -369,9 +383,11 @@ END
 #define STR_CDROM_DRIVES  "光盘驱动器:"
 #define STR_CD_SPEED      "速度:"
 
-#define STR_MO_DRIVES     "磁光盘驱动器:"
-#define STR_ZIP_DRIVES    "ZIP 驱动器:"
-#define STR_250           "ZIP 250"
+#define STR_MO_DRIVES        "磁光盘驱动器:"
+#define STR_ZIP_DRIVES       "ZIP 驱动器:"
+#define STR_250              "ZIP 250"
+#define STR_SUPERDISK_DRIVES "Superdisks:"
+#define STR_240              "LS-240"
 
 #define STR_ISARTC        "ISA 实时时钟:"
 #define STR_ISAMEM        "ISA 内存扩充"
@@ -612,16 +628,18 @@ BEGIN
     IDS_5899    "2.88 MB"
     IDS_5900    "ZIP 100"
     IDS_5901    "ZIP 250"
-    IDS_5902    "3.5 英寸 128 MB (ISO 10090)"
-    IDS_5903    "3.5 英寸 230 MB (ISO 13963)"
-    IDS_5904    "3.5 英寸 540 MB (ISO 15498)"
-    IDS_5905    "3.5 英寸 640 MB (ISO 15498)"
-    IDS_5906    "3.5 英寸 1.3 GB (GigaMO)"
-    IDS_5907    "3.5 英寸 2.3 GB (GigaMO 2)"
-    IDS_5908    "5.25 英寸 600 MB"
-    IDS_5909    "5.25 英寸 650 MB"
-    IDS_5910    "5.25 英寸 1 GB"
-    IDS_5911    "5.25 英寸 1.3 GB"
+    IDS_5902    "LS-120"
+    IDS_5903    "LS-240"
+    IDS_5904    "3.5 英寸 128 MB (ISO 10090)"
+    IDS_5905    "3.5 英寸 230 MB (ISO 13963)"
+    IDS_5906    "3.5 英寸 540 MB (ISO 15498)"
+    IDS_5907    "3.5 英寸 640 MB (ISO 15498)"
+    IDS_5908    "3.5 英寸 1.3 GB (GigaMO)"
+    IDS_5909    "3.5 英寸 2.3 GB (GigaMO 2)"
+    IDS_5910    "5.25 英寸 600 MB"
+    IDS_5911    "5.25 英寸 650 MB"
+    IDS_5912    "5.25 英寸 1 GB"
+    IDS_5913    "5.25 英寸 1.3 GB"
 
     IDS_6144    "标准转速 (RPM)"
     IDS_6145    "低于标准转速的 1%"

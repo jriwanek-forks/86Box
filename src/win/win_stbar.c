@@ -44,7 +44,10 @@
 #include <86box/scsi.h>
 #include <86box/scsi_device.h>
 #include <86box/cdrom.h>
+#if 0
 #include <86box/zip.h>
+#endif
+#include <86box/superdisk.h>
 #include <86box/mo.h>
 #include <86box/cdrom_image.h>
 #include <86box/scsi_disk.h>
@@ -288,6 +291,7 @@ StatusBarCreateCdromTip(int part)
     wcscpy(sbTips[part], tempTip);
 }
 
+#if 0
 static void
 StatusBarCreateZIPTip(int part)
 {
@@ -308,6 +312,39 @@ StatusBarCreateZIPTip(int part)
                   type, drive + 1, szText, plat_get_string(IDS_2057));
     } else {
         mbstoc16s(fn, zip_drives[drive].image_path, sizeof_w(fn));
+        _swprintf(tempTip, plat_get_string(IDS_2054),
+                  type, drive + 1, szText, fn);
+    }
+
+    if (sbTips[part] != NULL) {
+        free(sbTips[part]);
+        sbTips[part] = NULL;
+    }
+    sbTips[part] = (WCHAR *) malloc((wcslen(tempTip) << 1) + 2);
+    wcscpy(sbTips[part], tempTip);
+}
+#endif
+
+static void
+StatusBarCreateSuperDiskTip(int part)
+{
+    WCHAR  tempTip[512];
+    WCHAR *szText;
+    WCHAR  fn[512];
+    int    id;
+    int    drive = sb_part_meanings[part] & 0xf;
+    int    bus   = superdisk_drives[drive].bus_type;
+
+    id     = IDS_5377 + (bus - 1);
+    szText = plat_get_string(id);
+
+    int type = superdisk_drives[drive].is_240 ? 240 : 120;
+
+    if (strlen(superdisk_drives[drive].image_path) == 0) {
+        _swprintf(tempTip, plat_get_string(IDS_2054),
+                  type, drive + 1, szText, plat_get_string(IDS_2057));
+    } else {
+        mbstoc16s(fn, superdisk_drives[drive].image_path, sizeof_w(fn));
         _swprintf(tempTip, plat_get_string(IDS_2054),
                   type, drive + 1, szText, fn);
     }
@@ -423,8 +460,14 @@ ui_sb_update_tip(int meaning)
                 StatusBarCreateCdromTip(part);
                 break;
 
+#if 0
             case SB_ZIP:
                 StatusBarCreateZIPTip(part);
+                break;
+#endif
+
+            case SB_SUPERDISK:
+                StatusBarCreateSuperDiskTip(part);
                 break;
 
             case SB_MO:
@@ -575,6 +618,7 @@ ui_sb_update_panes(void)
         if (cdrom[i].bus_type != 0)
             sb_parts++;
     }
+#if 0
     for (i = 0; i < ZIP_NUM; i++) {
         /* Could be Internal or External IDE.. */
         if ((zip_drives[i].bus_type == ZIP_BUS_ATAPI) && !ide_int && memcmp(hdc_name, "xtide", 5) && memcmp(hdc_name, "ide", 3))
@@ -583,6 +627,17 @@ ui_sb_update_panes(void)
         if ((zip_drives[i].bus_type == ZIP_BUS_SCSI) && !scsi_int && (scsi_card_current[0] == 0) && (scsi_card_current[1] == 0) && (scsi_card_current[2] == 0) && (scsi_card_current[3] == 0))
             continue;
         if (zip_drives[i].bus_type != 0)
+            sb_parts++;
+    }
+#endif
+    for (i = 0; i < SUPERDISK_NUM; i++) {
+        /* Could be Internal or External IDE.. */
+        if ((superdisk_drives[i].bus_type == SUPERDISK_BUS_ATAPI) && !ide_int && memcmp(hdc_name, "xtide", 5) && memcmp(hdc_name, "ide", 3))
+            continue;
+
+        if ((superdisk_drives[i].bus_type == SUPERDISK_BUS_SCSI) && !scsi_int && (scsi_card_current[0] == 0) && (scsi_card_current[1] == 0) && (scsi_card_current[2] == 0) && (scsi_card_current[3] == 0))
+            continue;
+        if (superdisk_drives[i].bus_type != 0)
             sb_parts++;
     }
     for (i = 0; i < MO_NUM; i++) {
@@ -662,6 +717,7 @@ ui_sb_update_panes(void)
             sb_parts++;
         }
     }
+#if 0
     for (i = 0; i < ZIP_NUM; i++) {
         /* Could be Internal or External IDE.. */
         if ((zip_drives[i].bus_type == ZIP_BUS_ATAPI) && !ide_int && memcmp(hdc_name, "xtide", 5) && memcmp(hdc_name, "ide", 3))
@@ -673,6 +729,21 @@ ui_sb_update_panes(void)
             iStatusWidths[sb_parts]    = edge;
             sb_part_meanings[sb_parts] = SB_ZIP | i;
             sb_map[SB_ZIP | i]         = sb_parts;
+            sb_parts++;
+        }
+    }
+#endif
+    for (i = 0; i < SUPERDISK_NUM; i++) {
+        /* Could be Internal or External IDE.. */
+        if ((superdisk_drives[i].bus_type == SUPERDISK_BUS_ATAPI) && !ide_int && memcmp(hdc_name, "xtide", 5) && memcmp(hdc_name, "ide", 3))
+            continue;
+        if ((superdisk_drives[i].bus_type == SUPERDISK_BUS_SCSI) && !scsi_int && (scsi_card_current[0] == 0) && (scsi_card_current[1] == 0) && (scsi_card_current[2] == 0) && (scsi_card_current[3] == 0))
+            continue;
+        if (superdisk_drives[i].bus_type != 0) {
+            edge += icon_width;
+            iStatusWidths[sb_parts]    = edge;
+            sb_part_meanings[sb_parts] = SB_SUPERDISK | i;
+            sb_map[SB_SUPERDISK | i]         = sb_parts;
             sb_parts++;
         }
     }
@@ -777,10 +848,18 @@ ui_sb_update_panes(void)
                 StatusBarCreateCdromTip(i);
                 break;
 
+#if 0
             case SB_ZIP: /* Iomega ZIP */
                 sb_part_icons[i] = (strlen(zip_drives[sb_part_meanings[i] & 0xf].image_path) == 0) ? 128 : 0;
                 sb_part_icons[i] |= 48;
                 StatusBarCreateZIPTip(i);
+                break;
+#endif
+
+            case SB_ZIP: /* Imation SuperDisk */
+                sb_part_icons[i] = (strlen(superdisk_drives[sb_part_meanings[i] & 0xf].image_path) == 0) ? 128 : 0;
+                sb_part_icons[i] |= 48;
+                StatusBarCreateSuperDiskTip(i);
                 break;
 
             case SB_MO: /* Magneto-Optical disk */
@@ -848,8 +927,13 @@ StatusBarPopupMenu(HWND hwnd, POINT pt, int id)
         case SB_CDROM:
             menu = media_menu_get_cdrom(sb_part_meanings[id] & 0x0F);
             break;
+#if 0
         case SB_ZIP:
             menu = media_menu_get_zip(sb_part_meanings[id] & 0x0F);
+            break;
+#endif
+        case SB_SUPERDISK:
+            menu = media_menu_get_superdisk(sb_part_meanings[id] & 0x0F);
             break;
         case SB_MO:
             menu = media_menu_get_mo(sb_part_meanings[id] & 0x0F);

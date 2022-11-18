@@ -34,7 +34,10 @@ extern uint64_t tsc;
 #include <86box/hdc.h>
 #include <86box/scsi.h>
 #include <86box/scsi_device.h>
+#if 0
 #include <86box/zip.h>
+#endif
+#include <86box/superdisk.h>
 #include <86box/mo.h>
 #include <86box/plat.h>
 #include <86box/machine.h>
@@ -86,7 +89,10 @@ struct Pixmaps {
     PixmapSetEmptyActive floppy_525;
     PixmapSetEmptyActive floppy_35;
     PixmapSetEmptyActive cdrom;
+#if 0
     PixmapSetEmptyActive zip;
+#endif
+    PixmapSetEmptyActive superdisk;
     PixmapSetEmptyActive mo;
     PixmapSetActive      hd;
     PixmapSetEmptyActive net;
@@ -211,7 +217,10 @@ struct MachineStatus::States {
         pixmaps.floppy_525.load("/floppy_525%1.ico");
         pixmaps.floppy_35.load("/floppy_35%1.ico");
         pixmaps.cdrom.load("/cdrom%1.ico");
+#if 0
         pixmaps.zip.load("/zip%1.ico");
+#endif
+        pixmaps.superdisk.load("/zip%1.ico");
         pixmaps.mo.load("/mo%1.ico");
         pixmaps.hd.load("/hard_disk%1.ico");
         pixmaps.net.load("/network%1.ico");
@@ -226,8 +235,13 @@ struct MachineStatus::States {
         for (auto &c : cdrom) {
             c.pixmaps = &pixmaps.cdrom;
         }
+#if 0
         for (auto &z : zip) {
             z.pixmaps = &pixmaps.zip;
+        }
+#endif
+        for (auto &z : superdisk) {
+            z.pixmaps = &pixmaps.superdisk;
         }
         for (auto &m : mo) {
             m.pixmaps = &pixmaps.mo;
@@ -240,16 +254,19 @@ struct MachineStatus::States {
         }
     }
 
-    std::array<StateEmpty, 2>                  cartridge;
-    StateEmptyActive                           cassette;
-    std::array<StateEmptyActive, FDD_NUM>      fdd;
-    std::array<StateEmptyActive, CDROM_NUM>    cdrom;
-    std::array<StateEmptyActive, ZIP_NUM>      zip;
-    std::array<StateEmptyActive, MO_NUM>       mo;
-    std::array<StateActive, HDD_BUS_USB>       hdds;
-    std::array<StateEmptyActive, NET_CARD_MAX> net;
-    std::unique_ptr<ClickableLabel>            sound;
-    std::unique_ptr<QLabel>                    text;
+    std::array<StateEmpty, 2>                   cartridge;
+    StateEmptyActive                            cassette;
+    std::array<StateEmptyActive, FDD_NUM>       fdd;
+    std::array<StateEmptyActive, CDROM_NUM>     cdrom;
+#if 0
+    std::array<StateEmptyActive, ZIP_NUM>       zip;
+#endif
+    std::array<StateEmptyActive, SUPERDISK_NUM> superdisk;
+    std::array<StateEmptyActive, MO_NUM>        mo;
+    std::array<StateActive, HDD_BUS_USB>        hdds;
+    std::array<StateEmptyActive, NET_CARD_MAX>  net;
+    std::unique_ptr<ClickableLabel>             sound;
+    std::unique_ptr<QLabel>                     text;
 };
 
 MachineStatus::MachineStatus(QObject *parent)
@@ -314,6 +331,7 @@ MachineStatus::iterateCDROM(const std::function<void(int)> &cb)
     }
 }
 
+#if 0
 void
 MachineStatus::iterateZIP(const std::function<void(int)> &cb)
 {
@@ -330,6 +348,23 @@ MachineStatus::iterateZIP(const std::function<void(int)> &cb)
             (scsi_card_current[2] == 0) && (scsi_card_current[3] == 0))
             continue;
         if (zip_drives[i].bus_type != 0) {
+            cb(i);
+        }
+    }
+}
+#endif
+
+void
+MachineStatus::iterateSuperdisk(const std::function<void(int)> &cb)
+{
+    auto hdc_name = QString(hdc_get_internal_name(hdc_current));
+    for (size_t i = 0; i < SUPERDISK_NUM; i++) {
+        /* Could be Internal or External IDE.. */
+        if ((superdisk_drives[i].bus_type == SUPERDISK_BUS_ATAPI) && !hasIDE() && hdc_name.left(3) != QStringLiteral("ide") && hdc_name.left(5) != QStringLiteral("xtide"))
+            continue;
+        if ((superdisk_drives[i].bus_type == SUPERDISK_BUS_SCSI) && !hasSCSI() && (scsi_card_current[0] == 0) && (scsi_card_current[1] == 0) && (scsi_card_current[2] == 0) && (scsi_card_current[3] == 0))
+            continue;
+        if (superdisk_drives[i].bus_type != 0) {
             cb(i);
         }
     }
@@ -395,9 +430,15 @@ MachineStatus::refreshIcons()
         d->cdrom[i].setActive(machine_status.cdrom[i].active);
         d->cdrom[i].setEmpty(machine_status.cdrom[i].empty);
     }
+#if 0
     for (size_t i = 0; i < ZIP_NUM; i++) {
         d->zip[i].setActive(machine_status.zip[i].active);
         d->zip[i].setEmpty(machine_status.zip[i].empty);
+    }
+#endif
+    for (size_t i = 0; i < SUPERDISK_NUM; i++) {
+        d->superdisk[i].setActive(machine_status.superdisk[i].active);
+        d->superdisk[i].setEmpty(machine_status.superdisk[i].empty);
     }
     for (size_t i = 0; i < MO_NUM; i++) {
         d->mo[i].setActive(machine_status.mo[i].active);
@@ -427,8 +468,12 @@ MachineStatus::clearActivity()
         fdd.setActive(false);
     for (auto &cdrom : d->cdrom)
         cdrom.setActive(false);
+#if 0
     for (auto &zip : d->zip)
         zip.setActive(false);
+#endif
+    for (auto &superdisk : d->superdisk)
+        superdisk.setActive(false);
     for (auto &mo : d->mo)
         mo.setActive(false);
     for (auto &hdd : d->hdds)
@@ -461,8 +506,13 @@ MachineStatus::refresh(QStatusBar *sbar)
     for (size_t i = 0; i < CDROM_NUM; i++) {
         sbar->removeWidget(d->cdrom[i].label.get());
     }
+#if 0
     for (size_t i = 0; i < ZIP_NUM; i++) {
         sbar->removeWidget(d->zip[i].label.get());
+    }
+#endif
+    for (size_t i = 0; i < SUPERDISK_NUM; i++) {
+        sbar->removeWidget(d->superdisk[i].label.get());
     }
     for (size_t i = 0; i < MO_NUM; i++) {
         sbar->removeWidget(d->mo[i].label.get());
@@ -547,6 +597,7 @@ MachineStatus::refresh(QStatusBar *sbar)
         sbar->addWidget(d->cdrom[i].label.get());
     });
 
+#if 0
     iterateZIP([this, sbar](int i) {
         d->zip[i].label = std::make_unique<ClickableLabel>();
         d->zip[i].setEmpty(QString(zip_drives[i].image_path).isEmpty());
@@ -561,6 +612,23 @@ MachineStatus::refresh(QStatusBar *sbar)
         d->zip[i].label->setToolTip(MediaMenu::ptr->zipMenus[i]->title());
         d->zip[i].label->setAcceptDrops(true);
         sbar->addWidget(d->zip[i].label.get());
+    });
+#endif
+
+    iterateSuperdisk([this, sbar](int i) {
+        d->superdisk[i].label = std::make_unique<ClickableLabel>();
+        d->superdisk[i].setEmpty(QString(superdisk_drives[i].image_path).isEmpty());
+        d->superdisk[i].setActive(false);
+        d->superdisk[i].refresh();
+        connect((ClickableLabel *) d->superdisk[i].label.get(), &ClickableLabel::clicked, [i](QPoint pos) {
+            MediaMenu::ptr->superdiskMenus[i]->popup(pos - QPoint(0, MediaMenu::ptr->superdiskMenus[i]->sizeHint().height()));
+        });
+        connect((ClickableLabel *) d->superdisk[i].label.get(), &ClickableLabel::dropped, [i](QString str) {
+            MediaMenu::ptr->superdiskMount(i, str, false);
+        });
+        d->superdisk[i].label->setToolTip(MediaMenu::ptr->superdiskMenus[i]->title());
+        d->superdisk[i].label->setAcceptDrops(true);
+        sbar->addWidget(d->superdisk[i].label.get());
     });
 
     iterateMO([this, sbar](int i) {
@@ -691,9 +759,15 @@ MachineStatus::updateTip(int tag)
             if (d->cdrom[item].label && MediaMenu::ptr->cdromMenus[item])
                 d->cdrom[item].label->setToolTip(MediaMenu::ptr->cdromMenus[item]->title());
             break;
+#if 0
         case SB_ZIP:
             if (d->zip[item].label && MediaMenu::ptr->zipMenus[item])
                 d->zip[item].label->setToolTip(MediaMenu::ptr->zipMenus[item]->title());
+            break;
+#endif
+        case SB_SUPERDISK:
+            if (d->superdisk[item].label && MediaMenu::ptr->superdiskMenus[item])
+                d->superdisk[item].label->setToolTip(MediaMenu::ptr->superdiskMenus[item]->title());
             break;
         case SB_MO:
             if (d->mo[item].label && MediaMenu::ptr->moMenus[item])

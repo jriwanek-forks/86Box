@@ -161,6 +161,9 @@
 #define IDS_2167    2167     // "Network driver initialization failed"
 #define IDS_2168    2168     // "The network configuration will be switched to the null driver"
 
+#define IDS_2169    2054     // "Superdisk %i (%03i): %ls"
+#define IDS_2170    2055     // "Superdisk images (*.IM?)\0*.IM..."
+
 #define IDS_4096    4096     // "Hard disk (%s)"
 #define IDS_4097    4097     // "%01i:%01i"
 #define IDS_4098    4098     // "%i"
@@ -248,16 +251,18 @@
 #define IDS_5899    5899     // "2.88 MB"
 #define IDS_5900    5900     // "ZIP 100"
 #define IDS_5901    5901     // "ZIP 250"
-#define IDS_5902    5902     // "3.5\" 128 MB (ISO 10090)"
-#define IDS_5903    5903     // "3.5\" 230 MB (ISO 13963)"
-#define IDS_5904    5904     // "3.5\" 540 MB (ISO 15498)"
-#define IDS_5905    5905     // "3.5\" 640 MB (ISO 15498)"
-#define IDS_5906    5906     // "3.5\" 1.3 GB (GigaMO)"
-#define IDS_5907    5907     // "3.5\" 2.3 GB (GigaMO 2)"
-#define IDS_5908    5908     // "5.25\" 600 MB"
-#define IDS_5909    5909     // "5.25\" 650 MB"
-#define IDS_5910    5910     // "5.25\" 1 GB"
-#define IDS_5911    5911     // "5.25\" 1.3 GB"
+#define IDS_5902    5902     // "LS-120"
+#define IDS_5903    5903     // "LS-240"
+#define IDS_5904    5904     // "3.5\" 128 MB (ISO 10090)"
+#define IDS_5905    5905     // "3.5\" 230 MB (ISO 13963)"
+#define IDS_5906    5906     // "3.5\" 540 MB (ISO 15498)"
+#define IDS_5907    5907     // "3.5\" 640 MB (ISO 15498)"
+#define IDS_5908    5908     // "3.5\" 1.3 GB (GigaMO)"
+#define IDS_5909    5909     // "3.5\" 2.3 GB (GigaMO 2)"
+#define IDS_5910    5910     // "5.25\" 600 MB"
+#define IDS_5911    5911     // "5.25\" 650 MB"
+#define IDS_5912    5912     // "5.25\" 1 GB"
+#define IDS_5913    5913     // "5.25\" 1.3 GB"
 
 #define IDS_6144    6144     // "Perfect RPM"
 #define IDS_6145    6145     // "1%% below perfect RPM"
@@ -268,7 +273,7 @@
 
 #define IDS_LANG_ENUS IDS_7168
 
-#define STR_NUM_2048  121
+#define STR_NUM_2048  123
 // UNUSED: #define STR_NUM_3072  11
 #define STR_NUM_4096 40
 #define STR_NUM_4352 6
@@ -276,7 +281,7 @@
 #define STR_NUM_5120 1
 #define STR_NUM_5376 7
 #define STR_NUM_5632 7
-#define STR_NUM_5888 24
+#define STR_NUM_5888 26
 #define STR_NUM_6144 4
 #define STR_NUM_7168 1
 
