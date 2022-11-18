@@ -87,6 +87,7 @@
 #include <86box/cdrom.h>
 #include <86box/cdrom_interface.h>
 #include <86box/zip.h>
+#include <86box/superdisk.h>
 #include <86box/mo.h>
 #include <86box/scsi_disk.h>
 #include <86box/cdrom_image.h>
@@ -890,6 +891,7 @@ usage:
     mouse_init();
     cdrom_global_init();
     zip_global_init();
+    superdisk_global_init();
     mo_global_init();
 
     /* Load the configuration file. */
@@ -1148,6 +1150,8 @@ pc_reset_hard_close(void)
 
     zip_close();
 
+    superdisk_close();
+
     mo_close();
 
     scsi_disk_close();
@@ -1249,6 +1253,8 @@ pc_reset_hard_init(void)
     cdrom_hard_reset();
 
     mo_hard_reset();
+
+    superdisk_hard_reset();
 
     zip_hard_reset();
 
@@ -1410,6 +1416,8 @@ pc_close(UNUSED(thread_t *ptr))
     cdrom_close();
 
     zip_close();
+
+    superdisk_close();
 
     mo_close();
 
