@@ -6,7 +6,7 @@
  *
  *          This file is part of the 86Box distribution.
  *
- *          OPTi MediaCHIPS 82C929 audio controller emulation.
+ *          OPTi MediaCHIPS 82C929 (also known as OPTi MAD16 Pro) audio controller emulation.
  *
  *
  *
@@ -37,13 +37,15 @@
 #include <86box/gameport.h>
 #include <86box/snd_ad1848.h>
 #include <86box/snd_sb.h>
+#include <86box/mem.h>
+#include <86box/rom.h>
 
 static int optimc_wss_dma[4] = { 0, 0, 1, 3 };
 static int optimc_wss_irq[8] = { 5, 7, 9, 10, 11, 12, 14, 15 }; /* W95 only uses 7-10, others may be wrong */
 
 enum optimc_local_flags {
     OPTIMC_CS4231 = 0x100,
-    OPTIMC_OPL4   = 0x200, /* Unused */
+    OPTIMC_OPL4   = 0x200,
 };
 
 typedef struct optimc_t {
@@ -68,6 +70,18 @@ typedef struct optimc_t {
     uint8_t regs[6];
 } optimc_t, opti_82c929_t;
 
+static void
+optimc_filter_opl(void* priv, double* out_l, double* out_r)
+{
+    optimc_t *optimc = (optimc_t *) priv;
+
+    if (optimc->cur_wss_enabled) {
+        *out_l /= optimc->sb->mixer_sbpro.fm_l;
+        *out_r /= optimc->sb->mixer_sbpro.fm_r;
+        ad1848_filter_aux2((void*)&optimc->ad1848, out_l, out_r);
+    }
+}
+
 static uint8_t
 optimc_wss_read(uint16_t addr, void *priv)
 {
@@ -84,7 +98,8 @@ optimc_wss_write(uint16_t addr, uint8_t val, void *priv)
 {
     optimc_t *optimc = (optimc_t *) priv;
 
-    if (!(optimc->regs[4] & 0x10) && optimc->cur_mode == 0) return;
+    if (!(optimc->regs[4] & 0x10) && optimc->cur_mode == 0)
+        return;
     optimc->wss_config = val;
     ad1848_setdma(&optimc->ad1848, optimc_wss_dma[val & 3]);
     ad1848_setirq(&optimc->ad1848, optimc_wss_irq[(val >> 3) & 7]);
@@ -121,19 +136,10 @@ optimc_remove_opl(optimc_t *optimc)
 static void
 optimc_add_opl(optimc_t *optimc)
 {
-    fm_driver_get(FM_YMF262, &optimc->sb->opl);
-    
     /* DSP I/O handler is activated in sb_dsp_setaddr */
     io_sethandler(optimc->cur_addr + 0, 0x0004, optimc->sb->opl.read, NULL, NULL, optimc->sb->opl.write, NULL, NULL, optimc->sb->opl.priv);
     io_sethandler(optimc->cur_addr + 8, 0x0002, optimc->sb->opl.read, NULL, NULL, optimc->sb->opl.write, NULL, NULL, optimc->sb->opl.priv);
     io_sethandler(0x0388, 0x0004, optimc->sb->opl.read, NULL, NULL, optimc->sb->opl.write, NULL, NULL, optimc->sb->opl.priv);
-}
-
-static void
-optimc_reload_opl(optimc_t *optimc)
-{
-    optimc_remove_opl(optimc);
-    optimc_add_opl(optimc);
 }
 
 static void
@@ -147,45 +153,40 @@ optimc_reg_write(uint16_t addr, uint8_t val, void *p)
     if (optimc->reg_enabled) {
         switch (idx) {
             case 0: /* MC1 */
-                {
-                    optimc->regs[0] = val;
-                    if (val != old) {
-                        optimc->cur_mode = optimc->cur_wss_enabled = !!(val & 0x80);
-                        io_removehandler(optimc->cur_wss_addr, 0x0004, optimc_wss_read, NULL, NULL, optimc_wss_write, NULL, NULL, optimc);
-                        io_removehandler(optimc->cur_wss_addr + 0x0004, 0x0004, ad1848_read, NULL, NULL, ad1848_write, NULL, NULL, &optimc->ad1848);
-                        switch ((val >> 4) & 0x3) {
-                            case 0: /* WSBase = 0x530 */
-                                {
-                                    optimc->cur_wss_addr = 0x530;
-                                    break;
-                                }
-                            case 1: /* WSBase = 0xE80 */
-                                {
-                                    optimc->cur_wss_addr = 0xE80;
-                                    break;
-                                }
-                            case 2: /* WSBase = 0xF40 */
-                                {
-                                    optimc->cur_wss_addr = 0xF40;
-                                    break;
-                                }
-                            case 3: /* WSBase = 0x604 */
-                                {
-                                    optimc->cur_wss_addr = 0x604;
-                                    break;
-                                }
-                        }
-                        io_sethandler(optimc->cur_wss_addr, 0x0004, optimc_wss_read, NULL, NULL, optimc_wss_write, NULL, NULL, optimc);
-                        io_sethandler(optimc->cur_wss_addr + 0x0004, 0x0004, ad1848_read, NULL, NULL, ad1848_write, NULL, NULL, &optimc->ad1848);
+                optimc->regs[0] = val;
+                if (val != old) {
+                    optimc->cur_mode = optimc->cur_wss_enabled = !!(val & 0x80);
 
-                        gameport_remap(optimc->gameport, (optimc->regs[0] & 0x1) ? 0x00 : 0x200);
+                    sound_set_cd_audio_filter(NULL, NULL);
+                    if (optimc->cur_wss_enabled) /* WSS */
+                        sound_set_cd_audio_filter(ad1848_filter_cd_audio, &optimc->ad1848);
+                    else /* SBPro */
+                        sound_set_cd_audio_filter(sbpro_filter_cd_audio, optimc->sb);
+
+                    io_removehandler(optimc->cur_wss_addr, 0x0004, optimc_wss_read, NULL, NULL, optimc_wss_write, NULL, NULL, optimc);
+                    io_removehandler(optimc->cur_wss_addr + 0x0004, 0x0004, ad1848_read, NULL, NULL, ad1848_write, NULL, NULL, &optimc->ad1848);
+                    switch ((val >> 4) & 0x3) {
+                        case 0: /* WSBase = 0x530 */
+                            optimc->cur_wss_addr = 0x530;
+                             break;
+                        case 1: /* WSBase = 0xE80 */
+                            optimc->cur_wss_addr = 0xE80;
+                            break;
+                        case 2: /* WSBase = 0xF40 */
+                            optimc->cur_wss_addr = 0xF40;
+                            break;
+                        case 3: /* WSBase = 0x604 */
+                            optimc->cur_wss_addr = 0x604;
+                            break;
                     }
-                    break;
+                    io_sethandler(optimc->cur_wss_addr, 0x0004, optimc_wss_read, NULL, NULL, optimc_wss_write, NULL, NULL, optimc);
+                    io_sethandler(optimc->cur_wss_addr + 0x0004, 0x0004, ad1848_read, NULL, NULL, ad1848_write, NULL, NULL, &optimc->ad1848);
+
+                    gameport_remap(optimc->gameport, (optimc->regs[0] & 0x1) ? 0x00 : 0x200);
                 }
+                break;
             case 1: /* MC2 */
                 optimc->regs[1] = val;
-                if (old != val)
-                    optimc_reload_opl(optimc);
                 break;
             case 2: /* MC3 */
                 if (val == optimc->type)
@@ -228,8 +229,6 @@ optimc_reg_write(uint16_t addr, uint8_t val, void *p)
                 break;
             case 3: /* MC4 */
                 optimc->regs[3] = val;
-                if ((old & 0x8) != (val & 0x8))
-                    optimc_reload_opl(optimc);
                 break;
             case 4: /* MC5 */
                 optimc->regs[4] = val;
@@ -273,10 +272,9 @@ optimc_reg_write(uint16_t addr, uint8_t val, void *p)
     }
     if (optimc->reg_enabled)
         optimc->reg_enabled = 0;
-    if (addr == 0xF8F && (val == optimc->type || val == 0x00)) {
-        if (addr == 0xF8F && val == optimc->type && !optimc->reg_enabled) {
+    if ((addr == 0xF8F) && ((val == optimc->type) || (val == 0x00))) {
+        if ((addr == 0xF8F) && (val == optimc->type) && !optimc->reg_enabled)
             optimc->reg_enabled = 1;
-        }
         if (reg_enable_phase) {
             switch (reg_enable_phase) {
                 case 1:
@@ -315,7 +313,8 @@ optimc_reg_read(uint16_t addr, void *p)
             case 3: /* MC4 */
             case 4: /* MC5 */
                 temp = optimc->regs[addr - 0xF8D];
-            case 5: /* MC6 (not readable) */
+            case 5: /* MC6 */
+                temp = optimc->regs[5];
                 break;
             case 2: /* MC3 */
                 temp = (optimc->regs[2] & ~0x3) | 0x2;
@@ -343,14 +342,14 @@ optimc_init(const device_t *info)
     optimc->cur_mpu401_addr    = 0x330;
     optimc->cur_mpu401_enabled = 1;
 
-    optimc->regs[0] = ((device_get_config_int("gameport")) ? 0x01 : 0x00);
+    optimc->regs[0] = 0x00;
     optimc->regs[1] = 0x03;
     optimc->regs[2] = 0x00;
     optimc->regs[3] = 0x00;
-    optimc->regs[4] = 0x2F;
+    optimc->regs[4] = 0x3F;
     optimc->regs[5] = 0x83;
 
-    optimc->gameport = gameport_add(&gameport_device);
+    optimc->gameport = gameport_add(&gameport_pnp_device);
     gameport_remap(optimc->gameport, (optimc->regs[0] & 0x1) ? 0x00 : 0x200);
 
     if (info->local & 0x100)
@@ -375,16 +374,21 @@ optimc_init(const device_t *info)
     sb_dsp_setdma8(&optimc->sb->dsp, optimc->cur_dma);
     sb_ct1345_mixer_reset(optimc->sb);
 
-    optimc->fm_type = (info->local & OPTIMC_OPL4) ? FM_YMF289B : FM_YMF262;
+    optimc->sb->opl_mixer = optimc;
+    optimc->sb->opl_mix = optimc_filter_opl;
+
+    optimc->fm_type = (info->local & OPTIMC_OPL4) ? FM_YMF278B : FM_YMF262;
     fm_driver_get(optimc->fm_type, &optimc->sb->opl);
     io_sethandler(optimc->cur_addr + 0, 0x0004, optimc->sb->opl.read, NULL, NULL, optimc->sb->opl.write, NULL, NULL, optimc->sb->opl.priv);
     io_sethandler(optimc->cur_addr + 8, 0x0002, optimc->sb->opl.read, NULL, NULL, optimc->sb->opl.write, NULL, NULL, optimc->sb->opl.priv);
     io_sethandler(0x0388, 0x0004, optimc->sb->opl.read, NULL, NULL, optimc->sb->opl.write, NULL, NULL, optimc->sb->opl.priv);
+    if (optimc->fm_type == FM_YMF278B)
+        io_sethandler(0x380, 2, optimc->sb->opl.read, NULL, NULL, optimc->sb->opl.write, NULL, NULL, optimc->sb->opl.priv);
 
     io_sethandler(optimc->cur_addr + 4, 0x0002, sb_ct1345_mixer_read, NULL, NULL, sb_ct1345_mixer_write, NULL, NULL, optimc->sb);
 
     sound_add_handler(optimc_get_buffer, optimc);
-    sound_set_cd_audio_filter(sbpro_filter_cd_audio, optimc->sb);
+    sound_set_cd_audio_filter(sbpro_filter_cd_audio, optimc->sb); /* CD audio filter for the default context */
 
     optimc->mpu = (mpu_t *) malloc(sizeof(mpu_t));
     memset(optimc->mpu, 0, sizeof(mpu_t));
@@ -399,7 +403,7 @@ optimc_init(const device_t *info)
 static void
 optimc_close(void *p)
 {
-    optimc_t* optimc = (optimc_t*)p;
+    optimc_t *optimc = (optimc_t *) p;
 
     sb_close(optimc->sb);
     free(optimc->mpu);
@@ -415,14 +419,14 @@ optimc_speed_changed(void *p)
     sb_speed_changed(optimc->sb);
 }
 
+static int
+mirosound_pcm10_available(void)
+{
+    return rom_present("roms/sound/yamaha/yrw801.rom");
+}
+
 static const device_config_t acermagic_s20_config[] = {
   // clang-format off
-    {
-        .name = "gameport",
-        .description = "Gameport",
-        .type = CONFIG_BINARY,
-        .default_int = 0
-    },
     {
         .name = "receive_input",
         .description = "Receive input (SB MIDI)",
@@ -441,16 +445,29 @@ static const device_config_t acermagic_s20_config[] = {
   // clang-format on
 };
 
-
 const device_t acermagic_s20_device = {
     .name          = "AcerMagic S20",
     .internal_name = "acermagic_s20",
     .flags         = DEVICE_ISA | DEVICE_AT,
-    .local         = 0xE3 | 0x100,
+    .local         = 0xE3 | OPTIMC_CS4231,
     .init          = optimc_init,
     .close         = optimc_close,
     .reset         = NULL,
     { .available = NULL },
+    .speed_changed = optimc_speed_changed,
+    .force_redraw  = NULL,
+    .config        = acermagic_s20_config
+};
+
+const device_t mirosound_pcm10_device = {
+    .name          = "miroSOUND PCM10",
+    .internal_name = "mirosound_pcm10",
+    .flags         = DEVICE_ISA | DEVICE_AT,
+    .local         = 0xE3 | OPTIMC_OPL4,
+    .init          = optimc_init,
+    .close         = optimc_close,
+    .reset         = NULL,
+    { .available = mirosound_pcm10_available },
     .speed_changed = optimc_speed_changed,
     .force_redraw  = NULL,
     .config        = acermagic_s20_config

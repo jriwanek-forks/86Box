@@ -653,7 +653,7 @@ SLIRPOBJ := net_slirp.o tinyglib.o \
 NETOBJ := network.o \
           net_pcap.o \
           ${SLIRPOBJ} \
-          net_dp8390.o \
+          net_dp8390.o net_3c501.o \
           net_3c503.o net_ne2000.o \
           net_pcnet.o net_wd8003.o \
           net_plip.o net_event.o
