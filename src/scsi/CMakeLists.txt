@@ -29,4 +29,5 @@ add_library(scsi OBJECT
     scsi_ncr53c8xx.c
     scsi_pcscsi.c
     scsi_spock.c
+    scsi_wd33c93.c
 )
