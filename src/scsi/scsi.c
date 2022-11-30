@@ -41,6 +41,7 @@
 #include <86box/scsi_ncr53c8xx.h>
 #include <86box/scsi_pcscsi.h>
 #include <86box/scsi_spock.h>
+#include <86box/scsi_wd33c93.h>
 
 int scsi_card_current[SCSI_CARD_MAX] = { 0, 0, 0, 0 };
 double scsi_bus_speed[SCSI_BUS_MAX] = { 0.0, 0.0, 0.0, 0.0 };
@@ -70,6 +71,7 @@ static SCSI_CARD scsi_cards[] = {
     { &scsi_t128_device,         },
     { &scsi_t228_device,         },
     { &scsi_t130b_device,        },
+    { &scsi_wd33c93_device,      },
     { &aha1640_device,           },
     { &buslogic_640a_device,     },
     { &ncr53c90a_mca_device,     },
