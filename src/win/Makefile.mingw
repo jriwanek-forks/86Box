@@ -201,7 +201,7 @@ ifndef DYNAREC
  DYNAREC := y
 endif
 ifndef CPPTHREADS
- CPPTHREADS := y
+ CPPTHREADS := n
 endif
 ifndef RTMIDI
  RTMIDI := y
