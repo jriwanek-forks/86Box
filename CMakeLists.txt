@@ -133,7 +133,7 @@ option(MUNT         "MUNT"                                                      
 option(VNC          "VNC renderer"                                                  OFF)
 option(CPPTHREADS   "C++11 threads"                                                 ON)
 option(NEW_DYNAREC  "Use the PCem v15 (\"new\") dynamic recompiler"                 OFF)
-option(MINITRACE    "Enable Chrome tracing using the modified minitrace library"    OFF)
+option(MINITRACE    "Enable Chrome tracing using the modified minitrace library"    ON)
 option(GDBSTUB      "Enable GDB stub server for debugging"                          ON)
 option(DEV_BRANCH   "Development branch"                                            OFF)
 option(QT           "Qt GUI"                                                        ON)
