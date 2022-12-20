@@ -53,6 +53,12 @@
             "dependencies": [
                 "openal-soft"
             ]
+        },
+        "faudio": {
+            "description": "FAudio sound backend",
+            "dependencies": [
+                "faudio"
+            ]
         }
     }
 }
