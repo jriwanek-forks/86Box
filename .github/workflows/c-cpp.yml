@@ -106,6 +106,8 @@ jobs:
           NEW_DYNAREC=${{ matrix.dynarec.new }}
           CLANG=${{ matrix.environment.clang }}
           X64=${{ matrix.environment.x64 }}
+          DINPUT=y
+          VNC=n
         working-directory: ./src
 
       - name: Upload artifact
