@@ -207,7 +207,7 @@ ifndef RTMIDI
  RTMIDI := y
 endif
 ifndef MINITRACE
- MINITRACE := n
+ MINITRACE := y
 endif
 ifndef AVX
  AVX := n
