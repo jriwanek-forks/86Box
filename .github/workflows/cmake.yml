@@ -105,7 +105,7 @@ jobs:
             SDL2:p
             zlib:p
             libpng:p
-            openal:p
+            FAudio:p
             rtmidi:p
             libslirp:p
             fluidsynth:p
@@ -343,7 +343,7 @@ jobs:
           libpng-dev
           libc6-dev
           librtmidi-dev
-          libopenal-dev
+          libfaudio-dev
           libslirp-dev
           libfluidsynth-dev
           libvncserver-dev
@@ -442,7 +442,7 @@ jobs:
           sdl2
           libpng
           rtmidi
-          openal-soft
+          faudio
           fluidsynth
           libvncserver
           ${{ matrix.ui.packages }}

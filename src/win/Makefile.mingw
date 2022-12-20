@@ -180,10 +180,10 @@ ifndef DINPUT
  DINPUT := n
 endif
 ifndef FAUDIO
- FAUDIO := n
+ FAUDIO := y
 endif
 ifndef OPENAL
- OPENAL := y
+ OPENAL := n
 endif
 ifndef FLUIDSYNTH
  FLUIDSYNTH := y
