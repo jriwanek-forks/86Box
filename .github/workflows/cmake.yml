@@ -59,9 +59,11 @@ jobs:
         ui:
           - name: Win32 GUI
             qt: off
+            dinput: on
             static: on
           - name: Qt GUI
             qt: on
+            dinput: off
             static: on
             slug: -Qt
             packages: >-
@@ -126,6 +128,8 @@ jobs:
           -D CMAKE_INSTALL_PREFIX=./build/artifacts
           -D QT=${{ matrix.ui.qt }}
           -D STATIC_BUILD=${{ matrix.ui.static }}
+          -D DINPUT=${{ matrix.ui.dinput }}
+          -D VNC=n
 
       - name: Build
         run: |
@@ -180,8 +184,10 @@ jobs:
         ui:
           - name: Win32 GUI
             qt: off
+            dinput: on
           - name: Qt GUI
             qt: on
+            dinput: off
             slug: -Qt
         target:
           - name: x86
@@ -245,7 +251,7 @@ jobs:
         run: >
           cmake -G Ninja -S . -B build --preset ${{ matrix.build.preset }}
           --toolchain C:/vcpkg/scripts/buildsystems/vcpkg.cmake
-          -D NEW_DYNAREC=${{ matrix.dynarec.new }} -D QT=${{ matrix.ui.qt }}
+          -D NEW_DYNAREC=${{ matrix.dynarec.new }} -D QT=${{ matrix.ui.qt }} -D DINPUT=${{ matrix.ui.dinput }}
           -D CMAKE_INSTALL_PREFIX=./build/artifacts
           -D VCPKG_CHAINLOAD_TOOLCHAIN_FILE=${{ github.workspace }}/${{ matrix.target.toolchain }}
           -D VCPKG_TARGET_TRIPLET=${{ matrix.target.triplet }}
