@@ -101,8 +101,9 @@
 #define ISAMEM_ABOVEBOARD_CARD 12
 #define ISAMEM_BRXT_CARD       13
 #define ISAMEM_BRAT_CARD       14
-#define ISAMEM_EV165A_CARD     15
-#define ISAMEM_LOTECH_CARD     16
+#define ISAMEM_EV165_CARD      15
+#define ISAMEM_EV165A_CARD     16
+#define ISAMEM_LOTECH_CARD     17
 
 #define ISAMEM_DEBUG           0
 
@@ -554,6 +555,16 @@ isamem_init(const device_t *info)
             if (!!device_get_config_int("ems"))
                 dev->flags    |= FLAG_EMS;
             dev->frame_addr[0] = 0xe0000;
+            break;
+
+        case ISAMEM_EV165_CARD: /* Everex EV-165 Maxi Magic */
+            dev->base_addr  = device_get_config_hex16("base");
+            dev->total_size = device_get_config_int("size");
+            dev->start_addr = device_get_config_int("start");
+            tot             = device_get_config_int("length");
+            if (!!device_get_config_int("ems"))
+                dev->flags |= FLAG_EMS;
+            dev->frame_addr = 0xE0000;
             break;
 
         case ISAMEM_RAMPAGEXT_CARD:  /* AST RAMpage/XT */
@@ -1540,6 +1551,102 @@ static const device_t ev159_device = {
     .config        = ev159_config
 };
 
+static const device_config_t ev165_config[] = {
+  // clang-format off
+    {
+        .name = "size",
+        .description = "Memory Size",
+        .type = CONFIG_SPINNER,
+        .default_string = "",
+        .default_int = 512,
+        .file_filter = "",
+        .spinner = {
+            .min = 0,
+            .max = 2048,
+            .step = 256
+        },
+        .selection = { { 0 } }
+    },
+    {
+        .name = "start",
+        .description = "Start Address",
+        .type = CONFIG_SPINNER,
+        .default_string = "",
+        .default_int = 64,
+        .file_filter = "",
+        .spinner = {
+            .min = 64,
+            .max = 640,
+            .step = 64
+        },
+        .selection = { { 0 } }
+    },
+    {
+        .name = "length",
+        .description = "Contiguous Size",
+        .type = CONFIG_SPINNER,
+        .default_string = "",
+        .default_int = 0,
+        .file_filter = "",
+        .spinner = {
+            .min = 0,
+            .max = 2048,
+            .step = 256
+        },
+        .selection = { { 0 } }
+    },
+    {
+        .name = "ems",
+        .description = "EMS mode",
+        .type = CONFIG_SELECTION,
+        .default_string = "",
+        .default_int = 0,
+        .file_filter = "",
+        .spinner = { 0 },
+        .selection = {
+            { .description = "Disabled", .value = 0 },
+            { .description = "Enabled",  .value = 1 },
+            { .description = ""                     }
+        },
+    },
+    {
+        .name = "base",
+        .description = "Address",
+        .type = CONFIG_HEX16,
+        .default_string = "",
+        .default_int = 0x0258,
+        .file_filter = "",
+        .spinner = { 0 },
+        .selection = {
+            { .description = "208H",     .value = 0x0208 },
+            { .description = "218H",     .value = 0x0218 },
+            { .description = "258H",     .value = 0x0258 },
+            { .description = "268H",     .value = 0x0268 },
+            { .description = "2A8H",     .value = 0x02A8 },
+            { .description = "2B8H",     .value = 0x02B8 },
+            { .description = "2E8H",     .value = 0x02E8 },
+            { .description = "Disabled", .value = 0x0000 },
+            { .description = ""                      }
+        },
+    },
+    { .name = "", .description = "", .type = CONFIG_END }
+  // clang-format on
+};
+
+static const device_t ev165_device = {
+    .name          = "Everex EV-165A Maxi Magic",
+    .internal_name = "ev165",
+    .flags         = DEVICE_ISA,
+    .local         = ISAMEM_EV165_CARD,
+    .init          = isamem_init,
+    .close         = isamem_close,
+    .reset         = NULL,
+    { .available = NULL },
+    .speed_changed = NULL,
+    .force_redraw  = NULL,
+    .config        = ev165_config
+};
+
 static const device_config_t ev165a_config[] = {
   // clang-format off
     {
@@ -2061,6 +2168,7 @@ static const struct {
     { &a6pak_device        },
     { &ems5150_device      },
     { &ev159_device        },
+    { &ev165_device        },
     { &ev165a_device       },
     { &brxt_device         },
 #if defined(DEV_BRANCH) && defined(USE_ISAMEM_BRAT)
