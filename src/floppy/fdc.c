@@ -134,14 +134,17 @@ typedef const struct {
 static fdc_cards_t fdc_cards[] = {
     // clang-format off
 #if 0
-    { &fdc_none_device     },
+    { &fdc_none_device           },
 #endif
-    { &fdc_internal_device },
-    { &fdc_b215_device     },
-    { &fdc_pii151b_device  },
-    { &fdc_pii158b_device  },
-    { &fdc_monster_device  },
-    { NULL                 }
+    { &fdc_internal_device       },
+    { &fdc_b215_device           },
+    { &fdc_pii151b_device        },
+    { &fdc_pii158b_device        },
+    { &fdc_compaticard_i_device  },
+    { &fdc_compaticard_ii_device },
+    { &fdc_compaticard_iv_device },
+    { &fdc_monster_device        },
+    { NULL                       }
     // clang-format on
 };
 
