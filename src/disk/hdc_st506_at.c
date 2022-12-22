@@ -30,6 +30,7 @@
 #include <86box/86box.h>
 #include <86box/device.h>
 #include <86box/io.h>
+#include <86box/log.h>
 #include <86box/pic.h>
 #include "cpu.h"
 #include <86box/machine.h>
@@ -111,6 +112,10 @@ typedef struct mfm_t {
     uint16_t buffer[256]; /* data buffer (16b wide) */
 
     drive_t drives[MFM_NUM]; /* attached drives */
+
+#ifdef ENABLE_ST506_AT_LOG
+    void *log;
+#endif /* ENABLE_ST506_AT_LOG */
 } mfm_t;
 
 static uint8_t mfm_read(uint16_t port, void *priv);
@@ -120,18 +125,18 @@ static void    mfm_write(uint16_t port, uint8_t val, void *priv);
 int st506_at_do_log = ENABLE_ST506_AT_LOG;
 
 static void
-st506_at_log(const char *fmt, ...)
+st506_at_log(void *priv, const char *fmt, ...)
 {
     va_list ap;
 
     if (st506_at_do_log) {
         va_start(ap, fmt);
-        pclog_ex(fmt, ap);
+        log_out(priv, fmt, ap);
         va_end(ap);
     }
 }
 #else
-#    define st506_at_log(fmt, ...)
+#    define st506_at_log(priv, fmt, ...)
 #endif
 
 static __inline void
@@ -177,30 +182,30 @@ get_sector(mfm_t *mfm, off64_t *addr)
     /* FIXME: See if this is even needed - if the code is present, IBM AT
               diagnostics v2.07 will error with: ERROR 152 - SYSTEM BOARD. */
     if (drive->curcyl != mfm->cylinder) {
-        st506_at_log("WD1003(%d) sector: wrong cylinder\n");
+        st506_at_log(mfm->log, "WD1003(%d) sector: wrong cylinder\n");
         return 1;
     }
 
     if (mfm->head > drive->cfg_hpc) {
-        st506_at_log("WD1003(%d) get_sector: past end of configured heads\n",
+        st506_at_log(mfm->log, "WD1003(%d) get_sector: past end of configured heads\n",
                      mfm->drvsel);
         return 1;
     }
 
     if (mfm->sector >= (drive->cfg_spt + 1)) {
-        st506_at_log("WD1003(%d) get_sector: past end of configured sectors\n",
+        st506_at_log(mfm->log, "WD1003(%d) get_sector: past end of configured sectors\n",
                      mfm->drvsel);
         return 1;
     }
 
     /* We should check this in the SET_DRIVE_PARAMETERS command!  --FvK */
     if (mfm->head > drive->hpc) {
-        st506_at_log("WD1003(%d) get_sector: past end of heads\n", mfm->drvsel);
+        st506_at_log(mfm->log, "WD1003(%d) get_sector: past end of heads\n", mfm->drvsel);
         return 1;
     }
 
     if (mfm->sector >= (drive->spt + 1)) {
-        st506_at_log("WD1003(%d) get_sector: past end of sectors\n", mfm->drvsel);
+        st506_at_log(mfm->log, "WD1003(%d) get_sector: past end of sectors\n", mfm->drvsel);
         return 1;
     }
 
@@ -217,19 +222,19 @@ get_sector_format(mfm_t *mfm, off64_t *addr)
     /* FIXME: See if this is even needed - if the code is present, IBM AT
               diagnostics v2.07 will error with: ERROR 152 - SYSTEM BOARD. */
     if (drive->curcyl != mfm->cylinder) {
-        st506_at_log("WD1003(%d) sector: wrong cylinder\n");
+        st506_at_log(mfm->log, "WD1003(%d) sector: wrong cylinder\n");
         return 1;
     }
 
     if (mfm->head > drive->cfg_hpc) {
-        st506_at_log("WD1003(%d) get_sector: past end of configured heads\n",
+        st506_at_log(mfm->log, "WD1003(%d) get_sector: past end of configured heads\n",
                      mfm->drvsel);
         return 1;
     }
 
     /* We should check this in the SET_DRIVE_PARAMETERS command!  --FvK */
     if (mfm->head > drive->hpc) {
-        st506_at_log("WD1003(%d) get_sector: past end of heads\n", mfm->drvsel);
+        st506_at_log(mfm->log, "WD1003(%d) get_sector: past end of heads\n", mfm->drvsel);
         return 1;
     }
 
@@ -262,7 +267,7 @@ mfm_cmd(mfm_t *mfm, uint8_t val)
 
     if (!drive->present) {
         /* This happens if sofware polls all drives. */
-        st506_at_log("WD1003(%d) command %02x on non-present drive\n",
+        st506_at_log(mfm->log, "WD1003(%d) command %02x on non-present drive\n",
                      mfm->drvsel, val);
         mfm->command = 0xff;
         mfm->status  = STAT_BUSY;
@@ -296,7 +301,7 @@ mfm_cmd(mfm_t *mfm, uint8_t val)
                 case CMD_READ + 1:
                 case CMD_READ + 2:
                 case CMD_READ + 3:
-                    st506_at_log("WD1003(%d) read, opt=%d\n",
+                    st506_at_log(mfm->log, "WD1003(%d) read, opt=%d\n",
                                  mfm->drvsel, val & 0x03);
                     mfm->command &= 0xfc;
                     if (val & 2)
@@ -309,7 +314,7 @@ mfm_cmd(mfm_t *mfm, uint8_t val)
                 case CMD_WRITE + 1:
                 case CMD_WRITE + 2:
                 case CMD_WRITE + 3:
-                    st506_at_log("WD1003(%d) write, opt=%d\n",
+                    st506_at_log(mfm->log, "WD1003(%d) write, opt=%d\n",
                                  mfm->drvsel, val & 0x03);
                     mfm->command &= 0xfc;
                     if (val & 2)
@@ -341,7 +346,7 @@ mfm_cmd(mfm_t *mfm, uint8_t val)
                     break;
 
                 default:
-                    st506_at_log("WD1003: bad command %02X\n", val);
+                    st506_at_log(mfm->log, "WD1003: bad command %02X\n", val);
                     mfm->status = STAT_BUSY;
                     timer_set_delay_u64(&mfm->callback_timer, 200 * MFM_TIME);
                     break;
@@ -376,7 +381,7 @@ mfm_write(uint16_t port, uint8_t val, void *priv)
     mfm_t *mfm = (mfm_t *) priv;
     uint8_t old;
 
-    st506_at_log("WD1003 write(%04x, %02x)\n", port, val);
+    st506_at_log(mfm->log, "WD1003 write(%04x, %02x)\n", port, val);
 
     switch (port) {
         case 0x01f0: /* data */
@@ -515,7 +520,7 @@ mfm_read(uint16_t port, void *priv)
             break;
     }
 
-    st506_at_log("WD1003 read(%04x) = %02x\n", port, ret);
+    st506_at_log(mfm->log, "WD1003 read(%04x) = %02x\n", port, ret);
 
     return ret;
 }
@@ -525,7 +530,7 @@ do_seek(mfm_t *mfm)
 {
     drive_t *drive = &mfm->drives[mfm->drvsel];
 
-    st506_at_log("WD1003(%d) seek(%d) max=%d\n",
+    st506_at_log(mfm->log, "WD1003(%d) seek(%d) max=%d\n",
                  mfm->drvsel, mfm->cylinder, drive->tracks);
 
     if (mfm->cylinder < drive->tracks)
@@ -542,7 +547,7 @@ do_callback(void *priv)
     off64_t  addr;
 
     if (mfm->reset) {
-        st506_at_log("WD1003(%d) reset\n", mfm->drvsel);
+        st506_at_log(mfm->log, "WD1003(%d) reset\n", mfm->drvsel);
 
         mfm->status   = STAT_READY | STAT_DSC;
         mfm->error    = 1;
@@ -563,7 +568,7 @@ do_callback(void *priv)
 
     switch (mfm->command) {
         case CMD_RESTORE:
-            st506_at_log("WD1003(%d) restore, step=%d\n",
+            st506_at_log(mfm->log, "WD1003(%d) restore, step=%d\n",
                          mfm->drvsel, drive->steprate);
             drive->curcyl = 0;
             mfm->cylinder = 0;
@@ -572,7 +577,7 @@ do_callback(void *priv)
             break;
 
         case CMD_SEEK:
-            st506_at_log("WD1003(%d) seek, step=%d\n",
+            st506_at_log(mfm->log, "WD1003(%d) seek, step=%d\n",
                          mfm->drvsel, drive->steprate);
             do_seek(mfm);
             mfm->status = STAT_READY | STAT_DSC;
@@ -580,7 +585,7 @@ do_callback(void *priv)
             break;
 
         case CMD_READ:
-            st506_at_log("WD1003(%d) read(%d,%d,%d)\n",
+            st506_at_log(mfm->log, "WD1003(%d) read(%d,%d,%d)\n",
                          mfm->drvsel, mfm->cylinder, mfm->head, mfm->sector);
             do_seek(mfm);
             if (get_sector(mfm, &addr)) {
@@ -603,7 +608,7 @@ read_error:
             break;
 
         case CMD_WRITE:
-            st506_at_log("WD1003(%d) write(%d,%d,%d)\n",
+            st506_at_log(mfm->log, "WD1003(%d) write(%d,%d,%d)\n",
                          mfm->drvsel, mfm->cylinder, mfm->head, mfm->sector);
             do_seek(mfm);
             if (get_sector(mfm, &addr)) {
@@ -633,7 +638,7 @@ write_error:
             break;
 
         case CMD_VERIFY:
-            st506_at_log("WD1003(%d) verify(%d,%d,%d)\n",
+            st506_at_log(mfm->log, "WD1003(%d) verify(%d,%d,%d)\n",
                          mfm->drvsel, mfm->cylinder, mfm->head, mfm->sector);
             do_seek(mfm);
             mfm->pos    = 0;
@@ -643,7 +648,7 @@ write_error:
             break;
 
         case CMD_FORMAT:
-            st506_at_log("WD1003(%d) format(%d,%d)\n",
+            st506_at_log(mfm->log, "WD1003(%d) format(%d,%d)\n",
                          mfm->drvsel, mfm->cylinder, mfm->head);
             do_seek(mfm);
             if (get_sector_format(mfm, &addr)) {
@@ -661,7 +666,7 @@ write_error:
             break;
 
         case CMD_DIAGNOSE:
-            st506_at_log("WD1003(%d) diag\n", mfm->drvsel);
+            st506_at_log(mfm->log, "WD1003(%d) diag\n", mfm->drvsel);
 
             /* This is basically controller diagnostics - it resets drive select to 0,
                and resets error and status to ready, DSC, and no error detected. */
@@ -695,11 +700,11 @@ write_error:
                 /* Only accept after RESET or DIAG. */
                 drive->cfg_spt = mfm->secount;
                 drive->cfg_hpc = mfm->head + 1;
-                st506_at_log("WD1003(%d) parameters: tracks=%d, spt=%i, hpc=%i\n",
+                st506_at_log(mfm->log, "WD1003(%d) parameters: tracks=%d, spt=%i, hpc=%i\n",
                              mfm->drvsel, drive->tracks,
                              drive->cfg_spt, drive->cfg_hpc);
             } else {
-                st506_at_log("WD1003(%d) parameters: tracks=%d,spt=%i,hpc=%i (IGNORED)\n",
+                st506_at_log(mfm->log, "WD1003(%d) parameters: tracks=%d,spt=%i,hpc=%i (IGNORED)\n",
                              mfm->drvsel, drive->tracks,
                              drive->cfg_spt, drive->cfg_hpc);
             }
@@ -710,7 +715,7 @@ write_error:
             break;
 
         default:
-            st506_at_log("WD1003(%d) callback on unknown command %02x\n",
+            st506_at_log(mfm->log, "WD1003(%d) callback on unknown command %02x\n",
                          mfm->drvsel, mfm->command);
             mfm->status = STAT_READY | STAT_ERR | STAT_DSC;
             mfm->error  = ERR_ABRT;
@@ -743,7 +748,7 @@ mfm_init(UNUSED(const device_t *info))
     mfm_t *mfm;
     int    c;
 
-    st506_at_log("WD1003: ISA MFM/RLL Fixed Disk Adapter initializing ...\n");
+    st506_at_log(mfm->log, "WD1003: ISA MFM/RLL Fixed Disk Adapter initializing ...\n");
     mfm = calloc(1, sizeof(mfm_t));
 
     c = 0;
@@ -751,7 +756,7 @@ mfm_init(UNUSED(const device_t *info))
         if ((hdd[d].bus_type == HDD_BUS_MFM) && (hdd[d].mfm_channel < MFM_NUM)) {
             loadhd(mfm, hdd[d].mfm_channel, d, hdd[d].fn);
 
-            st506_at_log("WD1003(%d): (%s) geometry %d/%d/%d\n", c, hdd[d].fn,
+            st506_at_log(mfm->log, "WD1003(%d): (%s) geometry %d/%d/%d\n", c, hdd[d].fn,
                          (int) hdd[d].tracks, (int) hdd[d].hpc, (int) hdd[d].spt);
 
             if (++c >= MFM_NUM)

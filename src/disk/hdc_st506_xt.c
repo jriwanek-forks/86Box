@@ -41,8 +41,6 @@
  *          Since all controllers (including the ones made by DTC) use
  *          (mostly) the same API, we keep them all in this module.
  *
- *
- *
  * Authors: Fred N. van Kempen, <decwiz@yahoo.com>
  *          Sarah Walker, <https://pcem-emulator.co.uk/>
  *
@@ -76,6 +74,7 @@
 #define HAVE_STDARG_H
 #include <86box/86box.h>
 #include <86box/io.h>
+#include <86box/log.h>
 #include <86box/mem.h>
 #include <86box/rom.h>
 #include <86box/timer.h>
@@ -287,6 +286,10 @@ typedef struct hdc_t {
     drive_t drives[MFM_NUM];       /* the attached drives */
     uint8_t scratch[64];           /* ST-11 scratchpad RAM */
     uint8_t buff[SECTOR_SIZE + 4]; /* sector buffer RAM (+ ECC bytes) */
+
+#ifdef ENABLE_ST506_XT_LOG
+    void *log;
+#endif /* ENABLE_ST506_XT_LOG */
 } hdc_t;
 
 /* Supported drives table for the Xebec controller. */
@@ -330,18 +333,18 @@ hd_type_t hd_types_olivetti[16] = {
 int st506_xt_do_log = ENABLE_ST506_XT_LOG;
 
 static void
-st506_xt_log(const char *fmt, ...)
+st506_xt_log(void *priv, const char *fmt, ...)
 {
     va_list ap;
 
     if (st506_xt_do_log) {
         va_start(ap, fmt);
-        pclog_ex(fmt, ap);
+        log_out(priv, fmt, ap);
         va_end(ap);
     }
 }
 #else
-#    define st506_xt_log(fmt, ...)
+#    define st506_xt_log(priv, fmt, ...)
 #endif
 
 static void
@@ -377,25 +380,19 @@ get_sector(hdc_t *dev, drive_t *drive, off64_t *addr)
 
 #if 0
     if (drive->cylinder != dev->cylinder) {
-#    ifdef ENABLE_ST506_XT_LOG
-        st506_xt_log("ST506: get_sector: wrong cylinder\n");
-#    endif
+        st506_xt_log(dev->log, "ST506: get_sector: wrong cylinder\n");
         dev->error = ERR_ILLEGAL_ADDR;
         return(0);
     }
 #endif
 
     if (dev->head >= drive->cfg_hpc) {
-#ifdef ENABLE_ST506_XT_LOG
-        st506_xt_log("ST506: get_sector: past end of configured heads\n");
-#endif
+        st506_xt_log(dev->log, "ST506: get_sector: past end of configured heads\n");
         dev->error = ERR_ILLEGAL_ADDR;
         return 0;
     }
     if (dev->sector >= drive->cfg_spt) {
-#ifdef ENABLE_ST506_XT_LOG
-        st506_xt_log("ST506: get_sector: past end of configured sectors\n");
-#endif
+        st506_xt_log(dev->log, "ST506: get_sector: past end of configured sectors\n");
         dev->error = ERR_ILLEGAL_ADDR;
         return 0;
     }
@@ -509,7 +506,7 @@ st506_callback(void *priv)
 
     switch (dev->command[0]) {
         case CMD_TEST_DRIVE_READY:
-            st506_xt_log("ST506: TEST_READY(%i) = %i\n",
+            st506_xt_log(dev->log, "ST506: TEST_READY(%i) = %i\n",
                          dev->drive_sel, drive->present);
             if (!drive->present)
                 st506_error(dev, dev->nr_err);
@@ -519,7 +516,7 @@ st506_callback(void *priv)
         case CMD_RECALIBRATE:
             switch (dev->state) {
                 case STATE_START_COMMAND:
-                    st506_xt_log("ST506: RECALIBRATE(%i) [%i]\n",
+                    st506_xt_log(dev->log, "ST506: RECALIBRATE(%i) [%i]\n",
                                  dev->drive_sel, drive->present);
                     if (!drive->present) {
                         st506_error(dev, dev->nr_err);
@@ -548,9 +545,7 @@ st506_callback(void *priv)
         case CMD_STATUS:
             switch (dev->state) {
                 case STATE_START_COMMAND:
-#ifdef ENABLE_ST506_XT_LOG
-                    st506_xt_log("ST506: STATUS\n");
-#endif
+                    st506_xt_log(dev->log, "ST506: STATUS\n");
                     dev->buff_pos = 0;
                     dev->buff_cnt = 4;
                     dev->buff[0]  = dev->err_bv | dev->error;
@@ -578,7 +573,7 @@ st506_callback(void *priv)
             switch (dev->state) {
                 case STATE_START_COMMAND:
                     (void) get_chs(dev, drive);
-                    st506_xt_log("ST506: FORMAT_DRIVE(%i) interleave=%i\n",
+                    st506_xt_log(dev->log, "ST506: FORMAT_DRIVE(%i) interleave=%i\n",
                                  dev->drive_sel, dev->command[4]);
                     ui_sb_update_icon(SB_HDD | HDD_BUS_MFM, 1);
                     timer_advance_u64(&dev->timer, ST506_TIME);
@@ -617,7 +612,7 @@ st506_callback(void *priv)
             switch (dev->state) {
                 case STATE_START_COMMAND:
                     (void) get_chs(dev, drive);
-                    st506_xt_log("ST506: VERIFY(%i, %i/%i/%i, %i)\n",
+                    st506_xt_log(dev->log, "ST506: VERIFY(%i, %i/%i/%i, %i)\n",
                                  dev->drive_sel, dev->cylinder,
                                  dev->head, dev->sector, dev->count);
                     ui_sb_update_icon(SB_HDD | HDD_BUS_MFM, 1);
@@ -660,7 +655,7 @@ st506_callback(void *priv)
             switch (dev->state) {
                 case STATE_START_COMMAND:
                     (void) get_chs_format(dev, drive);
-                    st506_xt_log("ST506: FORMAT_%sTRACK(%i, %i/%i)\n",
+                    st506_xt_log(dev->log, "ST506: FORMAT_%sTRACK(%i, %i/%i)\n",
                                  (dev->command[0] == CMD_FORMAT_BAD_TRACK) ? "BAD_" : "",
                                  dev->drive_sel, dev->cylinder, dev->head);
                     ui_sb_update_icon(SB_HDD | HDD_BUS_MFM, 1);
@@ -709,7 +704,7 @@ st506_callback(void *priv)
             switch (dev->state) {
                 case STATE_START_COMMAND:
                     (void) get_chs(dev, drive);
-                    st506_xt_log("ST506: READ%s(%i, %i/%i/%i, %i)\n",
+                    st506_xt_log(dev->log, "ST506: READ%s(%i, %i/%i/%i, %i)\n",
                                  (dev->command[0] == CMD_READ_LONG) ? "_LONG" : "",
                                  dev->drive_sel, dev->cylinder,
                                  dev->head, dev->sector, dev->count);
@@ -746,9 +741,7 @@ read_error_start:
                     for (; dev->buff_pos < dev->buff_cnt; dev->buff_pos++) {
                         val = dma_channel_write(dev->dma, dev->buff[dev->buff_pos]);
                         if (val == DMA_NODATA) {
-#ifdef ENABLE_ST506_XT_LOG
-                            st506_xt_log("ST506: CMD_READ out of data!\n");
-#endif
+                            st506_xt_log(dev->log, "ST506: CMD_READ out of data!\n");
                             st506_error(dev, ERR_NO_RECOVERY);
                             st506_complete(dev);
                             return;
@@ -817,7 +810,7 @@ read_error_sent:
             switch (dev->state) {
                 case STATE_START_COMMAND:
                     (void) get_chs(dev, drive);
-                    st506_xt_log("ST506: WRITE%s(%i, %i/%i/%i, %i)\n",
+                    st506_xt_log(dev->log, "ST506: WRITE%s(%i, %i/%i/%i, %i)\n",
                                  (dev->command[0] == CMD_WRITE_LONG) ? "_LONG" : "",
                                  dev->drive_sel, dev->cylinder,
                                  dev->head, dev->sector, dev->count);
@@ -847,9 +840,7 @@ read_error_sent:
                     for (; dev->buff_pos < dev->buff_cnt; dev->buff_pos++) {
                         val = dma_channel_read(dev->dma);
                         if (val == DMA_NODATA) {
-#ifdef ENABLE_ST506_XT_LOG
-                            st506_xt_log("ST506: CMD_WRITE out of data!\n");
-#endif
+                            st506_xt_log(dev->log, "ST506: CMD_WRITE out of data!\n");
                             st506_error(dev, ERR_NO_RECOVERY);
                             st506_complete(dev);
                             return;
@@ -905,7 +896,7 @@ write_error:
         case CMD_SEEK:
             if (drive->present) {
                 val = get_chs(dev, drive);
-                st506_xt_log("ST506: SEEK(%i, %i) [%i]\n",
+                st506_xt_log(dev->log, "ST506: SEEK(%i, %i) [%i]\n",
                              dev->drive_sel, drive->cylinder, val);
                 if (!val)
                     st506_error(dev, ERR_SEEK_ERROR);
@@ -927,7 +918,7 @@ write_error:
                     drive->cfg_cyl = dev->buff[1] | (dev->buff[0] << 8);
                     drive->cfg_hpc = dev->buff[2];
                     /* For a 615/4/26 we get 666/2/31 geometry. */
-                    st506_xt_log("ST506: drive%i: cyls=%i, heads=%i\n",
+                    st506_xt_log(dev->log, "ST506: drive%i: cyls=%i, heads=%i\n",
                                  dev->drive_sel, drive->cfg_cyl, drive->cfg_hpc);
                     if ((dev->type >= ST506_XT_TYPE_VICTOR_V86P) && (drive->cfg_hpc == 2)) {
                         /*
@@ -949,7 +940,7 @@ write_error:
                          * [1] https://archive.org/download/v86p-hd/V86P-HD.TXT
                          */
                         drive->cfg_hpc = 4;
-                        st506_xt_log("ST506: drive%i: corrected to heads=%i\n",
+                        st506_xt_log(dev->log, "ST506: drive%i: corrected to heads=%i\n",
                                      dev->drive_sel, drive->cfg_hpc);
                     }
                     st506_complete(dev);
@@ -963,9 +954,7 @@ write_error:
         case CMD_READ_ECC_BURST_LEN:
             switch (dev->state) {
                 case STATE_START_COMMAND:
-#ifdef ENABLE_ST506_XT_LOG
-                    st506_xt_log("ST506: READ_ECC_BURST_LEN\n");
-#endif
+                    st506_xt_log(dev->log, "ST506: READ_ECC_BURST_LEN\n");
                     dev->buff_pos = 0;
                     dev->buff_cnt = 1;
                     dev->buff[0]  = 0; /* 0 bits */
@@ -987,7 +976,7 @@ write_error:
                 case STATE_START_COMMAND:
                     dev->buff_pos = 0;
                     dev->buff_cnt = SECTOR_SIZE;
-                    st506_xt_log("ST506: READ_BUFFER (%i)\n",
+                    st506_xt_log(dev->log, "ST506: READ_BUFFER (%i)\n",
                                  dev->buff_cnt);
 
                     dev->status = STAT_BSY | STAT_IO | STAT_REQ;
@@ -1002,9 +991,7 @@ write_error:
                     for (; dev->buff_pos < dev->buff_cnt; dev->buff_pos++) {
                         val = dma_channel_write(dev->dma, dev->buff[dev->buff_pos]);
                         if (val == DMA_NODATA) {
-#ifdef ENABLE_ST506_XT_LOG
-                            st506_xt_log("ST506: CMD_READ_BUFFER out of data!\n");
-#endif
+                            st506_xt_log(dev->log, "ST506: CMD_READ_BUFFER out of data!\n");
                             st506_error(dev, ERR_NO_RECOVERY);
                             st506_complete(dev);
                             return;
@@ -1030,7 +1017,7 @@ write_error:
                 case STATE_START_COMMAND:
                     dev->buff_pos = 0;
                     dev->buff_cnt = SECTOR_SIZE;
-                    st506_xt_log("ST506: WRITE_BUFFER (%i)\n",
+                    st506_xt_log(dev->log, "ST506: WRITE_BUFFER (%i)\n",
                                  dev->buff_cnt);
 
                     dev->status = STAT_BSY | STAT_REQ;
@@ -1045,9 +1032,7 @@ write_error:
                     for (; dev->buff_pos < dev->buff_cnt; dev->buff_pos++) {
                         val = dma_channel_read(dev->dma);
                         if (val == DMA_NODATA) {
-#ifdef ENABLE_ST506_XT_LOG
-                            st506_xt_log("ST506: CMD_WRITE_BUFFER out of data!\n");
-#endif
+                            st506_xt_log(dev->log, "ST506: CMD_WRITE_BUFFER out of data!\n");
                             st506_error(dev, ERR_NO_RECOVERY);
                             st506_complete(dev);
                             return;
@@ -1073,7 +1058,7 @@ write_error:
             if (dev->type == ST506_XT_TYPE_ST11M || dev->type == ST506_XT_TYPE_ST11R)
                 switch (dev->state) {
                     case STATE_START_COMMAND:
-                        st506_xt_log("ST506: INQUIRY (type=%i)\n", dev->type);
+                        st506_xt_log(dev->log, "ST506: INQUIRY (type=%i)\n", dev->type);
                         dev->buff_pos = 0;
                         dev->buff_cnt = 2;
                         dev->buff[0]  = 0x80; /* "ST-11" */
@@ -1115,10 +1100,10 @@ write_error:
                  * off          | 1a 00 00 00 02 00
                  */
                 if (dev->command[3])
-                    st506_xt_log("ST506: Auto power-off in %d seconds (type=%i)\n",
+                    st506_xt_log(dev->log, "ST506: Auto power-off in %d seconds (type=%i)\n",
                                  dev->command[3] * 5, dev->type);
                 else
-                    st506_xt_log("ST506: Auto power-off disabled (type=%i)\n", dev->type);
+                    st506_xt_log(dev->log, "ST506: Auto power-off disabled (type=%i)\n", dev->type);
             } else {
                 st506_error(dev, ERR_BAD_COMMAND);
             }
@@ -1126,16 +1111,12 @@ write_error:
             break;
 
         case CMD_RAM_DIAGNOSTIC:
-#ifdef ENABLE_ST506_XT_LOG
-            st506_xt_log("ST506: RAM_DIAG\n");
-#endif
+            st506_xt_log(dev->log, "ST506: RAM_DIAG\n");
             st506_complete(dev);
             break;
 
         case CMD_CTRLR_DIAGNOSTIC:
-#ifdef ENABLE_ST506_XT_LOG
-            st506_xt_log("ST506: CTRLR_DIAG\n");
-#endif
+            st506_xt_log(dev->log, "ST506: CTRLR_DIAG\n");
             st506_complete(dev);
             break;
 
@@ -1155,7 +1136,7 @@ write_error:
                  * (see above) we need to write to it.
                  */
                 (void) get_chs(dev, drive);
-                st506_xt_log("ST506: WRITE BUFFER (%i, %i/%i/%i, %i)\n",
+                st506_xt_log(dev->log, "ST506: WRITE BUFFER (%i, %i/%i/%i, %i)\n",
                              dev->drive_sel, dev->cylinder,
                              dev->head, dev->sector, dev->count);
 
@@ -1216,7 +1197,7 @@ write_error:
             switch (dev->state) {
                 case STATE_START_COMMAND:
                     val = dev->command[1] & 0x01;
-                    st506_xt_log("ST506: DTC_GET_GEOMETRY(%i) %i\n",
+                    st506_xt_log(dev->log, "ST506: DTC_GET_GEOMETRY(%i) %i\n",
                                  dev->drive_sel, val);
                     dev->buff_pos = 0;
                     dev->buff_cnt = 16;
@@ -1238,7 +1219,7 @@ write_error:
             switch (dev->state) {
                 case STATE_START_COMMAND:
                     val = dev->command[1] & 0x01;
-                    st506_xt_log("ST506: DTC_GET_GEOMETRY(%i) %i\n",
+                    st506_xt_log(dev->log, "ST506: DTC_GET_GEOMETRY(%i) %i\n",
                                  dev->drive_sel, val);
                     dev->buff_pos = 0;
                     dev->buff_cnt = 16;
@@ -1262,10 +1243,8 @@ write_error:
         default:
             if (dev->command[0] == CMD_WRITE_GEOMETRY_ST11)
                 fatal("CMD_WRITE_GEOMETRY_ST11\n");
-#ifdef ENABLE_ST506_XT_LOG
-            st506_xt_log("ST506: unknown command:\n");
-#endif
-            st506_xt_log("ST506: %02x %02x %02x %02x %02x %02x\n",
+            st506_xt_log(dev->log, "ST506: unknown command:\n");
+            st506_xt_log(dev->log, "ST506: %02x %02x %02x %02x %02x %02x\n",
                          dev->command[0], dev->command[1], dev->command[2],
                          dev->command[3], dev->command[4], dev->command[5]);
             st506_error(dev, ERR_BAD_COMMAND);
@@ -1319,7 +1298,7 @@ st506_read(uint16_t port, void *priv)
         default:
             break;
     }
-    st506_xt_log("ST506: read(%04x) = %02x\n", port, ret);
+    st506_xt_log(dev->log, "ST506: read(%04x) = %02x\n", port, ret);
 
     return ret;
 }
@@ -1330,7 +1309,7 @@ st506_write(uint16_t port, uint8_t val, void *priv)
 {
     hdc_t *dev = (hdc_t *) priv;
 
-    st506_xt_log("ST506: write(%04x, %02x)\n", port, val);
+    st506_xt_log(dev->log, "ST506: write(%04x, %02x)\n", port, val);
     switch (port & 3) {
         case 0: /* write data */
             switch (dev->state) {
@@ -1442,18 +1421,14 @@ mem_read(uint32_t addr, void *priv)
     switch (dev->type) {
         case ST506_XT_TYPE_XEBEC: /* Xebec */
             if (addr >= 0x001000) {
-#ifdef ENABLE_ST506_XT_LOG
-                st506_xt_log("ST506: Xebec ROM access(0x%06lx)\n", addr);
-#endif
+                st506_xt_log(dev->log, "ST506: Xebec ROM access(0x%06lx)\n", addr);
                 return 0xff;
             }
             break;
 
         case ST506_XT_TYPE_WDXT_GEN: /* WDXT-GEN */
             if (addr >= 0x002000) {
-#ifdef ENABLE_ST506_XT_LOG
-                st506_xt_log("ST506: WDXT-GEN ROM access(0x%06lx)\n", addr);
-#endif
+                st506_xt_log(dev->log, "ST506: WDXT-GEN ROM access(0x%06lx)\n", addr);
                 return 0xff;
             }
             break;
@@ -1461,9 +1436,7 @@ mem_read(uint32_t addr, void *priv)
         case ST506_XT_TYPE_DTC_5150X: /* DTC */
         default:
             if (addr >= 0x002000) {
-#ifdef ENABLE_ST506_XT_LOG
-                st506_xt_log("ST506: DTC-5150X ROM access(0x%06lx)\n", addr);
-#endif
+                st506_xt_log(dev->log, "ST506: DTC-5150X ROM access(0x%06lx)\n", addr);
                 return 0xff;
             }
             break;
@@ -1503,14 +1476,12 @@ loadrom(hdc_t *dev, const char *fn)
     FILE    *fp;
 
     if (fn == NULL) {
-#ifdef ENABLE_ST506_XT_LOG
-        st506_xt_log("ST506: NULL BIOS ROM file pointer!\n");
-#endif
+        st506_xt_log(dev->log, "ST506: NULL BIOS ROM file pointer!\n");
         return;
     }
 
     if ((fp = rom_fopen((char *) fn, "rb")) == NULL) {
-        st506_xt_log("ST506: BIOS ROM '%s' not found!\n", fn);
+        st506_xt_log(dev->log, "ST506: BIOS ROM '%s' not found!\n", fn);
         return;
     }
 
@@ -1560,7 +1531,7 @@ loadhd(hdc_t *dev, int c, int d, UNUSED(const char *fn))
          * most of the BIOSes were hardwired to whatever their
          * native SPT setting was, so, do not allow this here.
          */
-        st506_xt_log("ST506: drive%i: MFM/RLL mismatch (%i/%i)\n",
+        st506_xt_log(dev->log, "ST506: drive%i: MFM/RLL mismatch (%i/%i)\n",
                      c, hdd[d].spt, dev->spt);
         hdd_image_close(d);
         drive->present = 0;
@@ -1609,13 +1580,11 @@ set_switches(hdc_t *dev, hd_type_t *hdt, int num)
         }
 
 #ifdef ENABLE_ST506_XT_LOG
-        st506_xt_log("ST506: ");
         if (c == num)
-            st506_xt_log("*WARNING* drive%i unsupported", d);
+            st506_xt_log(dev->log, "ST506: *WARNING* drive%i unsupported (%i/%i/%i)\n", d, drive->tracks, drive->hpc, drive->spt);
         else
-            st506_xt_log("drive%i is type %i", d, c);
-        st506_xt_log(" (%i/%i/%i)\n", drive->tracks, drive->hpc, drive->spt);
-#endif
+            st506_xt_log(dev->log, "ST506: drive%i is type %i (%i/%i/%i)\n", d, c, drive->tracks, drive->hpc, drive->spt);
+#endif /* ENABLE_ST506_XT_LOG */
     }
 }
 
@@ -1628,6 +1597,9 @@ st506_init(const device_t *info)
     int         c;
 
     dev = (hdc_t *) calloc(1, sizeof(hdc_t));
+#ifdef ENABLE_ST506_XT_LOG
+    dev->log = log_open(info->name);
+#endif /* ENABLE_ST506_XT_LOG */
     dev->type = info->local & 255;
 
     /* Set defaults for the controller. */
@@ -1790,16 +1762,14 @@ st506_init(const device_t *info)
     /* Add the timer. */
     timer_add(&dev->timer, st506_callback, dev, 0);
 
-    st506_xt_log("ST506: %s (I/O=%03X, IRQ=%i, DMA=%i, BIOS @0x%06lX, size %lu)\n",
+    st506_xt_log(dev->log, "ST506: %s (I/O=%03X, IRQ=%i, DMA=%i, BIOS @0x%06lX, size %lu)\n",
                  info->name, dev->base, dev->irq, dev->dma, dev->bios_addr, dev->bios_size);
 
     /* Load any drives configured for us. */
-#ifdef ENABLE_ST506_XT_LOG
-    st506_xt_log("ST506: looking for disks...\n");
-#endif
+    st506_xt_log(dev->log, "ST506: looking for disks...\n");
     for (c = 0, i = 0; i < HDD_NUM; i++) {
         if ((hdd[i].bus_type == HDD_BUS_MFM) && (hdd[i].mfm_channel < MFM_NUM)) {
-            st506_xt_log("ST506: disk '%s' on channel %i\n",
+            st506_xt_log(dev->log, "ST506: disk '%s' on channel %i\n",
                          hdd[i].fn, hdd[i].mfm_channel);
             loadhd(dev, hdd[i].mfm_channel, i, hdd[i].fn);
 
@@ -1807,7 +1777,7 @@ st506_init(const device_t *info)
                 break;
         }
     }
-    st506_xt_log("ST506: %i disks loaded.\n", c);
+    st506_xt_log(dev->log, "ST506: %i disks loaded.\n", c);
 
     /* For the Xebec, set the switches now. */
     if (dev->type == ST506_XT_TYPE_XEBEC)
@@ -1842,6 +1812,16 @@ st506_close(void *priv)
         dev->bios_rom.rom = NULL;
     }
 
+#ifdef ENABLE_ST506_XT_LOG
+    if (dev->log != NULL) {
+        st506_xt_log(dev->log, "Log closed\n");
+
+        log_close(dev->log);
+        dev->log = NULL;
+    }
+#endif /* ENABLE_ST506_XT_LOG */
+
+    /* Release the device. */
     free(dev);
 }
 

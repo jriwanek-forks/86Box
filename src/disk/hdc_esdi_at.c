@@ -8,8 +8,6 @@
  *
  *          Driver for the ESDI controller (WD1007-vse1) for PC/AT.
  *
- *
- *
  * Authors: Sarah Walker, <https://pcem-emulator.co.uk/>
  *          Miran Grca, <mgrca8@gmail.com>
  *          Fred N. van Kempen, <decwiz@yahoo.com>
@@ -29,6 +27,7 @@
 #include <86box/86box.h>
 #include <86box/device.h>
 #include <86box/io.h>
+#include <86box/log.h>
 #include <86box/mem.h>
 #include <86box/pic.h>
 #include <86box/rom.h>
@@ -103,6 +102,10 @@ typedef struct esdi_t {
     drive_t drives[2];
 
     rom_t bios_rom;
+
+#ifdef ENABLE_ESDI_AT_LOG
+    void *log;
+#endif /* ENABLE_ESDI_AT_LOG */
 } esdi_t;
 
 static uint8_t esdi_read(uint16_t port, void *priv);
@@ -112,18 +115,18 @@ static void    esdi_write(uint16_t port, uint8_t val, void *priv);
 int esdi_at_do_log = ENABLE_ESDI_AT_LOG;
 
 static void
-esdi_at_log(const char *fmt, ...)
+esdi_at_log(void *priv, const char *fmt, ...)
 {
     va_list ap;
 
     if (esdi_at_do_log) {
         va_start(ap, fmt);
-        pclog_ex(fmt, ap);
+        log_out(priv, fmt, ap);
         va_end(ap);
     }
 }
 #else
-#    define esdi_at_log(fmt, ...)
+#    define esdi_at_log(priv, fmt, ...)
 #endif
 
 static __inline void
@@ -153,7 +156,7 @@ static void
 esdi_set_callback(esdi_t *esdi, double callback)
 {
     if (!esdi) {
-        esdi_at_log("esdi_set_callback(NULL): Set callback failed\n");
+        esdi_at_log(dev->log, "esdi_set_callback(NULL): Set callback failed\n");
         return;
     }
 
@@ -183,12 +186,12 @@ get_sector(esdi_t *esdi, off64_t *addr)
     int            sector;
 
     if (esdi->head > heads) {
-        esdi_at_log("esdi_get_sector: past end of configured heads\n");
+        esdi_at_log(dev->log, "esdi_get_sector: past end of configured heads\n");
         return 1;
     }
 
     if (esdi->sector >= sectors + 1) {
-        esdi_at_log("esdi_get_sector: past end of configured sectors\n");
+        esdi_at_log(dev->log, "esdi_get_sector: past end of configured sectors\n");
         return 1;
     }
 
@@ -225,7 +228,7 @@ get_sector_format(esdi_t *esdi, off64_t *addr)
     int            s;
 
     if (esdi->head > heads) {
-        esdi_at_log("esdi_get_sector: past end of configured heads\n");
+        esdi_at_log(dev->log, "esdi_get_sector: past end of configured heads\n");
         return 1;
     }
 
@@ -301,7 +304,7 @@ esdi_write(uint16_t port, uint8_t val, void *priv)
     off64_t addr;
     uint8_t old;
 
-    esdi_at_log("WD1007 write(%04x, %02x)\n", port, val);
+    esdi_at_log(dev->log, "WD1007 write(%04x, %02x)\n", port, val);
 
     switch (port) {
         case 0x1f0: /* data */
@@ -342,7 +345,7 @@ esdi_write(uint16_t port, uint8_t val, void *priv)
             esdi->command = val;
             esdi->error   = 0;
 
-            esdi_at_log("WD1007: command %02x\n", val & 0xf0);
+            esdi_at_log(dev->log, "WD1007: command %02x\n", val & 0xf0);
 
             switch (val & 0xf0) {
                 case CMD_RESTORE:
@@ -433,7 +436,7 @@ esdi_write(uint16_t port, uint8_t val, void *priv)
                             break;
 
                         default:
-                            esdi_at_log("WD1007: bad command %02X\n", val);
+                            esdi_at_log(dev->log, "WD1007: bad command %02X\n", val);
                             fallthrough;
                         case 0xe8: /*???*/
                             esdi->status = STAT_BUSY;
@@ -547,7 +550,7 @@ esdi_read(uint16_t port, void *priv)
             break;
     }
 
-    esdi_at_log("WD1007 read(%04x) = %02x\n", port, temp);
+    esdi_at_log(dev->log, "WD1007 read(%04x) = %02x\n", port, temp);
 
     return temp;
 }
@@ -596,7 +599,7 @@ esdi_callback(void *priv)
         return;
     }
 
-    esdi_at_log("WD1007: command %02x on drive %i\n", esdi->command, esdi->drive_sel);
+    esdi_at_log(dev->log, "WD1007: command %02x on drive %i\n", esdi->command, esdi->drive_sel);
 
     switch (esdi->command) {
         case CMD_RESTORE:
@@ -764,7 +767,7 @@ format_error:
                 drive->cfg_spt = esdi->secount;
                 drive->cfg_hpc = esdi->head + 1;
 
-                esdi_at_log("WD1007: parameters: spt=%i hpc=%i\n", drive->cfg_spt, drive->cfg_hpc);
+                esdi_at_log(dev->log, "WD1007: parameters: spt=%i hpc=%i\n", drive->cfg_spt, drive->cfg_hpc);
 
                 if (!esdi->secount)
                     fatal("WD1007: secount=0\n");
@@ -806,7 +809,7 @@ format_error:
                         break;
 
                     default:
-                        esdi_at_log("WD1007: bad read config %02x\n", esdi->cylinder >> 8);
+                        esdi_at_log(dev->log, "WD1007: bad read config %02x\n", esdi->cylinder >> 8);
                 }
                 esdi->status = STAT_READY | STAT_DSC;
                 irq_raise(esdi);
@@ -872,7 +875,7 @@ format_error:
             break;
 
         default:
-            esdi_at_log("WD1007: callback on unknown command %02x\n", esdi->command);
+            esdi_at_log(dev->log, "WD1007: callback on unknown command %02x\n", esdi->command);
             fallthrough;
 
         case 0xe8:
@@ -890,7 +893,7 @@ loadhd(esdi_t *esdi, int hdd_num, int d, UNUSED(const char *fn))
     drive_t *drive = &esdi->drives[hdd_num];
 
     if (!hdd_image_load(d)) {
-        esdi_at_log("WD1007: drive %d not present!\n", d);
+        esdi_at_log(dev->log, "WD1007: drive %d not present!\n", d);
         drive->present = 0;
         return;
     }
@@ -921,6 +924,9 @@ wd1007vse1_init(UNUSED(const device_t *info))
     int c;
 
     esdi_t *esdi = calloc(1, sizeof(esdi_t));
+#ifdef ENABLE_ESDI_AT_LOG
+    esdi->log = log_open(info->name);
+#endif /* ENABLE_ESDI_AT_LOG */
 
     c = 0;
     for (uint8_t d = 0; d < HDD_NUM; d++) {
@@ -970,6 +976,16 @@ wd1007vse1_close(void *priv)
         hdd_image_close(drive->hdd_num);
     }
 
+#ifdef ENABLE_ESDI_AT_LOG
+    if (dev->log != NULL) {
+        esdi_at_log(dev->log, "Log closed\n");
+
+        log_close(dev->log);
+        dev->log = NULL;
+    }
+#endif /* ENABLE_ESDI_AT_LOG */
+
+    /* Release the device. */
     free(esdi);
 
     ui_sb_update_icon(SB_HDD | HDD_BUS_ESDI, 0);

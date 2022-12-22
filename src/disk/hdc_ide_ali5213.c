@@ -8,8 +8,6 @@
  *
  *          Implementation of the ALi M1489 chipset.
  *
- *
- *
  * Authors: Tiseno100,
  *          Miran Grca, <mgrca8@gmail.com>
  *
@@ -27,8 +25,8 @@
 #include "cpu.h"
 #include <86box/timer.h>
 #include <86box/io.h>
+#include <86box/log.h>
 #include <86box/device.h>
-
 #include <86box/hdc_ide.h>
 #include <86box/hdc.h>
 #include <86box/mem.h>
@@ -45,18 +43,18 @@
 int ali5213_do_log = ENABLE_ALI5213_LOG;
 
 static void
-ali5213_log(const char *fmt, ...)
+ali5213_log(void *priv, const char *fmt, ...)
 {
     va_list ap;
 
     if (ali5213_do_log) {
         va_start(ap, fmt);
-        pclog_ex(fmt, ap);
+        log_out(priv, fmt, ap);
         va_end(ap);
     }
 }
 #else
-#    define ali5213_log(fmt, ...)
+#    define ali5213_log(priv, fmt, ...)
 #endif
 
 typedef struct ali5213_t {
@@ -64,6 +62,10 @@ typedef struct ali5213_t {
     uint8_t chip_id;
 
     uint8_t regs[256];
+
+#ifdef ENABLE_ALI5213_LOG
+    void *log;
+#endif /* ENABLE_ALI5213_LOG */
 } ali5213_t;
 
 static void
@@ -83,7 +85,7 @@ ali5213_write(uint16_t addr, uint8_t val, void *priv)
 {
     ali5213_t *dev = (ali5213_t *) priv;
 
-    ali5213_log("[%04X:%08X] [W] %02X = %02X\n", CS, cpu_state.pc, addr, val);
+    ali5213_log(dev->log, "[%04X:%08X] [W] %02X = %02X\n", CS, cpu_state.pc, addr, val);
 
     switch (addr) {
         case 0xf4: /* Usually it writes 30h here */
@@ -179,7 +181,7 @@ ali5213_read(uint16_t addr, void *priv)
             break;
     }
 
-    ali5213_log("[%04X:%08X] [R] %02X = %02X\n", CS, cpu_state.pc, addr, ret);
+    ali5213_log(dev->log, "[%04X:%08X] [R] %02X = %02X\n", CS, cpu_state.pc, addr, ret);
 
     return ret;
 }
@@ -214,13 +216,27 @@ ali5213_close(void *priv)
 {
     ali5213_t *dev = (ali5213_t *) priv;
 
+#ifdef ENABLE_ALI5213_LOG
+    if (dev->log != NULL) {
+        ali5213_log(dev->log, "Log closed\n");
+
+        log_close(dev->log);
+        dev->log = NULL;
+    }
+#endif /* ENABLE_ALI5213_LOG */
+
+    /* Release the device. */
     free(dev);
 }
 
 static void *
-ali5213_init(UNUSED(const device_t *info))
+ali5213_init(const device_t *info)
 {
     ali5213_t *dev = (ali5213_t *) calloc(1, sizeof(ali5213_t));
+
+#ifdef ENABLE_ALI5213_LOG
+    dev->log = log_open(info->name);
+#endif /* ENABLE_ALI5213_LOG */
 
     /* M5213/M1489 IDE controller
        F4h Chip ID we write always 30h onto it

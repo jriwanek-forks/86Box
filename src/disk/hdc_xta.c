@@ -44,8 +44,6 @@
  *
  * NOTE:    The XTA interface is 0-based for sector numbers !!
  *
- *
- *
  * Authors: Fred N. van Kempen, <decwiz@yahoo.com>
  *
  *          Based on my earlier HD20 driver for the EuroPC.
@@ -91,6 +89,7 @@
 #define HAVE_STDARG_H
 #include <86box/86box.h>
 #include <86box/io.h>
+#include <86box/log.h>
 #include <86box/dma.h>
 #include <86box/pic.h>
 #include <86box/mem.h>
@@ -267,24 +266,28 @@ typedef struct hdc_t {
 
     uint8_t data[512];       /* data buffer */
     uint8_t sector_buf[512]; /* sector buffer */
+
+#ifdef ENABLE_XTA_LOG
+    void *log;
+#endif /* ENABLE_XTA_LOG */
 } hdc_t;
 
 #ifdef ENABLE_XTA_LOG
 int xta_do_log = ENABLE_XTA_LOG;
 
 static void
-xta_log(const char *fmt, ...)
+xta_log(void *priv, const char *fmt, ...)
 {
     va_list ap;
 
     if (xta_do_log) {
         va_start(ap, fmt);
-        pclog_ex(fmt, ap);
+        log_out(priv, fmt, ap);
         va_end(ap);
     }
 }
 #else
-#    define xta_log(fmt, ...)
+#    define xta_log(priv, fmt, ...)
 #endif
 
 static void
@@ -304,20 +307,20 @@ static int
 get_sector(hdc_t *dev, drive_t *drive, off64_t *addr)
 {
     if (drive->cur_cyl != dev->track) {
-        xta_log("%s: get_sector: wrong cylinder %d/%d\n",
+        xta_log(dev->log, "%s: get_sector: wrong cylinder %d/%d\n",
                 dev->name, drive->cur_cyl, dev->track);
         dev->sense = ERR_ILLADDR;
         return 1;
     }
 
     if (dev->head >= drive->hpc) {
-        xta_log("%s: get_sector: past end of heads\n", dev->name);
+        xta_log(dev->log, "%s: get_sector: past end of heads\n", dev->name);
         dev->sense = ERR_ILLADDR;
         return 1;
     }
 
     if (dev->sector >= drive->spt) {
-        xta_log("%s: get_sector: past end of sectors\n", dev->name);
+        xta_log(dev->log, "%s: get_sector: past end of sectors\n", dev->name);
         dev->sense = ERR_ILLADDR;
         return 1;
     }
@@ -568,7 +571,7 @@ read_error:
                             val = dma_channel_write(dev->dma,
                                                     *dev->buf_ptr);
                             if (val == DMA_NODATA) {
-                                xta_log("%s: CMD_READ_SECTORS out of data (idx=%d, len=%d)!\n", dev->name, dev->buf_idx, dev->buf_len);
+                                xta_log(dev->log, "%s: CMD_READ_SECTORS out of data (idx=%d, len=%d)!\n", dev->name, dev->buf_idx, dev->buf_len);
 
                                 dev->status |= (STAT_CD | STAT_IO | STAT_REQ);
                                 timer_advance_u64(&dev->timer, HDC_TIME);
@@ -654,9 +657,9 @@ do_recv:
                         while (dev->buf_idx < dev->buf_len) {
                             val = dma_channel_read(dev->dma);
                             if (val == DMA_NODATA) {
-                                xta_log("%s: CMD_WRITE_SECTORS out of data (idx=%d, len=%d)!\n", dev->name, dev->buf_idx, dev->buf_len);
+                                xta_log(dev->log, "%s: CMD_WRITE_SECTORS out of data (idx=%d, len=%d)!\n", dev->name, dev->buf_idx, dev->buf_len);
 
-                                xta_log("%s: CMD_WRITE_SECTORS out of data!\n", dev->name);
+                                xta_log(dev->log, "%s: CMD_WRITE_SECTORS out of data!\n", dev->name);
                                 dev->status |= (STAT_CD | STAT_IO | STAT_REQ);
                                 timer_advance_u64(&dev->timer, HDC_TIME);
                                 return;
@@ -787,7 +790,7 @@ write_error:
                         while (dev->buf_idx < dev->buf_len) {
                             val = dma_channel_read(dev->dma);
                             if (val == DMA_NODATA) {
-                                xta_log("%s: CMD_WRITE_BUFFER out of data!\n", dev->name);
+                                xta_log(dev->log, "%s: CMD_WRITE_BUFFER out of data!\n", dev->name);
                                 dev->status |= (STAT_CD | STAT_IO | STAT_REQ);
                                 timer_advance_u64(&dev->timer, HDC_TIME);
                                 return;
@@ -868,7 +871,7 @@ write_error:
             break;
 
         default:
-            xta_log("%s: unknown command - %02x\n", dev->name, dcb->cmd);
+            xta_log(dev->log, "%s: unknown command - %02x\n", dev->name, dcb->cmd);
             dev->comp |= COMP_ERR;
             dev->sense = ERR_ILLCMD;
             set_intr(dev);
@@ -888,7 +891,7 @@ hdc_read(uint16_t port, void *priv)
 
             if (dev->state == STATE_SDATA) {
                 if (dev->buf_idx > dev->buf_len) {
-                    xta_log("%s: read with empty buffer!\n",
+                    xta_log(dev->log, "%s: read with empty buffer!\n",
                             dev->name);
                     dev->comp |= COMP_ERR;
                     dev->sense = ERR_ILLCMD;
@@ -903,7 +906,7 @@ hdc_read(uint16_t port, void *priv)
                     timer_set_delay_u64(&dev->timer, HDC_TIME);
                 }
             } else if (dev->state == STATE_COMPL) {
-                xta_log("DCB=%02X  status=%02X comp=%02X\n", dev->dcb.cmd, dev->status, dev->comp);
+                xta_log(dev->log, "DCB=%02X  status=%02X comp=%02X\n", dev->dcb.cmd, dev->status, dev->comp);
                 ret         = dev->comp;
                 dev->status = 0x00;
                 dev->state  = STATE_IDLE;
@@ -935,14 +938,14 @@ hdc_write(uint16_t port, uint8_t val, void *priv)
         case 0: /* DATA register */
             if (dev->state == STATE_RDATA) {
                 if (!(dev->status & STAT_REQ)) {
-                    xta_log("%s: not ready for command/data!\n", dev->name);
+                    xta_log(dev->log, "%s: not ready for command/data!\n", dev->name);
                     dev->comp |= COMP_ERR;
                     dev->sense = ERR_ILLCMD;
                     break;
                 }
 
                 if (dev->buf_idx >= dev->buf_len) {
-                    xta_log("%s: write with full buffer!\n", dev->name);
+                    xta_log(dev->log, "%s: write with full buffer!\n", dev->name);
                     dev->comp |= COMP_ERR;
                     dev->sense = ERR_ILLCMD;
                     break;
@@ -979,7 +982,7 @@ hdc_write(uint16_t port, uint8_t val, void *priv)
 
         case 3: /* DMA/IRQ intr register */
 #if 0
-            xta_log("%s: WriteMASK(%02X)\n", dev->name, val);
+            xta_log(dev->log, "%s: WriteMASK(%02X)\n", dev->name, val);
 #endif
             dev->intr = val;
             break;
@@ -1001,6 +1004,9 @@ xta_init(const device_t *info)
 
     /* Allocate and initialize device block. */
     dev = calloc(1, sizeof(hdc_t));
+#ifdef ENABLE_XTA_LOG
+    dev->log = log_open(info->name);
+#endif /* ENABLE_XTA_LOG */
     dev->type = info->local;
 
     /* Do per-controller-type setup. */
@@ -1027,12 +1033,12 @@ xta_init(const device_t *info)
             break;
     }
 
-    xta_log("%s: initializing (I/O=%04X, IRQ=%d, DMA=%d",
-            dev->name, dev->base, dev->irq, dev->dma);
     if (dev->rom_addr != 0x000000)
-        xta_log(", BIOS=%06X", dev->rom_addr);
-
-    xta_log(")\n");
+        xta_log(dev->log, "%s: initializing (I/O=%04X, IRQ=%d, DMA=%d BIOS=%06X)\n",
+                dev->name, dev->base, dev->irq, dev->dma, dev->rom_addr);
+    else
+        xta_log(dev->log, "%s: initializing (I/O=%04X, IRQ=%d, DMA=%d)\n",
+                dev->name, dev->base, dev->irq, dev->dma);
 
     /* Load any disks for this device class. */
     c = 0;
@@ -1058,7 +1064,7 @@ xta_init(const device_t *info)
             drive->hpc    = drive->cfg_hpc;
             drive->tracks = drive->cfg_tracks;
 
-            xta_log("%s: drive%d (cyl=%d,hd=%d,spt=%d), disk %d\n",
+            xta_log(dev->log, "%s: drive%d (cyl=%d,hd=%d,spt=%d), disk %d\n",
                     dev->name, hdd[i].xta_channel, drive->tracks,
                     drive->hpc, drive->spt, i);
 
@@ -1099,6 +1105,15 @@ xta_close(void *priv)
 
         hdd_image_close(drive->hdd_num);
     }
+
+#ifdef ENABLE_XTA_LOG
+    if (dev->log != NULL) {
+        xta_log(dev->log, "Log closed\n");
+
+        log_close(dev->log);
+        dev->log = NULL;
+    }
+#endif /* ENABLE_XTA_LOG */
 
     /* Release the device. */
     free(dev);

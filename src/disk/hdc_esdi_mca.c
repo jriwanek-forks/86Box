@@ -52,8 +52,6 @@
  *          however, are auto-configured by the system software as
  *          shown above.
  *
- *
- *
  * Authors: Sarah Walker, <https://pcem-emulator.co.uk/>
  *          Fred N. van Kempen, <decwiz@yahoo.com>
  *
@@ -74,6 +72,7 @@
 #include <86box/device.h>
 #include <86box/dma.h>
 #include <86box/io.h>
+#include <86box/log.h>
 #include <86box/mca.h>
 #include <86box/mem.h>
 #include <86box/pic.h>
@@ -148,6 +147,10 @@ typedef struct esdi_t {
     drive_t drives[2];
 
     uint8_t pos_regs[8];
+
+#ifdef ENABLE_ESDI_MCA_LOG
+    void *log;
+#endif /* ENABLE_ESDI_MCA_LOG */
 } esdi_t;
 
 enum {
@@ -208,25 +211,25 @@ enum {
 int esdi_mca_do_log = ENABLE_ESDI_MCA_LOG;
 
 static void
-esdi_mca_log(const char *fmt, ...)
+esdi_mca_log(void *priv, const char *fmt, ...)
 {
     va_list ap;
 
     if (esdi_mca_do_log) {
         va_start(ap, fmt);
-        pclog_ex(fmt, ap);
+        log_out(priv, fmt, ap);
         va_end(ap);
     }
 }
 #else
-#    define esdi_mca_log(fmt, ...)
+#    define esdi_mca_log(priv, fmt, ...)
 #endif
 
 static __inline void
 set_irq(esdi_t *dev)
 {
     dev->irq_ena_disable = 1;
-    esdi_mca_log("Set IRQ 14: bit=%x, cmd=%02x.\n", dev->basic_ctrl & CTRL_IRQ_ENA, dev->command);
+    esdi_mca_log(dev->log, "Set IRQ 14: bit=%x, cmd=%02x.\n", dev->basic_ctrl & CTRL_IRQ_ENA, dev->command);
     if (dev->basic_ctrl & CTRL_IRQ_ENA)
         picint_common(1 << ESDI_IRQCHAN, PIC_IRQ_EDGE, 1, NULL);
 }
@@ -235,7 +238,7 @@ static __inline void
 clear_irq(esdi_t *dev)
 {
     dev->irq_ena_disable = 0;
-    esdi_mca_log("Clear IRQ 14: bit=%x, cmd=%02x.\n", dev->basic_ctrl & CTRL_IRQ_ENA, dev->command);
+    esdi_mca_log(dev->log, "Clear IRQ 14: bit=%x, cmd=%02x.\n", dev->basic_ctrl & CTRL_IRQ_ENA, dev->command);
     if (dev->basic_ctrl & CTRL_IRQ_ENA)
         picint_common(1 << ESDI_IRQCHAN, PIC_IRQ_EDGE, 0, NULL);
 }
@@ -255,7 +258,7 @@ esdi_mca_set_callback(esdi_t *dev, double callback)
     }
 
     if (callback == 0.0) {
-        esdi_mca_log("Callback Stopped.\n");
+        esdi_mca_log(dev->log, "Callback Stopped.\n");
         timer_stop(&dev->timer);
     } else {
         timer_on_auto(&dev->timer, callback);
@@ -396,7 +399,7 @@ esdi_callback(void *priv)
 
     /* If we are returning from a RESET, handle this first. */
     if (dev->in_reset) {
-        esdi_mca_log("ESDI reset.\n");
+        esdi_mca_log(dev->log, "ESDI reset.\n");
         dev->in_reset   = 0;
         dev->status     = STATUS_IRQ | STATUS_TRANSFER_REQ | STATUS_STATUS_OUT_FULL;
         dev->status_len = 1; /*ToDo: better implementation for Xenix?*/
@@ -405,7 +408,7 @@ esdi_callback(void *priv)
         return;
     }
 
-    esdi_mca_log("Command=%02x.\n", dev->command);
+    esdi_mca_log(dev->log, "Command=%02x.\n", dev->command);
     switch (dev->command) {
         case CMD_READ:
         case 0x15:
@@ -733,7 +736,7 @@ esdi_callback(void *priv)
                 dev->status_data[4] = drive->tracks;
                 dev->status_data[5] = drive->hpc | (drive->spt << 16);
             }
-            esdi_mca_log("CMD_GET_DEV_CONFIG %i  %04x %04x %04x %04x %04x %04x\n",
+            esdi_mca_log(dev->log, "CMD_GET_DEV_CONFIG %i  %04x %04x %04x %04x %04x %04x\n",
                 drive->sectors,
                 dev->status_data[0], dev->status_data[1],
                 dev->status_data[2], dev->status_data[3],
@@ -976,11 +979,11 @@ esdi_read(uint16_t port, void *priv)
             break;
 
         default:
-            esdi_mca_log("esdi_read port=%04x\n", port);
+            esdi_mca_log(dev->log, "esdi_read port=%04x\n", port);
             break;
     }
 
-    esdi_mca_log("ESDI: rr(%04x, %02x)\n", port & 7, ret);
+    esdi_mca_log(dev->log, "ESDI: rr(%04x, %02x)\n", port & 7, ret);
     return ret;
 }
 
@@ -990,7 +993,7 @@ esdi_write(uint16_t port, uint8_t val, void *priv)
     esdi_t *dev = (esdi_t *) priv;
     uint8_t old;
 
-    esdi_mca_log("ESDI: wr(%04x, %02x)\n", port & 7, val);
+    esdi_mca_log(dev->log, "ESDI: wr(%04x, %02x)\n", port & 7, val);
 
     switch (port & 7) {
         case 2: /*Basic control register*/
@@ -1040,7 +1043,7 @@ esdi_write(uint16_t port, uint8_t val, void *priv)
                     break;
 
                 case ATTN_DEVICE_0:
-                    esdi_mca_log("ATTN Device 0.\n");
+                    esdi_mca_log(dev->log, "ATTN Device 0.\n");
                     switch (val & ATTN_REQ_MASK) {
                         case ATTN_CMD_REQ:
                             if (dev->cmd_req_in_progress)
@@ -1053,7 +1056,7 @@ esdi_write(uint16_t port, uint8_t val, void *priv)
                             break;
 
                         case ATTN_EOI:
-                            esdi_mca_log("EOI.\n");
+                            esdi_mca_log(dev->log, "EOI.\n");
                             dev->irq_in_progress = 0;
                             dev->status &= ~STATUS_IRQ;
                             clear_irq(dev);
@@ -1106,7 +1109,7 @@ esdi_readw(uint16_t port, void *priv)
     switch (port & 7) {
         case 0: /*Status Interface Register*/
             if (dev->status_pos >= dev->status_len) {
-                esdi_mca_log("esdi_readw port=%04x, ret=0000 (pos=%d, len=%d).\n", port, dev->status_pos, dev->status_len);
+                esdi_mca_log(dev->log, "esdi_readw port=%04x, ret=0000 (pos=%d, len=%d).\n", port, dev->status_pos, dev->status_len);
                 return 0;
             }
             ret = dev->status_data[dev->status_pos++];
@@ -1120,7 +1123,7 @@ esdi_readw(uint16_t port, void *priv)
             fatal("esdi_readw port=%04x\n", port);
     }
 
-    esdi_mca_log("esdi_readw port=%04x, ret=%04x.\n", port, ret);
+    esdi_mca_log(dev->log, "esdi_readw port=%04x, ret=%04x.\n", port, ret);
     return ret;
 }
 
@@ -1129,7 +1132,7 @@ esdi_writew(uint16_t port, uint16_t val, void *priv)
 {
     esdi_t *dev = (esdi_t *) priv;
 
-    esdi_mca_log("ESDI: wrw(%04x, %04x)\n", port & 7, val);
+    esdi_mca_log(dev->log, "ESDI: wrw(%04x, %04x)\n", port & 7, val);
 
     switch (port & 7) {
         case 0: /*Command Interface Register*/
@@ -1161,7 +1164,7 @@ esdi_mca_read(int port, void *priv)
 {
     const esdi_t *dev = (esdi_t *) priv;
 
-    esdi_mca_log("ESDI: mcard(%04x)\n", port);
+    esdi_mca_log(dev->log, "ESDI: mcard(%04x)\n", port);
 
     return (dev->pos_regs[port & 7]);
 }
@@ -1171,7 +1174,7 @@ esdi_mca_write(int port, uint8_t val, void *priv)
 {
     esdi_t *dev = (esdi_t *) priv;
 
-    esdi_mca_log("ESDI: mcawr(%04x, %02x)  pos[2]=%02x pos[3]=%02x\n",
+    esdi_mca_log(dev->log, "ESDI: mcawr(%04x, %02x)  pos[2]=%02x pos[3]=%02x\n",
                  port, val, dev->pos_regs[2], dev->pos_regs[3]);
 
     if (port < 0x102)
@@ -1249,7 +1252,7 @@ esdi_mca_write(int port, uint8_t val, void *priv)
         }
 
         /* Say hello. */
-        esdi_mca_log("ESDI: I/O=3510, IRQ=14, DMA=%d, BIOS @%05X\n",
+        esdi_mca_log(dev->log, "ESDI: I/O=3510, IRQ=14, DMA=%d, BIOS @%05X\n",
                      dev->dma, dev->bios);
     }
 }
@@ -1259,7 +1262,7 @@ esdi_integrated_mca_write(int port, uint8_t val, void* priv)
 {
     esdi_t* dev = (esdi_t*)priv;
 
-    esdi_mca_log("ESDI: mcawr(%04x, %02x)  pos[2]=%02x pos[3]=%02x\n",
+    esdi_mca_log(dev->log, "ESDI: mcawr(%04x, %02x)  pos[2]=%02x pos[3]=%02x\n",
         port, val, dev->pos_regs[2], dev->pos_regs[3]);
 
     if (port < 0x102)
@@ -1305,7 +1308,7 @@ esdi_integrated_mca_write(int port, uint8_t val, void* priv)
             esdi_write, esdi_writew, NULL, dev);
 
         /* Say hello. */
-        esdi_mca_log("ESDI: I/O=3510, IRQ=14, DMA=%d\n",
+        esdi_mca_log(dev->log, "ESDI: I/O=3510, IRQ=14, DMA=%d\n",
             dev->dma);
     }
 }
@@ -1339,6 +1342,10 @@ esdi_init(UNUSED(const device_t *info))
     dev = calloc(1, sizeof(esdi_t));
     if (dev == NULL)
         return (NULL);
+
+#ifdef ENABLE_ESDI_MCA_LOG
+    esdi->log = log_open(info->name);
+#endif /* ENABLE_ESDI_MCA_LOG */
 
     /* Mark as unconfigured. */
     dev->irq_status = 0xff;
@@ -1426,6 +1433,16 @@ esdi_close(void *priv)
         hdd_image_close(drive->hdd_num);
     }
 
+#ifdef ENABLE_ESDI_MCA_LOG
+    if (dev->log != NULL) {
+        esdi_mca_log(dev->log, "Log closed\n");
+
+        log_close(dev->log);
+        dev->log = NULL;
+    }
+#endif /* ENABLE_ESDI_MCA_LOG */
+
+    /* Release the device. */
     free(dev);
 }
 
