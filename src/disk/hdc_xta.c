@@ -91,6 +91,7 @@
 #define HAVE_STDARG_H
 #include <86box/86box.h>
 #include <86box/io.h>
+#include <86box/log.h>
 #include <86box/dma.h>
 #include <86box/pic.h>
 #include <86box/mem.h>
@@ -267,6 +268,10 @@ typedef struct hdc_t {
 
     uint8_t data[512];       /* data buffer */
     uint8_t sector_buf[512]; /* sector buffer */
+
+#ifdef ENABLE_XTA_LOG
+    void * log;
+#endif /* ENABLE_XTA_LOG */
 } hdc_t;
 
 #ifdef ENABLE_XTA_LOG
@@ -993,6 +998,9 @@ xta_init(const device_t *info)
     /* Allocate and initialize device block. */
     dev = malloc(sizeof(hdc_t));
     memset(dev, 0x00, sizeof(hdc_t));
+#ifdef ENABLE_XTA_LOG
+    dev->log = log_open(info->name);
+#endif /* ENABLE_XTA_LOG */
     dev->type = info->local;
 
     /* Do per-controller-type setup. */
@@ -1091,6 +1099,10 @@ xta_close(void *priv)
 
         hdd_image_close(drive->hdd_num);
     }
+
+#ifdef ENABLE_XTA_LOG
+    dev->log_close(dev->log);
+#endif /* ENABLE_XTA_LOG */
 
     /* Release the device. */
     free(dev);
