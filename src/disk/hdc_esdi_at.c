@@ -29,6 +29,7 @@
 #include <86box/86box.h>
 #include <86box/device.h>
 #include <86box/io.h>
+#include <86box/log.h>
 #include <86box/mem.h>
 #include <86box/pic.h>
 #include <86box/rom.h>
@@ -103,6 +104,10 @@ typedef struct esdi_t {
     drive_t drives[2];
 
     rom_t bios_rom;
+
+#ifdef ENABLE_ESDI_AT_LOG
+    void *log;
+#endif /* ENABLE_ESDI_AT_LOG */
 } esdi_t;
 
 static uint8_t esdi_read(uint16_t port, void *priv);
@@ -838,6 +843,9 @@ wd1007vse1_init(UNUSED(const device_t *info))
 
     esdi_t *esdi = malloc(sizeof(esdi_t));
     memset(esdi, 0x00, sizeof(esdi_t));
+#ifdef ENABLE_ESDI_AT_LOG
+    esdi->log = log_open(info->name);
+#endif ENABLE_ESDI_AT_LOG
 
     c = 0;
     for (uint8_t d = 0; d < HDD_NUM; d++) {
@@ -887,6 +895,11 @@ wd1007vse1_close(void *priv)
         hdd_image_close(drive->hdd_num);
     }
 
+#ifdef ENABLE_ESDI_AT_LOG
+    esdi->log_close(dev->log);
+#endif ENABLE_ESDI_AT_LOG
+
+    /* Release the device. */
     free(esdi);
 
     ui_sb_update_icon(SB_HDD | HDD_BUS_ESDI, 0);
