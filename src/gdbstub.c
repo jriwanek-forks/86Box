@@ -334,7 +334,7 @@ int      gdbstub_step = 0, gdbstub_next_asap = 0;
 uint64_t gdbstub_watch_pages[(((uint32_t) -1) >> (MEM_GRANULARITY_BITS + 6)) + 1];
 
 static void
-gdbstub_break()
+gdbstub_break(void)
 {
     /* Pause CPU execution as soon as possible. */
     if (gdbstub_step <= GDBSTUB_EXEC)
@@ -1627,7 +1627,7 @@ gdbstub_server_thread(void *priv)
 }
 
 void
-gdbstub_cpu_init()
+gdbstub_cpu_init(void)
 {
     /* Replace cpu_exec with our own function if the GDB stub is active. */
     if ((gdbstub_socket != -1) && (cpu_exec != gdbstub_cpu_exec)) {
@@ -1637,7 +1637,7 @@ gdbstub_cpu_init()
 }
 
 int
-gdbstub_instruction()
+gdbstub_instruction(void)
 {
     /* Check hardware breakpoints if any are present. */
     gdbstub_breakpoint_t *breakpoint = first_hwbreak;
@@ -1667,7 +1667,7 @@ gdbstub_instruction()
 }
 
 int
-gdbstub_int3()
+gdbstub_int3(void)
 {
     /* Check software breakpoints if any are present. */
     gdbstub_breakpoint_t *breakpoint = first_swbreak;
@@ -1744,7 +1744,7 @@ gdbstub_mem_access(uint32_t *addrs, int access)
 }
 
 void
-gdbstub_init()
+gdbstub_init(void)
 {
 #ifdef _WIN32
     WSAStartup(MAKEWORD(2, 2), &wsa);
@@ -1790,7 +1790,7 @@ gdbstub_init()
 }
 
 void
-gdbstub_close()
+gdbstub_close(void)
 {
     /* Stop if the GDB server hasn't initialized. */
     if (gdbstub_socket < 0)
