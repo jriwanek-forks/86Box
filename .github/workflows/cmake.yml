@@ -427,7 +427,7 @@ jobs:
           path: build/artifacts/**
 
   linux:
-    name: "Linux GCC 11 (Qt GUI, ${{ matrix.build.name }}, ${{ matrix.dynarec.name }}, x86_64)"
+    name: "Linux GCC 11 (${{ matrix.ui.name }}, ${{ matrix.build.name }}, ${{ matrix.dynarec.name }}, x86_64)"
 
     runs-on: ubuntu-22.04
 
@@ -448,6 +448,17 @@ jobs:
           - name: NDR
             new: on
             slug: -NDR
+        ui:
+          - name: SDL GUI
+            qt: off
+            static: on
+          - name: Qt GUI
+            qt: on
+            static: off
+            slug: -Qt
+            packages: >-
+              qtbase5-dev
+              qttools5-dev
 
     steps:
       - name: Install dependencies
@@ -460,9 +471,8 @@ jobs:
           libpng-dev
           libc6-dev
           librtmidi-dev
-          qtbase5-dev
-          qttools5-dev
           libopenal-dev
+          ${{ matrix.ui.packages }}
       - uses: actions/checkout@v3
       - name: Configure CMake
         run: >-
@@ -470,13 +480,14 @@ jobs:
           --toolchain ./cmake/flags-gcc-x86_64.cmake
           -D NEW_DYNAREC=${{ matrix.dynarec.new }}
           -D CMAKE_INSTALL_PREFIX=./build/artifacts
+          -D QT=${{ matrix.ui.qt }}
       - name: Build
         run: cmake --build build
       - name: Generate package
         run: cmake --install build
       - uses: actions/upload-artifact@v3
         with:
-          name: '86Box-Qt${{ matrix.dynarec.slug }}${{ matrix.build.slug }}-UbuntuJammy-x86_64-gha${{ github.run_number }}'
+          name: '86Box${{ matrix.ui.slug }}${{ matrix.dynarec.slug }}${{ matrix.build.slug }}-UbuntuJammy-x86_64-gha${{ github.run_number }}'
           path: build/artifacts/**
 
   macos10:
