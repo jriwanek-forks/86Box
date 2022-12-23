@@ -104,7 +104,7 @@
 
 #define HDC_TIME     (50 * TIMER_USEC)
 
-#define WD_BIOS_FILE "roms/hdd/xta/idexywd2.bin"
+#define WD_REV_1_BIOS_FILE "roms/hdd/xta/idexywd2.bin"
 
 enum {
     STATE_IDLE = 0,
@@ -965,7 +965,7 @@ hdc_write(uint16_t port, uint8_t val, void *priv)
 static int
 xta_available(void)
 {
-    return (rom_present(WD_BIOS_FILE));
+    return (rom_present(WD_REV_1_BIOS_FILE));
 }
 
 static void *
@@ -990,7 +990,7 @@ xta_init(const device_t *info)
             dev->irq      = device_get_config_int("irq");
             dev->rom_addr = device_get_config_hex20("bios_addr");
             dev->dma      = 3;
-            fn            = WD_BIOS_FILE;
+            fn            = WD_REV_1_BIOS_FILE;
             max           = 1;
             break;
 

@@ -88,7 +88,7 @@
 #include <86box/hdd.h>
 
 #define ST506_XT_TYPE_XEBEC              0
-#define ST506_XT_TYPE_DTC_5150X          1
+#define ST506_XT_TYPE_DTC_5150X          2
 #define ST506_XT_TYPE_ST11M              11
 #define ST506_XT_TYPE_ST11R              12
 #define ST506_XT_TYPE_WD1002A_WX1        21

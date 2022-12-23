@@ -90,7 +90,7 @@ typedef struct {
     int          files_no;
     uint32_t     local, size;
     void        *dev1, *dev2;
-    const char **files;
+    const char  *files[9];
 } device_config_bios_t;
 
 typedef struct {
@@ -108,7 +108,7 @@ typedef struct {
     const char                     *file_filter;
     const device_config_spinner_t   spinner;
     const device_config_selection_t selection[16];
-    const device_config_bios_t     *bios;
+    const device_config_bios_t      bios[32];
 } device_config_t;
 
 typedef struct _device_ {
