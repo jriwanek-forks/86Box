@@ -82,10 +82,10 @@
 #include <86box/pic.h>
 #include <86box/isartc.h>
 
-#define ISARTC_EV170 0
-#define ISARTC_DTK   1
-#define ISARTC_P5PAK 2
-#define ISARTC_A6PAK 3
+#define ISARTC_EV170  0
+#define ISARTC_DTK    1
+#define ISARTC_P5PAK  2
+#define ISARTC_A6PAK  3
 
 #define ISARTC_DEBUG 0
 

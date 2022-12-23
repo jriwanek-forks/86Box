@@ -2399,7 +2399,7 @@ scsi_cdrom_command(scsi_common_t *sc, uint8_t *cdb)
                         }
 #endif
                         idx += 40;
-                        ide_padstr8(dev->buffer + idx, 20, "53R141"); /* Product */
+                        ide_padstr8(dev->buffer + idx, 20, "53R141"); /* Serial */
                         idx += 20;
                         break;
 
