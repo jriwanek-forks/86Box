@@ -491,7 +491,7 @@ jobs:
           path: build/artifacts/**
 
   macos10:
-    name: "macOS 10.15 (Qt GUI, ${{ matrix.build.name }}, ${{ matrix.dynarec.name }}, x86_64)"
+    name: "macOS 10.15 (${{ matrix.ui.name }}, ${{ matrix.build.name }}, ${{ matrix.dynarec.name }}, x86_64)"
 
     runs-on: macos-10.15
 
@@ -514,6 +514,16 @@ jobs:
           - name: NDR
             new: on
             slug: -NDR
+        ui:
+          - name: SDL GUI
+            qt: off
+            static: on
+          - name: Qt GUI
+            qt: on
+            static: off
+            slug: -Qt
+            packages: >-
+              qt@5
 
     steps:
       - name: Install dependencies
@@ -524,8 +534,8 @@ jobs:
           sdl2
           libpng
           rtmidi
-          qt@5
           openal-soft
+          ${{ matrix.ui.packages }}
       - uses: actions/checkout@v3
       - name: Configure CMake
         run: >-
@@ -533,6 +543,7 @@ jobs:
           --toolchain ./cmake/flags-gcc-x86_64.cmake
           -D NEW_DYNAREC=${{ matrix.dynarec.new }}
           -D CMAKE_INSTALL_PREFIX=./build/artifacts
+          -D QT=${{ matrix.ui.qt }}
           -D Qt5_ROOT=$(brew --prefix qt@5)
           -D Qt5LinguistTools_ROOT=$(brew --prefix qt@5)
           -D OpenAL_ROOT=$(brew --prefix openal-soft)
@@ -542,7 +553,7 @@ jobs:
         run: cmake --install build
       - uses: actions/upload-artifact@v3
         with:
-          name: '86Box${{ matrix.dynarec.slug }}${{ matrix.build.slug }}-macOS-x86_64-gha${{ github.run_number }}'
+          name: '86Box${{ matrix.ui.slug }}${{ matrix.dynarec.slug }}${{ matrix.build.slug }}-macOS-x86_64-gha${{ github.run_number }}'
           path: build/artifacts/**
 
   macos11:
