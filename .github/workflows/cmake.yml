@@ -111,13 +111,13 @@ jobs:
           path: build/artifacts/**
 
   vs2015-arm:
-    if: ${{ false }}  # disable for now
+    if: ${{ false }} # No longer supported by Github Actions
     name: VS2015 ${{ matrix.build.name }} ARM build (${{ matrix.toolset }})
 
     runs-on: windows-2016
 
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         build:
 #        - name: Regular NDR
@@ -171,7 +171,7 @@ jobs:
     runs-on: windows-2016
 
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         build:
 #        - name: Regular NDR
@@ -432,7 +432,7 @@ jobs:
     runs-on: ubuntu-22.04
 
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         build:
           - name: Debug
@@ -496,7 +496,7 @@ jobs:
     runs-on: macos-10.15
 
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         build:
 #         - name: Regular
@@ -626,7 +626,7 @@ jobs:
     runs-on: macos-12
 
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         build:
           - name: Debug
