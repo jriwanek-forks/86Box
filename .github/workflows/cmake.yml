@@ -25,6 +25,7 @@ on:
 
 jobs:
   msys2:
+    if: ${{ false }}  # disable for now
     name: "Windows MSYS2 (${{ matrix.ui.name }}, ${{ matrix.build.name }}, ${{ matrix.dynarec.name }}, ${{ matrix.environment.msystem }})"
 
     runs-on: windows-2022
@@ -327,6 +328,7 @@ jobs:
         path: build/artifacts/bin/**
 
   llvm-windows:
+    if: ${{ false }}  # disable for now
     name: "Windows vcpkg/LLVM (${{ matrix.ui.name }}, ${{ matrix.build.name }}, ${{ matrix.dynarec.name }}, ${{ matrix.target.name }})"
 
     runs-on: windows-2022
@@ -427,6 +429,7 @@ jobs:
           path: build/artifacts/**
 
   linux:
+    if: ${{ false }}  # disable for now
     name: "Linux GCC 11 (${{ matrix.ui.name }}, ${{ matrix.build.name }}, ${{ matrix.dynarec.name }}, x86_64)"
 
     runs-on: ubuntu-22.04
@@ -491,6 +494,7 @@ jobs:
           path: build/artifacts/**
 
   macos10:
+    if: ${{ false }}  # disable for now
     name: "macOS 10.15 (${{ matrix.ui.name }}, ${{ matrix.build.name }}, ${{ matrix.dynarec.name }}, x86_64)"
 
     runs-on: macos-10.15
@@ -557,6 +561,7 @@ jobs:
           path: build/artifacts/**
 
   macos11:
+    if: ${{ false }}  # disable for now
     name: "macOS 11 (${{ matrix.ui.name }}, ${{ matrix.build.name }}, ${{ matrix.dynarec.name }}, x86_64)"
 
     runs-on: macos-11
@@ -621,6 +626,7 @@ jobs:
           path: build/artifacts/**
 
   macos12:
+    if: ${{ false }}  # disable for now
     name: "macOS 12 (${{ matrix.ui.name }}, ${{ matrix.build.name }}, ${{ matrix.dynarec.name }}, x86_64)"
 
     runs-on: macos-12
