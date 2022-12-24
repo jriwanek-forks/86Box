@@ -274,7 +274,7 @@ jobs:
         path: build/artifacts/bin/**
 
   vs2022-arm:
-    if: ${{ false }}  # disable for now
+    if: ${{ true }}  # disable for now
     name: VS2022 ${{ matrix.build.name }} ARM build (${{ matrix.toolset }})
 
     runs-on: windows-2022
@@ -411,6 +411,7 @@ jobs:
           -D VCPKG_TARGET_TRIPLET=${{ matrix.target.triplet }}
           -D VCPKG_HOST_TRIPLET=x64-windows
           -D VCPKG_USE_HOST_TOOLS=ON
+          -D QT=OFF
       - name: Fix Qt
         if: matrix.ui.qt == 'on'
         run: |
