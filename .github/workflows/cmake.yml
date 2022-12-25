@@ -302,6 +302,13 @@ jobs:
         toolset: ['v140', 'v141', 'v142', 'v143']
 
     steps:
+    - name: Download and install Windows 8.1 SDK
+      run: |
+        import subprocess
+        import urllib.request
+        urllib.request.urlretrieve("https://go.microsoft.com/fwlink/p/?LinkId=323507", "sdksetup.exe")
+        subprocess.run(["sdksetup.exe", "/q", "/norestart", "/features", "OptionId.WindowsDesktopSoftwareDevelopmentKit", "OptionId.NetFxSoftwareDevelopmentKit"], check=True, capture_output=True)
+      shell: python
     - uses: actions/checkout@v3
     - uses: actions/cache@v2
       with:
