@@ -302,6 +302,13 @@ jobs:
         toolset: ['v140', 'v141', 'v142', 'v143']
 
     steps:
+    - name: Download and install Visual Studion 2015 Build Tools
+      run: |
+        import subprocess
+        import urllib.request
+        urllib.request.urlretrieve("https://download.microsoft.com/download/E/E/D/EEDF18A8-4AED-4CE0-BEBE-70A83094FC5A/BuildTools_Full.exe", "BuildTools_Full.exe")
+        subprocess.run(["BuildTools_Full.exe"], check=True, capture_output=True)
+      shell: python
     - name: Download and install Windows 8.1 SDK
       run: |
         import subprocess
