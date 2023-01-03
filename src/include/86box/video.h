@@ -69,6 +69,10 @@ enum {
 #define VIDEO_FLAG_TYPE_NONE    5
 #define VIDEO_FLAG_TYPE_MASK    7
 
+#define VIDEO_FLAG_TYPE_EGA     2
+#define VIDEO_FLAG_TYPE_VGA     2
+#define VIDEO_FLAG_TYPE_SVGA    2
+
 typedef struct video_timings_t {
     int type;
     int write_b;
