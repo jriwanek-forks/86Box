@@ -21,6 +21,7 @@
 #include <windowsx.h>
 #undef BITMAP
 #include <commctrl.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
@@ -38,8 +39,8 @@
 
 static unsigned char *empty;
 
-static int
-create_86f(char *file_name, disk_size_t disk_size, uint8_t rpm_mode)
+static bool
+create_86f(const char *file_name, const disk_size_t disk_size, uint8_t rpm_mode)
 {
     FILE *fp;
 
@@ -110,7 +111,7 @@ create_86f(char *file_name, disk_size_t disk_size, uint8_t rpm_mode)
 
     fp = plat_fopen(file_name, "wb");
     if (!fp)
-        return 0;
+        return false;
 
     fwrite(&magic, 4, 1, fp);
     fwrite(&version, 2, 1, fp);
@@ -138,14 +139,14 @@ create_86f(char *file_name, disk_size_t disk_size, uint8_t rpm_mode)
 
     fclose(fp);
 
-    return 1;
+    return true;
 }
 
 static int is_zip;
 static int is_mo;
 
-static int
-create_sector_image(char *file_name, disk_size_t disk_size, uint8_t is_fdi)
+static bool
+create_sector_image(const char *file_name, const disk_size_t disk_size, uint8_t is_fdi)
 {
     FILE    *fp;
     uint32_t total_size     = 0;
@@ -160,7 +161,7 @@ create_sector_image(char *file_name, disk_size_t disk_size, uint8_t is_fdi)
 
     fp = plat_fopen(file_name, "wb");
     if (!fp)
-        return 0;
+        return false;
 
     sector_bytes  = (128 << disk_size.sector_len);
     total_sectors = disk_size.sides * disk_size.tracks * disk_size.sectors;
@@ -246,11 +247,11 @@ create_sector_image(char *file_name, disk_size_t disk_size, uint8_t is_fdi)
 
     fclose(fp);
 
-    return 1;
+    return true;
 }
 
-static int
-create_zip_sector_image(char *file_name, disk_size_t disk_size, uint8_t is_zdi, HWND hwnd)
+static bool
+create_zip_sector_image(const char *file_name, const disk_size_t disk_size, uint8_t is_zdi, HWND hwnd)
 {
     HWND     h;
     FILE    *fp;
@@ -268,7 +269,7 @@ create_zip_sector_image(char *file_name, disk_size_t disk_size, uint8_t is_zdi, 
 
     fp = plat_fopen(file_name, "wb");
     if (!fp)
-        return 0;
+        return false;
 
     sector_bytes  = (128 << disk_size.sector_len);
     total_sectors = disk_size.sides * disk_size.tracks * disk_size.sectors;
@@ -481,11 +482,11 @@ create_zip_sector_image(char *file_name, disk_size_t disk_size, uint8_t is_zdi, 
 
     fclose(fp);
 
-    return 1;
+    return true;
 }
 
-static int
-create_mo_sector_image(char *file_name, int8_t disk_size, uint8_t is_mdi, HWND hwnd)
+static bool
+create_mo_sector_image(const char *file_name, int8_t disk_size, uint8_t is_mdi, HWND hwnd)
 {
     HWND             h;
     FILE            *fp;
@@ -504,7 +505,7 @@ create_mo_sector_image(char *file_name, int8_t disk_size, uint8_t is_mdi, HWND h
 
     fp = plat_fopen(file_name, "wb");
     if (!fp)
-        return 0;
+        return false;
 
     sector_bytes  = dp->bytes_per_sector;
     total_sectors = dp->sectors;
@@ -606,7 +607,7 @@ create_mo_sector_image(char *file_name, int8_t disk_size, uint8_t is_mdi, HWND h
 
     fclose(fp);
 
-    return 1;
+    return true;
 }
 
 static int fdd_id;
