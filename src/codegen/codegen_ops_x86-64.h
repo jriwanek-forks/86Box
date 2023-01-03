@@ -3948,7 +3948,7 @@ FP_LOAD_REG_D(int reg, int *host_reg1, int *host_reg2)
     *host_reg1 = REG_EBX;
 }
 static __inline int64_t
-x87_fround16_64(double b)
+x87_fround16_64(long double b)
 {
     int16_t a;
     int16_t c;
@@ -3974,7 +3974,7 @@ x87_fround16_64(double b)
     return 0;
 }
 static __inline int64_t
-x87_fround32_64(double b)
+x87_fround32_64(long double b)
 {
     int32_t a;
     int32_t c;
@@ -4000,7 +4000,7 @@ x87_fround32_64(double b)
     return 0;
 }
 static __inline int64_t
-x87_fround(double b)
+x87_fround(long double b)
 {
     int64_t a;
     int64_t c;
