@@ -546,8 +546,8 @@ endif
 
 # Final versions of the toolchain flags.
 CFLAGS := $(OPTS) $(DFLAGS) $(COPTIM) $(AOPTIM) \
-          $(AFLAGS) -fomit-frame-pointer -mstackrealign -Wall \
-          -fno-strict-aliasing
+          $(AFLAGS) -fomit-frame-pointer -mstackrealign -Wall -Wextra \
+          -pedantic -fno-strict-aliasing
 
 # Add freetyp2 references through pkgconfig
 CFLAGS := $(CFLAGS)  `pkg-config --cflags freetype2`
