@@ -60,10 +60,14 @@ jobs:
           - name: Win32 GUI
             qt: off
             dinput: on
+            gdbstub: on
+            minitrace: on
             static: on
           - name: Qt GUI
             qt: on
             dinput: off
+            gdbstub: on
+            minitrace: on
             static: on
             slug: -Qt
             packages: >-
@@ -130,6 +134,8 @@ jobs:
           -D STATIC_BUILD=${{ matrix.ui.static }}
           -D DINPUT=${{ matrix.ui.dinput }}
           -D VNC=n
+          -D GDBSTUB=${{ matrix.ui.gdbstub }}
+          -D MINITRACE=${{ matrix.ui.minitrace }}
 
       - name: Build
         run: |
@@ -185,9 +191,13 @@ jobs:
           - name: Win32 GUI
             qt: off
             dinput: on
+            gdbstub: on
+            minitrace: on
           - name: Qt GUI
             qt: on
             dinput: off
+            gdbstub: on
+            minitrace: on
             slug: -Qt
         target:
           - name: x86
@@ -251,7 +261,7 @@ jobs:
         run: >
           cmake -G Ninja -S . -B build --preset ${{ matrix.build.preset }}
           --toolchain C:/vcpkg/scripts/buildsystems/vcpkg.cmake
-          -D NEW_DYNAREC=${{ matrix.dynarec.new }} -D QT=${{ matrix.ui.qt }} -D DINPUT=${{ matrix.ui.dinput }}
+          -D NEW_DYNAREC=${{ matrix.dynarec.new }} -D QT=${{ matrix.ui.qt }} -D DINPUT=${{ matrix.ui.dinput }} -D GDBSTUB=${{ matrix.ui.gdbstub }} -D MINITRACE=${{ matrix.ui.minitrace }}
           -D CMAKE_INSTALL_PREFIX=./build/artifacts
           -D VCPKG_CHAINLOAD_TOOLCHAIN_FILE=${{ github.workspace }}/${{ matrix.target.toolchain }}
           -D VCPKG_TARGET_TRIPLET=${{ matrix.target.triplet }}
@@ -324,6 +334,9 @@ jobs:
             static: on
           - name: Qt GUI
             qt: on
+            dinput: off
+            gdbstub: on
+            minitrace: on
             slug: -Qt
             packages: >-
               qtbase5-dev
@@ -364,7 +377,9 @@ jobs:
           -D NEW_DYNAREC=${{ matrix.dynarec.new }}
           -D CMAKE_INSTALL_PREFIX=./build/artifacts
           -D QT=${{ matrix.ui.qt }}
-
+          -D DINPUT=${{ matrix.ui.dinput }}
+          -D GDBSTUB=${{ matrix.ui.gdbstub }}
+          -D MINITRACE=${{ matrix.ui.minitrace }}
       - name: Build
         run: |
           build-wrapper-linux-x86-64 --out-dir ${{ env.BUILD_WRAPPER_OUT_DIR }} cmake --build build
@@ -422,6 +437,9 @@ jobs:
               libsndfile
           - name: Qt GUI
             qt: on
+            dinput: off
+            gdbstub: on
+            minitrace: on
             slug: -Qt
             packages: >-
               qt@5
@@ -462,6 +480,9 @@ jobs:
           -D NEW_DYNAREC=${{ matrix.dynarec.new }}
           -D CMAKE_INSTALL_PREFIX=./build/artifacts
           -D QT=${{ matrix.ui.qt }}
+          -D DINPUT=${{ matrix.ui.dinput }}
+          -D GDBSTUB=${{ matrix.ui.gdbstub }}
+          -D MINITRACE=${{ matrix.ui.minitrace }}
           -D Qt5_ROOT=$(brew --prefix qt@5)
           -D Qt5LinguistTools_ROOT=$(brew --prefix qt@5)
           -D OpenAL_ROOT=$(brew --prefix openal-soft)
