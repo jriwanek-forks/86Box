@@ -77,13 +77,14 @@ jobs:
       - name: Prepare MSYS2 environment
         uses: msys2/setup-msys2@v2
         with:
+          release: false
           update: true
           msystem: ${{ matrix.environment.msystem }}
           pacboy: >-
             ninja:p
             cmake:p
             gcc:p
-            pkg-config:p
+            pkgconf:p
             freetype:p
             SDL2:p
             zlib:p
@@ -101,7 +102,6 @@ jobs:
           -D CMAKE_INSTALL_PREFIX=./build/artifacts
           -D QT=${{ matrix.ui.qt }}
           -D STATIC_BUILD=${{ matrix.ui.static }}
-          -D VNC=n
       - name: Build
         run: cmake --build build
       - name: Generate package
@@ -401,7 +401,7 @@ jobs:
         run: echo "C:/Program Files/LLVM/bin" >> $env:GITHUB_PATH
       - name: Download Ninja
         run: >
-          Invoke-WebRequest https://github.com/ninja-build/ninja/releases/download/v1.10.2/ninja-win.zip -OutFile ninja-win.zip && 
+          Invoke-WebRequest https://github.com/ninja-build/ninja/releases/download/v1.11.1/ninja-win.zip -OutFile ninja-win.zip && 
           Expand-Archive ninja-win.zip -DestinationPath .
       - name: Setup NuGet Credentials
         run: >
@@ -425,7 +425,6 @@ jobs:
           -D VCPKG_TARGET_TRIPLET=${{ matrix.target.triplet }}
           -D VCPKG_HOST_TRIPLET=x64-windows
           -D VCPKG_USE_HOST_TOOLS=ON
-          -D QT=OFF
       - name: Fix Qt
         if: matrix.ui.qt == 'on'
         run: |
@@ -490,6 +489,7 @@ jobs:
           libc6-dev
           librtmidi-dev
           libopenal-dev
+          libvncserver-dev
           ${{ matrix.ui.packages }}
       - uses: actions/checkout@v3
       - name: Configure CMake
@@ -684,6 +684,7 @@ jobs:
           libpng
           rtmidi
           openal-soft
+          libvncserver
           ${{ matrix.ui.packages }}
       - uses: actions/checkout@v3
       - name: Configure CMake
