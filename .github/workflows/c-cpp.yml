@@ -107,7 +107,8 @@ jobs:
           CLANG=${{ matrix.environment.clang }}
           X64=${{ matrix.environment.x64 }}
           DINPUT=y
-          VNC=n
+          GDBSTUB=y
+          MINITRACE=y
         working-directory: ./src
 
       - name: Upload artifact
