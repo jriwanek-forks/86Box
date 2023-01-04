@@ -23,6 +23,8 @@
 #include "timer.h"
 #include "x86.h"
 
+uint8_t FETCH(void);
+
 int xt_cpu_multi;
 int nmi = 0;
 
@@ -116,7 +118,7 @@ int fetchcycles=0,memcycs,fetchclocks;
 uint8_t prefetchqueue[6];
 uint16_t prefetchpc;
 int prefetchw=0;
-inline uint8_t FETCH()
+inline uint8_t FETCH(void)
 {
         uint8_t temp;
 /*        temp=prefetchqueue[0];
@@ -440,11 +442,12 @@ static inline void seteaw(uint16_t val)
         }
 }
 
+/*
 #define getr8(r)   ((r & 4) ? cpu_state.regs[r & 3].b.h : cpu_state.regs[r & 3].b.l)
 
 #define setr8(r,v) if (r & 4) cpu_state.regs[r & 3].b.h = v; \
                    else       cpu_state.regs[r & 3].b.l = v;
-
+*/
 
 /*Flags*/
 uint8_t znptable8[256];

@@ -67,6 +67,7 @@ jobs:
             openal:p
             rtmidi:p
             libvncserver:p
+            openssl:p
             libpcap:p
 #            libslirp:p
       - uses: actions/checkout@v4
@@ -139,6 +140,7 @@ jobs:
             openal:p
             rtmidi:p
             libvncserver:p
+            openssl:p
             libpcap:p
 #            libslirp:p
       - uses: actions/checkout@v4

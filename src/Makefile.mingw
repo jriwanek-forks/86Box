@@ -2,7 +2,7 @@ VPATH = . dosbox lzf resid-fp slirp
 CPP  = g++.exe
 CC   = gcc.exe
 WINDRES = windres.exe
-CFLAGS = -O3 -march=native -mtune=native -fbranch-probabilities -fvpt -fpeel-loops -ftracer -fomit-frame-pointer -ffast-math -msse -msse2 -msse3 -mssse3 -mfpmath=sse -mstackrealign -DRELEASE_BUILD
+CFLAGS = -O3 -march=native -mtune=native -fbranch-probabilities -fvpt -fpeel-loops -ftracer -fcommon -fomit-frame-pointer -ffast-math -msse -msse2 -msse3 -mssse3 -mfpmath=sse -mstackrealign -DRELEASE_BUILD
 DFLAGS = -O3 -march=i686 -fomit-frame-pointer -msse2 -mstackrealign -DRELEASE_BUILD
 RFLAGS = -DRELEASE_BUILD
 OBJ = 386.o 386_dynarec.o 386_dynarec_ops.o 808x.o acer386sx.o acerm3a.o ali1429.o amstrad.o buslogic.o cdrom.o cdrom-ioctl.o cdrom-iso.o \
@@ -29,7 +29,7 @@ SIDOBJ = convolve.o convolve-sse.o envelope.o extfilt.o filter.o pot.o sid.o voi
 SLIRPOBJ = bootp.o ip_icmp.o misc.o socket.o tcp_timer.o cksum.o ip_input.o queue.o tcp_input.o tftp.o debug.o ip_output.o sbuf.o tcp_output.o udp.o if.o mbuf.o slirp.o tcp_subr.o
 
 
-LIBS = -mwindows -lwinmm -lopenal.dll -lopenal -lddraw -ldinput8 -ldxguid -ld3d9 -ld3dx9 -lwsock32 -liphlpapi -lstdc++ -lpsapi -static-libstdc++ -static-libgcc -static -lwpcapdelay
+LIBS = -mwindows -lwinmm -lopenal.dll -lopenal -lddraw -ldinput8 -ldxguid -ld3d9 -ld3dx9 -lpcap -lssl -lcrypto -lwsock32 -lws2_32 -liphlpapi -lstdc++ -lpsapi -static-libstdc++ -static-libgcc -static
 
 86Box.exe: $(OBJ) $(DBOBJ) $(LZFOBJ) $(SIDOBJ) $(SLIRPOBJ)
 	$(CC) $(OBJ) $(DBOBJ) $(LZFOBJ) $(SIDOBJ) $(SLIRPOBJ) -o "86Box.exe" $(LIBS)
