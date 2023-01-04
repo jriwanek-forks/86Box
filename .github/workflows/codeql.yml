@@ -195,6 +195,7 @@ jobs:
           libpng-dev
           libc6-dev
           librtmidi-dev
+          libfaudio-dev
           libopenal-dev
           libslirp-dev
           libfluidsynth-dev
