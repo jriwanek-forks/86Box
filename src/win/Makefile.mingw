@@ -32,7 +32,7 @@ ifeq ($(DEV_BUILD), y)
   DEBUG := y
  endif
  ifndef GDBSTUB
-  GDBSTUB := y
+  GDBSTUB := n
  endif
  ifndef DEV_BRANCH
   DEV_BRANCH := y
@@ -96,7 +96,7 @@ else
   DEBUG := n
  endif
  ifndef GDBSTUB
-  GDBSTUB := y
+  GDBSTUB := n
  endif
  ifndef DEV_BRANCH
   DEV_BRANCH := n
@@ -207,7 +207,7 @@ ifndef RTMIDI
  RTMIDI := y
 endif
 ifndef MINITRACE
- MINITRACE := y
+ MINITRACE := n
 endif
 ifndef AVX
  AVX := n
