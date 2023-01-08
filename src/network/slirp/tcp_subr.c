@@ -507,7 +507,7 @@ void tcp_connect(struct socket *inso)
             addrlen = sizeof(addr);
             s = accept(inso->s, (struct sockaddr *)&addr, &addrlen);
             if (s >= 0) {
-                close(s);
+                closesocket(s);
             }
             return;
         }
