@@ -10,7 +10,7 @@
 #
 # Authors: David Hrdlička, <hrdlickadavid@outlook.com>
 #
-#          Copyright 2020,2021 David Hrdlička.
+#          Copyright 2020-2021 David Hrdlička.
 #          Copyright 2021      Andreas J. Reichel.
 #          Copyright 2021-2022 Jasmine Iwanek.
 #
