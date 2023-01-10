@@ -267,37 +267,40 @@ x87_fround_nearest(double b)
         return (a & 1) ? c : a;
 }
 
-static __inline int64_t
-x87_fround(double b)
+static __inline long double
+x87_fround(long double b)
 {
     double da;
     double dc;
-    int64_t a;
-    int64_t c;
+    long double a;
+    long double c;
 
     switch ((cpu_state.npxc >> 10) & 3) {
         case 0: /*Nearest*/
-            da = floor(b);
-            dc = floor(b + 1.0);
-            a = (int64_t) da;
-            c = (int64_t) dc;
+            da = floorl(b);
+            dc = floorl(b + 1.0);
+            a = (long double) da;
+            c = (long double) dc;
             if ((b - a) < (c - b))
                 return a;
             else if ((b - a) > (c - b))
                 return c;
             else
-                return (a & 1) ? c : a;
+                return (((int64_t)(floorl(b))) & 1) != 0 ? (floorl(b) + 1) : (floorl(b));
+            break;
         case 1: /*Down*/
-            da = floor(b);
-            return (int64_t) da;
+            da = floorl(b);
+            return (long double) da;
         case 2: /*Up*/
-            da = ceil(b);
-            return (int64_t) da;
+            da = ceill(b);
+            return (long double) da;
         case 3: /*Chop*/
-            return (int64_t) b;
+            return b;
+            break;
+        default:
+            return b;
+            break;
     }
-
-    return 0LL;
 }
 
 static __inline double
