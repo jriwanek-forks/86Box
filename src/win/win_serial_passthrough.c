@@ -56,7 +56,7 @@ plat_serpt_close(void *p)
 {
         serial_passthrough_t *dev = (serial_passthrough_t *)p;
 
-        close(dev->master_fd);
+        fclose(dev->master_fd);
 }
 
 
@@ -79,7 +79,7 @@ plat_serpt_write_vcon(serial_passthrough_t *dev, uint8_t data)
         */
 
         /* just write it out */
-        write(dev->master_fd, &data, 1);
+        fwrite(dev->master_fd, &data, 1);
 }
 
 
