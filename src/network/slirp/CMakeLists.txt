@@ -25,6 +25,10 @@ if(WIN32)
     target_link_libraries(slirp wsock32 iphlpapi)
 endif()
 
+if(APPLE)
+    target_link_libraries(resolv)
+endif()
+
 # tinyglib conflicts with the real GLib used by Qt, let's just be safe
 if(QT AND UNIX AND NOT APPLE)
     set(SLIRP_TINYGLIB OFF)
