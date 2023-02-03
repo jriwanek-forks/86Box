@@ -33,8 +33,10 @@
  *
  *
  * Authors: Fred N. van Kempen, <decwiz@yahoo.com>
+ *          Jasmine Iwanek <jriwanek@gmail.com>
  *
- *          Copyright 2018 Fred N. van Kempen.
+ *          Copyright 2018      Fred N. van Kempen.
+ *          Copyright 2022-2023 Jasmine Iwanek.
  *
  *          Redistribution and  use  in source  and binary forms, with
  *          or  without modification, are permitted  provided that the
