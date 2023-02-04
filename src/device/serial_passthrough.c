@@ -30,7 +30,7 @@
 #include <86box/serial_passthrough.h>
 #include <86box/plat_serial_passthrough.h>
 
-
+#define ENABLE_SERIAL_PASSTHROUGH_LOG 1
 #ifdef ENABLE_SERIAL_PASSTHROUGH_LOG
 int serial_passthrough_do_log = ENABLE_SERIAL_PASSTHROUGH_LOG;
 
@@ -91,11 +91,11 @@ host_to_serial_cb(void *priv)
      * fifo mode or if lsr has bit 0 set if not in fifo mode */
     if ((dev->serial->type >= SERIAL_16550) && dev->serial->fifo_enabled) {
 	if (dev->serial->rcvr_fifo_full) {
-            goto no_write_to_machine;
+            //goto no_write_to_machine;
         } 
     } else {
 	if (dev->serial->lsr & 1) {
-            goto no_write_to_machine;
+            //goto no_write_to_machine;
         }
     }
     if (plat_serpt_read(dev, &byte)) {
@@ -103,7 +103,7 @@ host_to_serial_cb(void *priv)
         serial_write_fifo(dev->serial, byte);
     }
 no_write_to_machine:
-    timer_on_auto(&dev->host_to_serial_timer, 1000000.0/dev->baudrate);
+    timer_on_auto(&dev->host_to_serial_timer, (1000000.0/dev->baudrate) * 10.);
 }
 
 
@@ -111,6 +111,10 @@ static void
 serial_passthrough_rcr_cb(struct serial_s *serial, void *priv)
 {
     serial_passthrough_t *dev = (serial_passthrough_t *)priv;
+
+    timer_stop(&dev->host_to_serial_timer);
+    /* FIXME: do something to dev->baudrate */
+    timer_on_auto(&dev->host_to_serial_timer, (1000000.0/dev->baudrate) * 10.);
 }
 
 
@@ -121,7 +125,7 @@ serial_passthrough_speed_changed(void *priv)
 
     timer_stop(&dev->host_to_serial_timer);
     /* FIXME: do something to dev->baudrate */
-    timer_on_auto(&dev->host_to_serial_timer, 1000000.0/dev->baudrate);
+    timer_on_auto(&dev->host_to_serial_timer, (1000000.0/dev->baudrate) * 10.);
 }
 
 
