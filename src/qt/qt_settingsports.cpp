@@ -27,6 +27,7 @@ extern "C" {
 #include <86box/machine.h>
 #include <86box/lpt.h>
 #include <86box/serial.h>
+#include <86box/serial_passthrough.h>
 }
 
 #include "qt_deviceconfig.hpp"
@@ -66,6 +67,9 @@ SettingsPorts::SettingsPorts(QWidget *parent)
         auto *checkBox = findChild<QCheckBox *>(QString("checkBoxSerial%1").arg(i + 1));
         checkBox->setChecked(com_ports[i].enabled > 0);
     }
+
+    ui->checkBoxSerialPassThru1->setChecked(serial_passthrough_enabled[0]);
+    ui->pushButtonSerialPassThru1->setEnabled(serial_passthrough_enabled[0]);
 }
 
 SettingsPorts::~SettingsPorts()
@@ -87,6 +91,8 @@ SettingsPorts::save()
         auto *checkBox       = findChild<QCheckBox *>(QString("checkBoxSerial%1").arg(i + 1));
         com_ports[i].enabled = checkBox->isChecked() ? 1 : 0;
     }
+
+    serial_passthrough_enabled[0] = ui->checkBoxSerialPassThru1->isChecked();
 }
 
 void
@@ -112,3 +118,15 @@ SettingsPorts::on_checkBoxParallel4_stateChanged(int state)
 {
     ui->comboBoxLpt4->setEnabled(state == Qt::Checked);
 }
+
+void SettingsPorts::on_checkBoxSerialPassThru1_clicked(bool checked)
+{
+    ui->pushButtonSerialPassThru1->setEnabled(checked);
+}
+
+
+void SettingsPorts::on_pushButtonSerialPassThru1_clicked()
+{
+    DeviceConfig::ConfigureDevice(&serial_passthrough_device, 1, qobject_cast<Settings *>(Settings::settings));
+}
+
