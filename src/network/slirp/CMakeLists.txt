@@ -26,7 +26,7 @@ if(WIN32)
 endif()
 
 if(APPLE)
-    target_link_libraries(resolv)
+    target_link_libraries(slirp resolv)
 endif()
 
 # tinyglib conflicts with the real GLib used by Qt, let's just be safe
