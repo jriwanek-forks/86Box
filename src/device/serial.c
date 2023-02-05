@@ -332,6 +332,40 @@ serial_reset_fifo(serial_t *dev)
 }
 
 void
+serial_set_dsr(serial_t* dev, uint8_t enabled)
+{
+    if (dev->mctrl & 0x10)
+        return;
+
+    dev->msr &= ~0x2;
+    dev->msr |= !!((dev->msr & 0x20) ^ (enabled << 5)) << 1;
+    dev->msr &= ~0x20;
+    dev->msr |= (!!enabled) << 5;
+
+    if (dev->msr & 0x2) {
+        dev->int_status |= SERIAL_INT_MSR;
+        serial_update_ints(dev);
+    }
+}
+
+void
+serial_set_cts(serial_t *dev, uint8_t enabled)
+{
+    if (dev->mctrl & 0x10)
+        return;
+
+    dev->msr &= ~0x1;
+    dev->msr |= !!((dev->msr & 0x10) ^ (enabled << 4));
+    dev->msr &= ~0x10;
+    dev->msr |= (!!enabled) << 4;
+
+    if (dev->msr & 0x1) {
+        dev->int_status |= SERIAL_INT_MSR;
+        serial_update_ints(dev);
+    }
+}
+
+void
 serial_set_clock_src(serial_t *dev, double clock_src)
 {
     dev->clock_src = clock_src;

@@ -94,6 +94,9 @@ extern void      serial_standalone_init(void);
 extern void      serial_set_clock_src(serial_t *dev, double clock_src);
 extern void      serial_reset_port(serial_t *dev);
 
+extern void      serial_set_cts(serial_t *dev, uint8_t enabled);
+extern void      serial_set_dsr(serial_t *dev, uint8_t enabled);
+
 extern const device_t ns8250_device;
 extern const device_t ns8250_pcjr_device;
 extern const device_t ns16450_device;

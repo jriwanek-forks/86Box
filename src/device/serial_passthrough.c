@@ -99,8 +99,10 @@ host_to_serial_cb(void *priv)
         }
     }
     if (plat_serpt_read(dev, &byte)) {
-        printf("got byte %02X\n", byte);
+        //printf("got byte %02X\n", byte);
         serial_write_fifo(dev->serial, byte);
+        serial_set_cts(dev->serial, 1);
+        serial_set_dsr(dev->serial, 1);
     }
 no_write_to_machine:
     timer_on_auto(&dev->host_to_serial_timer, (1000000.0/dev->baudrate) * 10.);
@@ -115,6 +117,9 @@ serial_passthrough_rcr_cb(struct serial_s *serial, void *priv)
     timer_stop(&dev->host_to_serial_timer);
     /* FIXME: do something to dev->baudrate */
     timer_on_auto(&dev->host_to_serial_timer, (1000000.0/dev->baudrate) * 10.);
+    //serial_clear_fifo(dev->serial);
+    serial_set_cts(dev->serial, 1);
+    serial_set_dsr(dev->serial, 1);
 }
 
 
@@ -126,6 +131,9 @@ serial_passthrough_speed_changed(void *priv)
     timer_stop(&dev->host_to_serial_timer);
     /* FIXME: do something to dev->baudrate */
     timer_on_auto(&dev->host_to_serial_timer, (1000000.0/dev->baudrate) * 10.);
+    //serial_clear_fifo(dev->serial);
+    serial_set_cts(dev->serial, 1);
+    serial_set_dsr(dev->serial, 1);
 }
 
 
@@ -170,6 +178,8 @@ serial_passthrough_dev_init(const device_t *info)
 
     memset(&dev->host_to_serial_timer, 0, sizeof(pc_timer_t));
     timer_add(&dev->host_to_serial_timer, host_to_serial_cb, dev, 1);
+    serial_set_cts(dev->serial, 1);
+    serial_set_dsr(dev->serial, 1);
 
     /* Return our private data to the I/O layer. */
     return dev;
