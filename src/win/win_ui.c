@@ -1358,6 +1358,9 @@ ui_init(int nCmdShow)
     hwndRender = CreateWindow(/*L"STATIC"*/ SUB_CLASS_NAME, NULL, WS_CHILD | SS_BITMAP,
                               0, 0, 1, 1, hwnd, NULL, hinstance, NULL);
 
+    hwndRender2 = CreateWindow(/*L"STATIC"*/ SUB_CLASS_NAME, NULL, WS_CHILD | SS_BITMAP,
+                              0, 0, 1, 1, hwnd, NULL, hinstance, NULL);
+
     /* Initiate a resize in order to properly arrange all controls.
        Move to the last-saved position if needed. */
     if ((vid_resize < 2) && window_remember)
