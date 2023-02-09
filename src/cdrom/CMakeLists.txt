@@ -17,6 +17,7 @@ find_package(PkgConfig REQUIRED)
 
 pkg_check_modules(SNDFILE REQUIRED IMPORTED_TARGET sndfile)
 
+#add_library(cdrom OBJECT cdrom.c cdrom_image_backend.c cdrom_image_viso.c cdrom_image.c cdrom_ioctl.c cdrom_mitsumi.c cdrom_null.c)
 add_library(cdrom OBJECT cdrom.c cdrom_image_backend.c cdrom_image_viso.c cdrom_image.c cdrom_ioctl.c cdrom_mitsumi.c)
 target_link_libraries(86Box PkgConfig::SNDFILE)
 if (WIN32)
