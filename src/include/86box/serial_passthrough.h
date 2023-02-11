@@ -28,11 +28,11 @@
 #include <86box/serial.h>
 
 
-#define SERPT_MODES_MAX 2
-
 enum serial_passthrough_mode {
         SERPT_MODE_VCON,
-	SERPT_MODE_TCP
+	SERPT_MODE_TCP,
+        SERPT_MODE_HOSTSER,
+        SERPT_MODES_MAX,
 };
 
 extern const char *serpt_mode_names[SERPT_MODES_MAX];
@@ -43,11 +43,14 @@ typedef struct serial_passthrough_s {
         pc_timer_t serial_to_host_timer;
         serial_t *serial;
         uint32_t baudrate;
+        uint8_t bits, data_bits;
         uint8_t port;
         uint8_t data;
-        char slave_pt[32];      /* used for pseudo term name of slave side */ 
-        int master_fd;          /* file desc for master pseudo terminal or
-                                 * socket or alike */
+        char slave_pt[32];           /* used for pseudo term name of slave side */ 
+        int master_fd;               /* file desc for master pseudo terminal or
+                                      * socket or alike */
+        char host_serial_path[1024]; /* Path to TTY/host serial port on the host */
+        void* backend_priv;          /* Private platform backend data */
 } serial_passthrough_t;
 
 extern bool serial_passthrough_enabled[SERIAL_MAX];

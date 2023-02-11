@@ -17,6 +17,8 @@
  */
 
 #define _XOPEN_SOURCE 500
+#define _DEFAULT_SOURCE 1
+#define _BSD_SOURCE 1
 #include <stdio.h>
 #include <fcntl.h>
 #include <stdlib.h>
@@ -28,15 +30,14 @@
 
 #include <86box/86box.h>
 #include <86box/log.h>
-#include <86box/timer.h>
 #include <86box/plat.h>
 #include <86box/device.h>
 #include <86box/serial_passthrough.h>
 #include <86box/plat_serial_passthrough.h>
-
+#include <termios.h>
+#include <errno.h>
 
 #define LOG_PREFIX "serial_passthrough: "
-
 
 int
 plat_serpt_read(void *p, uint8_t *data)
@@ -48,6 +49,7 @@ plat_serpt_read(void *p, uint8_t *data)
 
         switch (dev->mode) {
         case SERPT_MODE_VCON:
+        case SERPT_MODE_HOSTSER:
                 FD_ZERO(&rdfds);
                 FD_SET(dev->master_fd, &rdfds);
                 tv.tv_sec = 0;
@@ -74,6 +76,10 @@ plat_serpt_close(void *p)
 {
         serial_passthrough_t *dev = (serial_passthrough_t *)p;
 
+        if (dev->mode == SERPT_MODE_HOSTSER) {
+                tcsetattr(dev->master_fd, TCSANOW, (struct termios*)dev->backend_priv);
+                free(dev->backend_priv);
+        }
         close(dev->master_fd);
 }
 
@@ -97,7 +103,13 @@ plat_serpt_write_vcon(serial_passthrough_t *dev, uint8_t data)
         */
 
         /* just write it out */
-        write(dev->master_fd, &data, 1);
+        if (dev->mode == SERPT_MODE_HOSTSER) {
+             int res = 0;
+             do {
+                res = write(dev->master_fd, &data, 1);
+             } while(res == 0 || (res == -1 && (errno == EAGAIN || res == EWOULDBLOCK))); 
+        }
+        else write(dev->master_fd, &data, 1);
 }
 
 
@@ -108,6 +120,7 @@ plat_serpt_write(void *p, uint8_t data)
         
         switch (dev->mode) {
         case SERPT_MODE_VCON:
+        case SERPT_MODE_HOSTSER:
                 plat_serpt_write_vcon(dev, data);
                 break;
         default:
@@ -135,7 +148,7 @@ open_pseudo_terminal(serial_passthrough_t *dev)
         memset(dev->slave_pt, 0, sizeof(dev->slave_pt));
         strncpy(dev->slave_pt, ptname, sizeof(dev->slave_pt)-1);
 
-        pclog(LOG_PREFIX "Slave side is %s\n", dev->slave_pt);
+        fprintf(stderr, LOG_PREFIX "Slave side is %s\n", dev->slave_pt);
 
         if (grantpt(master_fd)) {
                 pclog(LOG_PREFIX "error in grantpt()\n");
@@ -154,6 +167,56 @@ open_pseudo_terminal(serial_passthrough_t *dev)
         return master_fd;
 }
 
+static int
+open_host_serial_port(serial_passthrough_t* dev)
+{
+        struct termios* term_attr = NULL;
+        struct termios term_attr_raw = {};
+        int fd = open(dev->host_serial_path, O_RDWR | O_NOCTTY | O_NDELAY);
+        if (fd == -1) {
+                return 0;
+        }
+
+        if (!isatty(fd)) {
+                return 0;
+        }
+
+        term_attr = calloc(1, sizeof(struct termios));
+        if (!term_attr) {
+                close(fd);
+                return 0;
+        }
+
+        if (tcgetattr(fd, term_attr) == -1) {
+                free(term_attr);
+                close(fd);
+                return 0;
+        }
+        term_attr_raw = *term_attr;
+        /* "Raw" mode. */
+        cfmakeraw(&term_attr_raw);
+        term_attr_raw.c_cflag &= CSIZE;
+        switch (dev->data_bits) {
+                case 8:
+                default:
+                        term_attr_raw.c_cflag |= CS8;
+                        break;
+                case 7:
+                        term_attr_raw.c_cflag |= CS7;
+                        break;
+                case 6:
+                        term_attr_raw.c_cflag |= CS6;
+                        break;
+                case 5:
+                        term_attr_raw.c_cflag |= CS5;
+                        break;
+        }
+        tcsetattr(fd, TCSANOW, &term_attr_raw);
+        dev->backend_priv = term_attr;
+        dev->master_fd = fd;
+        pclog(LOG_PREFIX "Opened host TTY/serial port %s\n", dev->host_serial_path);
+        return 1;
+}
 
 int
 plat_serpt_open_device(void *p)
@@ -163,6 +226,11 @@ plat_serpt_open_device(void *p)
         switch (dev->mode) {
         case SERPT_MODE_VCON:
                 if (!open_pseudo_terminal(dev)) {
+                        return 1;
+                }
+                break;
+        case SERPT_MODE_HOSTSER:
+                if (!open_host_serial_port(dev)) {
                         return 1;
                 }
                 break;

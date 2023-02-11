@@ -54,6 +54,7 @@
 #define CONFIG_MAC       9
 #define CONFIG_MIDI_IN   10
 #define CONFIG_BIOS      11
+#define CONFIG_SERPORT   12
 
 enum {
     DEVICE_PCJR = 2,      /* requires an IBM PCjr */
