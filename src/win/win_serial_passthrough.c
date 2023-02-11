@@ -31,94 +31,141 @@
 #include <86box/serial_passthrough.h>
 #include <86box/plat_serial_passthrough.h>
 
+#include <windows.h>
 
 #define LOG_PREFIX "serial_passthrough: "
-
-
-int
-plat_serpt_read(void *p, uint8_t *data)
-{
-        serial_passthrough_t *dev = (serial_passthrough_t *)p;
-        int res;
-
-        switch (dev->mode) {
-        case SERPT_MODE_VCON:
-                break;
-        default:
-                break;
-        }
-        return 0;
-}
-
 
 void
 plat_serpt_close(void *p)
 {
-        serial_passthrough_t *dev = (serial_passthrough_t *)p;
+    serial_passthrough_t *dev = (serial_passthrough_t *) p;
 
-        //fclose(dev->master_fd);
+    // fclose(dev->master_fd);
+    FlushFileBuffers((HANDLE) dev->master_fd);
+    if (dev->mode == SERPT_MODE_VCON)
+        DisconnectNamedPipe((HANDLE) dev->master_fd);
+    CloseHandle((HANDLE) dev->master_fd);
 }
-
 
 static void
 plat_serpt_write_vcon(serial_passthrough_t *dev, uint8_t data)
 {
-        /* fd_set wrfds;
-         * int res;
-         */
+    /* fd_set wrfds;
+     * int res;
+     */
 
-        /* We cannot use select here, this would block the hypervisor! */
-        /* FD_ZERO(&wrfds);
-           FD_SET(ctx->master_fd, &wrfds);
-        
-           res = select(ctx->master_fd + 1, NULL, &wrfds, NULL, NULL);
-        
-           if (res <= 0) {
-                return;
-           }
-        */
+    /* We cannot use select here, this would block the hypervisor! */
+    /* FD_ZERO(&wrfds);
+       FD_SET(ctx->master_fd, &wrfds);
 
-        /* just write it out */
-        //fwrite(dev->master_fd, &data, 1);
+       res = select(ctx->master_fd + 1, NULL, &wrfds, NULL, NULL);
+
+       if (res <= 0) {
+            return;
+       }
+    */
+
+    /* just write it out */
+    // fwrite(dev->master_fd, &data, 1);
+    DWORD bytesWritten = 0;
+    WriteFile((HANDLE) dev->master_fd, &data, 1, &bytesWritten, NULL);
+    if (bytesWritten == 0) {
+        fatal("serial_passthrough: WriteFile pipe write-buffer full!");
+    }
 }
-
 
 void
 plat_serpt_write(void *p, uint8_t data)
 {
-        serial_passthrough_t *dev = (serial_passthrough_t *)p;
-        
-        switch (dev->mode) {
+    serial_passthrough_t *dev = (serial_passthrough_t *) p;
+
+    switch (dev->mode) {
         case SERPT_MODE_VCON:
-                plat_serpt_write_vcon(dev, data);
-                break;
+        case SERPT_MODE_HOSTSER:
+            plat_serpt_write_vcon(dev, data);
+            break;
         default:
-                break;
-        }
+            break;
+    }
 }
 
+uint8_t
+plat_serpt_read_vcon(serial_passthrough_t *dev, uint8_t *data)
+{
+    DWORD bytesRead = 0;
+    ReadFile((HANDLE) dev->master_fd, data, 1, &bytesRead, NULL);
+    return !!bytesRead;
+}
+
+int
+plat_serpt_read(void *p, uint8_t *data)
+{
+    serial_passthrough_t *dev = (serial_passthrough_t *) p;
+    int                   res = 0;
+
+    switch (dev->mode) {
+        case SERPT_MODE_VCON:
+        case SERPT_MODE_HOSTSER:
+            res = plat_serpt_read_vcon(dev, data);
+            break;
+        default:
+            break;
+    }
+    return res;
+}
 
 static int
 open_pseudo_terminal(serial_passthrough_t *dev)
 {
-    return 0;
+    char ascii_pipe_name[1024] = { 0 };
+    snprintf(ascii_pipe_name, sizeof(ascii_pipe_name), "\\\\.\\pipe\\86Box\\%s", vm_name);
+    dev->master_fd = (intptr_t) CreateNamedPipeA(ascii_pipe_name, PIPE_ACCESS_DUPLEX, PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_NOWAIT, 32, 65536, 65536, NMPWAIT_USE_DEFAULT_WAIT, NULL);
+    if (dev->master_fd == (intptr_t) INVALID_HANDLE_VALUE) {
+        return 0;
+    }
+    pclog("Named Pipe @ %s\n", ascii_pipe_name);
+    return 1;
 }
 
+static int
+open_host_serial_port(serial_passthrough_t *dev)
+{
+    COMMTIMEOUTS timeouts = {
+        .ReadIntervalTimeout         = MAXDWORD,
+        .ReadTotalTimeoutConstant    = 0,
+        .ReadTotalTimeoutMultiplier  = 0,
+        .WriteTotalTimeoutMultiplier = 0,
+        .WriteTotalTimeoutConstant   = 1000
+    };
+    dev->master_fd = (intptr_t) CreateFileA(dev->host_serial_path, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
+    if (dev->master_fd == (intptr_t) INVALID_HANDLE_VALUE) {
+        return 0;
+    }
+    if (!SetCommTimeouts((HANDLE) dev->master_fd, &timeouts)) {
+        pclog(LOG_PREFIX "error setting COM port timeouts.\n");
+        CloseHandle((HANDLE) dev->master_fd);
+        return 0;
+    }
+    return 1;
+}
 
 int
 plat_serpt_open_device(void *p)
 {
-        serial_passthrough_t *dev = (serial_passthrough_t *)p;
+    serial_passthrough_t *dev = (serial_passthrough_t *) p;
 
-        switch (dev->mode) {
+    switch (dev->mode) {
         case SERPT_MODE_VCON:
-                if (!open_pseudo_terminal(dev)) {
-                        return 1;
-                }
-                break;
+            if (open_pseudo_terminal(dev)) {
+                return 0;
+            }
+            break;
+        case SERPT_MODE_HOSTSER:
+            if (open_host_serial_port(dev)) {
+                return 0;
+            }
         default:
-                break;
-
-        }
-        return 0;
+            break;
+    }
+    return 1;
 }

@@ -46,8 +46,8 @@ typedef struct serial_passthrough_s {
         uint8_t bits, data_bits;
         uint8_t port;
         uint8_t data;
-        char slave_pt[32];           /* used for pseudo term name of slave side */ 
-        int master_fd;               /* file desc for master pseudo terminal or
+        char slave_pt[32];           /* used for pseudo term name of slave side */
+        intptr_t master_fd;          /* file desc for master pseudo terminal or
                                       * socket or alike */
         char host_serial_path[1024]; /* Path to TTY/host serial port on the host */
         void* backend_priv;          /* Private platform backend data */

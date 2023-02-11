@@ -172,7 +172,7 @@ open_host_serial_port(serial_passthrough_t* dev)
 {
         struct termios* term_attr = NULL;
         struct termios term_attr_raw = {};
-        int fd = open(dev->host_serial_path, O_RDWR | O_NOCTTY | O_NDELAY);
+        int fd = open(dev->host_serial_path, O_RDWR | O_NOCTTY | O_NONBLOCK);
         if (fd == -1) {
                 return 0;
         }
