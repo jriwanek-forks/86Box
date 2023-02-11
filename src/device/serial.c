@@ -175,6 +175,7 @@ write_fifo(serial_t *dev, uint8_t dat)
         dev->dat = dat;
         dev->lsr |= 0x01;
         dev->int_status |= SERIAL_INT_RECEIVE;
+        if (dev->lsr & 0x02) dev->int_status |= SERIAL_INT_LSR;
         serial_update_ints(dev);
     }
 }
@@ -311,6 +312,22 @@ serial_timeout_timer(void *priv)
     serial_update_ints(dev);
 }
 
+void
+serial_device_timeout(void *priv)
+{
+    serial_t *dev = (serial_t *) priv;
+
+#ifdef ENABLE_SERIAL_LOG
+    serial_log("serial_device_timeout()\n");
+#endif
+
+    if (!dev->fifo_enabled) {
+        dev->lsr |= 0x10;
+        dev->int_status |= SERIAL_INT_LSR;
+        serial_update_ints(dev);
+    }
+}
+
 static void
 serial_update_speed(serial_t *dev)
 {
@@ -341,6 +358,8 @@ serial_set_dsr(serial_t* dev, uint8_t enabled)
     dev->msr |= !!((dev->msr & 0x20) ^ (enabled << 5)) << 1;
     dev->msr &= ~0x20;
     dev->msr |= (!!enabled) << 5;
+    dev->msr_set &= ~0x20;
+    dev->msr_set |= (!!enabled) << 5;
 
     if (dev->msr & 0x2) {
         dev->int_status |= SERIAL_INT_MSR;
@@ -358,8 +377,29 @@ serial_set_cts(serial_t *dev, uint8_t enabled)
     dev->msr |= !!((dev->msr & 0x10) ^ (enabled << 4));
     dev->msr &= ~0x10;
     dev->msr |= (!!enabled) << 4;
+    dev->msr_set &= ~0x10;
+    dev->msr_set |= (!!enabled) << 4;
 
     if (dev->msr & 0x1) {
+        dev->int_status |= SERIAL_INT_MSR;
+        serial_update_ints(dev);
+    }
+}
+
+void
+serial_set_dcd(serial_t *dev, uint8_t enabled)
+{
+    if (dev->mctrl & 0x10)
+        return;
+
+    dev->msr &= ~0x8;
+    dev->msr |= !!((dev->msr & 0x80) ^ (enabled << 7));
+    dev->msr &= ~0x80;
+    dev->msr |= (!!enabled) << 7;
+    dev->msr_set &= ~0x80;
+    dev->msr_set |= (!!enabled) << 7;
+
+    if (dev->msr & 0x8) {
         dev->int_status |= SERIAL_INT_MSR;
         serial_update_ints(dev);
     }
@@ -521,7 +561,7 @@ serial_write(uint16_t addr, uint8_t val, void *p)
             serial_update_ints(dev);
             break;
         case 6:
-            dev->msr = val;
+            dev->msr = (val & 0xF0) | (dev->msr & 0x0F);
             if (dev->msr & 0x0f)
                 dev->int_status |= SERIAL_INT_MSR;
             serial_update_ints(dev);
@@ -605,7 +645,7 @@ serial_read(uint16_t addr, void *p)
             serial_update_ints(dev);
             break;
         case 6:
-            ret = dev->msr;
+            ret = dev->msr | dev->msr_set;
             dev->msr &= ~0x0f;
             dev->int_status &= ~SERIAL_INT_MSR;
             serial_update_ints(dev);

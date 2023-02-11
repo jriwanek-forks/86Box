@@ -91,21 +91,21 @@ host_to_serial_cb(void *priv)
      * fifo mode or if lsr has bit 0 set if not in fifo mode */
     if ((dev->serial->type >= SERIAL_16550) && dev->serial->fifo_enabled) {
 	if (dev->serial->rcvr_fifo_full) {
-            //goto no_write_to_machine;
+            goto no_write_to_machine;
         } 
     } else {
 	if (dev->serial->lsr & 1) {
-            //goto no_write_to_machine;
+            goto no_write_to_machine;
         }
     }
     if (plat_serpt_read(dev, &byte)) {
         //printf("got byte %02X\n", byte);
         serial_write_fifo(dev->serial, byte);
-        serial_set_cts(dev->serial, 1);
-        serial_set_dsr(dev->serial, 1);
+        //serial_set_dsr(dev->serial, 1);
     }
 no_write_to_machine:
-    timer_on_auto(&dev->host_to_serial_timer, (1000000.0/dev->baudrate) * 10.);
+    //serial_device_timeout(dev->serial);
+    timer_on_auto(&dev->host_to_serial_timer, (1000000.0/dev->baudrate) * (double)dev->bits);
 }
 
 
@@ -116,10 +116,8 @@ serial_passthrough_rcr_cb(struct serial_s *serial, void *priv)
 
     timer_stop(&dev->host_to_serial_timer);
     /* FIXME: do something to dev->baudrate */
-    timer_on_auto(&dev->host_to_serial_timer, (1000000.0/dev->baudrate) * 10.);
+    timer_on_auto(&dev->host_to_serial_timer, (1000000.0/dev->baudrate) * (double)dev->bits);
     //serial_clear_fifo(dev->serial);
-    serial_set_cts(dev->serial, 1);
-    serial_set_dsr(dev->serial, 1);
 }
 
 
@@ -130,10 +128,8 @@ serial_passthrough_speed_changed(void *priv)
 
     timer_stop(&dev->host_to_serial_timer);
     /* FIXME: do something to dev->baudrate */
-    timer_on_auto(&dev->host_to_serial_timer, (1000000.0/dev->baudrate) * 10.);
+    timer_on_auto(&dev->host_to_serial_timer, (1000000.0/dev->baudrate) * (double)dev->bits);
     //serial_clear_fifo(dev->serial);
-    serial_set_cts(dev->serial, 1);
-    serial_set_dsr(dev->serial, 1);
 }
 
 
@@ -163,10 +159,13 @@ serial_passthrough_dev_init(const device_t *info)
 
     dev->port = device_get_instance() - 1;
     dev->baudrate = device_get_config_int("baudrate");
+    dev->data_bits = device_get_config_int("data_bits");
 
     /* Attach passthrough device to a COM port */
     dev->serial = serial_attach(dev->port, serial_passthrough_rcr_cb,
                                 serial_passthrough_write, dev);
+
+    strncpy(dev->host_serial_path, device_get_config_string("host_serial_path"), 1024);
 
     serial_passthrough_log("%s: port=COM%d\n", info->name, dev->port + 1);
     serial_passthrough_log("%s: baud=%u\n", info->name, dev->baudrate);
@@ -180,6 +179,10 @@ serial_passthrough_dev_init(const device_t *info)
     timer_add(&dev->host_to_serial_timer, host_to_serial_cb, dev, 1);
     serial_set_cts(dev->serial, 1);
     serial_set_dsr(dev->serial, 1);
+    serial_set_dcd(dev->serial, 1);
+
+    /* 1 start bit + data bits + stop bits (no parity assumed) */
+    dev->bits = 1 + device_get_config_int("data_bits") + device_get_config_int("stop_bits");
 
     /* Return our private data to the I/O layer. */
     return dev;
@@ -188,24 +191,19 @@ serial_passthrough_dev_init(const device_t *info)
 
 const char *serpt_mode_names[SERPT_MODES_MAX] = {
         [SERPT_MODE_VCON] = "vcon",
-        [SERPT_MODE_TCP] = "tcp"
+        [SERPT_MODE_TCP] = "tcp",
+        [SERPT_MODE_HOSTSER] = "hostser",
 };
 
 
 static const device_config_t serial_passthrough_config[] = {
     {
-        "port", "Serial Port", CONFIG_SELECTION, "", 0, "", { 0 }, {
+        "mode", "Passthrough Mode", CONFIG_SELECTION, "", 0, "", { 0 }, {
                 {
-                        "COM1", 0
+                        "Pseudo Terminal/Virtual Console", 0
                 },
                 {
-                        "COM2", 1
-                },
-                {
-                        "COM3", 2
-                },
-                {
-                        "COM4", 3
+                        "Host Serial Passthrough", 2
                 },
                 {
                         ""
@@ -213,13 +211,40 @@ static const device_config_t serial_passthrough_config[] = {
         }
     },
     {
-        "mode", "Passthrough Mode", CONFIG_SELECTION, "", 0, "", { 0 }, {
-                {
-                        "Pseudo Terminal/Virtual Console", 0
-                },
-                {
-                        ""
-                }
+        .name = "host_serial_path",
+        .description = "Host Serial Device",
+        .type = CONFIG_SERPORT,
+        .default_string = "",
+        .file_filter = NULL,
+        .spinner = {},
+        .selection = {}
+    },
+    {
+        .name = "data_bits",
+        .description = "Data bits",
+        .type = CONFIG_SELECTION,
+        .default_string = "8",
+        .default_int = 8,
+        .file_filter = NULL,
+        .spinner = {},
+        .selection = {
+            { "5", 5 },
+            { "6", 6 },
+            { "7", 7 },
+            { "8", 8 }
+        }
+    },
+    {
+        .name = "stop_bits",
+        .description = "Stop bits",
+        .type = CONFIG_SELECTION,
+        .default_string = "1",
+        .default_int = 1,
+        .file_filter = NULL,
+        .spinner = {},
+        .selection = {
+            { "1", 1 },
+            { "2", 2 }
         }
     },
     {
