@@ -28,9 +28,9 @@ jobs:
       fail-fast: true
       matrix:
         build:
-#          - name: Regular
-#            debug: n
-#            dev: n
+          - name: Regular
+            debug: n
+            dev: n
           - name: Debug
             debug: y
             dev: n
