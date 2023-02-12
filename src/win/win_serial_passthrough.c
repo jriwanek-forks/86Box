@@ -97,6 +97,9 @@ plat_serpt_set_params(void *p)
                 BAUDRATE_RANGE(dev->baudrate, 57600, 115200);
                 BAUDRATE_RANGE(dev->baudrate, 115200, 0xFFFFFFFF);
 
+                serialattr.ByteSize = dev->data_bits;
+                serialattr.StopBits = (dev->serial->lcr & 0x04) ? TWOSTOPBITS : ONESTOPBIT;
+
                 SetCommState((HANDLE)dev->master_fd, &serialattr);
 #undef BAUDRATE_RANGE
         }

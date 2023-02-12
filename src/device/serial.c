@@ -520,6 +520,9 @@ serial_write(uint16_t addr, uint8_t val, void *p)
 
                 serial_transmit_period(dev);
                 serial_update_speed(dev);
+
+                if (dev->sd->lcr_callback)
+                    dev->sd->lcr_callback(dev, dev->sd->priv, dev->lcr);
             }
             break;
         case 4:
@@ -709,6 +712,7 @@ serial_attach(int port,
     sd->rcr_callback             = rcr_callback;
     sd->dev_write                = dev_write;
     sd->transmit_period_callback = NULL;
+    sd->lcr_callback             = NULL;
     sd->priv                     = priv;
 
     return sd->serial;
@@ -719,6 +723,7 @@ serial_attach_ex(int port,
               void (*rcr_callback)(struct serial_s *serial, void *p),
               void (*dev_write)(struct serial_s *serial, void *p, uint8_t data),
               void (*transmit_period_callback)(struct serial_s *serial, void *p, double transmit_period),
+              void (*lcr_callback)(struct serial_s *serial, void *p, uint8_t data_bits),
               void *priv)
 {
     serial_device_t *sd = &serial_devices[port];
@@ -726,6 +731,7 @@ serial_attach_ex(int port,
     sd->rcr_callback             = rcr_callback;
     sd->dev_write                = dev_write;
     sd->transmit_period_callback = transmit_period_callback;
+    sd->lcr_callback             = lcr_callback;
     sd->priv                     = priv;
 
     return sd->serial;
