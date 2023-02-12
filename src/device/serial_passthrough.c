@@ -150,6 +150,18 @@ serial_passthrough_transmit_period(serial_t *serial, void *p, double transmit_pe
     plat_serpt_set_params(dev);
 }
 
+void
+serial_passthrough_lcr_callback(serial_t *serial, void *p, uint8_t lcr)
+{
+    serial_passthrough_t *dev = (serial_passthrough_t *) p;
+
+    if (dev->mode != SERPT_MODE_HOSTSER) return;
+    dev->bits = serial->bits;
+    dev->data_bits = ((lcr & 0x03) + 5);
+    serial_passthrough_speed_changed(p);
+    plat_serpt_set_params(dev);
+}
+
 /* Initialize the device for use by the user. */
 static void *
 serial_passthrough_dev_init(const device_t *info)
@@ -166,7 +178,7 @@ serial_passthrough_dev_init(const device_t *info)
 
     /* Attach passthrough device to a COM port */
     dev->serial = serial_attach_ex(dev->port, serial_passthrough_rcr_cb,
-                                serial_passthrough_write, serial_passthrough_transmit_period, dev);
+                                serial_passthrough_write, serial_passthrough_transmit_period, serial_passthrough_lcr_callback, dev);
 
     strncpy(dev->host_serial_path, device_get_config_string("host_serial_path"), 1024);
 
