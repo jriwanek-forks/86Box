@@ -138,6 +138,18 @@ serial_passthrough_dev_close(void *priv)
     free(dev);
 }
 
+void
+serial_passthrough_transmit_period(serial_t *serial, void *p, double transmit_period)
+{
+    serial_passthrough_t *dev = (serial_passthrough_t *) p;
+
+    if (dev->mode != SERPT_MODE_HOSTSER) return;
+    dev->baudrate = 1000000.0 / (transmit_period);
+    
+    serial_passthrough_speed_changed(p);
+    plat_serpt_set_params(dev);
+}
+
 /* Initialize the device for use by the user. */
 static void *
 serial_passthrough_dev_init(const device_t *info)
@@ -153,13 +165,13 @@ serial_passthrough_dev_init(const device_t *info)
     dev->data_bits = device_get_config_int("data_bits");
 
     /* Attach passthrough device to a COM port */
-    dev->serial = serial_attach(dev->port, serial_passthrough_rcr_cb,
-                                serial_passthrough_write, dev);
+    dev->serial = serial_attach_ex(dev->port, serial_passthrough_rcr_cb,
+                                serial_passthrough_write, serial_passthrough_transmit_period, dev);
 
     strncpy(dev->host_serial_path, device_get_config_string("host_serial_path"), 1024);
 
     serial_passthrough_log("%s: port=COM%d\n", info->name, dev->port + 1);
-    serial_passthrough_log("%s: baud=%u\n", info->name, dev->baudrate);
+    serial_passthrough_log("%s: baud=%f\n", info->name, dev->baudrate);
     serial_passthrough_log("%s: mode=%s\n", info->name, serpt_mode_names[dev->mode]);
 
     if (plat_serpt_open_device(dev)) {

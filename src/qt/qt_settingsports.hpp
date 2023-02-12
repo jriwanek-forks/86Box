@@ -16,6 +16,24 @@ public:
 
     void save();
 private slots:
+    void on_checkBoxSerialPassThru4_clicked(bool checked);
+
+private slots:
+    void on_checkBoxSerialPassThru3_clicked(bool checked);
+
+private slots:
+    void on_checkBoxSerialPassThru2_clicked(bool checked);
+
+private slots:
+    void on_pushButtonSerialPassThru4_clicked();
+
+private slots:
+    void on_pushButtonSerialPassThru3_clicked();
+
+private slots:
+    void on_pushButtonSerialPassThru2_clicked();
+
+private slots:
     void on_pushButtonSerialPassThru1_clicked();
 
 private slots:

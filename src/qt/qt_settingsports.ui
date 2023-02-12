@@ -135,7 +135,27 @@
      <property name="sizeConstraint">
       <enum>QLayout::SetDefaultConstraint</enum>
      </property>
-     <item row="2" column="0" colspan="2">
+     <item row="4" column="0">
+      <spacer name="horizontalSpacer">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item row="2" column="0">
+      <widget class="QCheckBox" name="checkBoxSerialPassThru3">
+       <property name="text">
+        <string>Serial port passthrough 3</string>
+       </property>
+      </widget>
+     </item>
+     <item row="5" column="0" colspan="2">
       <spacer name="verticalSpacer">
        <property name="orientation">
         <enum>Qt::Vertical</enum>
@@ -163,17 +183,39 @@
       </widget>
      </item>
      <item row="1" column="0">
-      <spacer name="horizontalSpacer">
-       <property name="orientation">
-        <enum>Qt::Horizontal</enum>
+      <widget class="QCheckBox" name="checkBoxSerialPassThru2">
+       <property name="text">
+        <string>Serial port passthrough 2</string>
        </property>
-       <property name="sizeHint" stdset="0">
-        <size>
-         <width>40</width>
-         <height>20</height>
-        </size>
+      </widget>
+     </item>
+     <item row="3" column="0">
+      <widget class="QCheckBox" name="checkBoxSerialPassThru4">
+       <property name="text">
+        <string>Serial port passthrough 4</string>
        </property>
-      </spacer>
+      </widget>
+     </item>
+     <item row="1" column="1">
+      <widget class="QPushButton" name="pushButtonSerialPassThru2">
+       <property name="text">
+        <string>Configure</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="1">
+      <widget class="QPushButton" name="pushButtonSerialPassThru3">
+       <property name="text">
+        <string>Configure</string>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="1">
+      <widget class="QPushButton" name="pushButtonSerialPassThru4">
+       <property name="text">
+        <string>Configure</string>
+       </property>
+      </widget>
      </item>
     </layout>
    </item>

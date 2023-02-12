@@ -75,6 +75,34 @@ plat_serpt_write_vcon(serial_passthrough_t *dev, uint8_t data)
 }
 
 void
+plat_serpt_set_params(void *p)
+{
+        serial_passthrough_t *dev = (serial_passthrough_t *)p;
+
+        if (dev->mode == SERPT_MODE_HOSTSER) {
+                DCB serialattr = {};
+                GetCommState((HANDLE)dev->master_fd, &serialattr);
+#define BAUDRATE_RANGE(baud_rate, min, max) if (baud_rate >= min && baud_rate < max) { serialattr.BaudRate = min; }
+
+                BAUDRATE_RANGE(dev->baudrate, 110, 300);
+                BAUDRATE_RANGE(dev->baudrate, 300, 600);
+                BAUDRATE_RANGE(dev->baudrate, 600, 1200);
+                BAUDRATE_RANGE(dev->baudrate, 1200, 2400);
+                BAUDRATE_RANGE(dev->baudrate, 2400, 4800);
+                BAUDRATE_RANGE(dev->baudrate, 4800, 9600);
+                BAUDRATE_RANGE(dev->baudrate, 9600, 14400);
+                BAUDRATE_RANGE(dev->baudrate, 14400, 19200);
+                BAUDRATE_RANGE(dev->baudrate, 19200, 38400);
+                BAUDRATE_RANGE(dev->baudrate, 38400, 57600);
+                BAUDRATE_RANGE(dev->baudrate, 57600, 115200);
+                BAUDRATE_RANGE(dev->baudrate, 115200, 0xFFFFFFFF);
+
+                SetCommState((HANDLE)dev->master_fd, &serialattr);
+#undef BAUDRATE_RANGE
+        }
+}
+
+void
 plat_serpt_write(void *p, uint8_t data)
 {
     serial_passthrough_t *dev = (serial_passthrough_t *) p;

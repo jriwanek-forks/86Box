@@ -93,6 +93,8 @@ serial_transmit_period(serial_t *dev)
 
     /* Bit period based on DLAB. */
     dev->transmit_period = (16000000.0 * ddlab) / dev->clock_src;
+    if (dev->sd->transmit_period_callback)
+        dev->sd->transmit_period_callback(dev, dev->sd->priv, dev->transmit_period);
 }
 
 void
@@ -704,9 +706,27 @@ serial_attach(int port,
 {
     serial_device_t *sd = &serial_devices[port];
 
-    sd->rcr_callback = rcr_callback;
-    sd->dev_write    = dev_write;
-    sd->priv         = priv;
+    sd->rcr_callback             = rcr_callback;
+    sd->dev_write                = dev_write;
+    sd->transmit_period_callback = NULL;
+    sd->priv                     = priv;
+
+    return sd->serial;
+}
+
+serial_t *
+serial_attach_ex(int port,
+              void (*rcr_callback)(struct serial_s *serial, void *p),
+              void (*dev_write)(struct serial_s *serial, void *p, uint8_t data),
+              void (*transmit_period_callback)(struct serial_s *serial, void *p, double transmit_period),
+              void *priv)
+{
+    serial_device_t *sd = &serial_devices[port];
+
+    sd->rcr_callback             = rcr_callback;
+    sd->dev_write                = dev_write;
+    sd->transmit_period_callback = transmit_period_callback;
+    sd->priv                     = priv;
 
     return sd->serial;
 }

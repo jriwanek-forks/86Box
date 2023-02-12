@@ -70,6 +70,12 @@ SettingsPorts::SettingsPorts(QWidget *parent)
 
     ui->checkBoxSerialPassThru1->setChecked(serial_passthrough_enabled[0]);
     ui->pushButtonSerialPassThru1->setEnabled(serial_passthrough_enabled[0]);
+    ui->checkBoxSerialPassThru2->setChecked(serial_passthrough_enabled[1]);
+    ui->pushButtonSerialPassThru2->setEnabled(serial_passthrough_enabled[1]);
+    ui->checkBoxSerialPassThru3->setChecked(serial_passthrough_enabled[2]);
+    ui->pushButtonSerialPassThru3->setEnabled(serial_passthrough_enabled[2]);
+    ui->checkBoxSerialPassThru4->setChecked(serial_passthrough_enabled[3]);
+    ui->pushButtonSerialPassThru4->setEnabled(serial_passthrough_enabled[3]);
 }
 
 SettingsPorts::~SettingsPorts()
@@ -93,6 +99,9 @@ SettingsPorts::save()
     }
 
     serial_passthrough_enabled[0] = ui->checkBoxSerialPassThru1->isChecked();
+    serial_passthrough_enabled[1] = ui->checkBoxSerialPassThru2->isChecked();
+    serial_passthrough_enabled[2] = ui->checkBoxSerialPassThru3->isChecked();
+    serial_passthrough_enabled[3] = ui->checkBoxSerialPassThru4->isChecked();
 }
 
 void
@@ -119,14 +128,44 @@ SettingsPorts::on_checkBoxParallel4_stateChanged(int state)
     ui->comboBoxLpt4->setEnabled(state == Qt::Checked);
 }
 
-void SettingsPorts::on_checkBoxSerialPassThru1_clicked(bool checked)
-{
-    ui->pushButtonSerialPassThru1->setEnabled(checked);
-}
-
-
 void SettingsPorts::on_pushButtonSerialPassThru1_clicked()
 {
     DeviceConfig::ConfigureDevice(&serial_passthrough_device, 1, qobject_cast<Settings *>(Settings::settings));
 }
 
+void SettingsPorts::on_pushButtonSerialPassThru2_clicked()
+{
+    DeviceConfig::ConfigureDevice(&serial_passthrough_device, 2, qobject_cast<Settings *>(Settings::settings));
+}
+
+void SettingsPorts::on_pushButtonSerialPassThru3_clicked()
+{
+    DeviceConfig::ConfigureDevice(&serial_passthrough_device, 3, qobject_cast<Settings *>(Settings::settings));
+}
+
+void SettingsPorts::on_pushButtonSerialPassThru4_clicked()
+{
+    DeviceConfig::ConfigureDevice(&serial_passthrough_device, 4, qobject_cast<Settings *>(Settings::settings));
+}
+
+void SettingsPorts::on_checkBoxSerialPassThru1_clicked(bool checked)
+{
+    ui->pushButtonSerialPassThru1->setEnabled(checked);
+}
+
+void SettingsPorts::on_checkBoxSerialPassThru2_clicked(bool checked)
+{
+    ui->pushButtonSerialPassThru2->setEnabled(checked);
+}
+
+
+void SettingsPorts::on_checkBoxSerialPassThru3_clicked(bool checked)
+{
+    ui->pushButtonSerialPassThru3->setEnabled(checked);
+}
+
+
+void SettingsPorts::on_checkBoxSerialPassThru4_clicked(bool checked)
+{
+    ui->pushButtonSerialPassThru4->setEnabled(checked);
+}

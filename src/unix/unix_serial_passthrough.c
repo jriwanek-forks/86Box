@@ -114,6 +114,38 @@ plat_serpt_write_vcon(serial_passthrough_t *dev, uint8_t data)
         else write(dev->master_fd, &data, 1);
 }
 
+void
+plat_serpt_set_params(void *p)
+{
+        serial_passthrough_t *dev = (serial_passthrough_t *)p;
+
+        if (dev->mode == SERPT_MODE_HOSTSER) {
+                struct termios term_attr;
+                tcgetattr(dev->master_fd, &term_attr);
+#define BAUDRATE_RANGE(baud_rate, min, max, val) if (baud_rate >= min && baud_rate < max) { cfsetispeed(&term_attr, val); cfsetospeed(&term_attr, val); }
+
+                BAUDRATE_RANGE(dev->baudrate, 50, 75, B50);
+                BAUDRATE_RANGE(dev->baudrate, 75, 110, B75);
+                BAUDRATE_RANGE(dev->baudrate, 110, 134, B110);
+                BAUDRATE_RANGE(dev->baudrate, 134, 150, B134);
+                BAUDRATE_RANGE(dev->baudrate, 150, 200, B150);
+                BAUDRATE_RANGE(dev->baudrate, 200, 300, B200);
+                BAUDRATE_RANGE(dev->baudrate, 300, 600, B300);
+                BAUDRATE_RANGE(dev->baudrate, 600, 1200, B600);
+                BAUDRATE_RANGE(dev->baudrate, 1200, 1800, B1200);
+                BAUDRATE_RANGE(dev->baudrate, 1800, 2400, B1800);
+                BAUDRATE_RANGE(dev->baudrate, 2400, 4800, B2400);
+                BAUDRATE_RANGE(dev->baudrate, 4800, 9600, B4800);
+                BAUDRATE_RANGE(dev->baudrate, 9600, 19200, B9600);
+                BAUDRATE_RANGE(dev->baudrate, 19200, 38400, B19200);
+                BAUDRATE_RANGE(dev->baudrate, 38400, 57600, B38400);
+                BAUDRATE_RANGE(dev->baudrate, 57600, 115200, B57600);
+                BAUDRATE_RANGE(dev->baudrate, 115200, 0xFFFFFFFF, B115200);
+
+                tcsetattr(dev->master_fd, TCSANOW, &term_attr);
+#undef BAUDRATE_RANGE
+        }
+}
 
 void
 plat_serpt_write(void *p, uint8_t data)
