@@ -42,7 +42,7 @@ typedef struct serial_passthrough_s {
         pc_timer_t host_to_serial_timer;
         pc_timer_t serial_to_host_timer;
         serial_t *serial;
-        uint32_t baudrate;
+        double baudrate;
         uint8_t bits, data_bits;
         uint8_t port;
         uint8_t data;
