@@ -82,7 +82,7 @@ plat_serpt_set_params(void *p)
         if (dev->mode == SERPT_MODE_HOSTSER) {
                 DCB serialattr = {};
                 GetCommState((HANDLE)dev->master_fd, &serialattr);
-#define BAUDRATE_RANGE(baud_rate, min, max, val) if (baud_rate >= min && baud_rate < max) { serialattr.BaudRate = min; }
+#define BAUDRATE_RANGE(baud_rate, min, max) if (baud_rate >= min && baud_rate < max) { serialattr.BaudRate = min; }
 
                 BAUDRATE_RANGE(dev->baudrate, 110, 300);
                 BAUDRATE_RANGE(dev->baudrate, 300, 600);
