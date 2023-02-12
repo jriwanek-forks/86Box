@@ -16,9 +16,11 @@
  *              Copyright 2021-2022 Jasmine Iwanek.
  */
 
+#ifndef __APPLE__
 #define _XOPEN_SOURCE 500
 #define _DEFAULT_SOURCE 1
 #define _BSD_SOURCE 1
+#endif
 #include <stdio.h>
 #include <fcntl.h>
 #include <stdlib.h>
