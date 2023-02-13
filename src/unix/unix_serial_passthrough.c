@@ -202,6 +202,7 @@ open_pseudo_terminal(serial_passthrough_t *dev)
 {
     int   master_fd = open("/dev/ptmx", O_RDWR);
     char *ptname;
+    struct termios term_attr_raw;
 
     if (!master_fd) {
         return 0;
@@ -229,6 +230,10 @@ open_pseudo_terminal(serial_passthrough_t *dev)
         close(master_fd);
         return 0;
     }
+
+    tcgetattr(master_fd, &term_attr_raw);
+    cfmakeraw(&term_attr_raw);
+    tcsetattr(master_fd, TCSANOW, &term_attr_raw);
 
     dev->master_fd = master_fd;
 
