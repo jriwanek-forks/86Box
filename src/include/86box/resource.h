@@ -247,6 +247,10 @@
 #define IDC_CHECK_PARALLEL2       1089
 #define IDC_CHECK_PARALLEL3       1090
 #define IDC_CHECK_PARALLEL4       1091
+#define IDC_CHECK_SERIAL_PASS1    1092
+#define IDC_CHECK_SERIAL_PASS2    1093
+#define IDC_CHECK_SERIAL_PASS3    1094
+#define IDC_CHECK_SERIAL_PASS4    1095
 
 #define IDC_OTHER_PERIPH          1110 /* storage controllers config */
 #define IDC_COMBO_HDC             1111
