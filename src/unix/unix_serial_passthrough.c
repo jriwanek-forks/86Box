@@ -160,6 +160,18 @@ plat_serpt_set_params(void *p)
                 }
                 term_attr.c_cflag &= CSTOPB;
                 if (dev->serial->lcr & 0x04) term_attr.c_cflag |= CSTOPB;
+#ifdef __APPLE__
+                term_attr.c_cflag &= PARENB | PARODD;
+#else
+                term_attr.c_cflag &= PARENB | PARODD | CMSPAR;
+#endif
+                if (dev->serial->lcr & 0x08) {
+                        term_attr.c_cflag |= PARENB;
+                        if (!(dev->serial->lcr & 0x10)) term_attr.c_cflag |= PARODD;
+#ifndef __APPLE__
+                        if ((dev->serial->lcr & 0x20)) term_attr.c_cflag |= CMSPAR;
+#endif
+                }
                 tcsetattr(dev->master_fd, TCSANOW, &term_attr);
 #undef BAUDRATE_RANGE
         }

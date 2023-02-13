@@ -44,6 +44,10 @@ plat_serpt_close(void *p)
     FlushFileBuffers((HANDLE) dev->master_fd);
     if (dev->mode == SERPT_MODE_VCON)
         DisconnectNamedPipe((HANDLE) dev->master_fd);
+    if (dev->mode == SERPT_MODE_HOSTSER) {
+        SetCommState((HANDLE)dev->master_fd, (DCB*)dev->backend_priv);
+        free(dev->backend_priv);
+    }
     CloseHandle((HANDLE) dev->master_fd);
 }
 
@@ -99,6 +103,17 @@ plat_serpt_set_params(void *p)
 
                 serialattr.ByteSize = dev->data_bits;
                 serialattr.StopBits = (dev->serial->lcr & 0x04) ? TWOSTOPBITS : ONESTOPBIT;
+                if (!(dev->serial->lcr & 0x08)) {
+                    serialattr.fParity = 0;
+                    serialattr.Parity = NOPARITY;
+                } else {
+                    serialattr.fParity = 1;
+                    if (dev->serial->lcr & 0x20) {
+                        serialattr.Parity = (MARKPARITY) + !!(dev->serial->lcr & 0x10);
+                    } else {
+                        serialattr.Parity = (ODDPARITY) + !!(dev->serial->lcr & 0x10);
+                    }
+                }
 
                 SetCommState((HANDLE)dev->master_fd, &serialattr);
 #undef BAUDRATE_RANGE
@@ -168,15 +183,21 @@ open_host_serial_port(serial_passthrough_t *dev)
         .WriteTotalTimeoutMultiplier = 0,
         .WriteTotalTimeoutConstant   = 1000
     };
+    DCB* serialattr = calloc(1, sizeof(DCB));
+    if (!serialattr) return 0;
     dev->master_fd = (intptr_t) CreateFileA(dev->host_serial_path, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0, NULL);
     if (dev->master_fd == (intptr_t) INVALID_HANDLE_VALUE) {
+        free(serialattr);
         return 0;
     }
     if (!SetCommTimeouts((HANDLE) dev->master_fd, &timeouts)) {
         pclog(LOG_PREFIX "error setting COM port timeouts.\n");
         CloseHandle((HANDLE) dev->master_fd);
+        free(serialattr);
         return 0;
     }
+    GetCommState((HANDLE)dev->master_fd, serialattr);
+    dev->backend_priv = serialattr;
     return 1;
 }
 

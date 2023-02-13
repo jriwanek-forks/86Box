@@ -507,7 +507,7 @@ serial_write(uint16_t addr, uint8_t val, void *p)
         case 3:
             old      = dev->lcr;
             dev->lcr = val;
-            if ((old ^ val) & 0x0f) {
+            if ((old ^ val) & 0x3f) {
                 /* Data bits + start bit. */
                 dev->bits = ((dev->lcr & 0x03) + 5) + 1;
                 /* Stop bits. */
