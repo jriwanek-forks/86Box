@@ -117,7 +117,7 @@ plat_serpt_set_params(void *p)
 
                 SetCommState((HANDLE)dev->master_fd, &serialattr);
 #undef BAUDRATE_RANGE
-        }
+    }
 }
 
 void

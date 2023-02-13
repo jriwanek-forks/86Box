@@ -27,33 +27,33 @@
 #include <86box/timer.h>
 #include <86box/serial.h>
 
-
 enum serial_passthrough_mode {
-        SERPT_MODE_VCON,
-	SERPT_MODE_TCP,
-        SERPT_MODE_HOSTSER,
-        SERPT_MODES_MAX,
+    SERPT_MODE_VCON,    /*Named Pipe (Server) / Pseudo Terminal/Virtual Console */
+    SERPT_MODE_TCPSRV,  /* TCP Server (TODO) */
+    SERPT_MODE_TCPCLNT, /* TCP Client (TODO) */
+    SERPT_MODE_HOSTSER, /* Host Serial Passthrough */
+    SERPT_MODES_MAX,
 };
 
 extern const char *serpt_mode_names[SERPT_MODES_MAX];
 
 typedef struct serial_passthrough_s {
-        enum serial_passthrough_mode mode;
-        pc_timer_t host_to_serial_timer;
-        pc_timer_t serial_to_host_timer;
-        serial_t *serial;
-        double baudrate;
-        uint8_t bits, data_bits;
-        uint8_t port;
-        uint8_t data;
-        char slave_pt[32];           /* used for pseudo term name of slave side */
-        intptr_t master_fd;          /* file desc for master pseudo terminal or
-                                      * socket or alike */
-        char host_serial_path[1024]; /* Path to TTY/host serial port on the host */
-        void* backend_priv;          /* Private platform backend data */
+    enum serial_passthrough_mode mode;
+    pc_timer_t                   host_to_serial_timer;
+    pc_timer_t                   serial_to_host_timer;
+    serial_t                    *serial;
+    double                       baudrate;
+    uint8_t                      bits, data_bits;
+    uint8_t                      port;
+    uint8_t                      data;
+    char                         slave_pt[32]; /* used for pseudo term name of slave side */
+    intptr_t                     master_fd;    /* file desc for master pseudo terminal or
+                                                * socket or alike */
+    char  host_serial_path[1024];              /* Path to TTY/host serial port on the host */
+    void *backend_priv;                        /* Private platform backend data */
 } serial_passthrough_t;
 
-extern bool serial_passthrough_enabled[SERIAL_MAX];
+extern bool           serial_passthrough_enabled[SERIAL_MAX];
 extern const device_t serial_passthrough_device;
 
 extern void serial_passthrough_init(void);

@@ -82,6 +82,14 @@ EnumerateSerialDevices()
         serialDevices.push_back(QString("\\\\.\\COM") + QString::number((qulonglong) (i + 1)));
     }
 #endif
+#ifdef Q_OS_MACOS
+    QDir dev_dir("/dev/");
+    dev_dir.setNameFilters({ "tty.*", "cu.*" });
+    QDir::Filters serial_dev_flags = QDir::Files | QDir::NoSymLinks | QDir::Readable | QDir::Writable | QDir::NoDotAndDotDot | QDir::System;
+    for (const auto &device : dev_dir.entryInfoList(serial_dev_flags, QDir::SortFlag::Name)) {
+        serialDevices.push_back(device.canonicalFilePath());
+    }
+#endif
     return serialDevices;
 }
 

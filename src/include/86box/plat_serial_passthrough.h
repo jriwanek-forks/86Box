@@ -26,14 +26,13 @@ extern "C" {
 #endif
 
 extern void plat_serpt_write(void *p, uint8_t data);
-extern int plat_serpt_read(void *p, uint8_t *data);
-extern int plat_serpt_open_device(void *p);
+extern int  plat_serpt_read(void *p, uint8_t *data);
+extern int  plat_serpt_open_device(void *p);
 extern void plat_serpt_close(void *p);
 extern void plat_serpt_set_params(void *p);
 
 #ifdef __cplusplus
-extern }
+}
 #endif
-
 
 #endif

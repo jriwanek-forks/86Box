@@ -84,6 +84,7 @@ static ini_t config;
 /* TODO: Backwards compatibility, get rid of this when enough time has passed. */
 static int backwards_compat  = 0;
 static int backwards_compat2 = 0;
+
 #define ENABLE_CONFIG_LOG 1
 #ifdef ENABLE_CONFIG_LOG
 int config_do_log = ENABLE_CONFIG_LOG;
