@@ -177,7 +177,8 @@ write_fifo(serial_t *dev, uint8_t dat)
         dev->dat = dat;
         dev->lsr |= 0x01;
         dev->int_status |= SERIAL_INT_RECEIVE;
-        if (dev->lsr & 0x02) dev->int_status |= SERIAL_INT_LSR;
+        if (dev->lsr & 0x02)
+            dev->int_status |= SERIAL_INT_LSR;
         serial_update_ints(dev);
     }
 }
@@ -351,7 +352,7 @@ serial_reset_fifo(serial_t *dev)
 }
 
 void
-serial_set_dsr(serial_t* dev, uint8_t enabled)
+serial_set_dsr(serial_t *dev, uint8_t enabled)
 {
     if (dev->mctrl & 0x10)
         return;
@@ -720,11 +721,11 @@ serial_attach(int port,
 
 serial_t *
 serial_attach_ex(int port,
-              void (*rcr_callback)(struct serial_s *serial, void *p),
-              void (*dev_write)(struct serial_s *serial, void *p, uint8_t data),
-              void (*transmit_period_callback)(struct serial_s *serial, void *p, double transmit_period),
-              void (*lcr_callback)(struct serial_s *serial, void *p, uint8_t data_bits),
-              void *priv)
+                 void (*rcr_callback)(struct serial_s *serial, void *p),
+                 void (*dev_write)(struct serial_s *serial, void *p, uint8_t data),
+                 void (*transmit_period_callback)(struct serial_s *serial, void *p, double transmit_period),
+                 void (*lcr_callback)(struct serial_s *serial, void *p, uint8_t data_bits),
+                 void *priv)
 {
     serial_device_t *sd = &serial_devices[port];
 

@@ -87,11 +87,11 @@ extern serial_t *serial_attach(int port,
                                void (*dev_write)(struct serial_s *serial, void *p, uint8_t data),
                                void *priv);
 extern serial_t *serial_attach_ex(int port,
-                               void (*rcr_callback)(struct serial_s *serial, void *p),
-                               void (*dev_write)(struct serial_s *serial, void *p, uint8_t data),
-                               void (*transmit_period_callback)(struct serial_s *serial, void *p, double transmit_period),
-                               void (*lcr_callback)(struct serial_s *serial, void *p, uint8_t data_bits),
-                               void *priv);
+                                  void (*rcr_callback)(struct serial_s *serial, void *p),
+                                  void (*dev_write)(struct serial_s *serial, void *p, uint8_t data),
+                                  void (*transmit_period_callback)(struct serial_s *serial, void *p, double transmit_period),
+                                  void (*lcr_callback)(struct serial_s *serial, void *p, uint8_t data_bits),
+                                  void *priv);
 extern void      serial_remove(serial_t *dev);
 extern void      serial_set_type(serial_t *dev, int type);
 extern void      serial_setup(serial_t *dev, uint16_t addr, uint8_t irq);
@@ -101,11 +101,11 @@ extern void      serial_set_next_inst(int ni);
 extern void      serial_standalone_init(void);
 extern void      serial_set_clock_src(serial_t *dev, double clock_src);
 extern void      serial_reset_port(serial_t *dev);
-extern void      serial_device_timeout(void* priv);
+extern void      serial_device_timeout(void *priv);
 
-extern void      serial_set_cts(serial_t *dev, uint8_t enabled);
-extern void      serial_set_dsr(serial_t *dev, uint8_t enabled);
-extern void      serial_set_dcd(serial_t *dev, uint8_t enabled);
+extern void serial_set_cts(serial_t *dev, uint8_t enabled);
+extern void serial_set_dsr(serial_t *dev, uint8_t enabled);
+extern void serial_set_dcd(serial_t *dev, uint8_t enabled);
 
 extern const device_t ns8250_device;
 extern const device_t ns8250_pcjr_device;

@@ -143,9 +143,10 @@ serial_passthrough_transmit_period(serial_t *serial, void *p, double transmit_pe
 {
     serial_passthrough_t *dev = (serial_passthrough_t *) p;
 
-    if (dev->mode != SERPT_MODE_HOSTSER) return;
+    if (dev->mode != SERPT_MODE_HOSTSER)
+        return;
     dev->baudrate = 1000000.0 / (transmit_period);
-    
+
     serial_passthrough_speed_changed(p);
     plat_serpt_set_params(dev);
 }
@@ -155,8 +156,9 @@ serial_passthrough_lcr_callback(serial_t *serial, void *p, uint8_t lcr)
 {
     serial_passthrough_t *dev = (serial_passthrough_t *) p;
 
-    if (dev->mode != SERPT_MODE_HOSTSER) return;
-    dev->bits = serial->bits;
+    if (dev->mode != SERPT_MODE_HOSTSER)
+        return;
+    dev->bits      = serial->bits;
     dev->data_bits = ((lcr & 0x03) + 5);
     serial_passthrough_speed_changed(p);
     plat_serpt_set_params(dev);
@@ -178,7 +180,7 @@ serial_passthrough_dev_init(const device_t *info)
 
     /* Attach passthrough device to a COM port */
     dev->serial = serial_attach_ex(dev->port, serial_passthrough_rcr_cb,
-                                serial_passthrough_write, serial_passthrough_transmit_period, serial_passthrough_lcr_callback, dev);
+                                   serial_passthrough_write, serial_passthrough_transmit_period, serial_passthrough_lcr_callback, dev);
 
     strncpy(dev->host_serial_path, device_get_config_string("host_serial_path"), 1024);
 
@@ -207,7 +209,8 @@ serial_passthrough_dev_init(const device_t *info)
 
 const char *serpt_mode_names[SERPT_MODES_MAX] = {
     [SERPT_MODE_VCON]    = "vcon",
-    [SERPT_MODE_TCP]     = "tcp",
+    [SERPT_MODE_TCPSRV]  = "tcpsrv",
+    [SERPT_MODE_TCPCLNT] = "tcpclnt",
     [SERPT_MODE_HOSTSER] = "hostser",
 };
 
@@ -222,18 +225,36 @@ static const device_config_t serial_passthrough_config[] = {
         .file_filter = "",
         .spinner = { 0 },
         .selection = {
-            {
 #ifdef _WIN32
-                .description = "Named Pipe (server)",
-                .value = 0
-#else
-                .description = "Pseudo Terminal/Virtual Console",
-                .value = 0
+            {
+                .description = "Named Pipe (Server)",
+                .value = SERPT_MODE_VCON
+            },
+#if 0 /* TODO */
+            {
+                .description = "Named Pipe (Client)",
+                .value = SERPT_MODE_VCON
+            },
 #endif
+#else
+            {
+                .description = "Pseudo Terminal/Virtual Console",
+                .value = SERPT_MODE_VCON
+            },
+#endif
+#if 0 /* TODO */
+            {
+                .description = "TCP Server",
+                .value = SERPT_MODE_TCPSRV
             },
             {
+                .description = "TCP Client",
+                .value = SERPT_MODE_TCPCLNT
+            },
+#endif
+            {
                 .description = "Host Serial Passthrough",
-                .value = 2
+                .value = SERPT_MODE_HOSTSER
             },
             {
                 .description = ""
@@ -258,7 +279,9 @@ static const device_config_t serial_passthrough_config[] = {
         .file_filter = NULL,
         .spinner = { 0 },
         .selection = {
+#if 0 /* Mentioned by WFW 3.1x, not supported, atleast on Linux */
             { .description = "4", .value = 4 },
+#endif
             { .description = "5", .value = 5 },
             { .description = "6", .value = 6 },
             { .description = "7", .value = 7 },
@@ -308,11 +331,11 @@ static const device_config_t serial_passthrough_config[] = {
             { .description =   "1200", .value =   1200 },
             { .description =    "600", .value =    600 },
             { .description =    "300", .value =    300 },
-            { .description =    "150", .value =    150 }
+            { .description =    "150", .value =    150 },
 #if 0
-            { .description =  "134.5", .value =    134.5 }
+            { .description =  "134.5", .value =    134.5 },
 #endif
-            { .description =    "110", .value =    110 }
+            { .description =    "110", .value =    110 },
             { .description =     "75", .value =     75 }
         }
     },
