@@ -79,7 +79,7 @@ EnumerateSerialDevices()
 #ifdef Q_OS_WINDOWS
     QSettings comPorts("HKEY_LOCAL_MACHINE\\HARDWARE\\DEVICEMAP\\SERIALCOMM", QSettings::NativeFormat, nullptr);
     for (int i = 0; i < comPorts.childKeys().length(); i++) {
-        serialDevices.push_back(QString("\\\\.\\COM") + QString::number((qulonglong) (i + 1)));
+        serialDevices.push_back(QString("\\\\.\\") + comPorts.value(comPorts.childKeys()[i]).toString());
     }
 #endif
 #ifdef Q_OS_MACOS
