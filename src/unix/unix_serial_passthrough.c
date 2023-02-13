@@ -115,50 +115,63 @@ plat_serpt_write_vcon(serial_passthrough_t *dev, uint8_t data)
 void
 plat_serpt_set_params(void *p)
 {
-    serial_passthrough_t *dev = (serial_passthrough_t *) p;
+        serial_passthrough_t *dev = (serial_passthrough_t *)p;
 
-    if (dev->mode == SERPT_MODE_HOSTSER) {
-        struct termios term_attr;
-        tcgetattr(dev->master_fd, &term_attr);
-#define BAUDRATE_RANGE(baud_rate, min, max, val) \
-    if (baud_rate >= min && baud_rate < max) {   \
-        cfsetispeed(&term_attr, val);            \
-        cfsetospeed(&term_attr, val);            \
-    }
+        if (dev->mode == SERPT_MODE_HOSTSER) {
+                struct termios term_attr;
+                tcgetattr(dev->master_fd, &term_attr);
+#define BAUDRATE_RANGE(baud_rate, min, max, val) if (baud_rate >= min && baud_rate < max) { cfsetispeed(&term_attr, val); cfsetospeed(&term_attr, val); }
 
-        BAUDRATE_RANGE(dev->baudrate, 50, 75, B50);
-        BAUDRATE_RANGE(dev->baudrate, 75, 110, B75);
-        BAUDRATE_RANGE(dev->baudrate, 110, 134, B110);
-        BAUDRATE_RANGE(dev->baudrate, 134, 150, B134);
-        BAUDRATE_RANGE(dev->baudrate, 150, 200, B150);
-        BAUDRATE_RANGE(dev->baudrate, 200, 300, B200);
-        BAUDRATE_RANGE(dev->baudrate, 300, 600, B300);
-        BAUDRATE_RANGE(dev->baudrate, 600, 1200, B600);
-        BAUDRATE_RANGE(dev->baudrate, 1200, 1800, B1200);
-        BAUDRATE_RANGE(dev->baudrate, 1800, 2400, B1800);
-        BAUDRATE_RANGE(dev->baudrate, 2400, 4800, B2400);
-        BAUDRATE_RANGE(dev->baudrate, 4800, 9600, B4800);
-        BAUDRATE_RANGE(dev->baudrate, 9600, 19200, B9600);
-        BAUDRATE_RANGE(dev->baudrate, 19200, 38400, B19200);
-        BAUDRATE_RANGE(dev->baudrate, 38400, 57600, B38400);
-        BAUDRATE_RANGE(dev->baudrate, 57600, 115200, B57600);
-        BAUDRATE_RANGE(dev->baudrate, 115200, 0xFFFFFFFF, B115200);
+                BAUDRATE_RANGE(dev->baudrate, 50, 75, B50);
+                BAUDRATE_RANGE(dev->baudrate, 75, 110, B75);
+                BAUDRATE_RANGE(dev->baudrate, 110, 134, B110);
+                BAUDRATE_RANGE(dev->baudrate, 134, 150, B134);
+                BAUDRATE_RANGE(dev->baudrate, 150, 200, B150);
+                BAUDRATE_RANGE(dev->baudrate, 200, 300, B200);
+                BAUDRATE_RANGE(dev->baudrate, 300, 600, B300);
+                BAUDRATE_RANGE(dev->baudrate, 600, 1200, B600);
+                BAUDRATE_RANGE(dev->baudrate, 1200, 1800, B1200);
+                BAUDRATE_RANGE(dev->baudrate, 1800, 2400, B1800);
+                BAUDRATE_RANGE(dev->baudrate, 2400, 4800, B2400);
+                BAUDRATE_RANGE(dev->baudrate, 4800, 9600, B4800);
+                BAUDRATE_RANGE(dev->baudrate, 9600, 19200, B9600);
+                BAUDRATE_RANGE(dev->baudrate, 19200, 38400, B19200);
+                BAUDRATE_RANGE(dev->baudrate, 38400, 57600, B38400);
+                BAUDRATE_RANGE(dev->baudrate, 57600, 115200, B57600);
+                BAUDRATE_RANGE(dev->baudrate, 115200, 0xFFFFFFFF, B115200);
 
-        term_attr.c_cflag &= CSIZE;
-        switch (dev->data_bits) {
-            case 8:
-            default:
-                term_attr.c_cflag |= CS8;
-                break;
-            case 7:
-                term_attr.c_cflag |= CS7;
-                break;
-            case 6:
-                term_attr.c_cflag |= CS6;
-                break;
-            case 5:
-                term_attr.c_cflag |= CS5;
-                break;
+                term_attr.c_cflag &= CSIZE;
+                switch (dev->data_bits) {
+                        case 8:
+                        default:
+                                term_attr.c_cflag |= CS8;
+                                break;
+                        case 7:
+                                term_attr.c_cflag |= CS7;
+                                break;
+                        case 6:
+                                term_attr.c_cflag |= CS6;
+                                break;
+                        case 5:
+                                term_attr.c_cflag |= CS5;
+                                break;
+                }
+                term_attr.c_cflag &= CSTOPB;
+                if (dev->serial->lcr & 0x04) term_attr.c_cflag |= CSTOPB;
+#ifdef __APPLE__
+                term_attr.c_cflag &= PARENB | PARODD;
+#else
+                term_attr.c_cflag &= PARENB | PARODD | CMSPAR;
+#endif
+                if (dev->serial->lcr & 0x08) {
+                        term_attr.c_cflag |= PARENB;
+                        if (!(dev->serial->lcr & 0x10)) term_attr.c_cflag |= PARODD;
+#ifndef __APPLE__
+                        if ((dev->serial->lcr & 0x20)) term_attr.c_cflag |= CMSPAR;
+#endif
+                }
+                tcsetattr(dev->master_fd, TCSANOW, &term_attr);
+#undef BAUDRATE_RANGE
         }
         term_attr.c_cflag &= CSTOPB;
         if (dev->serial->lcr & 0x04)
