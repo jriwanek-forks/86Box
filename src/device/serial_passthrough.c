@@ -214,20 +214,29 @@ const char *serpt_mode_names[SERPT_MODES_MAX] = {
 // clang-format off
 static const device_config_t serial_passthrough_config[] = {
     {
-        "mode", "Passthrough Mode", CONFIG_SELECTION, "", 0, "", { 0 },
-        {
+        .name = "mode",
+        .description = "Passthrough Mode",
+        .type = CONFIG_SELECTION,
+        .default_string = "",
+        .default_int = 0,
+        .file_filter = "",
+        .spinner = { 0 },
+        .selection = {
             {
 #ifdef _WIN32
-                "Named Pipe (server)", 0
+                .description = "Named Pipe (server)",
+                .value = 0
 #else
-                "Pseudo Terminal/Virtual Console", 0
+                .description = "Pseudo Terminal/Virtual Console",
+                .value = 0
 #endif
             },
             {
-                "Host Serial Passthrough", 2
+                .description = "Host Serial Passthrough",
+                .value = 2
             },
             {
-                ""
+                .description = ""
             }
         }
     },
@@ -247,12 +256,13 @@ static const device_config_t serial_passthrough_config[] = {
         .default_string = "8",
         .default_int = 8,
         .file_filter = NULL,
-        .spinner = {},
+        .spinner = { 0 },
         .selection = {
-            { "5", 5 },
-            { "6", 6 },
-            { "7", 7 },
-            { "8", 8 }
+            { .description = "4", .value = 4 },
+            { .description = "5", .value = 5 },
+            { .description = "6", .value = 6 },
+            { .description = "7", .value = 7 },
+            { .description = "8", .value = 8 }
         }
     },
     {
@@ -262,49 +272,51 @@ static const device_config_t serial_passthrough_config[] = {
         .default_string = "1",
         .default_int = 1,
         .file_filter = NULL,
-        .spinner = {},
+        .spinner = { 0 },
         .selection = {
-            { "1", 1 },
-            { "2", 2 }
+            { .description = "1",   .value = 1   },
+#if 0
+            { .description = "1.5", .value = 1.5 },
+#endif
+            { .description = "2",   .value = 2   }
         }
     },
     {
-        "baudrate", "Baud Rate of Passthrough", CONFIG_SELECTION, "", 115200, "", { 0 }, {
-            {
-                "115200", 115200
-            },
-            {
-                "57600", 57600
-            },
-            {
-                "38400", 38400
-            },
-            {
-                "19200", 19200
-            },
-            {
-                "9600", 9600
-            },
-            {
-                "4800", 4800
-            },
-            {
-                "2400", 2400
-            },
-            {
-                "1200", 1200
-            },
-            {
-                "300", 300
-            },
-            {
-                "150", 150
-            }
+        .name = "baudrate",
+        .description = "Baud Rate of Passthrough",
+        .type = CONFIG_SELECTION,
+        .default_string = "",
+        .default_int = 115200,
+        .file_filter = NULL,
+        .spinner = { 0 },
+        .selection = {
+#if 0
+            { .description = "256000", .value = 256000 },
+            { .description = "128000", .value = 128000 },
+#endif
+            { .description = "115200", .value = 115200 },
+            { .description =  "57600", .value =  57600 },
+            { .description =  "56000", .value =  56000 },
+            { .description =  "38400", .value =  38400 },
+            { .description =  "19200", .value =  19200 },
+            { .description =  "14400", .value =  14400 },
+            { .description =   "9600", .value =   9600 },
+            { .description =   "7200", .value =   7200 },
+            { .description =   "4800", .value =   4800 },
+            { .description =   "2400", .value =   2400 },
+            { .description =   "1800", .value =   1800 },
+            { .description =   "1200", .value =   1200 },
+            { .description =    "600", .value =    600 },
+            { .description =    "300", .value =    300 },
+            { .description =    "150", .value =    150 }
+#if 0
+            { .description =  "134.5", .value =    134.5 }
+#endif
+            { .description =    "110", .value =    110 }
+            { .description =     "75", .value =     75 }
         }
     },
-    {
-        "", "", -1
-    }
+    { .name = "", .description = "", .type = CONFIG_END }
 };
 // clang-format on
 
@@ -318,5 +330,5 @@ const device_t serial_passthrough_device = {
     { .poll = NULL },
     .speed_changed = serial_passthrough_speed_changed,
     .force_redraw  = NULL,
-    .config        = &serial_passthrough_config[0]
+    .config        = serial_passthrough_config
 };
