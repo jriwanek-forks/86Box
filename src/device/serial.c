@@ -601,11 +601,15 @@ serial_read(uint16_t addr, void *p)
 
                 ret                 = dev->rcvr_fifo[0];
                 dev->rcvr_fifo_full = 0;
+
+                for (i = 1; i < 16; i++)
+                    dev->rcvr_fifo[i - 1] = dev->rcvr_fifo[i];
+
+                dev->rcvr_fifo_pos--;
+
                 if (dev->rcvr_fifo_pos > 0) {
-                    for (i = 1; i < 16; i++)
-                        dev->rcvr_fifo[i - 1] = dev->rcvr_fifo[i];
                     serial_log("FIFO position %i: read %02X, next %02X\n", dev->rcvr_fifo_pos, ret, dev->rcvr_fifo[0]);
-                    dev->rcvr_fifo_pos--;
+
                     /* At least one byte remains to be read, start the timeout
                        timer so that a timeout is indicated in case of no read. */
                     timer_on_auto(&dev->timeout_timer, 4.0 * dev->bits * dev->transmit_period);
