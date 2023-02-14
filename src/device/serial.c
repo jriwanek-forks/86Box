@@ -93,7 +93,7 @@ serial_transmit_period(serial_t *dev)
 
     /* Bit period based on DLAB. */
     dev->transmit_period = (16000000.0 * ddlab) / dev->clock_src;
-    if (dev->sd->transmit_period_callback)
+    if (dev->sd && dev->sd->transmit_period_callback)
         dev->sd->transmit_period_callback(dev, dev->sd->priv, dev->transmit_period);
 }
 
@@ -522,13 +522,13 @@ serial_write(uint16_t addr, uint8_t val, void *p)
                 serial_transmit_period(dev);
                 serial_update_speed(dev);
 
-                if (dev->sd->lcr_callback)
+                if (dev->sd && dev->sd->lcr_callback)
                     dev->sd->lcr_callback(dev, dev->sd->priv, dev->lcr);
             }
             break;
         case 4:
             if ((val & 2) && !(dev->mctrl & 2)) {
-                if (dev->sd->rcr_callback)
+                if (dev->sd && dev->sd->rcr_callback)
                     dev->sd->rcr_callback(dev, dev->sd->priv);
             }
             if (!(val & 8) && (dev->mctrl & 8))
