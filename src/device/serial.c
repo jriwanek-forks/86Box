@@ -163,7 +163,7 @@ write_fifo(serial_t *dev, uint8_t dat)
             dev->lsr |= 0x01;
             dev->int_status |= SERIAL_INT_RECEIVE;
         }
-        if (dev->rcvr_fifo_pos < 15)
+        if (dev->rcvr_fifo_pos < (dev->rcvr_fifo_len - 1))
             dev->rcvr_fifo_pos++;
         else
             dev->rcvr_fifo_full = 1;
