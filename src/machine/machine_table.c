@@ -12932,7 +12932,7 @@ const machine_t machines[] = {
             .step = 32768,
         },
         .nvrmask = 255,
-        .kbc = KBC_UNKNOWN,
+        .kbc_device = NULL,
         .kbc_p1 = 0,
         .gpio = 0,
         .device = NULL,
