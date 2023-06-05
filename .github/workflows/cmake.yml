@@ -13,6 +13,7 @@ on:
       - "!**/Makefile*"
 
   pull_request:
+    types: [opened, synchronize, reopened]
     paths:
       - src/**
       - cmake/**
@@ -25,10 +26,31 @@ on:
 
 jobs:
 
+  check-secret:
+    name: "Check secrets"
+    runs-on: ubuntu-latest
+    outputs:
+      github-token: ${{ steps.github-token.outputs.defined }}
+      sonar-token: ${{ steps.sonar-token.outputs.defined }}
+    steps:
+      - name: "Check if GITHUB_TOKEN is set"
+        id: github-token
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        if: "${{ env.GITHUB_TOKEN != '' }}"
+        run: echo "::set-output name=defined::true"
+      - name: "Check if SONAR_TOKEN is set"
+        id: sonar-token
+        env:
+          SONAR_TOKEN: ${{ secrets.USELESS_TOKEN }}
+        if: "${{ env.USELESS_TOKEN != '' }}"
+        run: echo "::set-output name=defined::true"
+
   msys2:
     name: "Windows MSYS2 (${{ matrix.ui.name }}, ${{ matrix.build.name }}, ${{ matrix.dynarec.name }}, ${{ matrix.environment.msystem }})"
 
     runs-on: windows-2022
+    needs: [check-secret]
 
     env:
       BUILD_WRAPPER_OUT_DIR: build_wrapper_output_directory # Directory where build-wrapper output will be placed
@@ -132,7 +154,7 @@ jobs:
           .sonar/build-wrapper-win-x86/build-wrapper-win-x86-64.exe --out-dir ${{ env.BUILD_WRAPPER_OUT_DIR }} cmake --build build
 
       - name: Run sonar-scanner
-        if: 0
+        if: 0 # needs.check-secret.outputs.sonar-token != 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -153,6 +175,7 @@ jobs:
     if: 0
 
     runs-on: windows-2022
+    needs: [check-secret]
 
     env:
       BUILD_WRAPPER_OUT_DIR: build_wrapper_output_directory # Directory where build-wrapper output will be placed
@@ -268,7 +291,7 @@ jobs:
           .sonar/build-wrapper-win-x86/build-wrapper-win-x86-64.exe --out-dir ${{ env.BUILD_WRAPPER_OUT_DIR }} cmake --build build
 
       - name: Run sonar-scanner
-        if: 0
+        if: needs.check-secret.outputs.sonar-token != 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -289,6 +312,7 @@ jobs:
     name: "Linux GCC 11 (${{ matrix.ui.name }}, ${{ matrix.build.name }}, ${{ matrix.dynarec.name }}, x86_64)"
 
     runs-on: ubuntu-22.04
+    needs: [check-secret]
 
     env:
       BUILD_WRAPPER_OUT_DIR: build_wrapper_output_directory # Directory where build-wrapper output will be placed
@@ -364,7 +388,7 @@ jobs:
           build-wrapper-linux-x86-64 --out-dir ${{ env.BUILD_WRAPPER_OUT_DIR }} cmake --build build
 
       - name: Run sonar-scanner
-#        if: 0
+        if: needs.check-secret.outputs.sonar-token != 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -385,6 +409,7 @@ jobs:
     name: "macOS 12 (${{ matrix.ui.name }}, ${{ matrix.build.name }}, ${{ matrix.dynarec.name }}, x86_64)"
 
     runs-on: macos-12
+    needs: [check-secret]
 
     env:
       BUILD_WRAPPER_OUT_DIR: build_wrapper_output_directory # Directory where build-wrapper output will be placed
@@ -465,7 +490,7 @@ jobs:
           build-wrapper-macosx-x86 --out-dir ${{ env.BUILD_WRAPPER_OUT_DIR }} cmake --build build
 
       - name: Run sonar-scanner
-        if: 0
+        if: needs.check-secret.outputs.sonar-token != 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
