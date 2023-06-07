@@ -294,8 +294,8 @@ extern uint32_t get_phys_phys;
 
 extern int shadowbios;
 extern int shadowbios_write;
-extern int readlnum;
-extern int writelnum;
+extern uint32_t readlnum;
+extern uint32_t writelnum;
 
 extern int memspeed[11];
 

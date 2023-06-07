@@ -19,7 +19,7 @@
 #define EMU_AGPGART_H
 
 typedef struct agpgart_s {
-    int           aperture_enable;
+    uint32_t      aperture_enable;
     uint32_t      aperture_base;
     uint32_t      aperture_size;
     uint32_t      aperture_mask;
@@ -27,7 +27,7 @@ typedef struct agpgart_s {
     mem_mapping_t aperture_mapping;
 } agpgart_t;
 
-extern void agpgart_set_aperture(agpgart_t *dev, uint32_t base, uint32_t size, int enable);
+extern void agpgart_set_aperture(agpgart_t *dev, uint32_t base, uint32_t size, uint32_t enable);
 extern void agpgart_set_gart(agpgart_t *dev, uint32_t base);
 
 #ifdef EMU_DEVICE_H

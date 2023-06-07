@@ -43,21 +43,21 @@
 
 pc_cassette_t *cassette;
 
-char          cassette_fname[512];
-char          cassette_mode[512];
-unsigned long cassette_pos;
-unsigned long cassette_srate;
-int           cassette_enable;
-int           cassette_append;
-int           cassette_pcm;
-int           cassette_ui_writeprot;
+char     cassette_fname[512];
+char     cassette_mode[512];
+uint64_t cassette_pos;
+uint64_t cassette_srate;
+uint32_t cassette_enable;
+uint32_t cassette_append;
+uint32_t cassette_pcm;
+uint32_t cassette_ui_writeprot;
 
-static int cassette_cycles = -1;
+static int32_t cassette_cycles = -1;
 
 static void pc_cas_reset(pc_cassette_t *cas);
 
 #ifdef ENABLE_CASSETTE_LOG
-int cassette_do_log = ENABLE_CASSETTE_LOG;
+int32_t cassette_do_log = ENABLE_CASSETTE_LOG;
 
 static void
 cassette_log(const char *fmt, ...)
@@ -152,10 +152,10 @@ pc_cas_del(pc_cassette_t *cas)
     }
 }
 
-int
+uint32_t
 pc_cas_set_fname(pc_cassette_t *cas, const char *fname)
 {
-    unsigned    n;
+    uint32_t    n;
     const char *ext;
 
     if (cas->close)
@@ -242,14 +242,14 @@ pc_cas_reset(pc_cassette_t *cas)
     }
 }
 
-int
+uint32_t
 pc_cas_get_mode(const pc_cassette_t *cas)
 {
     return (cas->save);
 }
 
 void
-pc_cas_set_mode(pc_cassette_t *cas, int save)
+pc_cas_set_mode(pc_cassette_t *cas, uint32_t save)
 {
     save = (save != 0);
 
@@ -282,14 +282,14 @@ pc_cas_set_mode(pc_cassette_t *cas, int save)
     pc_cas_reset(cas);
 }
 
-int
+uint32_t
 pc_cas_get_pcm(const pc_cassette_t *cas)
 {
     return (cas->pcm);
 }
 
 void
-pc_cas_set_pcm(pc_cassette_t *cas, int pcm)
+pc_cas_set_pcm(pc_cassette_t *cas, uint32_t pcm)
 {
     cas->pcm = (pcm != 0);
 
@@ -298,14 +298,14 @@ pc_cas_set_pcm(pc_cassette_t *cas, int pcm)
     pc_cas_reset(cas);
 }
 
-unsigned long
+uint64_t
 pc_cas_get_srate(const pc_cassette_t *cas)
 {
     return (cas->srate);
 }
 
 void
-pc_cas_set_srate(pc_cassette_t *cas, unsigned long srate)
+pc_cas_set_srate(pc_cassette_t *cas, uint64_t srate)
 {
     cas->srate = srate;
 
@@ -334,14 +334,14 @@ pc_cas_append(pc_cassette_t *cas)
     pc_cas_reset(cas);
 }
 
-unsigned long
+uint64_t
 pc_cas_get_position(const pc_cassette_t *cas)
 {
     return (cas->position);
 }
 
-int
-pc_cas_set_position(pc_cassette_t *cas, unsigned long pos)
+uint32_t
+pc_cas_set_position(pc_cassette_t *cas, uint64_t pos)
 {
     if (cas->fp == NULL) {
         return 1;
@@ -361,7 +361,7 @@ pc_cas_set_position(pc_cassette_t *cas, unsigned long pos)
 static void
 pc_cas_read_bit(pc_cassette_t *cas)
 {
-    int val;
+    int32_t val;
 
     if (cas->cas_inp_cnt == 0) {
         if (cas->fp == NULL) {
@@ -391,11 +391,11 @@ pc_cas_read_bit(pc_cassette_t *cas)
     cas->cas_inp_cnt -= 1;
 }
 
-static int
+static uint32_t
 pc_cas_read_smp(pc_cassette_t *cas)
 {
-    int  smp;
-    int *fir;
+    int32_t  smp;
+    int32_t *fir;
 
     if (feof(cas->fp)) {
         return 0;
@@ -443,7 +443,7 @@ pc_cas_write_bit(pc_cassette_t *cas, unsigned char val)
 }
 
 static void
-pc_cas_write_smp(pc_cassette_t *cas, int val)
+pc_cas_write_smp(pc_cassette_t *cas, int32_t val)
 {
     unsigned char smp;
 
@@ -469,7 +469,7 @@ pc_cas_set_motor(pc_cassette_t *cas, unsigned char val)
     }
 
     if ((val == 0) && cas->save && cas->pcm) {
-        for (unsigned long i = 0; i < (cas->srate / 16); i++) {
+        for (uint64_t i = 0; i < (cas->srate / 16); i++) {
             pc_cas_write_smp(cas, 0);
         }
     }
@@ -503,7 +503,7 @@ pc_cas_get_inp(const pc_cassette_t *cas)
 void
 pc_cas_set_out(pc_cassette_t *cas, unsigned char val)
 {
-    unsigned long clk;
+    uint64_t clk;
 
     val = (val != 0);
 
@@ -550,10 +550,10 @@ pc_cas_print_state(UNUSED(const pc_cassette_t *cas))
 }
 
 static void
-pc_cas_clock_pcm(pc_cassette_t *cas, unsigned long cnt)
+pc_cas_clock_pcm(pc_cassette_t *cas, uint64_t cnt)
 {
     uint64_t n;
-    int      v = 0;
+    int32_t  v = 0;
 
     n = cas->srate * cnt + cas->clk_pcm;
 
@@ -579,7 +579,7 @@ pc_cas_clock_pcm(pc_cassette_t *cas, unsigned long cnt)
 }
 
 void
-pc_cas_clock(pc_cassette_t *cas, unsigned long cnt)
+pc_cas_clock(pc_cassette_t *cas, uint64_t cnt)
 {
     cas->clk += cnt;
 
@@ -623,7 +623,7 @@ pc_cas_clock(pc_cassette_t *cas, unsigned long cnt)
 void
 pc_cas_advance(pc_cassette_t *cas)
 {
-    int ticks;
+    uint64_t ticks;
     cpu_s = (CPU *) &cpu_f->cpus[cpu_effective];
 
     if (cas->motor == 0)

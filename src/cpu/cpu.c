@@ -181,7 +181,7 @@ int cpu_multi;
 int cpu_16bitbus;
 int cpu_64bitbus;
 int cpu_cyrix_alignment;
-int CPUID;
+uint32_t CPUID;
 
 int is186;
 int is_nec;
@@ -197,7 +197,7 @@ int israpidcad;
 int is_vpc;
 int is_am486;
 int is_am486dxl;
-int is_pentium;
+uint32_t is_pentium;
 int is_k5;
 int is_k6;
 int is_p6;

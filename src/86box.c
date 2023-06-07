@@ -111,28 +111,28 @@
 
 /* Stuff that used to be globally declared in plat.h but is now extern there
    and declared here instead. */
-int          dopause;  /* system is paused */
-atomic_flag  doresize; /* screen resize requested */
-volatile int is_quit;  /* system exit requested */
-uint64_t     timer_freq;
-char         emu_version[200]; /* version ID string */
+uint8_t           dopause;  /* system is paused */
+atomic_flag       doresize; /* screen resize requested */
+volatile uint32_t is_quit;  /* system exit requested */
+uint64_t          timer_freq;
+char              emu_version[200]; /* version ID string */
 
 #ifdef MTR_ENABLED
-int tracing_on = 0;
+uint32_t tracing_on = 0;
 #endif
 
 /* Commandline options. */
-int dump_on_exit        = 0; /* (O) dump regs on exit */
-int do_dump_config      = 0; /* (O) dump config on load */
-int start_in_fullscreen = 0; /* (O) start in fullscreen */
+uint32_t dump_on_exit        = 0; /* (O) dump regs on exit */
+uint32_t do_dump_config      = 0; /* (O) dump config on load */
+uint32_t start_in_fullscreen = 0; /* (O) start in fullscreen */
 #ifdef _WIN32
-int force_debug = 0; /* (O) force debug output */
+uint32_t force_debug = 0; /* (O) force debug output */
 #endif
 #ifdef USE_WX
 int video_fps = RENDER_FPS; /* (O) render speed in fps */
 #endif
-int settings_only     = 0; /* (O) show only the settings dialog */
-int confirm_exit_cmdl = 1; /* (O) do not ask for confirmation on quit if set to 0 */
+uint32_t settings_only     = 0; /* (O) show only the settings dialog */
+uint32_t confirm_exit_cmdl = 1; /* (O) do not ask for confirmation on quit if set to 0 */
 #ifdef _WIN32
 uint64_t unique_id   = 0;
 uint64_t source_hwnd = 0;
@@ -147,89 +147,89 @@ uint64_t instru_run_ms  = 0;
 #endif
 
 /* Configuration values. */
-int      window_remember;
-int      vid_resize;                                              /* (C) allow resizing */
-int      invert_display                         = 0;              /* (C) invert the display */
-int      suppress_overscan                      = 0;              /* (C) suppress overscans */
-int      scale                                  = 0;              /* (C) screen scale factor */
-int      dpi_scale                              = 0;              /* (C) DPI scaling of the emulated screen */
-int      vid_api                                = 0;              /* (C) video renderer */
-int      vid_cga_contrast                       = 0;              /* (C) video */
-int      video_fullscreen                       = 0;              /* (C) video */
-int      video_fullscreen_scale                 = 0;              /* (C) video */
-int      video_fullscreen_first                 = 0;              /* (C) video */
-int      enable_overscan                        = 0;              /* (C) video */
-int      force_43                               = 0;              /* (C) video */
-int      video_filter_method                    = 1;              /* (C) video */
-int      video_vsync                            = 0;              /* (C) video */
-int      video_framerate                        = -1;             /* (C) video */
+uint32_t window_remember;
+uint32_t vid_resize;                                              /* (C) allow resizing */
+uint32_t invert_display                         = 0;              /* (C) invert the display */
+uint32_t suppress_overscan                      = 0;              /* (C) suppress overscans */
+uint32_t scale                                  = 0;              /* (C) screen scale factor */
+uint32_t dpi_scale                              = 0;              /* (C) DPI scaling of the emulated screen */
+uint32_t vid_api                                = 0;              /* (C) video renderer */
+uint32_t vid_cga_contrast                       = 0;              /* (C) video */
+uint32_t video_fullscreen                       = 0;              /* (C) video */
+uint32_t video_fullscreen_scale                 = 0;              /* (C) video */
+uint32_t video_fullscreen_first                 = 0;              /* (C) video */
+uint32_t enable_overscan                        = 0;              /* (C) video */
+uint32_t force_43                               = 0;              /* (C) video */
+int32_t  video_filter_method                    = 1;              /* (C) video */
+uint32_t video_vsync                            = 0;              /* (C) video */
+uint32_t video_framerate                        = -1;             /* (C) video */
 char     video_shader[512]                      = { '\0' };       /* (C) video */
 bool     serial_passthrough_enabled[SERIAL_MAX] = { 0, 0, 0, 0 }; /* (C) activation and kind of pass-through for serial ports */
-int      bugger_enabled                         = 0;              /* (C) enable ISAbugger */
-int      postcard_enabled                       = 0;              /* (C) enable POST card */
-int      isamem_type[ISAMEM_MAX]                = { 0, 0, 0, 0 }; /* (C) enable ISA mem cards */
-int      isartc_type                            = 0;              /* (C) enable ISA RTC card */
-int      gfxcard[2]                             = { 0, 0 };       /* (C) graphics/video card */
-int      show_second_monitors                   = 1;              /* (C) show non-primary monitors */
-int      sound_is_float                         = 1;              /* (C) sound uses FP values */
-int      voodoo_enabled                         = 0;              /* (C) video option */
-int      ibm8514_standalone_enabled             = 0;              /* (C) video option */
-int      xga_standalone_enabled                 = 0;              /* (C) video option */
+uint32_t bugger_enabled                         = 0;              /* (C) enable ISAbugger */
+uint32_t postcard_enabled                       = 0;              /* (C) enable POST card */
+uint32_t isamem_type[ISAMEM_MAX]                = { 0, 0, 0, 0 }; /* (C) enable ISA mem cards */
+uint32_t isartc_type                            = 0;              /* (C) enable ISA RTC card */
+uint32_t gfxcard[2]                             = { 0, 0 };       /* (C) graphics/video card */
+uint32_t show_second_monitors                   = 1;              /* (C) show non-primary monitors */
+uint32_t sound_is_float                         = 1;              /* (C) sound uses FP values */
+uint32_t voodoo_enabled                         = 0;              /* (C) video option */
+uint32_t ibm8514_standalone_enabled             = 0;              /* (C) video option */
+uint32_t xga_standalone_enabled                 = 0;              /* (C) video option */
 uint32_t mem_size                               = 0;              /* (C) memory size (Installed on system board)*/
 uint32_t isa_mem_size                           = 0;              /* (C) memory size (ISA Memory Cards) */
-int      cpu_use_dynarec                        = 0;              /* (C) cpu uses/needs Dyna */
-int      cpu                                    = 0;              /* (C) cpu type */
-int      fpu_type                               = 0;              /* (C) fpu type */
-int      fpu_softfloat                          = 0;              /* (C) fpu uses softfloat */
-int      time_sync                              = 0;              /* (C) enable time sync */
-int      confirm_reset                          = 1;              /* (C) enable reset confirmation */
-int      confirm_exit                           = 1;              /* (C) enable exit confirmation */
-int      confirm_save                           = 1;              /* (C) enable save confirmation */
-int      enable_discord                         = 0;              /* (C) enable Discord integration */
-int      pit_mode                               = -1;             /* (C) force setting PIT mode */
-int      fm_driver                              = 0;              /* (C) select FM sound driver */
-int      open_dir_usr_path                      = 0;              /* default file open dialog directory of usr_path */
-int      video_fullscreen_scale_maximized       = 0;              /* (C) Whether fullscreen scaling settings also apply when maximized. */
+uint32_t cpu_use_dynarec                        = 0;              /* (C) cpu uses/needs Dyna */
+uint32_t cpu                                    = 0;              /* (C) cpu type */
+uint32_t fpu_type                               = 0;              /* (C) fpu type */
+uint32_t fpu_softfloat                          = 0;              /* (C) fpu uses softfloat */
+uint32_t time_sync                              = 0;              /* (C) enable time sync */
+uint32_t confirm_reset                          = 1;              /* (C) enable reset confirmation */
+uint32_t confirm_exit                           = 1;              /* (C) enable exit confirmation */
+uint32_t confirm_save                           = 1;              /* (C) enable save confirmation */
+uint32_t enable_discord                         = 0;              /* (C) enable Discord integration */
+uint32_t pit_mode                               = -1;             /* (C) force setting PIT mode */
+uint32_t fm_driver                              = 0;              /* (C) select FM sound driver */
+uint32_t open_dir_usr_path                      = 0;              /* default file open dialog directory of usr_path */
+uint32_t video_fullscreen_scale_maximized       = 0;              /* (C) Whether fullscreen scaling settings also apply when maximized. */
 
 /* Statistics. */
-extern int mmuflush;
-extern int readlnum;
-extern int writelnum;
+extern uint32_t mmuflush;
+extern uint32_t readlnum;  /* cpu/cpu.h */
+extern uint32_t writelnum; /* cpu/cpu.h */
 
 /* emulator % */
-int fps;
-int framecount;
+uint32_t fps;
+uint32_t framecount;
 
-extern int CPUID;
-extern int output;
-int        atfullspeed;
+extern uint32_t CPUID;       /* cpu/cpu.h */
+extern uint32_t output;
+uint32_t        atfullspeed;
 
 char  exe_path[2048]; /* path (dir) of executable */
 char  usr_path[1024]; /* path (dir) of user data */
 char  cfg_path[1024]; /* full path of config file */
 FILE *stdlog = NULL;  /* file to log output to */
 #if 0
-int   scrnsz_x = SCREEN_RES_X; /* current screen size, X */
-int   scrnsz_y = SCREEN_RES_Y; /* current screen size, Y */
+uint32_t   scrnsz_x = SCREEN_RES_X; /* current screen size, X */
+uint32_t   scrnsz_y = SCREEN_RES_Y; /* current screen size, Y */
 #endif
-int config_changed; /* config has changed */
-int title_update;
-int framecountx        = 0;
-int hard_reset_pending = 0;
+uint32_t config_changed; /* config has changed */
+uint32_t title_update;
+uint32_t framecountx        = 0;
+uint32_t hard_reset_pending = 0;
 
 #if 0
-int unscaled_size_x = SCREEN_RES_X; /* current unscaled size X */
-int unscaled_size_y = SCREEN_RES_Y; /* current unscaled size Y */
-int efscrnsz_y = SCREEN_RES_Y;
+uint32_t unscaled_size_x = SCREEN_RES_X; /* current unscaled size X */
+uint32_t unscaled_size_y = SCREEN_RES_Y; /* current unscaled size Y */
+uint32_t efscrnsz_y = SCREEN_RES_Y;
 #endif
 
 static wchar_t mouse_msg[3][200];
 
 #ifndef RELEASE_BUILD
 static char buff[1024];
-static int  seen = 0;
+static uint32_t  seen = 0;
 
-static int suppr_seen = 1;
+static uint32_t suppr_seen = 1;
 #endif
 
 /*
@@ -381,7 +381,7 @@ fatal_ex(const char *fmt, va_list ap)
 }
 
 #ifdef ENABLE_PC_LOG
-int pc_do_log = ENABLE_PC_LOG;
+uint32_t pc_do_log = ENABLE_PC_LOG;
 
 static void
 pc_log(const char *fmt, ...)
@@ -405,8 +405,8 @@ pc_log(const char *fmt, ...)
  * where we check commandline arguments and load a
  * configuration file.
  */
-int
-pc_init(int argc, char *argv[])
+uint32_t
+pc_init(int32_t argc, char *argv[])
 {
     char            *ppath = NULL;
     char            *rpath = NULL;
@@ -418,10 +418,10 @@ pc_init(int argc, char *argv[])
     char            *temp2 = NULL;
     const struct tm *info;
     time_t           now;
-    int              c;
-    int              lvmp = 0;
+    uint32_t         c;
+    uint32_t         lvmp = 0;
 #ifdef ENABLE_NG
-    int ng = 0;
+    uint32_t ng = 0;
 #endif
 #ifdef _WIN32
     uint32_t *uid;
@@ -818,11 +818,11 @@ pc_full_speed(void)
 }
 
 /* Initialize modules, ran once, after pc_init. */
-int
+uint32_t
 pc_init_modules(void)
 {
-    int     c;
-    int     m;
+    uint32_t     c;
+    uint32_t     m;
     wchar_t temp[512];
     char    tempc[512];
 
@@ -1273,8 +1273,8 @@ _ui_window_title(void *s)
 void
 pc_run(void)
 {
-    int     mouse_msg_idx;
-    wchar_t temp[200];
+    uint32_t mouse_msg_idx;
+    wchar_t  temp[200];
 
     /* Trigger a hard reset if one is pending. */
     if (hard_reset_pending) {
@@ -1328,14 +1328,14 @@ pc_onesec(void)
 }
 
 void
-set_screen_size_monitor(int x, int y, int monitor_index)
+set_screen_size_monitor(uint32_t x, uint32_t y, uint32_t monitor_index)
 {
-    int    temp_overscan_x = monitors[monitor_index].mon_overscan_x;
-    int    temp_overscan_y = monitors[monitor_index].mon_overscan_y;
-    double dx;
-    double dy;
-    double dtx;
-    double dty;
+    uint32_t temp_overscan_x = monitors[monitor_index].mon_overscan_x;
+    uint32_t temp_overscan_y = monitors[monitor_index].mon_overscan_y;
+    double   dx;
+    double   dy;
+    double   dtx;
+    double   dty;
 
     /* Make sure we keep usable values. */
 #if 0
@@ -1443,13 +1443,13 @@ set_screen_size_monitor(int x, int y, int monitor_index)
 }
 
 void
-set_screen_size(int x, int y)
+set_screen_size(uint32_t x, uint32_t y)
 {
     set_screen_size_monitor(x, y, monitor_index_global);
 }
 
 void
-reset_screen_size_monitor(int monitor_index)
+reset_screen_size_monitor(uint32_t monitor_index)
 {
     set_screen_size(monitors[monitor_index].mon_unscaled_size_x, monitors[monitor_index].mon_efscrnsz_y);
 }

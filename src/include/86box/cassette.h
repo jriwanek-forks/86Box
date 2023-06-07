@@ -30,39 +30,39 @@ typedef struct pc_cassette_t {
 
     unsigned char motor;
 
-    unsigned long position;
+    uint64_t      position;
 
-    unsigned long position_save;
-    unsigned long position_load;
+    uint64_t      position_save;
+    uint64_t      position_load;
 
     unsigned char data_out;
     unsigned char data_inp;
 
-    int pcm_out_vol;
-    int pcm_out_val;
+    uint32_t      pcm_out_vol;
+    uint32_t      pcm_out_val;
 
-    unsigned      cas_out_cnt;
+    uint32_t      cas_out_cnt;
     unsigned char cas_out_buf;
 
-    unsigned      cas_inp_cnt;
+    uint32_t      cas_inp_cnt;
     unsigned char cas_inp_buf;
     unsigned char cas_inp_bit;
 
-    int pcm_inp_fir[3];
+    int32_t       pcm_inp_fir[3];
 
-    unsigned long clk;
+    uint64_t      clk;
 
-    unsigned long clk_pcm;
+    uint64_t      clk_pcm;
 
-    unsigned long clk_out;
-    unsigned long clk_inp;
+    uint64_t      clk_out;
+    uint64_t      clk_inp;
 
-    unsigned long srate;
+    uint64_t      srate;
 
-    char       close;
-    char      *fname;
-    FILE      *fp;
-    pc_timer_t timer;
+    char          close;
+    char         *fname;
+    FILE         *fp;
+    pc_timer_t    timer;
 } pc_cassette_t;
 
 void pc_cas_init(pc_cassette_t *cas);
@@ -75,43 +75,43 @@ void           pc_cas_del(pc_cassette_t *cas);
  * @short  Set the cassette file
  * @return True on error, false otherwise
  *****************************************************************************/
-int pc_cas_set_fname(pc_cassette_t *cas, const char *fname);
+uint32_t pc_cas_set_fname(pc_cassette_t *cas, const char *fname);
 
 /*!***************************************************************************
  * @short  Get the cassette mode
  * @return True if in save mode, false if in load mode
  *****************************************************************************/
-int pc_cas_get_mode(const pc_cassette_t *cas);
+uint32_t pc_cas_get_mode(const pc_cassette_t *cas);
 
 /*!***************************************************************************
  * @short Set the cassette mode
  * @param save If true set save mode, otherwise set load mode
  *****************************************************************************/
-void pc_cas_set_mode(pc_cassette_t *cas, int save);
+void pc_cas_set_mode(pc_cassette_t *cas, uint32_t save);
 
 /*!***************************************************************************
  * @short  Get the cassette pcm mode
  * @return True if in pcm mode, false if in binary mode
  *****************************************************************************/
-int pc_cas_get_pcm(const pc_cassette_t *cas);
+uint32_t pc_cas_get_pcm(const pc_cassette_t *cas);
 
 /*!***************************************************************************
  * @short Set the cassette pcm mode
  * @param pcm If true set pcm mode, otherwise set binary mode
  *****************************************************************************/
-void pc_cas_set_pcm(pc_cassette_t *cas, int pcm);
+void pc_cas_set_pcm(pc_cassette_t *cas, uint32_t pcm);
 
 /*!***************************************************************************
  * @short  Get the pcm sample rate
  * @return The sample rate in Hz
  *****************************************************************************/
-unsigned long pc_cas_get_srate(const pc_cassette_t *cas);
+uint64_t pc_cas_get_srate(const pc_cassette_t *cas);
 
 /*!***************************************************************************
  * @short Set the pcm sample rate
  * @param pcm The sample rate in Hz
  *****************************************************************************/
-void pc_cas_set_srate(pc_cassette_t *cas, unsigned long srate);
+void pc_cas_set_srate(pc_cassette_t *cas, uint64_t srate);
 
 /*!***************************************************************************
  * @short Rewind the cassette
@@ -126,12 +126,12 @@ void pc_cas_append(pc_cassette_t *cas);
 /*!***************************************************************************
  * @short Get the current load/save position
  *****************************************************************************/
-unsigned long pc_cas_get_position(const pc_cassette_t *cas);
+uint64_t pc_cas_get_position(const pc_cassette_t *cas);
 
 /*!***************************************************************************
  * @short Set the current load/save position
  *****************************************************************************/
-int pc_cas_set_position(pc_cassette_t *cas, unsigned long pos);
+uint32_t pc_cas_set_position(pc_cassette_t *cas, uint64_t pos);
 
 /*!***************************************************************************
  * @short Set the cassette motor status
@@ -150,19 +150,19 @@ void pc_cas_set_out(pc_cassette_t *cas, unsigned char val);
 
 void pc_cas_print_state(const pc_cassette_t *cas);
 
-void pc_cas_clock(pc_cassette_t *cas, unsigned long cnt);
+void pc_cas_clock(pc_cassette_t *cas, uint64_t cnt);
 void pc_cas_advance(pc_cassette_t *cas);
 
 extern pc_cassette_t *cassette;
 
-extern char          cassette_fname[512];
-extern char          cassette_mode[512];
-extern unsigned long cassette_pos;
-extern unsigned long cassette_srate;
-extern int           cassette_enable;
-extern int           cassette_append;
-extern int           cassette_pcm;
-extern int           cassette_ui_writeprot;
+extern char     cassette_fname[512];
+extern char     cassette_mode[512];
+extern uint64_t cassette_pos;
+extern uint64_t cassette_srate;
+extern uint32_t cassette_enable;
+extern uint32_t cassette_append;
+extern uint32_t cassette_pcm;
+extern uint32_t cassette_ui_writeprot;
 
 extern const device_t cassette_device;
 

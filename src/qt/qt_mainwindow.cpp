@@ -1378,7 +1378,7 @@ MainWindow::on_actionResizable_window_triggered(bool checked)
 }
 
 static void
-video_toggle_option(QAction *action, int *val)
+video_toggle_option(QAction *action, uint32_t *val)
 {
     startblit();
     *val ^= 1;

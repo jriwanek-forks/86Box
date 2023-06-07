@@ -40,14 +40,14 @@
 #include <86box/i2c.h>
 #include <86box/video.h>
 
-int        acpi_rtc_status     = 0;
+uint32_t   acpi_rtc_status     = 0;
 atomic_int acpi_pwrbut_pressed = 0;
-int        acpi_enabled        = 0;
+uint32_t   acpi_enabled        = 0;
 
 static double cpu_to_acpi;
 
 #ifdef ENABLE_ACPI_LOG
-int acpi_do_log = ENABLE_ACPI_LOG;
+uint8_t acpi_do_log = ENABLE_ACPI_LOG;
 
 static void
 acpi_log(const char *fmt, ...)
@@ -118,7 +118,7 @@ acpi_timer_update(acpi_t *dev, bool enable)
 void
 acpi_update_irq(acpi_t *dev)
 {
-    int sci_level = (dev->regs.pmsts & dev->regs.pmen) & (RTC_EN | PWRBTN_EN | GBL_EN | TMROF_EN);
+    uint16_t sci_level = (dev->regs.pmsts & dev->regs.pmen) & (RTC_EN | PWRBTN_EN | GBL_EN | TMROF_EN);
     if (dev->vendor == VEN_SMC)
         sci_level |= (dev->regs.pmsts & BM_STS);
 
@@ -142,7 +142,7 @@ acpi_update_irq(acpi_t *dev)
 }
 
 void
-acpi_raise_smi(void *priv, int do_smi)
+acpi_raise_smi(void *priv, uint32_t do_smi)
 {
     acpi_t *dev = (acpi_t *) priv;
 
@@ -169,12 +169,12 @@ acpi_raise_smi(void *priv, int do_smi)
 }
 
 static uint32_t
-acpi_reg_read_common_regs(UNUSED(int size), uint16_t addr, void *priv)
+acpi_reg_read_common_regs(UNUSED(uint32_t size), uint16_t addr, void *priv)
 {
     acpi_t  *dev = (acpi_t *) priv;
     uint32_t ret = 0x00000000;
-    int      shift16;
-    int      shift32;
+    uint32_t shift16;
+    uint32_t shift32;
 
     addr &= 0x3f;
     shift16 = (addr & 1) << 3;
@@ -224,12 +224,12 @@ acpi_reg_read_common_regs(UNUSED(int size), uint16_t addr, void *priv)
 }
 
 static uint32_t
-acpi_reg_read_ali(int size, uint16_t addr, void *priv)
+acpi_reg_read_ali(uint32_t size, uint16_t addr, void *priv)
 {
-    const acpi_t  *dev = (acpi_t *) priv;
-    uint32_t       ret = 0x00000000;
-    int            shift16;
-    int            shift32;
+    const acpi_t *dev = (acpi_t *) priv;
+    uint32_t      ret = 0x00000000;
+    uint32_t      shift16;
+    uint32_t      shift32;
 
     addr &= 0x3f;
     shift16 = (addr & 1) << 3;
@@ -292,12 +292,12 @@ acpi_reg_read_ali(int size, uint16_t addr, void *priv)
 }
 
 static uint32_t
-acpi_reg_read_intel(int size, uint16_t addr, void *priv)
+acpi_reg_read_intel(uint32_t size, uint16_t addr, void *priv)
 {
-    const acpi_t  *dev = (acpi_t *) priv;
-    uint32_t       ret = 0x00000000;
-    int            shift16;
-    int            shift32;
+    const acpi_t *dev = (acpi_t *) priv;
+    uint32_t      ret = 0x00000000;
+    uint32_t      shift16;
+    uint32_t      shift32;
 
     addr &= 0x3f;
     shift16 = (addr & 1) << 3;
@@ -389,12 +389,12 @@ acpi_reg_read_intel(int size, uint16_t addr, void *priv)
 }
 
 static uint32_t
-acpi_reg_read_via_common(int size, uint16_t addr, void *priv)
+acpi_reg_read_via_common(uint32_t size, uint16_t addr, void *priv)
 {
-    const acpi_t  *dev = (acpi_t *) priv;
-    uint32_t       ret = 0x00000000;
-    int            shift16;
-    int            shift32;
+    const acpi_t *dev = (acpi_t *) priv;
+    uint32_t      ret = 0x00000000;
+    uint32_t      shift16;
+    uint32_t      shift32;
 
     addr &= 0xff;
     shift16 = (addr & 1) << 3;
@@ -485,11 +485,11 @@ acpi_reg_read_via_common(int size, uint16_t addr, void *priv)
 }
 
 static uint32_t
-acpi_reg_read_via(int size, uint16_t addr, void *priv)
+acpi_reg_read_via(uint32_t size, uint16_t addr, void *priv)
 {
     acpi_t  *dev = (acpi_t *) priv;
     uint32_t ret = 0x00000000;
-    int      shift16;
+    uint32_t shift16;
 
     addr &= 0xff;
     shift16 = (addr & 1) << 3;
@@ -542,12 +542,12 @@ acpi_reg_read_via(int size, uint16_t addr, void *priv)
 }
 
 static uint32_t
-acpi_reg_read_via_596b(int size, uint16_t addr, void *priv)
+acpi_reg_read_via_596b(uint32_t size, uint16_t addr, void *priv)
 {
-    const acpi_t  *dev = (acpi_t *) priv;
-    uint32_t       ret = 0x00000000;
-    int            shift16;
-    int            shift32;
+    const acpi_t *dev = (acpi_t *) priv;
+    uint32_t      ret = 0x00000000;
+    uint32_t      shift16;
+    uint32_t      shift32;
 
     addr &= 0x7f;
     shift16 = (addr & 1) << 3;
@@ -592,7 +592,7 @@ acpi_reg_read_via_596b(int size, uint16_t addr, void *priv)
 }
 
 static uint32_t
-acpi_reg_read_smc(int size, uint16_t addr, void *priv)
+acpi_reg_read_smc(uint32_t size, uint16_t addr, void *priv)
 {
     uint32_t ret = 0x00000000;
 
@@ -608,11 +608,11 @@ acpi_reg_read_smc(int size, uint16_t addr, void *priv)
 }
 
 static uint32_t
-acpi_aux_reg_read_smc(UNUSED(int size), uint16_t addr, void *priv)
+acpi_aux_reg_read_smc(UNUSED(uint32_t size), uint16_t addr, void *priv)
 {
-    const acpi_t  *dev = (acpi_t *) priv;
-    uint32_t       ret = 0x00000000;
-    int            shift16;
+    const acpi_t *dev = (acpi_t *) priv;
+    uint32_t      ret = 0x00000000;
+    uint32_t      shift16;
 
     addr &= 0x07;
     shift16 = (addr & 1) << 3;
@@ -651,11 +651,11 @@ acpi_aux_reg_read_smc(UNUSED(int size), uint16_t addr, void *priv)
 }
 
 static void
-acpi_reg_write_common_regs(UNUSED(int size), uint16_t addr, uint8_t val, void *priv)
+acpi_reg_write_common_regs(UNUSED(uint32_t size), uint16_t addr, uint8_t val, void *priv)
 {
-    acpi_t *dev = (acpi_t *) priv;
-    int     shift16;
-    int     sus_typ;
+    acpi_t  *dev = (acpi_t *) priv;
+    uint32_t shift16;
+    uint32_t sus_typ;
 
     addr &= 0x3f;
 #ifdef ENABLE_ACPI_LOG
@@ -732,11 +732,11 @@ acpi_reg_write_common_regs(UNUSED(int size), uint16_t addr, uint8_t val, void *p
 }
 
 static void
-acpi_reg_write_ali(int size, uint16_t addr, uint8_t val, void *priv)
+acpi_reg_write_ali(uint32_t size, uint16_t addr, uint8_t val, void *priv)
 {
-    acpi_t *dev = (acpi_t *) priv;
-    int     shift16;
-    int     shift32;
+    acpi_t  *dev = (acpi_t *) priv;
+    uint32_t shift16;
+    uint32_t shift32;
 
     addr &= 0x3f;
 #ifdef ENABLE_ACPI_LOG
@@ -804,11 +804,11 @@ acpi_reg_write_ali(int size, uint16_t addr, uint8_t val, void *priv)
 }
 
 static void
-acpi_reg_write_intel(int size, uint16_t addr, uint8_t val, void *priv)
+acpi_reg_write_intel(uint32_t size, uint16_t addr, uint8_t val, void *priv)
 {
-    acpi_t *dev = (acpi_t *) priv;
-    int     shift16;
-    int     shift32;
+    acpi_t  *dev = (acpi_t *) priv;
+    uint32_t shift16;
+    uint32_t shift32;
 
     addr &= 0x3f;
 #ifdef ENABLE_ACPI_LOG
@@ -901,11 +901,11 @@ acpi_reg_write_intel(int size, uint16_t addr, uint8_t val, void *priv)
 }
 
 static void
-acpi_reg_write_via_common(int size, uint16_t addr, uint8_t val, void *priv)
+acpi_reg_write_via_common(uint32_t size, uint16_t addr, uint8_t val, void *priv)
 {
-    acpi_t *dev = (acpi_t *) priv;
-    int     shift16;
-    int     shift32;
+    acpi_t  *dev = (acpi_t *) priv;
+    uint32_t shift16;
+    uint32_t shift32;
 
     addr &= 0xff;
     acpi_log("(%i) ACPI Write (%i) %02X: %02X\n", in_smm, size, addr, val);
@@ -995,11 +995,11 @@ acpi_i2c_set(acpi_t *dev)
 }
 
 static void
-acpi_reg_write_via(int size, uint16_t addr, uint8_t val, void *priv)
+acpi_reg_write_via(uint32_t size, uint16_t addr, uint8_t val, void *priv)
 {
-    acpi_t *dev = (acpi_t *) priv;
-    int     shift16;
-    int     shift32;
+    acpi_t  *dev = (acpi_t *) priv;
+    uint32_t shift16;
+    uint32_t shift32;
 
     addr &= 0xff;
     acpi_log("(%i) ACPI Write (%i) %02X: %02X\n", in_smm, size, addr, val);
@@ -1059,11 +1059,11 @@ acpi_reg_write_via(int size, uint16_t addr, uint8_t val, void *priv)
 }
 
 static void
-acpi_reg_write_via_596b(int size, uint16_t addr, uint8_t val, void *priv)
+acpi_reg_write_via_596b(uint32_t size, uint16_t addr, uint8_t val, void *priv)
 {
-    acpi_t *dev = (acpi_t *) priv;
-    int     shift16;
-    int     shift32;
+    acpi_t  *dev = (acpi_t *) priv;
+    uint32_t shift16;
+    uint32_t shift32;
 
     addr &= 0x7f;
     acpi_log("(%i) ACPI Write (%i) %02X: %02X\n", in_smm, size, addr, val);
@@ -1117,7 +1117,7 @@ acpi_reg_write_via_596b(int size, uint16_t addr, uint8_t val, void *priv)
 }
 
 static void
-acpi_reg_write_smc(int size, uint16_t addr, uint8_t val, void *priv)
+acpi_reg_write_smc(uint32_t size, uint16_t addr, uint8_t val, void *priv)
 {
     acpi_t *dev = (acpi_t *) priv;
 
@@ -1136,10 +1136,10 @@ acpi_reg_write_smc(int size, uint16_t addr, uint8_t val, void *priv)
 }
 
 static void
-acpi_aux_reg_write_smc(UNUSED(int size), uint16_t addr, uint8_t val, void *priv)
+acpi_aux_reg_write_smc(UNUSED(uint32_t size), uint16_t addr, uint8_t val, void *priv)
 {
-    acpi_t *dev = (acpi_t *) priv;
-    int     shift16;
+    acpi_t  *dev = (acpi_t *) priv;
+    uint32_t shift16;
 
     addr &= 0x07;
     acpi_log("(%i) ACPI Write (%i) %02X: %02X\n", in_smm, size, addr, val);
@@ -1187,7 +1187,7 @@ acpi_aux_reg_write_smc(UNUSED(int size), uint16_t addr, uint8_t val, void *priv)
 }
 
 static uint32_t
-acpi_reg_read_common(int size, uint16_t addr, void *priv)
+acpi_reg_read_common(uint32_t size, uint16_t addr, void *priv)
 {
     const acpi_t *dev = (acpi_t *) priv;
     uint8_t ret = 0xff;
@@ -1207,7 +1207,7 @@ acpi_reg_read_common(int size, uint16_t addr, void *priv)
 }
 
 static void
-acpi_reg_write_common(int size, uint16_t addr, uint8_t val, void *priv)
+acpi_reg_write_common(uint32_t size, uint16_t addr, uint8_t val, void *priv)
 {
     const acpi_t *dev = (acpi_t *) priv;
 
@@ -1224,7 +1224,7 @@ acpi_reg_write_common(int size, uint16_t addr, uint8_t val, void *priv)
 }
 
 static uint32_t
-acpi_aux_reg_read_common(int size, uint16_t addr, void *priv)
+acpi_aux_reg_read_common(uint32_t size, uint16_t addr, void *priv)
 {
     const acpi_t *dev = (acpi_t *) priv;
     uint8_t ret = 0xff;
@@ -1236,7 +1236,7 @@ acpi_aux_reg_read_common(int size, uint16_t addr, void *priv)
 }
 
 static void
-acpi_aux_reg_write_common(int size, uint16_t addr, uint8_t val, void *priv)
+acpi_aux_reg_write_common(uint32_t size, uint16_t addr, uint8_t val, void *priv)
 {
     const acpi_t *dev = (acpi_t *) priv;
 
@@ -1381,9 +1381,9 @@ acpi_aux_reg_write(uint16_t addr, uint8_t val, void *priv)
 }
 
 void
-acpi_update_io_mapping(acpi_t *dev, uint32_t base, int chipset_en)
+acpi_update_io_mapping(acpi_t *dev, uint32_t base, uint32_t chipset_en)
 {
-    int size;
+    uint32_t size;
 
     switch (dev->vendor) {
         default:
@@ -1420,9 +1420,9 @@ acpi_update_io_mapping(acpi_t *dev, uint32_t base, int chipset_en)
 }
 
 void
-acpi_update_aux_io_mapping(acpi_t *dev, uint32_t base, int chipset_en)
+acpi_update_aux_io_mapping(acpi_t *dev, uint32_t base, uint32_t chipset_en)
 {
-    int size;
+    uint32_t size;
 
     switch (dev->vendor) {
         case VEN_SMC:
@@ -1480,31 +1480,31 @@ acpi_set_timer32(acpi_t *dev, uint8_t timer32)
 }
 
 void
-acpi_set_slot(acpi_t *dev, int slot)
+acpi_set_slot(acpi_t *dev, uint32_t slot)
 {
     dev->slot = slot;
 }
 
 void
-acpi_set_irq_mode(acpi_t *dev, int irq_mode)
+acpi_set_irq_mode(acpi_t *dev, uint32_t irq_mode)
 {
     dev->irq_mode = irq_mode;
 }
 
 void
-acpi_set_irq_pin(acpi_t *dev, int irq_pin)
+acpi_set_irq_pin(acpi_t *dev, uint32_t irq_pin)
 {
     dev->irq_pin = irq_pin;
 }
 
 void
-acpi_set_irq_line(acpi_t *dev, int irq_line)
+acpi_set_irq_line(acpi_t *dev, uint32_t irq_line)
 {
     dev->irq_line = irq_line;
 }
 
 void
-acpi_set_mirq_is_level(acpi_t *dev, int mirq_is_level)
+acpi_set_mirq_is_level(acpi_t *dev, uint32_t mirq_is_level)
 {
     dev->mirq_is_level = mirq_is_level;
 }

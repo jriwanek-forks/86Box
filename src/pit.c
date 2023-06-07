@@ -65,8 +65,8 @@ uint64_t VGACONST2;
 uint64_t RTCCONST;
 uint64_t ACPICONST;
 
-int refresh_at_enable = 1;
-int io_delay          = 5;
+int      refresh_at_enable = 1;
+uint32_t io_delay          = 5;
 
 int64_t firsttime = 1;
 
