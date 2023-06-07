@@ -3106,6 +3106,7 @@ win_settings_hard_disks_add_proc(HWND hdlg, UINT message, WPARAM wParam, UNUSED(
                 settings_enable_window(hdlg, IDC_EDIT_HD_CYL, FALSE);
                 settings_enable_window(hdlg, IDC_EDIT_HD_SIZE, FALSE);
                 settings_enable_window(hdlg, IDC_COMBO_HD_TYPE, FALSE);
+                settings_enable_window(hdlg, IDC_COMBO_HD_SPEED, FALSE);
                 settings_show_window(hdlg, IDC_COMBO_HD_IMG_FORMAT, FALSE);
                 settings_show_window(hdlg, IDT_IMG_FORMAT, FALSE);
 
@@ -3624,6 +3625,10 @@ hdd_add_file_open_error:
                     no_update = 0;
                     break;
 
+                case IDC_COMBO_HD_SPEED:
+                    no_update = 0;
+                    break;
+
                 case IDC_COMBO_HD_BUS:
                     if (no_update)
                         return FALSE;
@@ -3673,6 +3678,7 @@ hdd_add_file_open_error:
                             settings_enable_window(hdlg, IDC_EDIT_HD_CYL, FALSE);
                             settings_enable_window(hdlg, IDC_EDIT_HD_SIZE, FALSE);
                             settings_enable_window(hdlg, IDC_COMBO_HD_TYPE, FALSE);
+                            settings_enable_window(hdlg, IDC_COMBO_HD_SPEED, FALSE);
                         }
 
                         if (spt > max_spt) {
