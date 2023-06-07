@@ -755,7 +755,7 @@ local_strsep(char **str, const char *sep)
 }
 
 void
-plat_pause(int p)
+plat_pause(uint8_t p)
 {
     static wchar_t oldtitle[512];
     wchar_t        title[512];

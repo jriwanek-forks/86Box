@@ -42,11 +42,11 @@ enum {
 };
 
 enum {
-    FULLSCR_SCALE_FULL = 0,
-    FULLSCR_SCALE_43,
-    FULLSCR_SCALE_KEEPRATIO,
-    FULLSCR_SCALE_INT,
-    FULLSCR_SCALE_INT43
+    FULLSCR_SCALE_FULL      = 0,
+    FULLSCR_SCALE_43        = 1,
+    FULLSCR_SCALE_KEEPRATIO = 2,
+    FULLSCR_SCALE_INT       = 3,
+    FULLSCR_SCALE_INT43     = 4
 };
 
 #ifdef __cplusplus
@@ -55,10 +55,10 @@ extern "C" {
 
 enum {
     VIDEO_ISA = 0,
-    VIDEO_MCA,
-    VIDEO_BUS,
-    VIDEO_PCI,
-    VIDEO_AGP
+    VIDEO_MCA = 1,
+    VIDEO_BUS = 2,
+    VIDEO_PCI = 3,
+    VIDEO_AGP = 4
 };
 
 #define VIDEO_FLAG_TYPE_CGA     0
@@ -145,8 +145,8 @@ extern monitor_t          monitors[MONITORS_NUM];
 extern monitor_settings_t monitor_settings[MONITORS_NUM];
 extern atomic_bool        doresize_monitors[MONITORS_NUM];
 extern int                monitor_index_global;
-extern int                show_second_monitors;
-extern int                video_fullscreen_scale_maximized;
+extern uint32_t           show_second_monitors;             /* 86box.h */
+extern uint32_t           video_fullscreen_scale_maximized; /* 86box.h */
 
 typedef rgb_t PALETTE[256];
 
@@ -185,9 +185,9 @@ extern PALETTE      cgapal_mono[6];
 #if 0
 extern uint32_t     pal_lookup[256];
 #endif
-extern int          video_fullscreen;
-extern int          video_fullscreen_scale;
-extern int          video_fullscreen_first;
+extern uint32_t     video_fullscreen;       /* 86box.h */
+extern uint32_t     video_fullscreen_scale; /* 86box.h */
+extern uint32_t     video_fullscreen_first; /* 86box.h */
 extern uint8_t      fontdat[2048][8];
 extern uint8_t      fontdatm[2048][16];
 extern uint8_t      fontdat2[2048][8];
@@ -202,11 +202,11 @@ extern uint32_t    *video_8togs;
 extern uint32_t    *video_8to32;
 extern uint32_t    *video_15to32;
 extern uint32_t    *video_16to32;
-extern int          enable_overscan;
-extern int          force_43;
-extern int          vid_resize;
+extern uint32_t     enable_overscan;  /* 86box.h */
+extern uint32_t     force_43;         /* 86box.h */
+extern uint32_t     vid_resize;       /* 86box.h */
 extern int          herc_blend;
-extern int          vid_cga_contrast;
+extern uint32_t     vid_cga_contrast; /* 86box.h */
 extern int          video_grayscale;
 extern int          video_graytype;
 

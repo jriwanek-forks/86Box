@@ -163,7 +163,7 @@ file_dlg_w(HWND hwnd, WCHAR *f, WCHAR *fn, WCHAR *title, int save)
 #if 0
     DWORD err;
 #endif
-    int old_dopause;
+    uint8_t old_dopause;
 
     /* Initialize OPENFILENAME */
     ZeroMemory(&ofn, sizeof(ofn));

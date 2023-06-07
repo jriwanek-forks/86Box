@@ -60,17 +60,17 @@
 HWND  hwndMain        = NULL; /* application main window */
 HWND  hwndRender      = NULL; /* machine render window */
 HWND  hwndRender2     = NULL; /* machine second screen render window */
-HMENU menuMain;             /* application main menu */
-RECT  oldclip;              /* mouse rect */
-int   sbar_height     = 23; /* statusbar height */
-int   tbar_height     = 23; /* toolbar height */
+HMENU menuMain;               /* application main menu */
+RECT  oldclip;                /* mouse rect */
+int   sbar_height     = 23;   /* statusbar height */
+int   tbar_height     = 23;   /* toolbar height */
 int   minimized       = 0;
 int   infocus         = 1;
 int   button_down     = 0;
 int   rctrl_is_lalt   = 0;
 int   user_resize     = 0;
-int   fixed_size_x    = 0;
-int   fixed_size_y    = 0;
+uint32_t fixed_size_x = 0;
+uint32_t fixed_size_y = 0;
 int   kbd_req_capture = 0;
 int   hide_status_bar = 0;
 int   hide_tool_bar   = 0;
@@ -80,11 +80,11 @@ extern char  openfilestring[512];
 extern WCHAR wopenfilestring[512];
 
 /* Local data. */
-static int manager_wm      = 0;
-static int save_window_pos = 0;
-static int pause_state     = 0;
-static int padded_frame    = 0;
-static int vis             = -1;
+static int     manager_wm      = 0;
+static int     save_window_pos = 0;
+static uint8_t pause_state     = 0;
+static int     padded_frame    = 0;
+static int     vis             = -1;
 
 /* Per Monitor DPI Aware v2 APIs, Windows 10 v1703+ */
 void *user32_handle = NULL;
@@ -170,7 +170,7 @@ show_cursor(int val)
 }
 
 static void
-video_toggle_option(HMENU h, int *val, int id)
+video_toggle_option(HMENU h, uint32_t *val, int id)
 {
     startblit();
     *val ^= 1;
@@ -1545,7 +1545,7 @@ ui_init(int nCmdShow)
 
 /* We should have the language ID as a parameter. */
 void
-plat_pause(int p)
+plat_pause(uint8_t p)
 {
     static wchar_t oldtitle[512];
     wchar_t        title[512];

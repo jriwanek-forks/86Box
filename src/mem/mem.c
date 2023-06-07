@@ -96,8 +96,8 @@ uint32_t mem_logical_addr;
 
 int shadowbios = 0;
 int shadowbios_write;
-int readlnum  = 0;
-int writelnum = 0;
+uint32_t readlnum  = 0;
+uint32_t writelnum = 0;
 int cachesize = 256;
 
 uint32_t get_phys_virt;

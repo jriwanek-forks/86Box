@@ -665,7 +665,7 @@ media_menu_proc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
             bi.ulFlags   = BIF_EDITBOX;
 #endif
             OleInitialize(NULL);
-            int old_dopause = dopause;
+            uint8_t old_dopause = dopause;
             plat_pause(1);
             LPITEMIDLIST pidl = SHBrowseForFolder(&bi);
             plat_pause(old_dopause);

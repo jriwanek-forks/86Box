@@ -94,9 +94,9 @@ extern "C" {
 #endif
 
 /* Global variables residing in the platform module. */
-extern int          dopause;       /* system is paused */
-extern int          mouse_capture; /* mouse is captured in app */
-extern volatile int is_quit;       /* system exit requested */
+extern uint8_t           dopause;       /* system is paused */
+extern int               mouse_capture; /* mouse is captured in app */
+extern volatile uint32_t is_quit;       /* system exit requested */
 
 #ifdef MTR_ENABLED
 extern int tracing_on;
@@ -131,7 +131,7 @@ extern uint64_t plat_timer_read(void);
 extern uint32_t plat_get_ticks(void);
 extern uint32_t plat_get_micro_ticks(void);
 extern void     plat_delay_ms(uint32_t count);
-extern void     plat_pause(int p);
+extern void     plat_pause(uint8_t p);
 extern void     plat_mouse_capture(int on);
 extern int      plat_vidapi(char *name);
 extern char    *plat_vidapi_name(int api);

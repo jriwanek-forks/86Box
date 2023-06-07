@@ -391,7 +391,7 @@ VulkanRenderer2::ensureTexture()
 void
 VulkanRenderer2::updateSamplers()
 {
-    static int cur_video_filter_method = -1;
+    static int32_t cur_video_filter_method = -1;
 
     if (cur_video_filter_method != video_filter_method) {
         cur_video_filter_method = video_filter_method;

@@ -156,13 +156,13 @@ cart_load_common(int drive, char *fn, uint8_t hard_reset)
 }
 
 void
-cart_load(int drive, char *fn)
+cart_load(uint32_t drive, char *fn)
 {
     cart_load_common(drive, fn, 0);
 }
 
 void
-cart_close(int drive)
+cart_close(uint32_t drive)
 {
     cartridge_log("Cartridge: closing drive %d\n", drive);
 

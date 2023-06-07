@@ -203,7 +203,7 @@ int israpidcad;
 int is_vpc;
 int is_am486;
 int is_am486dxl;
-int is_pentium;
+uint32_t is_pentium;
 int is_k5;
 int is_k6;
 int is_p6;

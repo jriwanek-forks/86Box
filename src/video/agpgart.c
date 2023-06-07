@@ -45,7 +45,7 @@ agpgart_log(const char *fmt, ...)
 #endif
 
 void
-agpgart_set_aperture(agpgart_t *dev, uint32_t base, uint32_t size, int enable)
+agpgart_set_aperture(agpgart_t *dev, uint32_t base, uint32_t size, uint32_t enable)
 {
     agpgart_log("AGP GART: set_aperture(%08X, %d, %d)\n", base, size, enable);
 

@@ -119,20 +119,20 @@ uint64_t     timer_freq;
 char         emu_version[200]; /* version ID string */
 
 #ifdef MTR_ENABLED
-int tracing_on = 0;
+uint32_t tracing_on = 0;
 #endif
 
 /* Commandline options. */
 int dump_on_exit        = 0; /* (O) dump regs on exit */
 int start_in_fullscreen = 0; /* (O) start in fullscreen */
 #ifdef _WIN32
-int force_debug = 0; /* (O) force debug output */
+uint32_t force_debug = 0; /* (O) force debug output */
 #endif
 #ifdef USE_WX
 int video_fps = RENDER_FPS; /* (O) render speed in fps */
 #endif
-int settings_only     = 0; /* (O) show only the settings dialog */
-int confirm_exit_cmdl = 1; /* (O) do not ask for confirmation on quit if set to 0 */
+uint32_t settings_only     = 0; /* (O) show only the settings dialog */
+uint32_t confirm_exit_cmdl = 1; /* (O) do not ask for confirmation on quit if set to 0 */
 #ifdef _WIN32
 uint64_t unique_id   = 0;
 uint64_t source_hwnd = 0;
@@ -206,35 +206,35 @@ int      do_auto_pause                          = 0;              /* (C) Auto-pa
                                                                          loss */
 
 /* Statistics. */
-extern int mmuflush;
-extern int readlnum;
-extern int writelnum;
+extern uint32_t mmuflush;
+extern uint32_t readlnum;  /* cpu/cpu.h */
+extern uint32_t writelnum; /* cpu/cpu.h */
 
 /* emulator % */
-int fps;
-int framecount;
+uint32_t fps;
+uint32_t framecount;
 
-extern int CPUID;
-extern int output;
-int        atfullspeed;
+extern uint32_t CPUID;       /* cpu/cpu.h */
+extern uint32_t output;
+uint32_t        atfullspeed;
 
 char  exe_path[2048]; /* path (dir) of executable */
 char  usr_path[1024]; /* path (dir) of user data */
 char  cfg_path[1024]; /* full path of config file */
 FILE *stdlog = NULL;  /* file to log output to */
 #if 0
-int   scrnsz_x = SCREEN_RES_X; /* current screen size, X */
-int   scrnsz_y = SCREEN_RES_Y; /* current screen size, Y */
+uint32_t   scrnsz_x = SCREEN_RES_X; /* current screen size, X */
+uint32_t   scrnsz_y = SCREEN_RES_Y; /* current screen size, Y */
 #endif
-int config_changed; /* config has changed */
-int title_update;
-int framecountx        = 0;
-int hard_reset_pending = 0;
+uint32_t config_changed; /* config has changed */
+uint32_t title_update;
+uint32_t framecountx        = 0;
+uint32_t hard_reset_pending = 0;
 
 #if 0
-int unscaled_size_x = SCREEN_RES_X; /* current unscaled size X */
-int unscaled_size_y = SCREEN_RES_Y; /* current unscaled size Y */
-int efscrnsz_y = SCREEN_RES_Y;
+uint32_t unscaled_size_x = SCREEN_RES_X; /* current unscaled size X */
+uint32_t unscaled_size_y = SCREEN_RES_Y; /* current unscaled size Y */
+uint32_t efscrnsz_y = SCREEN_RES_Y;
 #endif
 
 static wchar_t mouse_msg[3][200];
@@ -244,9 +244,9 @@ static volatile atomic_int pause_ack = 0;
 
 #ifndef RELEASE_BUILD
 static char buff[1024];
-static int  seen = 0;
+static uint32_t  seen = 0;
 
-static int suppr_seen = 1;
+static uint32_t suppr_seen = 1;
 #endif
 
 /*
@@ -398,7 +398,7 @@ fatal_ex(const char *fmt, va_list ap)
 }
 
 #ifdef ENABLE_PC_LOG
-int pc_do_log = ENABLE_PC_LOG;
+uint32_t pc_do_log = ENABLE_PC_LOG;
 
 static void
 pc_log(const char *fmt, ...)
@@ -447,8 +447,8 @@ delete_nvr_file(uint8_t flash)
  * where we check commandline arguments and load a
  * configuration file.
  */
-int
-pc_init(int argc, char *argv[])
+uint32_t
+pc_init(int32_t argc, char *argv[])
 {
     char            *ppath = NULL;
     char            *rpath = NULL;
@@ -461,10 +461,10 @@ pc_init(int argc, char *argv[])
     char            *what;
     const struct tm *info;
     time_t           now;
-    int              c;
-    int              lvmp = 0;
+    uint32_t         c;
+    uint32_t         lvmp = 0;
 #ifdef ENABLE_NG
-    int ng = 0;
+    uint32_t ng = 0;
 #endif
 #ifdef _WIN32
     uint32_t *uid;
@@ -906,11 +906,11 @@ pc_full_speed(void)
 }
 
 /* Initialize modules, ran once, after pc_init. */
-int
+uint32_t
 pc_init_modules(void)
 {
-    int     c;
-    int     m;
+    uint32_t     c;
+    uint32_t     m;
     wchar_t temp[512];
     char    tempc[512];
 
@@ -1385,8 +1385,8 @@ ack_pause(void)
 void
 pc_run(void)
 {
-    int     mouse_msg_idx;
-    wchar_t temp[200];
+    uint32_t mouse_msg_idx;
+    wchar_t  temp[200];
 
     /* Trigger a hard reset if one is pending. */
     if (hard_reset_pending) {
@@ -1441,14 +1441,14 @@ pc_onesec(void)
 }
 
 void
-set_screen_size_monitor(int x, int y, int monitor_index)
+set_screen_size_monitor(uint32_t x, uint32_t y, uint32_t monitor_index)
 {
-    int    temp_overscan_x = monitors[monitor_index].mon_overscan_x;
-    int    temp_overscan_y = monitors[monitor_index].mon_overscan_y;
-    double dx;
-    double dy;
-    double dtx;
-    double dty;
+    uint32_t temp_overscan_x = monitors[monitor_index].mon_overscan_x;
+    uint32_t temp_overscan_y = monitors[monitor_index].mon_overscan_y;
+    double   dx;
+    double   dy;
+    double   dtx;
+    double   dty;
 
     /* Make sure we keep usable values. */
 #if 0
@@ -1556,13 +1556,13 @@ set_screen_size_monitor(int x, int y, int monitor_index)
 }
 
 void
-set_screen_size(int x, int y)
+set_screen_size(uint32_t x, uint32_t y)
 {
     set_screen_size_monitor(x, y, monitor_index_global);
 }
 
 void
-reset_screen_size_monitor(int monitor_index)
+reset_screen_size_monitor(uint32_t monitor_index)
 {
     set_screen_size(monitors[monitor_index].mon_unscaled_size_x, monitors[monitor_index].mon_efscrnsz_y);
 }

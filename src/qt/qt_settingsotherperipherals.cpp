@@ -57,9 +57,9 @@ SettingsOtherPeripherals::onCurrentMachineChanged(int machineId)
     ui->comboBoxCard4->clear();
     ui->comboBoxRTC->clear();
 
-    auto *model       = ui->comboBoxRTC->model();
-    int   d           = 0;
-    int   selectedRow = 0;
+    auto    *model       = ui->comboBoxRTC->model();
+    uint32_t d           = 0;
+    int      selectedRow = 0;
     while (true) {
         QString name = DeviceConfig::DeviceName(isartc_get_device(d), isartc_get_internal_name(d), 0);
         if (name.isEmpty()) {

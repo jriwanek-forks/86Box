@@ -23,8 +23,8 @@ extern "C" {
 
 extern char cart_fns[2][512];
 
-extern void cart_load(int drive, char *fn);
-extern void cart_close(int drive);
+extern void cart_load(uint32_t drive, char *fn);
+extern void cart_close(uint32_t drive);
 
 extern void cart_reset(void);
 

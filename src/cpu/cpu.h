@@ -211,7 +211,7 @@ typedef struct {
     uint16_t seg;
     uint32_t limit_low;
     uint32_t limit_high;
-    int      checked; /*Non-zero if selector is known to be valid*/
+    uint32_t checked; /*Non-zero if selector is known to be valid*/
 } x86seg;
 
 typedef union {
@@ -530,7 +530,7 @@ extern int is6117;
 extern int is486;
 extern int is_am486;
 extern int is_am486dxl;
-extern int is_pentium;
+extern uint32_t is_pentium;
 extern int is_k5;
 extern int is_k6;
 extern int is_p6;
@@ -566,7 +566,7 @@ extern uint64_t tsc;
 extern msr_t    msr;
 extern uint8_t  opcode;
 extern int      cpl_override;
-extern int      CPUID;
+extern uint32_t CPUID;
 extern uint64_t xt_cpu_multi;
 extern int      isa_cycles;
 extern int      cpu_inited;

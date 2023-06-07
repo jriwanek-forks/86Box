@@ -71,13 +71,13 @@ typedef struct rc_str_t {
 } rc_str_t;
 
 /* Platform Public data, specific. */
-HINSTANCE    hinstance; /* application instance */
-HANDLE       ghMutex;
-uint32_t     lang_id;  /* current and system language ID */
-uint32_t     lang_sys; /* current and system language ID */
-DWORD        dwSubLangID;
-int          acp_utf8; /* Windows supports UTF-8 codepage */
-volatile int cpu_thread_run = 1;
+HINSTANCE         hinstance; /* application instance */
+HANDLE            ghMutex;
+uint32_t          lang_id;  /* current and system language ID */
+uint32_t          lang_sys; /* current and system language ID */
+DWORD             dwSubLangID;
+int               acp_utf8; /* Windows supports UTF-8 codepage */
+volatile uint32_t cpu_thread_run = 1;
 
 /* Local data. */
 static HANDLE        thMain;
@@ -494,7 +494,7 @@ WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR lpszArg, int nCmdShow)
         return 1;
     }
 
-    extern int gfxcard[2];
+    extern uint32_t gfxcard[2];
     gfxcard[1] = 0;
 
     /* Create console window. */

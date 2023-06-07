@@ -118,16 +118,17 @@ extern "C" {
 #include "../cpu/cpu.h"
 #include <86box/plat.h>
 
-volatile int cpu_thread_run  = 1;
-int          mouse_capture   = 0;
-int          fixed_size_x    = 640;
-int          fixed_size_y    = 480;
-int          rctrl_is_lalt   = 0;
-int          update_icons    = 1;
-int          kbd_req_capture = 0;
-int          hide_status_bar = 0;
-int          hide_tool_bar   = 0;
-uint32_t     lang_id = 0x0409, lang_sys = 0x0409; // Multilangual UI variables, for now all set to LCID of en-US
+volatile uint32_t cpu_thread_run  = 1;
+int               mouse_capture   = 0;
+uint32_t          fixed_size_x    = 640;
+uint32_t          fixed_size_y    = 480;
+int               rctrl_is_lalt   = 0;
+int               update_icons    = 1;
+int               kbd_req_capture = 0;
+int               hide_status_bar = 0;
+int               hide_tool_bar   = 0;
+uint32_t          lang_id         = 0x0409; // Multilangual UI variables, for now all set to LCID of en-US
+uint32_t          lang_sys        = 0x0409; // Multilangual UI variables, for now all set to LCID of en-US
 
 int
 stricmp(const char *s1, const char *s2)
@@ -366,7 +367,7 @@ plat_munmap(void *ptr, size_t size)
 }
 
 void
-plat_pause(int p)
+plat_pause(uint8_t p)
 {
     static wchar_t oldtitle[512];
     wchar_t        title[1024];

@@ -80,13 +80,13 @@ extern uint32_t lang_sys; /* (-) system language code */
 extern int dump_on_exit;        /* (O) dump regs on exit*/
 extern int start_in_fullscreen; /* (O) start in fullscreen */
 #ifdef _WIN32
-extern int force_debug; /* (O) force debug output */
+extern uint32_t force_debug; /* (O) force debug output */
 #endif
 #ifdef USE_WX
-extern int video_fps; /* (O) render speed in fps */
+extern uint32_t video_fps; /* (O) render speed in fps */
 #endif
-extern int settings_only;     /* (O) show only the settings dialog */
-extern int confirm_exit_cmdl; /* (O) do not ask for confirmation on quit if set to 0 */
+extern uint32_t settings_only;     /* (O) show only the settings dialog */
+extern uint32_t confirm_exit_cmdl; /* (O) do not ask for confirmation on quit if set to 0 */
 #ifdef _WIN32
 extern uint64_t unique_id;
 extern uint64_t source_hwnd;
@@ -103,25 +103,25 @@ extern uint64_t instru_run_ms;
 #define window_y monitor_settings[0].mon_window_y
 #define window_w monitor_settings[0].mon_window_w
 #define window_h monitor_settings[0].mon_window_h
-extern int      window_remember;
-extern int      vid_resize;                 /* (C) allow resizing */
-extern int      invert_display;             /* (C) invert the display */
-extern int      suppress_overscan;          /* (C) suppress overscans */
+extern uint32_t window_remember;
+extern uint32_t vid_resize;                 /* (C) allow resizing */
+extern uint32_t invert_display;             /* (C) invert the display */
+extern uint32_t suppress_overscan;          /* (C) suppress overscans */
 extern uint32_t lang_id;                    /* (C) language code identifier */
 extern char     icon_set[256];              /* (C) iconset identifier */
-extern int      scale;                      /* (C) screen scale factor */
-extern int      dpi_scale;                  /* (C) DPI scaling of the emulated screen */
-extern int      vid_api;                    /* (C) video renderer */
-extern int      vid_cga_contrast;           /* (C) video */
-extern int      video_fullscreen;           /* (C) video */
-extern int      video_fullscreen_first;     /* (C) video */
-extern int      video_fullscreen_scale;     /* (C) video */
-extern int      enable_overscan;            /* (C) video */
-extern int      force_43;                   /* (C) video */
-extern int      video_filter_method;        /* (C) video */
-extern int      video_vsync;                /* (C) video */
-extern int      video_framerate;            /* (C) video */
-extern int      gfxcard[2];                 /* (C) graphics/video card */
+extern uint32_t scale;                      /* (C) screen scale factor */
+extern uint32_t dpi_scale;                  /* (C) DPI scaling of the emulated screen */
+extern uint32_t vid_api;                    /* (C) video renderer */
+extern uint32_t vid_cga_contrast;           /* (C) video */
+extern uint32_t video_fullscreen;           /* (C) video */
+extern uint32_t video_fullscreen_first;     /* (C) video */
+extern uint32_t video_fullscreen_scale;     /* (C) video */
+extern uint32_t enable_overscan;            /* (C) video */
+extern uint32_t force_43;                   /* (C) video */
+extern int32_t  video_filter_method;        /* (C) video */
+extern uint32_t video_vsync;                /* (C) video */
+extern uint32_t video_framerate;            /* (C) video */
+extern uint32_t gfxcard[2];                 /* (C) graphics/video card */
 extern char     video_shader[512];          /* (C) video */
 extern int      bugger_enabled;             /* (C) enable ISAbugger */
 extern int      postcard_enabled;           /* (C) enable POST card */
@@ -166,14 +166,14 @@ extern uint16_t key_prefix_2_2;
 extern uint16_t key_uncapture_1;
 extern uint16_t key_uncapture_2;
 
-extern char exe_path[2048];    /* path (dir) of executable */
-extern char usr_path[1024];    /* path (dir) of user data */
-extern char cfg_path[1024];    /* full path of config file */
-extern int  open_dir_usr_path; /* default file open dialog directory of usr_path */
+extern char      exe_path[2048];    /* path (dir) of executable */
+extern char      usr_path[1024];    /* path (dir) of user data */
+extern char      cfg_path[1024];    /* full path of config file */
+extern uint32_t  open_dir_usr_path; /* default file open dialog directory of usr_path */
 #ifndef USE_NEW_DYNAREC
-extern FILE *stdlog; /* file to log output to */
+extern FILE     *stdlog; /* file to log output to */
 #endif
-extern int config_changed; /* config has changed */
+extern uint32_t  config_changed; /* config has changed */
 
 /* Function prototypes. */
 #ifdef HAVE_STDARG_H
@@ -183,29 +183,29 @@ extern void fatal_ex(const char *fmt, va_list);
 extern void pclog_toggle_suppr(void);
 extern void pclog(const char *fmt, ...) __attribute__ ((format (printf, 1, 2)));
 extern void fatal(const char *fmt, ...) __attribute__ ((format (printf, 1, 2)));
-extern void set_screen_size(int x, int y);
-extern void set_screen_size_monitor(int x, int y, int monitor_index);
+extern void set_screen_size(uint32_t x, uint32_t y);
+extern void set_screen_size_monitor(uint32_t x, uint32_t y, uint32_t monitor_index);
 extern void reset_screen_size(void);
-extern void reset_screen_size_monitor(int monitor_index);
+extern void reset_screen_size_monitor(uint32_t monitor_index);
 extern void set_screen_size_natural(void);
 extern void update_mouse_msg(void);
 #if 0
 extern void pc_reload(wchar_t *fn);
 #endif
-extern int  pc_init_modules(void);
-extern int  pc_init(int argc, char *argv[]);
-extern void pc_close(void *threadid);
-extern void pc_reset_hard_close(void);
-extern void pc_reset_hard_init(void);
-extern void pc_reset_hard(void);
-extern void pc_full_speed(void);
-extern void pc_speed_changed(void);
-extern void pc_send_cad(void);
-extern void pc_send_cae(void);
-extern void pc_send_cab(void);
-extern void pc_run(void);
-extern void pc_start(void);
-extern void pc_onesec(void);
+extern uint32_t pc_init_modules(void);
+extern uint32_t pc_init(int32_t argc, char *argv[]);
+extern void     pc_close(void *threadid);
+extern void     pc_reset_hard_close(void);
+extern void     pc_reset_hard_init(void);
+extern void     pc_reset_hard(void);
+extern void     pc_full_speed(void);
+extern void     pc_speed_changed(void);
+extern void     pc_send_cad(void);
+extern void     pc_send_cae(void);
+extern void     pc_send_cab(void);
+extern void     pc_run(void);
+extern void     pc_start(void);
+extern void     pc_onesec(void);
 
 extern uint16_t get_last_addr(void);
 
@@ -222,8 +222,8 @@ extern double isa_timing;
 extern int    io_delay;
 extern int    framecountx;
 
-extern volatile int     cpu_thread_run;
-extern          uint8_t postcard_codes[POSTCARDS_NUM];
+extern volatile uint32_t cpu_thread_run;
+extern          uint8_t  postcard_codes[POSTCARDS_NUM];
 
 #ifdef __cplusplus
 }
