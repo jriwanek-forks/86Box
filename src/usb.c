@@ -49,7 +49,7 @@ usb_log(const char *fmt, ...)
 #endif
 
 static uint8_t
-uhci_reg_read(uint16_t addr, void *priv)
+uhci_reg_read(uint16_t addr, const void *priv)
 {
     const usb_t   *dev = (usb_t *) priv;
     uint8_t        ret;
@@ -63,7 +63,7 @@ uhci_reg_read(uint16_t addr, void *priv)
 }
 
 static void
-uhci_reg_write(uint16_t addr, uint8_t val, void *priv)
+uhci_reg_write(uint16_t addr, uint8_t val, const void *priv)
 {
     usb_t   *dev  = (usb_t *) priv;
     uint8_t *regs = dev->uhci_io;

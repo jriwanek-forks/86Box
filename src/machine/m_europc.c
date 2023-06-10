@@ -435,7 +435,7 @@ jim_set(europc_t *sys, uint8_t reg, uint8_t val)
 
 /* Write to one of the JIM registers. */
 static void
-jim_write(uint16_t addr, uint8_t val, void *priv)
+jim_write(uint16_t addr, uint8_t val, const void *priv)
 {
     europc_t *sys = (europc_t *) priv;
     uint8_t   b;
@@ -492,7 +492,7 @@ jim_write(uint16_t addr, uint8_t val, void *priv)
 
 /* Read from one of the JIM registers. */
 static uint8_t
-jim_read(uint16_t addr, void *priv)
+jim_read(uint16_t addr, const void *priv)
 {
     europc_t *sys = (europc_t *) priv;
     uint8_t   r   = 0xff;
@@ -667,7 +667,7 @@ europc_boot(UNUSED(const device_t *info))
 }
 
 static void
-europc_close(UNUSED(void *priv))
+europc_close(UNUSED(const void *priv))
 {
     nvr_t *nvr = &europc.nvr;
 

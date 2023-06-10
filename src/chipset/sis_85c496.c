@@ -81,9 +81,9 @@ sis_85c496_log(const char *fmt, ...)
 #endif
 
 static void
-sis_85c497_isa_write(uint16_t port, uint8_t val, void *priv)
+sis_85c497_isa_write(uint16_t port, uint8_t val, const void *priv)
 {
-    sis_85c496_t *dev = (sis_85c496_t *) priv;
+    sis_85c496_t *dev = (const sis_85c496_t *) priv;
 
     sis_85c496_log("[%04X:%08X] ISA Write %02X to   %04X\n", CS, cpu_state.pc, val, port);
 
@@ -118,9 +118,9 @@ sis_85c497_isa_write(uint16_t port, uint8_t val, void *priv)
 }
 
 static uint8_t
-sis_85c497_isa_read(uint16_t port, void *priv)
+sis_85c497_isa_read(uint16_t port, const void *priv)
 {
-    const sis_85c496_t *dev = (sis_85c496_t *) priv;
+    const sis_85c496_t *dev = (const sis_85c496_t *) priv;
     uint8_t             ret = 0xff;
 
     if ((port == 0x23) && (dev->cur_reg < 0xc0))
@@ -134,7 +134,7 @@ sis_85c497_isa_read(uint16_t port, void *priv)
 }
 
 static void
-sis_85c496_recalcmapping(sis_85c496_t *dev)
+sis_85c496_recalcmapping(const sis_85c496_t *dev)
 {
     uint32_t base;
     uint32_t shflags = 0;
@@ -159,7 +159,7 @@ sis_85c496_recalcmapping(sis_85c496_t *dev)
 }
 
 static void
-sis_85c496_ide_handler(sis_85c496_t *dev)
+sis_85c496_ide_handler(const sis_85c496_t *dev)
 {
     uint8_t ide_cfg[2];
 
@@ -510,9 +510,9 @@ sis_85c49x_pci_write(UNUSED(int func), int addr, uint8_t val, void *priv)
 }
 
 static uint8_t
-sis_85c49x_pci_read(UNUSED(int func), int addr, void *priv)
+sis_85c49x_pci_read(UNUSED(int func), int addr, const void *priv)
 {
-    const sis_85c496_t *dev = (sis_85c496_t *) priv;
+    const sis_85c496_t *dev = (const sis_85c496_t *) priv;
     uint8_t             ret = dev->pci_conf[addr];
 
     switch (addr) {
@@ -539,9 +539,9 @@ sis_85c49x_pci_read(UNUSED(int func), int addr, void *priv)
 }
 
 static void
-sis_85c496_rmsmiblk_count(void *priv)
+sis_85c496_rmsmiblk_count(const void *priv)
 {
-    sis_85c496_t *dev = (sis_85c496_t *) priv;
+    sis_85c496_t *dev = (const sis_85c496_t *) priv;
 
     dev->rmsmiblk_count--;
 
@@ -566,19 +566,19 @@ sis_85c497_isa_reset(sis_85c496_t *dev)
     dma_set_mask(0x00ffffff);
 
     io_removehandler(0x0022, 0x0002,
-                     sis_85c497_isa_read, NULL, NULL, sis_85c497_isa_write, NULL, NULL, dev);
+                     &sis_85c497_isa_read, NULL, NULL, &sis_85c497_isa_write, NULL, NULL, dev);
     io_removehandler(0x0033, 0x0001,
-                     sis_85c497_isa_read, NULL, NULL, sis_85c497_isa_write, NULL, NULL, dev);
+                     &sis_85c497_isa_read, NULL, NULL, &sis_85c497_isa_write, NULL, NULL, dev);
     io_sethandler(0x0022, 0x0002,
-                  sis_85c497_isa_read, NULL, NULL, sis_85c497_isa_write, NULL, NULL, dev);
+                  &sis_85c497_isa_read, NULL, NULL, &sis_85c497_isa_write, NULL, NULL, dev);
     io_sethandler(0x0033, 0x0001,
-                  sis_85c497_isa_read, NULL, NULL, sis_85c497_isa_write, NULL, NULL, dev);
+                  &sis_85c497_isa_read, NULL, NULL, &sis_85c497_isa_write, NULL, NULL, dev);
 }
 
 static void
-sis_85c496_reset(void *priv)
+sis_85c496_reset(const void *priv)
 {
-    sis_85c496_t *dev = (sis_85c496_t *) priv;
+    const sis_85c496_t *dev = (const sis_85c496_t *) priv;
 
     sis_85c49x_pci_write(0, 0x44, 0x00, dev);
     sis_85c49x_pci_write(0, 0x45, 0x00, dev);
@@ -622,9 +622,9 @@ sis_85c496_reset(void *priv)
 }
 
 static void
-sis_85c496_close(void *priv)
+sis_85c496_close(const void *priv)
 {
-    sis_85c496_t *dev = (sis_85c496_t *) priv;
+    const sis_85c496_t *dev = (const sis_85c496_t *) priv;
 
     smram_del(dev->smram);
 
@@ -658,7 +658,7 @@ static void
     dev->pci_conf[0xd0] = 0x78; /* ROM at E0000-FFFFF, Flash enable. */
     dev->pci_conf[0xd1] = 0xff;
 
-    pci_add_card(PCI_ADD_NORTHBRIDGE, sis_85c49x_pci_read, sis_85c49x_pci_write, dev, &dev->pci_slot);
+    pci_add_card(PCI_ADD_NORTHBRIDGE, &sis_85c49x_pci_read, &sis_85c49x_pci_write, dev, &dev->pci_slot);
 
 #if 0
     sis_85c497_isa_reset(dev);
@@ -680,7 +680,7 @@ static void
 
     dma_high_page_init();
 
-    timer_add(&dev->rmsmiblk_timer, sis_85c496_rmsmiblk_count, dev, 0);
+    timer_add(&dev->rmsmiblk_timer, &sis_85c496_rmsmiblk_count, dev, 0);
 
 #ifndef USE_DRB_HACK
     row_device.local = 7 | (1 << 8) | (0x02 << 16) | (8 << 24);
@@ -697,9 +697,9 @@ const device_t sis_85c496_device = {
     .internal_name = "sis_85c496",
     .flags         = DEVICE_PCI,
     .local         = 0,
-    .init          = sis_85c496_init,
-    .close         = sis_85c496_close,
-    .reset         = sis_85c496_reset,
+    .init          = &sis_85c496_init,
+    .close         = &sis_85c496_close,
+    .reset         = &sis_85c496_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,
@@ -711,9 +711,9 @@ const device_t sis_85c496_ls486e_device = {
     .internal_name = "sis_85c496_ls486e",
     .flags         = DEVICE_PCI,
     .local         = 1,
-    .init          = sis_85c496_init,
-    .close         = sis_85c496_close,
-    .reset         = sis_85c496_reset,
+    .init          = &sis_85c496_init,
+    .close         = &sis_85c496_close,
+    .reset         = &sis_85c496_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,

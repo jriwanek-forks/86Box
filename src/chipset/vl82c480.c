@@ -192,7 +192,7 @@ vl82c480_init(const device_t *info)
         dev->regs[0x07] = 0x21;
     dev->regs[0x08] = 0x38;
 
-    io_sethandler(0x00ec, 0x0004, vl82c480_read, NULL, NULL, vl82c480_write, NULL, NULL, dev);
+    io_sethandler(0x00ec, 0x0004, &vl82c480_read, NULL, NULL, &vl82c480_write, NULL, NULL, dev);
 
     device_add(&port_92_device);
 
@@ -204,8 +204,8 @@ const device_t vl82c480_device = {
     .internal_name = "vl82c480",
     .flags         = 0,
     .local         = 0x90,
-    .init          = vl82c480_init,
-    .close         = vl82c480_close,
+    .init          = &vl82c480_init,
+    .close         = &vl82c480_close,
     .reset         = NULL,
     { .available = NULL },
     .speed_changed = NULL,
@@ -218,8 +218,8 @@ const device_t vl82c486_device = {
     .internal_name = "vl82c486",
     .flags         = 0,
     .local         = 0x98,
-    .init          = vl82c480_init,
-    .close         = vl82c480_close,
+    .init          = &vl82c480_init,
+    .close         = &vl82c480_close,
     .reset         = NULL,
     { .available = NULL },
     .speed_changed = NULL,

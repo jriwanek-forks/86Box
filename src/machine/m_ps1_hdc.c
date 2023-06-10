@@ -713,7 +713,7 @@ do_fmt:
 
 /* Execute the CCB we just received. */
 static void
-hdc_callback(void *priv)
+hdc_callback(const void *priv)
 {
     hdc_t   *dev = (hdc_t *) priv;
     ccb_t   *ccb = &dev->ccb;
@@ -1131,7 +1131,7 @@ hdc_send_ssb(hdc_t *dev)
 
 /* Read one of the controller registers. */
 static uint8_t
-hdc_read(uint16_t port, void *priv)
+hdc_read(uint16_t port, const void *priv)
 {
     hdc_t  *dev = (hdc_t *) priv;
     uint8_t ret = 0xff;
@@ -1179,7 +1179,7 @@ hdc_read(uint16_t port, void *priv)
 }
 
 static void
-hdc_write(uint16_t port, uint8_t val, void *priv)
+hdc_write(uint16_t port, uint8_t val, const void *priv)
 {
     hdc_t *dev = (hdc_t *) priv;
 
@@ -1356,7 +1356,7 @@ ps1_hdc_init(UNUSED(const device_t *info))
 }
 
 static void
-ps1_hdc_close(void *priv)
+ps1_hdc_close(const void *priv)
 {
     hdc_t         *dev = (hdc_t *) priv;
     const drive_t *drive;

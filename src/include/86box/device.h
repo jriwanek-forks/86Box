@@ -174,14 +174,14 @@ typedef struct _device_ {
         void *(*init)(const struct _device_ *);
         void *(*init_ext)(const struct _device_ *, void*);
     };
-    void (*close)(void *priv);
-    void (*reset)(void *priv);
+    void (*close)(const void *priv);
+    void (*reset)(const void *priv);
     union {
         int (*available)(void);
         int (*poll)(void *priv);
     };
-    void (*speed_changed)(void *priv);
-    void (*force_redraw)(void *priv);
+    void (*speed_changed)(const void *priv);
+    void (*force_redraw)(const void *priv);
 
     const device_config_t *config;
 } device_t;

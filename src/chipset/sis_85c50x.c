@@ -80,7 +80,7 @@ typedef struct sis_85c50x_t {
 } sis_85c50x_t;
 
 static void
-sis_85c50x_shadow_recalc(sis_85c50x_t *dev)
+sis_85c50x_shadow_recalc(const sis_85c50x_t *dev)
 {
     uint32_t base;
     uint32_t can_read;
@@ -144,7 +144,7 @@ sis_85c50x_shadow_recalc(sis_85c50x_t *dev)
 }
 
 static void
-sis_85c50x_smm_recalc(sis_85c50x_t *dev)
+sis_85c50x_smm_recalc(const sis_85c50x_t *dev)
 {
     /* NOTE: Naming mismatch - what the datasheet calls "host address" is what we call ram_base. */
     uint32_t host_base = (dev->pci_conf[0x64] << 20) | ((dev->pci_conf[0x65] & 0x07) << 28);
@@ -197,9 +197,9 @@ sis_85c50x_smm_recalc(sis_85c50x_t *dev)
 }
 
 static void
-sis_85c50x_write(int func, int addr, uint8_t val, void *priv)
+sis_85c50x_write(int func, int addr, uint8_t val, const void *priv)
 {
-    sis_85c50x_t *dev = (sis_85c50x_t *) priv;
+    sis_85c50x_t *dev = (const sis_85c50x_t *) priv;
 
     sis_85c50x_log("85C501: [W] (%02X, %02X) = %02X\n", func, addr, val);
 
@@ -308,9 +308,9 @@ sis_85c50x_write(int func, int addr, uint8_t val, void *priv)
 }
 
 static uint8_t
-sis_85c50x_read(int func, int addr, void *priv)
+sis_85c50x_read(int func, int addr, const void *priv)
 {
-    const sis_85c50x_t *dev = (sis_85c50x_t *) priv;
+    const sis_85c50x_t *dev = (const sis_85c50x_t *) priv;
     uint8_t             ret = 0xff;
 
     if (func == 0x00) {
@@ -343,7 +343,7 @@ sis_85c50x_ide_recalc(sis_85c50x_t *dev)
 static void
 sis_85c50x_sb_write(int func, int addr, uint8_t val, void *priv)
 {
-    sis_85c50x_t *dev = (sis_85c50x_t *) priv;
+    sis_85c50x_t *dev = (const sis_85c50x_t *) priv;
 
     sis_85c50x_log("85C503: [W] (%02X, %02X) = %02X\n", func, addr, val);
 
@@ -390,9 +390,9 @@ sis_85c50x_sb_write(int func, int addr, uint8_t val, void *priv)
 }
 
 static uint8_t
-sis_85c50x_sb_read(int func, int addr, void *priv)
+sis_85c50x_sb_read(int func, int addr, const void *priv)
 {
-    const sis_85c50x_t *dev = (sis_85c50x_t *) priv;
+    const sis_85c50x_t *dev = (const sis_85c50x_t *) priv;
     uint8_t             ret = 0xff;
 
     if (func == 0x00)  switch (addr) {
@@ -438,9 +438,9 @@ sis_85c50x_sb_read(int func, int addr, void *priv)
 }
 
 static void
-sis_85c50x_isa_write(uint16_t addr, uint8_t val, void *priv)
+sis_85c50x_isa_write(uint16_t addr, uint8_t val, const void *priv)
 {
-    sis_85c50x_t *dev = (sis_85c50x_t *) priv;
+    sis_85c50x_t *dev = (const sis_85c50x_t *) priv;
 
     sis_85c50x_log("85C503 ISA: [W] (%04X) = %02X\n", addr, val);
 
@@ -508,9 +508,9 @@ sis_85c50x_isa_write(uint16_t addr, uint8_t val, void *priv)
 }
 
 static uint8_t
-sis_85c50x_isa_read(uint16_t addr, void *priv)
+sis_85c50x_isa_read(uint16_t addr, const void *priv)
 {
-    const sis_85c50x_t *dev = (sis_85c50x_t *) priv;
+    const sis_85c50x_t *dev = (const sis_85c50x_t *) priv;
     uint8_t             ret = 0xff;
 
     switch (addr) {
@@ -535,9 +535,9 @@ sis_85c50x_isa_read(uint16_t addr, void *priv)
 }
 
 static void
-sis_85c50x_reset(void *priv)
+sis_85c50x_reset(const void *priv)
 {
-    sis_85c50x_t *dev = (sis_85c50x_t *) priv;
+    sis_85c50x_t *dev = (const sis_85c50x_t *) priv;
 
     /* North Bridge (SiS 85C501/502) */
     dev->pci_conf[0x00] = 0x39;
@@ -647,11 +647,11 @@ sis_85c50x_init(UNUSED(const device_t *info))
     dev->type = info->local;
 
     /* 501/502 (Northbridge) */
-    pci_add_card(PCI_ADD_NORTHBRIDGE, sis_85c50x_read, sis_85c50x_write, dev, &dev->nb_slot);
+    pci_add_card(PCI_ADD_NORTHBRIDGE, &sis_85c50x_read, &sis_85c50x_write, dev, &dev->nb_slot);
 
     /* 503 (Southbridge) */
-    pci_add_card(PCI_ADD_SOUTHBRIDGE, sis_85c50x_sb_read, sis_85c50x_sb_write, dev, &dev->sb_slot);
-    io_sethandler(0x0022, 0x0002, sis_85c50x_isa_read, NULL, NULL, sis_85c50x_isa_write, NULL, NULL, dev);
+    pci_add_card(PCI_ADD_SOUTHBRIDGE, &sis_85c50x_sb_read, &sis_85c50x_sb_write, dev, &dev->sb_slot);
+    io_sethandler(0x0022, 0x0002, &sis_85c50x_isa_read, NULL, NULL, &sis_85c50x_isa_write, NULL, NULL, dev);
 
     dev->smram[0] = smram_add();
     dev->smram[1] = smram_add();
@@ -679,9 +679,9 @@ const device_t sis_85c50x_device = {
     .internal_name = "sis_85c50x",
     .flags         = DEVICE_PCI,
     .local         = 0,
-    .init          = sis_85c50x_init,
-    .close         = sis_85c50x_close,
-    .reset         = sis_85c50x_reset,
+    .init          = &sis_85c50x_init,
+    .close         = &sis_85c50x_close,
+    .reset         = &sis_85c50x_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,

@@ -196,9 +196,9 @@ vt82c49x_recalc(vt82c49x_t *dev)
 }
 
 static void
-vt82c49x_write(uint16_t addr, uint8_t val, void *priv)
+vt82c49x_write(uint16_t addr, uint8_t val, const void *priv)
 {
-    vt82c49x_t *dev = (vt82c49x_t *) priv;
+    vt82c49x_t *dev = (const vt82c49x_t *) priv;
     uint8_t     valxor;
 
     switch (addr) {
@@ -295,10 +295,10 @@ vt82c49x_write(uint16_t addr, uint8_t val, void *priv)
 }
 
 static uint8_t
-vt82c49x_read(uint16_t addr, void *priv)
+vt82c49x_read(uint16_t addr, const void *priv)
 {
     uint8_t           ret = 0xff;
-    const vt82c49x_t *dev = (vt82c49x_t *) priv;
+    const vt82c49x_t *dev = (const vt82c49x_t *) priv;
 
     switch (addr) {
         case 0xa9:
@@ -321,16 +321,16 @@ vt82c49x_read(uint16_t addr, void *priv)
 }
 
 static void
-vt82c49x_reset(void *priv)
+vt82c49x_reset(const void *priv)
 {
     for (uint16_t i = 0; i < 256; i++)
         vt82c49x_write(i, 0x00, priv);
 }
 
 static void
-vt82c49x_close(void *priv)
+vt82c49x_close(const void *priv)
 {
-    vt82c49x_t *dev = (vt82c49x_t *) priv;
+    const vt82c49x_t *dev = (const vt82c49x_t *) priv;
 
     smram_del(dev->smram_high);
     smram_del(dev->smram_low);
@@ -357,7 +357,7 @@ vt82c49x_init(const device_t *info)
 
     device_add(&port_92_device);
 
-    io_sethandler(0x0a8, 0x0002, vt82c49x_read, NULL, NULL, vt82c49x_write, NULL, NULL, dev);
+    io_sethandler(0x0a8, 0x0002, &vt82c49x_read, NULL, NULL, &vt82c49x_write, NULL, NULL, dev);
 
     pic_elcr_io_handler(0);
     pic_elcr_set_enabled(1);
@@ -372,8 +372,8 @@ const device_t via_vt82c49x_device = {
     .internal_name = "via_vt82c49x",
     .flags         = 0,
     .local         = 0,
-    .init          = vt82c49x_init,
-    .close         = vt82c49x_close,
+    .init          = &vt82c49x_init,
+    .close         = &vt82c49x_close,
     .reset         = NULL,
     { .available = NULL },
     .speed_changed = NULL,
@@ -386,9 +386,9 @@ const device_t via_vt82c49x_pci_device = {
     .internal_name = "via_vt82c49x_pci",
     .flags         = DEVICE_PCI,
     .local         = 0,
-    .init          = vt82c49x_init,
-    .close         = vt82c49x_close,
-    .reset         = vt82c49x_reset,
+    .init          = &vt82c49x_init,
+    .close         = &vt82c49x_close,
+    .reset         = &vt82c49x_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,
@@ -400,8 +400,8 @@ const device_t via_vt82c49x_ide_device = {
     .internal_name = "via_vt82c49x_ide",
     .flags         = 0,
     .local         = 1,
-    .init          = vt82c49x_init,
-    .close         = vt82c49x_close,
+    .init          = &vt82c49x_init,
+    .close         = &vt82c49x_close,
     .reset         = NULL,
     { .available = NULL },
     .speed_changed = NULL,
@@ -414,9 +414,9 @@ const device_t via_vt82c49x_pci_ide_device = {
     .internal_name = "via_vt82c49x_pci_ide",
     .flags         = DEVICE_PCI,
     .local         = 1,
-    .init          = vt82c49x_init,
-    .close         = vt82c49x_close,
-    .reset         = vt82c49x_reset,
+    .init          = &vt82c49x_init,
+    .close         = &vt82c49x_close,
+    .reset         = &vt82c49x_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,

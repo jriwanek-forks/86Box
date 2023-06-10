@@ -106,7 +106,7 @@ static const int mem_conf_cr1[41] = {
 };
 
 static uint32_t
-get_addr(headland_t *dev, uint32_t addr, headland_mr_t *mr)
+get_addr(const headland_t *dev, uint32_t addr, const headland_mr_t *mr)
 {
     uint32_t bank_base[4];
     uint32_t bank_shift[4];
@@ -506,11 +506,11 @@ hl_readl(uint16_t addr, void *priv)
 }
 
 static uint8_t
-mem_read_b(uint32_t addr, void *priv)
+mem_read_b(uint32_t addr, const void *priv)
 {
-    headland_mr_t *mr  = (headland_mr_t *) priv;
-    headland_t    *dev = mr->headland;
-    uint8_t        ret = 0xff;
+    const headland_mr_t *mr  = (const headland_mr_t *) priv;
+    const headland_t    *dev = mr->headland;
+    uint8_t              ret = 0xff;
 
     addr = get_addr(dev, addr, mr);
     if (addr < (mem_size << 10))
@@ -520,10 +520,10 @@ mem_read_b(uint32_t addr, void *priv)
 }
 
 static uint16_t
-mem_read_w(uint32_t addr, void *priv)
+mem_read_w(uint32_t addr, const void *priv)
 {
-    headland_mr_t *mr  = (headland_mr_t *) priv;
-    headland_t    *dev = mr->headland;
+    const headland_mr_t *mr  = (const headland_mr_t *) priv;
+    const headland_t    *dev = mr->headland;
     uint16_t       ret = 0xffff;
 
     addr = get_addr(dev, addr, mr);
@@ -534,10 +534,10 @@ mem_read_w(uint32_t addr, void *priv)
 }
 
 static uint32_t
-mem_read_l(uint32_t addr, void *priv)
+mem_read_l(uint32_t addr, const void *priv)
 {
-    headland_mr_t *mr  = (headland_mr_t *) priv;
-    headland_t    *dev = mr->headland;
+    const headland_mr_t *mr  = (const headland_mr_t *) priv;
+    const headland_t    *dev = mr->headland;
     uint32_t       ret = 0xffffffff;
 
     addr = get_addr(dev, addr, mr);
@@ -548,10 +548,10 @@ mem_read_l(uint32_t addr, void *priv)
 }
 
 static void
-mem_write_b(uint32_t addr, uint8_t val, void *priv)
+mem_write_b(uint32_t addr, uint8_t val, const void *priv)
 {
-    headland_mr_t *mr  = (headland_mr_t *) priv;
-    headland_t    *dev = mr->headland;
+    const headland_mr_t *mr  = (const headland_mr_t *) priv;
+    const headland_t    *dev = mr->headland;
 
     addr = get_addr(dev, addr, mr);
     if (addr < (mem_size << 10))
@@ -559,10 +559,10 @@ mem_write_b(uint32_t addr, uint8_t val, void *priv)
 }
 
 static void
-mem_write_w(uint32_t addr, uint16_t val, void *priv)
+mem_write_w(uint32_t addr, uint16_t val, const void *priv)
 {
-    headland_mr_t *mr  = (headland_mr_t *) priv;
-    headland_t    *dev = mr->headland;
+    const headland_mr_t *mr  = (const headland_mr_t *) priv;
+    const headland_t    *dev = mr->headland;
 
     addr = get_addr(dev, addr, mr);
     if (addr < (mem_size << 10))
@@ -570,10 +570,10 @@ mem_write_w(uint32_t addr, uint16_t val, void *priv)
 }
 
 static void
-mem_write_l(uint32_t addr, uint32_t val, void *priv)
+mem_write_l(uint32_t addr, uint32_t val, const void *priv)
 {
-    headland_mr_t *mr  = (headland_mr_t *) priv;
-    headland_t    *dev = mr->headland;
+    const headland_mr_t *mr  = (const headland_mr_t *) priv;
+    const headland_t    *dev = mr->headland;
 
     addr = get_addr(dev, addr, mr);
     if (addr < (mem_size << 10))
@@ -611,7 +611,7 @@ headland_init(const device_t *info)
         device_add(&port_92_inv_device);
 
     io_sethandler(0x01ec, 4,
-                  hl_read, hl_readw, hl_readl, hl_write, hl_writew, hl_writel, dev);
+                  &hl_read, &hl_readw, &hl_readl, &hl_write, &hl_writew, &hl_writel, dev);
 
     dev->null_mr.valid    = 0;
     dev->null_mr.mr       = 0xff;
@@ -629,22 +629,22 @@ headland_init(const device_t *info)
     mem_mapping_disable(&ram_high_mapping);
 
     mem_mapping_add(&dev->low_mapping, 0, 0x40000,
-                    mem_read_b, mem_read_w, mem_read_l,
-                    mem_write_b, mem_write_w, mem_write_l,
+                    &mem_read_b, &mem_read_w, &mem_read_l,
+                    &mem_write_b, &mem_write_w, &mem_write_l,
                     ram, MEM_MAPPING_INTERNAL, &dev->null_mr);
 
     if (mem_size > 640) {
         mem_mapping_add(&dev->mid_mapping, 0xa0000, 0x60000,
-                        mem_read_b, mem_read_w, mem_read_l,
-                        mem_write_b, mem_write_w, mem_write_l,
+                        &mem_read_b, &mem_read_w, &mem_read_l,
+                        &mem_write_b, &mem_write_w, &mem_write_l,
                         ram + 0xa0000, MEM_MAPPING_INTERNAL, &dev->null_mr);
         mem_mapping_disable(&dev->mid_mapping);
     }
 
     if (mem_size > 1024) {
         mem_mapping_add(&dev->high_mapping, 0x100000, ((mem_size - 1024) * 1024),
-                        mem_read_b, mem_read_w, mem_read_l,
-                        mem_write_b, mem_write_w, mem_write_l,
+                        &mem_read_b, &mem_read_w, &mem_read_l,
+                        &mem_write_b, &mem_write_w, &mem_write_l,
                         ram + 0x100000, MEM_MAPPING_INTERNAL, &dev->null_mr);
         mem_mapping_enable(&dev->high_mapping);
     }
@@ -652,8 +652,8 @@ headland_init(const device_t *info)
     for (uint8_t i = 0; i < 24; i++) {
         mem_mapping_add(&dev->upper_mapping[i],
                         0x40000 + (i << 14), 0x4000,
-                        mem_read_b, mem_read_w, mem_read_l,
-                        mem_write_b, mem_write_w, mem_write_l,
+                        &mem_read_b, &mem_read_w, &mem_read_l,
+                        &mem_write_b, &mem_write_w, &mem_write_l,
                         mem_size > (256 + (i << 4)) ? (ram + 0x40000 + (i << 14)) : NULL,
                         MEM_MAPPING_INTERNAL, &dev->null_mr);
         mem_mapping_enable(&dev->upper_mapping[i]);
@@ -661,16 +661,16 @@ headland_init(const device_t *info)
 
     mem_mapping_add(&dev->shadow_mapping[0],
                     0xe0000, 0x20000,
-                    mem_read_b, mem_read_w, mem_read_l,
-                    mem_write_b, mem_write_w, mem_write_l,
+                    &mem_read_b, &mem_read_w, &mem_read_l,
+                    &mem_write_b, &mem_write_w, &mem_write_l,
                     ((mem_size << 10) > 0xe0000) ? (ram + 0xe0000) : NULL,
                     MEM_MAPPING_INTERNAL, &dev->null_mr);
     mem_mapping_disable(&dev->shadow_mapping[0]);
 
     mem_mapping_add(&dev->shadow_mapping[1],
                     0xfe0000, 0x20000,
-                    mem_read_b, mem_read_w, mem_read_l,
-                    mem_write_b, mem_write_w, mem_write_l,
+                    &mem_read_b, &mem_read_w, &mem_read_l,
+                    &mem_write_b, &mem_write_w, &mem_write_l,
                     ((mem_size << 10) > 0xe0000) ? (ram + 0xe0000) : NULL,
                     MEM_MAPPING_INTERNAL, &dev->null_mr);
     mem_mapping_disable(&dev->shadow_mapping[1]);
@@ -679,8 +679,8 @@ headland_init(const device_t *info)
         dev->ems_mr[i].mr = 0x00;
         mem_mapping_add(&dev->ems_mapping[i],
                         ((i & 31) + ((i & 31) >= 24 ? 24 : 16)) << 14, 0x04000,
-                        mem_read_b, mem_read_w, mem_read_l,
-                        mem_write_b, mem_write_w, mem_write_l,
+                        &mem_read_b, &mem_read_w, &mem_read_l,
+                        &mem_write_b, &mem_write_w, &mem_write_l,
                         ram + (((i & 31) + ((i & 31) >= 24 ? 24 : 16)) << 14),
                         MEM_MAPPING_INTERNAL, &dev->ems_mr[i]);
         mem_mapping_disable(&dev->ems_mapping[i]);
@@ -696,8 +696,8 @@ const device_t headland_gc10x_device = {
     .internal_name = "headland_gc10x",
     .flags         = 0,
     .local         = HEADLAND_GC103,
-    .init          = headland_init,
-    .close         = headland_close,
+    .init          = &headland_init,
+    .close         = &headland_close,
     .reset         = NULL,
     { .available = NULL },
     .speed_changed = NULL,
@@ -710,8 +710,8 @@ const device_t headland_gc113_device = {
     .internal_name = "headland_gc113",
     .flags         = 0,
     .local         = HEADLAND_GC113,
-    .init          = headland_init,
-    .close         = headland_close,
+    .init          = &headland_init,
+    .close         = &headland_close,
     .reset         = NULL,
     { .available = NULL },
     .speed_changed = NULL,
@@ -724,8 +724,8 @@ const device_t headland_ht18a_device = {
     .internal_name = "headland_ht18a",
     .flags         = 0,
     .local         = HEADLAND_HT18_A,
-    .init          = headland_init,
-    .close         = headland_close,
+    .init          = &headland_init,
+    .close         = &headland_close,
     .reset         = NULL,
     { .available = NULL },
     .speed_changed = NULL,
@@ -738,8 +738,8 @@ const device_t headland_ht18b_device = {
     .internal_name = "headland_ht18b",
     .flags         = 0,
     .local         = HEADLAND_HT18_B,
-    .init          = headland_init,
-    .close         = headland_close,
+    .init          = &headland_init,
+    .close         = &headland_close,
     .reset         = NULL,
     { .available = NULL },
     .speed_changed = NULL,
@@ -752,8 +752,8 @@ const device_t headland_ht18c_device = {
     .internal_name = "headland_ht18c",
     .flags         = 0,
     .local         = HEADLAND_HT18_C,
-    .init          = headland_init,
-    .close         = headland_close,
+    .init          = &headland_init,
+    .close         = &headland_close,
     .reset         = NULL,
     { .available = NULL },
     .speed_changed = NULL,
@@ -766,8 +766,8 @@ const device_t headland_ht21c_d_device = {
     .internal_name = "headland_ht21cd",
     .flags         = 0,
     .local         = HEADLAND_HT21_C_D,
-    .init          = headland_init,
-    .close         = headland_close,
+    .init          = &headland_init,
+    .close         = &headland_close,
     .reset         = NULL,
     { .available = NULL },
     .speed_changed = NULL,
@@ -780,8 +780,8 @@ const device_t headland_ht21e_device = {
     .internal_name = "headland_ht21",
     .flags         = 0,
     .local         = HEADLAND_HT21_E,
-    .init          = headland_init,
-    .close         = headland_close,
+    .init          = &headland_init,
+    .close         = &headland_close,
     .reset         = NULL,
     { .available = NULL },
     .speed_changed = NULL,

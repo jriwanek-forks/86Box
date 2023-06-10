@@ -99,7 +99,7 @@ ali1621_log(const char *fmt, ...)
                 Read and write are enabled separately.
  */
 static void
-ali1621_smram_recalc(uint8_t val, ali1621_t *dev)
+ali1621_smram_recalc(uint8_t val, const ali1621_t *dev)
 {
     uint16_t access_smm    = 0x0000;
     uint16_t access_normal = 0x0000;
@@ -148,7 +148,7 @@ ali1621_smram_recalc(uint8_t val, ali1621_t *dev)
 }
 
 static void
-ali1621_shadow_recalc(UNUSED(int cur_reg), ali1621_t *dev)
+ali1621_shadow_recalc(UNUSED(int cur_reg), const ali1621_t *dev)
 {
     int      r_bit;
     int      w_bit;
@@ -583,9 +583,9 @@ ali1621_write(UNUSED(int func), int addr, uint8_t val, void *priv)
 }
 
 static uint8_t
-ali1621_read(UNUSED(int func), int addr, void *priv)
+ali1621_read(UNUSED(int func), int addr, const void *priv)
 {
-    const ali1621_t *dev = (ali1621_t *) priv;
+    const ali1621_t *dev = (const ali1621_t *) priv;
     uint8_t          ret = 0xff;
 
     ret = dev->pci_conf[addr];
@@ -594,9 +594,9 @@ ali1621_read(UNUSED(int func), int addr, void *priv)
 }
 
 static void
-ali1621_reset(void *priv)
+ali1621_reset(const void *priv)
 {
-    ali1621_t *dev = (ali1621_t *) priv;
+    ali1621_t *dev = (const ali1621_t *) priv;
 
     /* Default Registers */
     dev->pci_conf[0x00] = 0xb9;
@@ -672,7 +672,7 @@ ali1621_init(UNUSED(const device_t *info))
     ali1621_t *dev = (ali1621_t *) malloc(sizeof(ali1621_t));
     memset(dev, 0, sizeof(ali1621_t));
 
-    pci_add_card(PCI_ADD_NORTHBRIDGE, ali1621_read, ali1621_write, dev, &dev->pci_slot);
+    pci_add_card(PCI_ADD_NORTHBRIDGE, &ali1621_read, &ali1621_write, dev, &dev->pci_slot);
 
     dev->smram[0] = smram_add();
     dev->smram[1] = smram_add();
@@ -689,9 +689,9 @@ const device_t ali1621_device = {
     .internal_name = "ali1621",
     .flags         = DEVICE_PCI,
     .local         = 0,
-    .init          = ali1621_init,
-    .close         = ali1621_close,
-    .reset         = ali1621_reset,
+    .init          = &ali1621_init,
+    .close         = &ali1621_close,
+    .reset         = &ali1621_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,

@@ -329,7 +329,7 @@ static uint8_t nvr_at_inited = 0;
 
 /* Get the current NVR time. */
 static void
-time_get(nvr_t *nvr, struct tm *tm)
+time_get(const nvr_t *nvr, struct tm *tm)
 {
     const local_t *local = (local_t *) nvr->data;
     int8_t         temp;
@@ -367,7 +367,7 @@ time_get(nvr_t *nvr, struct tm *tm)
 
 /* Set the current NVR time. */
 static void
-time_set(nvr_t *nvr, struct tm *tm)
+time_set(nvr_t *nvr, const struct tm *tm)
 {
     const local_t *local = (local_t *) nvr->data;
     int            year  = (tm->tm_year + 1900);
@@ -419,7 +419,7 @@ time_set(nvr_t *nvr, struct tm *tm)
 
 /* Check if the current time matches a set alarm time. */
 static int8_t
-check_alarm(nvr_t *nvr, int8_t addr)
+check_alarm(const nvr_t *nvr, int8_t addr)
 {
     return ((nvr->regs[addr + 1] == nvr->regs[addr]) || ((nvr->regs[addr + 1] & AL_DONTCARE) == AL_DONTCARE));
 }
@@ -564,7 +564,7 @@ timer_tick(nvr_t *nvr)
 }
 
 static void
-nvr_reg_common_write(uint16_t reg, uint8_t val, nvr_t *nvr, local_t *local)
+nvr_reg_common_write(uint16_t reg, uint8_t val, nvr_t *nvr, const local_t *local)
 {
     if (local->lock[reg])
         return;
@@ -587,10 +587,10 @@ nvr_reg_common_write(uint16_t reg, uint8_t val, nvr_t *nvr, local_t *local)
 
 /* This must be exposed because ACPI uses it. */
 void
-nvr_reg_write(uint16_t reg, uint8_t val, void *priv)
+nvr_reg_write(uint16_t reg, uint8_t val, const void *priv)
 {
-    nvr_t    *nvr   = (nvr_t *) priv;
-    local_t  *local = (local_t *) nvr->data;
+    nvr_t    *nvr   = (const nvr_t *) priv;
+    const local_t  *local = (local_t *) nvr->data;
     struct tm tm;
     uint8_t   old;
 
@@ -652,9 +652,9 @@ nvr_reg_write(uint16_t reg, uint8_t val, void *priv)
 
 /* Write to one of the NVR registers. */
 static void
-nvr_write(uint16_t addr, uint8_t val, void *priv)
+nvr_write(uint16_t addr, uint8_t val, const void *priv)
 {
-    nvr_t   *nvr     = (nvr_t *) priv;
+    nvr_t   *nvr     = (const nvr_t *) priv;
     local_t *local   = (local_t *) nvr->data;
     uint8_t  addr_id = (addr & 0x0e) >> 1;
 
@@ -701,9 +701,9 @@ nvr_get_index(void *priv, uint8_t addr_id)
 
 /* Read from one of the NVR registers. */
 static uint8_t
-nvr_read(uint16_t addr, void *priv)
+nvr_read(uint16_t addr, const void *priv)
 {
-    nvr_t         *nvr   = (nvr_t *) priv;
+    nvr_t         *nvr   = (const nvr_t *) priv;
     const local_t *local = (local_t *) nvr->data;
     uint8_t        ret = 0xff;
     uint8_t        addr_id = (addr & 0x0e) >> 1;
@@ -840,14 +840,14 @@ nvr_read(uint16_t addr, void *priv)
 
 /* Secondary NVR write - used by SMC. */
 static void
-nvr_sec_write(uint16_t addr, uint8_t val, void *priv)
+nvr_sec_write(uint16_t addr, uint8_t val, const void *priv)
 {
     nvr_write(0x72 + (addr & 1), val, priv);
 }
 
 /* Secondary NVR read - used by SMC. */
 static uint8_t
-nvr_sec_read(uint16_t addr, void *priv)
+nvr_sec_read(uint16_t addr, const void *priv)
 {
     return nvr_read(0x72 + (addr & 1), priv);
 }
@@ -880,7 +880,7 @@ nvr_start(nvr_t *nvr)
     struct tm tm;
     int       default_found = 0;
 
-    for (uint16_t i = 0; i < nvr->size; i++) {
+    for (int i = 0; i < nvr->size; i++) {
         if (nvr->regs[i] == local->def)
             default_found++;
     }
@@ -906,9 +906,9 @@ nvr_start(nvr_t *nvr)
 }
 
 static void
-nvr_at_speed_changed(void *priv)
+nvr_at_speed_changed(const void *priv)
 {
-    nvr_t   *nvr   = (nvr_t *) priv;
+    nvr_t   *nvr   = (const nvr_t *) priv;
     local_t *local = (local_t *) nvr->data;
 
     timer_load_count(nvr);
@@ -922,14 +922,14 @@ nvr_at_speed_changed(void *priv)
 }
 
 void
-nvr_at_handler(int set, uint16_t base, nvr_t *nvr)
+nvr_at_handler(int set, uint16_t base, const nvr_t *nvr)
 {
     io_handler(set, base, 2,
                nvr_read, NULL, NULL, nvr_write, NULL, NULL, nvr);
 }
 
 void
-nvr_at_index_read_handler(int set, uint16_t base, nvr_t *nvr)
+nvr_at_index_read_handler(int set, uint16_t base, const nvr_t *nvr)
 {
     io_handler(0, base, 1,
                NULL, NULL, NULL, nvr_write, NULL, NULL, nvr);
@@ -964,7 +964,7 @@ nvr_at_sec_handler(int set, uint16_t base, nvr_t *nvr)
 }
 
 void
-nvr_read_addr_set(int set, nvr_t *nvr)
+nvr_read_addr_set(int set, const nvr_t *nvr)
 {
     local_t *local = (local_t *) nvr->data;
 
@@ -972,7 +972,7 @@ nvr_read_addr_set(int set, nvr_t *nvr)
 }
 
 void
-nvr_wp_set(int set, int h, nvr_t *nvr)
+nvr_wp_set(int set, int h, const nvr_t *nvr)
 {
     local_t *local = (local_t *) nvr->data;
 
@@ -980,7 +980,7 @@ nvr_wp_set(int set, int h, nvr_t *nvr)
 }
 
 void
-nvr_via_wp_set(int set, int reg, nvr_t *nvr)
+nvr_via_wp_set(int set, int reg, const nvr_t *nvr)
 {
     local_t *local = (local_t *) nvr->data;
 
@@ -991,7 +991,7 @@ nvr_via_wp_set(int set, int reg, nvr_t *nvr)
 }
 
 void
-nvr_bank_set(int base, uint8_t bank, nvr_t *nvr)
+nvr_bank_set(int base, uint8_t bank, const nvr_t *nvr)
 {
     local_t *local = (local_t *) nvr->data;
 
@@ -999,7 +999,7 @@ nvr_bank_set(int base, uint8_t bank, nvr_t *nvr)
 }
 
 void
-nvr_lock_set(int base, int size, int lock, nvr_t *nvr)
+nvr_lock_set(int base, int size, int lock, const nvr_t *nvr)
 {
     local_t *local = (local_t *) nvr->data;
 
@@ -1041,9 +1041,9 @@ nvr_smi_status_clear(nvr_t *nvr)
 }
 
 static void
-nvr_at_reset(void *priv)
+nvr_at_reset(const void *priv)
 {
-    nvr_t *nvr = (nvr_t *) priv;
+    nvr_t *nvr = (const nvr_t *) priv;
 
     /* These bits are reset on reset. */
     nvr->regs[RTC_REGB] &= ~(REGB_PIE | REGB_AIE | REGB_UIE | REGB_SQWE);
@@ -1190,9 +1190,9 @@ nvr_at_init(const device_t *info)
 }
 
 static void
-nvr_at_close(void *priv)
+nvr_at_close(const void *priv)
 {
-    nvr_t   *nvr   = (nvr_t *) priv;
+    nvr_t   *nvr   = (const nvr_t *) priv;
     local_t *local = (local_t *) nvr->data;
 
     nvr_close();
@@ -1220,11 +1220,11 @@ const device_t at_nvr_old_device = {
     .internal_name = "at_nvr_old",
     .flags         = DEVICE_ISA | DEVICE_AT,
     .local         = 0,
-    .init          = nvr_at_init,
-    .close         = nvr_at_close,
-    .reset         = nvr_at_reset,
+    .init          = &nvr_at_init,
+    .close         = &nvr_at_close,
+    .reset         = &nvr_at_reset,
     { .available = NULL },
-    .speed_changed = nvr_at_speed_changed,
+    .speed_changed = &nvr_at_speed_changed,
     .force_redraw  = NULL,
     .config        = NULL
 };
@@ -1234,11 +1234,11 @@ const device_t at_nvr_device = {
     .internal_name = "at_nvr",
     .flags         = DEVICE_ISA | DEVICE_AT,
     .local         = 1,
-    .init          = nvr_at_init,
-    .close         = nvr_at_close,
-    .reset         = nvr_at_reset,
+    .init          = &nvr_at_init,
+    .close         = &nvr_at_close,
+    .reset         = &nvr_at_reset,
     { .available = NULL },
-    .speed_changed = nvr_at_speed_changed,
+    .speed_changed = &nvr_at_speed_changed,
     .force_redraw  = NULL,
     .config        = NULL
 };
@@ -1276,11 +1276,11 @@ const device_t amstrad_nvr_device = {
     .internal_name = "amstrad_nvr",
     .flags         = DEVICE_ISA | DEVICE_AT,
     .local         = 3,
-    .init          = nvr_at_init,
-    .close         = nvr_at_close,
-    .reset         = nvr_at_reset,
+    .init          = &nvr_at_init,
+    .close         = &nvr_at_close,
+    .reset         = &nvr_at_reset,
     { .available = NULL },
-    .speed_changed = nvr_at_speed_changed,
+    .speed_changed = &nvr_at_speed_changed,
     .force_redraw  = NULL,
     .config        = NULL
 };
@@ -1290,11 +1290,11 @@ const device_t ibmat_nvr_device = {
     .internal_name = "ibmat_nvr",
     .flags         = DEVICE_ISA | DEVICE_AT,
     .local         = 4,
-    .init          = nvr_at_init,
-    .close         = nvr_at_close,
-    .reset         = nvr_at_reset,
+    .init          = &nvr_at_init,
+    .close         = &nvr_at_close,
+    .reset         = &nvr_at_reset,
     { .available = NULL },
-    .speed_changed = nvr_at_speed_changed,
+    .speed_changed = &nvr_at_speed_changed,
     .force_redraw  = NULL,
     .config        = NULL
 };
@@ -1304,11 +1304,11 @@ const device_t piix4_nvr_device = {
     .internal_name = "piix4_nvr",
     .flags         = DEVICE_ISA | DEVICE_AT,
     .local         = 0x10 | 1,
-    .init          = nvr_at_init,
-    .close         = nvr_at_close,
-    .reset         = nvr_at_reset,
+    .init          = &nvr_at_init,
+    .close         = &nvr_at_close,
+    .reset         = &nvr_at_reset,
     { .available = NULL },
-    .speed_changed = nvr_at_speed_changed,
+    .speed_changed = &nvr_at_speed_changed,
     .force_redraw  = NULL,
     .config        = NULL
 };
@@ -1318,11 +1318,11 @@ const device_t ps_no_nmi_nvr_device = {
     .internal_name = "ps1_nvr",
     .flags         = DEVICE_PS2,
     .local         = 0x10 | 2,
-    .init          = nvr_at_init,
-    .close         = nvr_at_close,
-    .reset         = nvr_at_reset,
+    .init          = &nvr_at_init,
+    .close         = &nvr_at_close,
+    .reset         = &nvr_at_reset,
     { .available = NULL },
-    .speed_changed = nvr_at_speed_changed,
+    .speed_changed = &nvr_at_speed_changed,
     .force_redraw  = NULL,
     .config        = NULL
 };
@@ -1332,11 +1332,11 @@ const device_t amstrad_no_nmi_nvr_device = {
     .internal_name = "amstrad_nvr",
     .flags         = DEVICE_ISA | DEVICE_AT,
     .local         = 0x10 | 3,
-    .init          = nvr_at_init,
-    .close         = nvr_at_close,
-    .reset         = nvr_at_reset,
+    .init          = &nvr_at_init,
+    .close         = &nvr_at_close,
+    .reset         = &nvr_at_reset,
     { .available = NULL },
-    .speed_changed = nvr_at_speed_changed,
+    .speed_changed = &nvr_at_speed_changed,
     .force_redraw  = NULL,
     .config        = NULL
 };
@@ -1346,11 +1346,11 @@ const device_t ami_1992_nvr_device = {
     .internal_name = "ami_1992_nvr",
     .flags         = DEVICE_ISA | DEVICE_AT,
     .local         = 0x10 | 4,
-    .init          = nvr_at_init,
-    .close         = nvr_at_close,
-    .reset         = nvr_at_reset,
+    .init          = &nvr_at_init,
+    .close         = &nvr_at_close,
+    .reset         = &nvr_at_reset,
     { .available = NULL },
-    .speed_changed = nvr_at_speed_changed,
+    .speed_changed = &nvr_at_speed_changed,
     .force_redraw  = NULL,
     .config        = NULL
 };
@@ -1360,11 +1360,11 @@ const device_t ami_1994_nvr_device = {
     .internal_name = "ami_1994_nvr",
     .flags         = DEVICE_ISA | DEVICE_AT,
     .local         = 0x10 | 5,
-    .init          = nvr_at_init,
-    .close         = nvr_at_close,
-    .reset         = nvr_at_reset,
+    .init          = &nvr_at_init,
+    .close         = &nvr_at_close,
+    .reset         = &nvr_at_reset,
     { .available = NULL },
-    .speed_changed = nvr_at_speed_changed,
+    .speed_changed = &nvr_at_speed_changed,
     .force_redraw  = NULL,
     .config        = NULL
 };
@@ -1374,11 +1374,11 @@ const device_t ami_1995_nvr_device = {
     .internal_name = "ami_1995_nvr",
     .flags         = DEVICE_ISA | DEVICE_AT,
     .local         = 0x10 | 6,
-    .init          = nvr_at_init,
-    .close         = nvr_at_close,
-    .reset         = nvr_at_reset,
+    .init          = &nvr_at_init,
+    .close         = &nvr_at_close,
+    .reset         = &nvr_at_reset,
     { .available = NULL },
-    .speed_changed = nvr_at_speed_changed,
+    .speed_changed = &nvr_at_speed_changed,
     .force_redraw  = NULL,
     .config        = NULL
 };
@@ -1388,11 +1388,11 @@ const device_t via_nvr_device = {
     .internal_name = "via_nvr",
     .flags         = DEVICE_ISA | DEVICE_AT,
     .local         = 0x10 | 7,
-    .init          = nvr_at_init,
-    .close         = nvr_at_close,
-    .reset         = nvr_at_reset,
+    .init          = &nvr_at_init,
+    .close         = &nvr_at_close,
+    .reset         = &nvr_at_reset,
     { .available = NULL },
-    .speed_changed = nvr_at_speed_changed,
+    .speed_changed = &nvr_at_speed_changed,
     .force_redraw  = NULL,
     .config        = NULL
 };
@@ -1402,11 +1402,11 @@ const device_t p6rp4_nvr_device = {
     .internal_name = "p6rp4_nvr",
     .flags         = DEVICE_ISA | DEVICE_AT,
     .local         = 32,
-    .init          = nvr_at_init,
-    .close         = nvr_at_close,
-    .reset         = nvr_at_reset,
+    .init          = &nvr_at_init,
+    .close         = &nvr_at_close,
+    .reset         = &nvr_at_reset,
     { .available = NULL },
-    .speed_changed = nvr_at_speed_changed,
+    .speed_changed = &nvr_at_speed_changed,
     .force_redraw  = NULL,
     .config        = NULL
 };
@@ -1416,11 +1416,11 @@ const device_t amstrad_megapc_nvr_device = {
     .internal_name = "amstrad_megapc_nvr",
     .flags         = DEVICE_ISA | DEVICE_AT,
     .local         = 36,
-    .init          = nvr_at_init,
-    .close         = nvr_at_close,
-    .reset         = nvr_at_reset,
+    .init          = &nvr_at_init,
+    .close         = &nvr_at_close,
+    .reset         = &nvr_at_reset,
     { .available = NULL },
-    .speed_changed = nvr_at_speed_changed,
+    .speed_changed = &nvr_at_speed_changed,
     .force_redraw  = NULL,
     .config        = NULL
 };
@@ -1430,11 +1430,11 @@ const device_t elt_nvr_device = {
     .internal_name = "elt_nvr",
     .flags         = DEVICE_ISA,
     .local         = 8,
-    .init          = nvr_at_init,
-    .close         = nvr_at_close,
-    .reset         = nvr_at_reset,
+    .init          = &nvr_at_init,
+    .close         = &nvr_at_close,
+    .reset         = &nvr_at_reset,
     { .available = NULL },
-    .speed_changed = nvr_at_speed_changed,
+    .speed_changed = &nvr_at_speed_changed,
     .force_redraw  = NULL,
     .config        = NULL
 };

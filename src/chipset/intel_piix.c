@@ -103,7 +103,7 @@ piix_log(const char *fmt, ...)
 #endif
 
 static void
-smsc_ide_irqs(piix_t *dev)
+smsc_ide_irqs(const piix_t *dev)
 {
     int irq_line = 3;
     uint8_t irq_mode[2] = { IRQ_MODE_LEGACY, IRQ_MODE_LEGACY };
@@ -151,7 +151,7 @@ smsc_ide_irqs(piix_t *dev)
 }
 
 static void
-piix_ide_handlers(piix_t *dev, int bus)
+piix_ide_handlers(const piix_t *dev, int bus)
 {
     uint16_t main;
     uint16_t side;
@@ -198,7 +198,7 @@ piix_ide_handlers(piix_t *dev, int bus)
 }
 
 static void
-piix_ide_bm_handlers(piix_t *dev)
+piix_ide_bm_handlers(const piix_t *dev)
 {
     uint16_t base = (dev->regs[1][0x20] & 0xf0) | (dev->regs[1][0x21] << 8);
 
@@ -207,7 +207,7 @@ piix_ide_bm_handlers(piix_t *dev)
 }
 
 static uint8_t
-kbc_alias_reg_read(UNUSED(uint16_t addr), UNUSED(void *priv))
+kbc_alias_reg_read(UNUSED(uint16_t addr), UNUSED(const void *priv))
 {
     uint8_t ret = inb(0x61);
 
@@ -215,13 +215,13 @@ kbc_alias_reg_read(UNUSED(uint16_t addr), UNUSED(void *priv))
 }
 
 static void
-kbc_alias_reg_write(UNUSED(uint16_t addr), uint8_t val, UNUSED(void *priv))
+kbc_alias_reg_write(UNUSED(uint16_t addr), uint8_t val, UNUSED(const void *priv))
 {
     outb(0x61, val);
 }
 
 static void
-kbc_alias_update_io_mapping(piix_t *dev)
+kbc_alias_update_io_mapping(const piix_t *dev)
 {
     io_removehandler(0x0063, 1, kbc_alias_reg_read, NULL, NULL, kbc_alias_reg_write, NULL, NULL, dev);
     io_removehandler(0x0065, 1, kbc_alias_reg_read, NULL, NULL, kbc_alias_reg_write, NULL, NULL, dev);
@@ -235,7 +235,7 @@ kbc_alias_update_io_mapping(piix_t *dev)
 }
 
 static void
-smbus_update_io_mapping(piix_t *dev)
+smbus_update_io_mapping(const piix_t *dev)
 {
     smbus_piix4_remap(dev->smbus, ((uint16_t) (dev->regs[3][0x91] << 8)) | (dev->regs[3][0x90] & 0xf0), (dev->regs[3][PCI_REG_COMMAND] & PCI_COMMAND_IO) && (dev->regs[3][0xd2] & 0x01));
 }
@@ -271,9 +271,9 @@ nvr_update_io_mapping(piix_t *dev)
 }
 
 static void
-piix_trap_io(UNUSED(int size), UNUSED(uint16_t addr), UNUSED(uint8_t write), UNUSED(uint8_t val), void *priv)
+piix_trap_io(UNUSED(int size), UNUSED(uint16_t addr), UNUSED(uint8_t write), UNUSED(uint8_t val), const void *priv)
 {
-    piix_io_trap_t *trap = (piix_io_trap_t *) priv;
+    piix_io_trap_t *trap = (const piix_io_trap_t *) priv;
 
     if (*(trap->en_reg) & trap->en_mask) {
         *(trap->sts_reg) |= trap->sts_mask;
@@ -282,9 +282,9 @@ piix_trap_io(UNUSED(int size), UNUSED(uint16_t addr), UNUSED(uint8_t write), UNU
 }
 
 static void
-piix_trap_io_ide(int size, uint16_t addr, uint8_t write, uint8_t val, void *priv)
+piix_trap_io_ide(int size, uint16_t addr, uint8_t write, uint8_t val, const void *priv)
 {
-    const piix_io_trap_t *trap = (piix_io_trap_t *) priv;
+    const piix_io_trap_t *trap = (const piix_io_trap_t *) priv;
 
     /* IDE traps are per drive, not per channel. */
     if (ide_drives[trap->dev_id]->selected)
@@ -302,7 +302,7 @@ piix_trap_update_devctl(piix_t *dev, uint8_t trap_id, uint8_t dev_id,
     /* Set up Device I/O traps dynamically. */
     if (enable && !trap->trap) {
         trap->dev      = dev;
-        trap->trap     = io_trap_add((dev_id <= 3) ? piix_trap_io_ide : piix_trap_io, trap);
+        trap->trap     = io_trap_add((dev_id <= 3) ? &piix_trap_io_ide : &piix_trap_io, trap);
         trap->dev_id   = dev_id;
         trap->sts_reg  = &dev->acpi->regs.devsts;
         trap->sts_mask = 0x00010000 << dev_id;
@@ -320,9 +320,9 @@ piix_trap_update_devctl(piix_t *dev, uint8_t trap_id, uint8_t dev_id,
 }
 
 static void
-piix_trap_update(void *priv)
+piix_trap_update(const void *priv)
 {
-    piix_t        *dev     = (piix_t *) priv;
+    piix_t        *dev     = (const piix_t *) priv;
     uint8_t        trap_id = 0;
     const uint8_t *fregs   = dev->regs[3];
     uint16_t       temp;
@@ -461,9 +461,9 @@ piix_trap_update(void *priv)
 }
 
 static void
-piix_write(int func, int addr, uint8_t val, void *priv)
+piix_write(int func, int addr, uint8_t val, const void *priv)
 {
-    piix_t  *dev = (piix_t *) priv;
+    piix_t  *dev = (const piix_t *) priv;
     uint8_t *fregs;
     uint16_t base;
 
@@ -1165,7 +1165,7 @@ piix_write(int func, int addr, uint8_t val, void *priv)
 }
 
 static uint8_t
-piix_read(int func, int addr, void *priv)
+piix_read(int func, int addr, const void *priv)
 {
     piix_t        *dev = (piix_t *) priv;
     uint8_t        ret = 0xff;
@@ -1186,7 +1186,7 @@ piix_read(int func, int addr, void *priv)
 }
 
 static void
-board_write(uint16_t port, uint8_t val, void *priv)
+board_write(uint16_t port, uint8_t val, const void *priv)
 {
     piix_t *dev = (piix_t *) priv;
 
@@ -1197,9 +1197,9 @@ board_write(uint16_t port, uint8_t val, void *priv)
 }
 
 static uint8_t
-board_read(uint16_t port, void *priv)
+board_read(uint16_t port, const void *priv)
 {
-    const piix_t *dev = (piix_t *) priv;
+    const piix_t *dev = (const piix_t *) priv;
     uint8_t       ret = 0x64;
 
     if (port == 0x00e0)
@@ -1413,9 +1413,9 @@ piix_reset_hard(piix_t *dev)
 }
 
 static void
-piix_apm_out(UNUSED(uint16_t port), UNUSED(uint8_t val), void *priv)
+piix_apm_out(UNUSED(uint16_t port), UNUSED(uint8_t val), const void *priv)
 {
-    piix_t *dev = (piix_t *) priv;
+    piix_t *dev = (const piix_t *) priv;
 
     if (dev->apm->do_smi) {
         if (dev->type < 4)
@@ -1424,9 +1424,9 @@ piix_apm_out(UNUSED(uint16_t port), UNUSED(uint8_t val), void *priv)
 }
 
 static void
-piix_fast_off_count(void *priv)
+piix_fast_off_count(const void *priv)
 {
-    piix_t *dev = (piix_t *) priv;
+    piix_t *dev = (const piix_t *) priv;
 
     smi_raise();
     dev->regs[0][0xaa] |= 0x20;
@@ -1435,7 +1435,7 @@ piix_fast_off_count(void *priv)
 static void
 piix_reset(void *priv)
 {
-    const piix_t *dev = (piix_t *) priv;
+    const piix_t *dev = (const piix_t *) priv;
 
     if (dev->type > 3) {
         piix_write(3, 0x04, 0x00, priv);
@@ -1511,9 +1511,9 @@ piix_reset(void *priv)
 }
 
 static void
-piix_close(void *priv)
+piix_close(const void *priv)
 {
-    piix_t *dev = (piix_t *) priv;
+    piix_t *dev = (const piix_t *) priv;
 
     for (int i = 0; i < (sizeof(dev->io_traps) / sizeof(dev->io_traps[0])); i++)
         io_trap_remove(dev->io_traps[i].trap);
@@ -1522,9 +1522,9 @@ piix_close(void *priv)
 }
 
 static void
-piix_speed_changed(void *priv)
+piix_speed_changed(const void *priv)
 {
-    piix_t *dev = (piix_t *) priv;
+    piix_t *dev = (const piix_t *) priv;
     if (!dev)
         return;
 
@@ -1548,7 +1548,7 @@ piix_init(const device_t *info)
     dev->no_mirq0   = (info->local >> 12) & 0x0f;
     dev->func0_id   = info->local >> 16;
 
-    pci_add_card(PCI_ADD_SOUTHBRIDGE, piix_read, piix_write, dev, &dev->pci_slot);
+    pci_add_card(PCI_ADD_SOUTHBRIDGE, &piix_read, &piix_write, dev, &dev->pci_slot);
     piix_log("PIIX%i: Added to slot: %02X\n", dev->type, dev->pci_slot);
     piix_log("PIIX%i: Added to slot: %02X\n", dev->type, dev->pci_slot);
 
@@ -1592,7 +1592,7 @@ piix_init(const device_t *info)
 
         dev->ddma = device_add(&ddma_device);
     } else
-        timer_add(&dev->fast_off_timer, piix_fast_off_count, dev, 0);
+        timer_add(&dev->fast_off_timer, &piix_fast_off_count, dev, 0);
 
     piix_reset_hard(dev);
     piix_log("Maximum function: %i\n", dev->max_func);

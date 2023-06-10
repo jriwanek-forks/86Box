@@ -61,7 +61,7 @@ opti895_log(const char *fmt, ...)
 #endif
 
 static void
-opti895_recalc(opti895_t *dev)
+opti895_recalc(const opti895_t *dev)
 {
     uint32_t base;
     uint32_t shflags = 0;
@@ -136,9 +136,9 @@ opti895_recalc(opti895_t *dev)
 }
 
 static void
-opti895_write(uint16_t addr, uint8_t val, void *priv)
+opti895_write(uint16_t addr, uint8_t val, const void *priv)
 {
-    opti895_t *dev = (opti895_t *) priv;
+    opti895_t *dev = (const opti895_t *) priv;
 
     opti895_log("opti895_write(%04X, %08X)\n", addr, val);
 
@@ -205,10 +205,10 @@ opti895_write(uint16_t addr, uint8_t val, void *priv)
 }
 
 static uint8_t
-opti895_read(uint16_t addr, void *priv)
+opti895_read(uint16_t addr, const void *priv)
 {
     uint8_t          ret = 0xff;
-    const opti895_t *dev = (opti895_t *) priv;
+    const opti895_t *dev = (const opti895_t *) priv;
 
     switch (addr) {
         case 0x23:
@@ -239,9 +239,9 @@ opti895_read(uint16_t addr, void *priv)
 }
 
 static void
-opti895_close(void *priv)
+opti895_close(const void *priv)
 {
-    opti895_t *dev = (opti895_t *) priv;
+    opti895_t *dev = (const opti895_t *) priv;
 
     smram_del(dev->smram);
 

@@ -63,14 +63,14 @@ typedef struct acc2168_t {
 } acc2168_t;
 
 static void
-acc2168_shadow_recalc(acc2168_t *dev)
+acc2168_shadow_recalc(const acc2168_t *dev)
 {
     for (uint8_t i = 0; i < 5; i++)
         mem_set_mem_state_both(SHADOW_ADDR, SHADOW_SIZE, SHADOW_RECALC);
 }
 
 static void
-acc2168_write(uint16_t addr, uint8_t val, void *priv)
+acc2168_write(uint16_t addr, uint8_t val, const void *priv)
 {
     acc2168_t *dev = (acc2168_t *) priv;
 
@@ -166,17 +166,17 @@ acc2168_write(uint16_t addr, uint8_t val, void *priv)
 }
 
 static uint8_t
-acc2168_read(uint16_t addr, void *priv)
+acc2168_read(uint16_t addr, const void *priv)
 {
-    const acc2168_t *dev = (acc2168_t *) priv;
+    const acc2168_t *dev = (const acc2168_t *) priv;
 
     return (addr == 0xf3) ? dev->regs[dev->reg_idx] : dev->reg_idx;
 }
 
 static void
-acc2168_close(void *priv)
+acc2168_close(const void *priv)
 {
-    acc2168_t *dev = (acc2168_t *) priv;
+    const acc2168_t *dev = (const acc2168_t *) priv;
 
     free(dev);
 }
@@ -184,11 +184,11 @@ acc2168_close(void *priv)
 static void *
 acc2168_init(UNUSED(const device_t *info))
 {
-    acc2168_t *dev = (acc2168_t *) malloc(sizeof(acc2168_t));
+    const acc2168_t *dev = (const acc2168_t *) malloc(sizeof(acc2168_t));
     memset(dev, 0, sizeof(acc2168_t));
 
     device_add(&port_92_device);
-    io_sethandler(0x00f2, 0x0002, acc2168_read, NULL, NULL, acc2168_write, NULL, NULL, dev);
+    io_sethandler(0x00f2, 0x0002, acc2168_read, NULL, NULL, &acc2168_write, NULL, NULL, dev);
 
     return dev;
 }
@@ -198,8 +198,8 @@ const device_t acc2168_device = {
     .internal_name = "acc2168",
     .flags         = 0,
     .local         = 0,
-    .init          = acc2168_init,
-    .close         = acc2168_close,
+    .init          = &acc2168_init,
+    .close         = &acc2168_close,
     .reset         = NULL,
     { .available = NULL },
     .speed_changed = NULL,

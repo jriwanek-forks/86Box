@@ -78,7 +78,7 @@ typedef struct sis_5511_t {
 static void
 sis_5511_write(int func, int addr, uint8_t val, void *priv)
 {
-    const sis_5511_t *dev = (sis_5511_t *) priv;
+    const sis_5511_t *dev = (const sis_5511_t *) priv;
 
     sis_5511_log("SiS 5511: [W] dev->pci_conf[%02X] = %02X\n", addr, val);
 
@@ -101,7 +101,7 @@ sis_5511_read(int func, int addr, void *priv)
 }
 
 static void
-sis_5513_write(int func, int addr, uint8_t val, void *priv)
+sis_5513_write(int func, int addr, uint8_t val, const void *priv)
 {
     const sis_5511_t *dev = (sis_5511_t *) priv;
 
@@ -114,7 +114,7 @@ sis_5513_write(int func, int addr, uint8_t val, void *priv)
 }
 
 static uint8_t
-sis_5513_read(int func, int addr, void *priv)
+sis_5513_read(int func, int addr, const void *priv)
 {
     const sis_5511_t *dev = (sis_5511_t *) priv;
     uint8_t ret = 0xff;
@@ -130,9 +130,9 @@ sis_5513_read(int func, int addr, void *priv)
 }
 
 static void
-sis_5511_close(void *priv)
+sis_5511_close(const void *priv)
 {
-    sis_5511_t *dev = (sis_5511_t *) priv;
+    const sis_5511_t *dev = (const sis_5511_t *) priv;
 
     free(dev);
 }

@@ -398,7 +398,7 @@ gdbstub_hex_encode(int c)
 }
 
 static int
-gdbstub_num_decode(char *p, int *dest, int mode)
+gdbstub_num_decode(const char *p, int *dest, int mode)
 {
     /* Stop if the pointer is invalid. */
     if (!p)
@@ -489,7 +489,7 @@ gdbstub_num_decode(char *p, int *dest, int mode)
 }
 
 static int
-gdbstub_client_read_word(gdbstub_client_t *client, int *dest)
+gdbstub_client_read_word(const gdbstub_client_t *client, int *dest)
 {
     const char *p = &client->packet[client->packet_pos];
     const char *q = p;
@@ -499,7 +499,7 @@ gdbstub_client_read_word(gdbstub_client_t *client, int *dest)
 }
 
 static int
-gdbstub_client_read_hex(gdbstub_client_t *client, uint8_t *buf, int size)
+gdbstub_client_read_hex(const gdbstub_client_t *client, uint8_t *buf, int size)
 {
     int pp = client->packet_pos;
     while (size-- && (pp < (sizeof(client->packet) - 2))) {
@@ -510,7 +510,7 @@ gdbstub_client_read_hex(gdbstub_client_t *client, uint8_t *buf, int size)
 }
 
 static int
-gdbstub_client_read_string(gdbstub_client_t *client, char *buf, int size, char terminator)
+gdbstub_client_read_string(const gdbstub_client_t *client, char *buf, int size, char terminator)
 {
     int  pp = client->packet_pos;
     char c;
@@ -654,7 +654,7 @@ gdbstub_client_respond_partial(gdbstub_client_t *client)
 }
 
 static void
-gdbstub_client_respond_hex(gdbstub_client_t *client, uint8_t *buf, int size)
+gdbstub_client_respond_hex(gdbstub_client_t *client, const uint8_t *buf, int size)
 {
     while (size-- && (client->response_pos < (sizeof(client->response) - 2))) {
         client->response[client->response_pos++] = gdbstub_hex_encode((*buf) >> 4);
@@ -1612,7 +1612,7 @@ gdbstub_client_thread(void *priv)
 }
 
 static void
-gdbstub_server_thread(void *priv)
+gdbstub_server_thread(const void *priv)
 {
     /* Listen on GDB socket. */
     listen(gdbstub_socket, 1);

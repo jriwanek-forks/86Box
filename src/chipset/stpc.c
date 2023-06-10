@@ -105,7 +105,7 @@ stpc_log(const char *fmt, ...)
 #endif
 
 static void
-stpc_recalcmapping(stpc_t *dev)
+stpc_recalcmapping(const stpc_t *dev)
 {
     uint32_t base;
     uint32_t size;
@@ -153,9 +153,9 @@ stpc_recalcmapping(stpc_t *dev)
 }
 
 static void
-stpc_host_write(uint16_t addr, uint8_t val, void *priv)
+stpc_host_write(uint16_t addr, uint8_t val, const void *priv)
 {
-    stpc_t *dev = (stpc_t *) priv;
+    stpc_t *dev = (const stpc_t *) priv;
 
     stpc_log("STPC: host_write(%04X, %02X)\n", addr, val);
 
@@ -166,9 +166,9 @@ stpc_host_write(uint16_t addr, uint8_t val, void *priv)
 }
 
 static uint8_t
-stpc_host_read(uint16_t addr, void *priv)
+stpc_host_read(uint16_t addr, const void *priv)
 {
-    const stpc_t *dev = (stpc_t *) priv;
+    const stpc_t *dev = (const stpc_t *) priv;
     uint8_t       ret;
 
     if (addr == dev->host_base)
@@ -183,9 +183,9 @@ stpc_host_read(uint16_t addr, void *priv)
 }
 
 static void
-stpc_localbus_write(uint16_t addr, uint8_t val, void *priv)
+stpc_localbus_write(uint16_t addr, uint8_t val, const void *priv)
 {
-    stpc_t *dev = (stpc_t *) priv;
+    stpc_t *dev = (const stpc_t *) priv;
 
     stpc_log("STPC: localbus_write(%04X, %02X)\n", addr, val);
 
@@ -196,9 +196,9 @@ stpc_localbus_write(uint16_t addr, uint8_t val, void *priv)
 }
 
 static uint8_t
-stpc_localbus_read(uint16_t addr, void *priv)
+stpc_localbus_read(uint16_t addr, const void *priv)
 {
-    const stpc_t *dev = (stpc_t *) priv;
+    const stpc_t *dev = (const stpc_t *) priv;
     uint8_t       ret;
 
     if (addr == dev->localbus_base)
@@ -213,9 +213,9 @@ stpc_localbus_read(uint16_t addr, void *priv)
 }
 
 static void
-stpc_nb_write(int func, int addr, uint8_t val, void *priv)
+stpc_nb_write(int func, int addr, uint8_t val, const void *priv)
 {
-    stpc_t *dev = (stpc_t *) priv;
+    stpc_t *dev = (const stpc_t *) priv;
 
     stpc_log("STPC: nb_write(%d, %02X, %02X)\n", func, addr, val);
 
@@ -260,9 +260,9 @@ stpc_nb_write(int func, int addr, uint8_t val, void *priv)
 }
 
 static uint8_t
-stpc_nb_read(int func, int addr, void *priv)
+stpc_nb_read(int func, int addr, const void *priv)
 {
-    const stpc_t *dev = (stpc_t *) priv;
+    const stpc_t *dev = (const stpc_t *) priv;
     uint8_t       ret;
 
     if (func > 0)
@@ -275,7 +275,7 @@ stpc_nb_read(int func, int addr, void *priv)
 }
 
 static void
-stpc_ide_handlers(stpc_t *dev, int bus)
+stpc_ide_handlers(const stpc_t *dev, int bus)
 {
     uint16_t main;
     uint16_t side;
@@ -284,8 +284,8 @@ stpc_ide_handlers(stpc_t *dev, int bus)
         ide_pri_disable();
 
         if (dev->pci_conf[2][0x09] & 0x01) {
-            main = (dev->pci_conf[2][0x11] << 8) | (dev->pci_conf[2][0x10] & 0xf8);
-            side = ((dev->pci_conf[2][0x15] << 8) | (dev->pci_conf[2][0x14] & 0xfc)) + 2;
+            main = (uint16_t) (dev->pci_conf[2][0x11] << 8) | (dev->pci_conf[2][0x10] & 0xf8);
+            side = (uint16_t) ((dev->pci_conf[2][0x15] << 8) | (dev->pci_conf[2][0x14] & 0xfc)) + 2;
         } else {
             main = 0x1f0;
             side = 0x3f6;
@@ -307,8 +307,8 @@ stpc_ide_handlers(stpc_t *dev, int bus)
         ide_sec_disable();
 
         if (dev->pci_conf[2][0x09] & 0x04) {
-            main = (dev->pci_conf[2][0x19] << 8) | (dev->pci_conf[2][0x18] & 0xf8);
-            side = ((dev->pci_conf[2][0x1d] << 8) | (dev->pci_conf[2][0x1c] & 0xfc)) + 2;
+            main = (uint16_t) (dev->pci_conf[2][0x19] << 8) | (dev->pci_conf[2][0x18] & 0xf8);
+            side = (uint16_t) ((dev->pci_conf[2][0x1d] << 8) | (dev->pci_conf[2][0x1c] & 0xfc)) + 2;
         } else {
             main = 0x170;
             side = 0x376;
@@ -328,18 +328,18 @@ stpc_ide_handlers(stpc_t *dev, int bus)
 }
 
 static void
-stpc_ide_bm_handlers(stpc_t *dev)
+stpc_ide_bm_handlers(const stpc_t *dev)
 {
-    uint16_t base = (dev->pci_conf[2][0x20] & 0xf0) | (dev->pci_conf[2][0x21] << 8);
+    uint16_t base = (uint16_t) ((dev->pci_conf[2][0x20] & 0xf0) | (dev->pci_conf[2][0x21] << 8));
 
     sff_bus_master_handler(dev->bm[0], dev->pci_conf[2][0x04] & 1, base);
     sff_bus_master_handler(dev->bm[1], dev->pci_conf[2][0x04] & 1, base + 8);
 }
 
 static void
-stpc_ide_write(int func, int addr, uint8_t val, void *priv)
+stpc_ide_write(int func, int addr, uint8_t val, const void *priv)
 {
-    stpc_t *dev = (stpc_t *) priv;
+    stpc_t *dev = (const stpc_t *) priv;
 
     stpc_log("STPC: ide_write(%d, %02X, %02X)\n", func, addr, val);
 
@@ -445,9 +445,9 @@ stpc_ide_write(int func, int addr, uint8_t val, void *priv)
 }
 
 static uint8_t
-stpc_ide_read(int func, int addr, void *priv)
+stpc_ide_read(int func, int addr, const void *priv)
 {
-    const stpc_t *dev = (stpc_t *) priv;
+    const stpc_t *dev = (const stpc_t *) priv;
     uint8_t       ret;
 
     if (func > 0)
@@ -466,9 +466,9 @@ stpc_ide_read(int func, int addr, void *priv)
 }
 
 static void
-stpc_isab_write(int func, int addr, uint8_t val, void *priv)
+stpc_isab_write(int func, int addr, uint8_t val, const void *priv)
 {
-    stpc_t *dev = (stpc_t *) priv;
+    stpc_t *dev = (const stpc_t *) priv;
 
     if ((func == 1) && (dev->local != STPC_ATLAS)) {
         stpc_ide_write(0, addr, val, priv);
@@ -507,9 +507,9 @@ stpc_isab_write(int func, int addr, uint8_t val, void *priv)
 }
 
 static uint8_t
-stpc_isab_read(int func, int addr, void *priv)
+stpc_isab_read(int func, int addr, const void *priv)
 {
-    const stpc_t *dev = (stpc_t *) priv;
+    const stpc_t *dev = (const stpc_t *) priv;
     uint8_t       ret;
 
     if ((func == 1) && (dev->local != STPC_ATLAS))
@@ -524,9 +524,9 @@ stpc_isab_read(int func, int addr, void *priv)
 }
 
 static void
-stpc_usb_write(int func, int addr, uint8_t val, void *priv)
+stpc_usb_write(int func, int addr, uint8_t val, const void *priv)
 {
-    stpc_t *dev = (stpc_t *) priv;
+    stpc_t *dev = (const stpc_t *) priv;
 
     stpc_log("STPC: usb_write(%d, %02X, %02X)\n", func, addr, val);
 
@@ -571,9 +571,9 @@ stpc_usb_write(int func, int addr, uint8_t val, void *priv)
 }
 
 static uint8_t
-stpc_usb_read(int func, int addr, void *priv)
+stpc_usb_read(int func, int addr, const void *priv)
 {
-    const stpc_t *dev = (stpc_t *) priv;
+    const stpc_t *dev = (const stpc_t *) priv;
     uint8_t       ret;
 
     if (func > 0)
@@ -591,10 +591,10 @@ stpc_remap_host(stpc_t *dev, uint16_t host_base)
     stpc_log("STPC: Remapping host bus from %04X to %04X\n", dev->host_base, host_base);
 
     io_removehandler(dev->host_base, 5,
-                     stpc_host_read, NULL, NULL, stpc_host_write, NULL, NULL, dev);
+                     &stpc_host_read, NULL, NULL, &stpc_host_write, NULL, NULL, dev);
     if (host_base) {
         io_sethandler(host_base, 5,
-                      stpc_host_read, NULL, NULL, stpc_host_write, NULL, NULL, dev);
+                      &stpc_host_read, NULL, NULL, &stpc_host_write, NULL, NULL, dev);
     }
     dev->host_base = host_base;
 }
@@ -605,10 +605,10 @@ stpc_remap_localbus(stpc_t *dev, uint16_t localbus_base)
     stpc_log("STPC: Remapping local bus from %04X to %04X\n", dev->localbus_base, localbus_base);
 
     io_removehandler(dev->localbus_base, 5,
-                     stpc_localbus_read, NULL, NULL, stpc_localbus_write, NULL, NULL, dev);
+                     &stpc_localbus_read, NULL, NULL, &stpc_localbus_write, NULL, NULL, dev);
     if (localbus_base) {
         io_sethandler(localbus_base, 5,
-                      stpc_localbus_read, NULL, NULL, stpc_localbus_write, NULL, NULL, dev);
+                      &stpc_localbus_read, NULL, NULL, &stpc_localbus_write, NULL, NULL, dev);
     }
     dev->localbus_base = localbus_base;
 }
@@ -661,9 +661,9 @@ stpc_serial_handlers(uint8_t val)
 }
 
 static void
-stpc_reg_write(uint16_t addr, uint8_t val, void *priv)
+stpc_reg_write(uint16_t addr, uint8_t val, const void *priv)
 {
-    stpc_t *dev = (stpc_t *) priv;
+    stpc_t *dev = (const stpc_t *) priv;
 
     stpc_log("STPC: reg_write(%04X, %02X)\n", addr, val);
 
@@ -682,9 +682,9 @@ stpc_reg_write(uint16_t addr, uint8_t val, void *priv)
 
             case 0x13:
                 if (dev->regs[0x10] == 0x07)
-                    stpc_remap_host(dev, (dev->host_base & 0x00ff) | (val << 8));
+                    stpc_remap_host(dev, (uint16_t) ((dev->host_base & 0x00ff) | (val << 8)));
                 else if (dev->regs[0x10] == 0x06)
-                    stpc_remap_localbus(dev, (dev->localbus_base & 0x00ff) | (val << 8));
+                    stpc_remap_localbus(dev, (uint16_t) ((dev->localbus_base & 0x00ff) | (val << 8)));
                 break;
 
             case 0x21:
@@ -745,9 +745,9 @@ stpc_reg_write(uint16_t addr, uint8_t val, void *priv)
 }
 
 static uint8_t
-stpc_reg_read(uint16_t addr, void *priv)
+stpc_reg_read(uint16_t addr, const void *priv)
 {
-    const stpc_t *dev = (stpc_t *) priv;
+    const stpc_t *dev = (const stpc_t *) priv;
     uint8_t       ret;
 
     if (addr == 0x22)
@@ -767,9 +767,9 @@ stpc_reg_read(uint16_t addr, void *priv)
 }
 
 static void
-stpc_reset(void *priv)
+stpc_reset(const void *priv)
 {
-    stpc_t *dev = (stpc_t *) priv;
+    stpc_t *dev = (const stpc_t *) priv;
 
     stpc_log("STPC: reset()\n");
 
@@ -788,7 +788,7 @@ stpc_setup(stpc_t *dev)
 
     /* Main register interface */
     io_sethandler(0x22, 2,
-                  stpc_reg_read, NULL, NULL, stpc_reg_write, NULL, NULL, dev);
+                  &stpc_reg_read, NULL, NULL, &stpc_reg_write, NULL, NULL, dev);
 
     /* Northbridge */
     if (dev->local & STPC_CLIENT) {
@@ -811,10 +811,10 @@ stpc_setup(stpc_t *dev)
     dev->pci_conf[0][0x0b] = 0x06;
 
     /* ISA Bridge */
-    dev->pci_conf[1][0x00] = dev->local >> 16;
+    dev->pci_conf[1][0x00] = (uint8_t) dev->local >> 16;
     dev->pci_conf[1][0x01] = dev->local >> 24;
-    dev->pci_conf[1][0x02] = dev->local;
-    dev->pci_conf[1][0x03] = dev->local >> 8;
+    dev->pci_conf[1][0x02] = (uint8_t) dev->local;
+    dev->pci_conf[1][0x03] = (uint8_t) dev->local >> 8;
 
     dev->pci_conf[1][0x04] = 0x0f;
 
@@ -830,7 +830,7 @@ stpc_setup(stpc_t *dev)
     dev->pci_conf[1][0x0e] = /*0x40*/ 0x80;
 
     /* IDE */
-    dev->pci_conf[2][0x00] = dev->local >> 16;
+    dev->pci_conf[2][0x00] = (uint8_t) dev->local >> 16;
     dev->pci_conf[2][0x01] = dev->local >> 24;
 
     if (dev->local == STPC_ATLAS) {
@@ -870,8 +870,8 @@ stpc_setup(stpc_t *dev)
 
     /* USB */
     if (dev->usb) {
-        dev->pci_conf[3][0x00] = dev->local >> 16;
-        dev->pci_conf[3][0x01] = dev->local >> 24;
+        dev->pci_conf[3][0x00] = (uint8_t) dev->local >> 16;
+        dev->pci_conf[3][0x01] = (uint8_t) dev->local >> 24;
         dev->pci_conf[3][0x02] = 0x30;
         dev->pci_conf[3][0x03] = 0x02;
 
@@ -898,7 +898,7 @@ stpc_setup(stpc_t *dev)
 static void
 stpc_close(void *priv)
 {
-    stpc_t *dev = (stpc_t *) priv;
+    const stpc_t *dev = (const stpc_t *) priv;
 
     stpc_log("STPC: close()\n");
 
@@ -917,8 +917,8 @@ stpc_init(const device_t *info)
 
     dev->local = info->local;
 
-    pci_add_card(PCI_ADD_NORTHBRIDGE, stpc_nb_read, stpc_nb_write, dev, &dev->nb_slot);
-    pci_add_card(PCI_ADD_SOUTHBRIDGE, stpc_isab_read, stpc_isab_write, dev, &dev->sb_slot);
+    pci_add_card(PCI_ADD_NORTHBRIDGE, &stpc_nb_read, &stpc_nb_write, dev, &dev->nb_slot);
+    pci_add_card(PCI_ADD_SOUTHBRIDGE, &stpc_isab_read, &stpc_isab_write, dev, &dev->sb_slot);
     if (dev->local == STPC_ATLAS) {
         pci_add_card(PCI_ADD_SOUTHBRIDGE_IDE, stpc_ide_read, stpc_ide_write, dev, &dev->ide_slot);
 
@@ -949,9 +949,9 @@ stpc_init(const device_t *info)
 }
 
 static void
-stpc_serial_close(void *priv)
+stpc_serial_close(const void *priv)
 {
-    stpc_serial_t *dev = (stpc_serial_t *) priv;
+    const stpc_serial_t *dev = (const stpc_serial_t *) priv;
 
     stpc_log("STPC: serial_close()\n");
 
@@ -1023,9 +1023,9 @@ stpc_lpt_handlers(stpc_lpt_t *dev, uint8_t val)
 }
 
 static void
-stpc_lpt_write(uint16_t addr, uint8_t val, void *priv)
+stpc_lpt_write(uint16_t addr, uint8_t val, const void *priv)
 {
-    stpc_lpt_t *dev = (stpc_lpt_t *) priv;
+    stpc_lpt_t *dev = (const stpc_lpt_t *) priv;
 
     if (dev->unlocked < 2) {
         /* Cheat a little bit: in reality, any write to any
@@ -1048,9 +1048,9 @@ stpc_lpt_write(uint16_t addr, uint8_t val, void *priv)
 }
 
 static void
-stpc_lpt_reset(void *priv)
+stpc_lpt_reset(const void *priv)
 {
-    stpc_lpt_t *dev = (stpc_lpt_t *) priv;
+    stpc_lpt_t *dev = (const stpc_lpt_t *) priv;
 
     stpc_log("STPC: lpt_reset()\n");
 
@@ -1062,9 +1062,9 @@ stpc_lpt_reset(void *priv)
 }
 
 static void
-stpc_lpt_close(void *priv)
+stpc_lpt_close(const void *priv)
 {
-    stpc_lpt_t *dev = (stpc_lpt_t *) priv;
+    const stpc_lpt_t *dev = (const stpc_lpt_t *) priv;
 
     stpc_log("STPC: lpt_close()\n");
 
@@ -1082,7 +1082,7 @@ stpc_lpt_init(UNUSED(const device_t *info))
     stpc_lpt_reset(dev);
 
     io_sethandler(0x3f0, 2,
-                  NULL, NULL, NULL, stpc_lpt_write, NULL, NULL, dev);
+                  NULL, NULL, NULL, &stpc_lpt_write, NULL, NULL, dev);
 
     return dev;
 }
@@ -1093,9 +1093,9 @@ const device_t stpc_client_device = {
     .internal_name = "stpc_client",
     .flags         = DEVICE_PCI,
     .local         = STPC_CLIENT,
-    .init          = stpc_init,
-    .close         = stpc_close,
-    .reset         = stpc_reset,
+    .init          = &stpc_init,
+    .close         = &stpc_close,
+    .reset         = &stpc_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,
@@ -1107,9 +1107,9 @@ const device_t stpc_consumer2_device = {
     .internal_name = "stpc_consumer2",
     .flags         = DEVICE_PCI,
     .local         = STPC_CONSUMER2,
-    .init          = stpc_init,
-    .close         = stpc_close,
-    .reset         = stpc_reset,
+    .init          = &stpc_init,
+    .close         = &stpc_close,
+    .reset         = &stpc_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,
@@ -1121,9 +1121,9 @@ const device_t stpc_elite_device = {
     .internal_name = "stpc_elite",
     .flags         = DEVICE_PCI,
     .local         = STPC_ELITE,
-    .init          = stpc_init,
-    .close         = stpc_close,
-    .reset         = stpc_reset,
+    .init          = &stpc_init,
+    .close         = &stpc_close,
+    .reset         = &stpc_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,
@@ -1135,9 +1135,9 @@ const device_t stpc_atlas_device = {
     .internal_name = "stpc_atlas",
     .flags         = DEVICE_PCI,
     .local         = STPC_ATLAS,
-    .init          = stpc_init,
-    .close         = stpc_close,
-    .reset         = stpc_reset,
+    .init          = &stpc_init,
+    .close         = &stpc_close,
+    .reset         = &stpc_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,
@@ -1150,8 +1150,8 @@ const device_t stpc_serial_device = {
     .internal_name = "stpc_serial",
     .flags         = 0,
     .local         = 0,
-    .init          = stpc_serial_init,
-    .close         = stpc_serial_close,
+    .init          = &stpc_serial_init,
+    .close         = &stpc_serial_close,
     .reset         = NULL,
     { .available = NULL },
     .speed_changed = NULL,
@@ -1164,9 +1164,9 @@ const device_t stpc_lpt_device = {
     .internal_name = "stpc_lpt",
     .flags         = 0,
     .local         = 0,
-    .init          = stpc_lpt_init,
-    .close         = stpc_lpt_close,
-    .reset         = stpc_lpt_reset,
+    .init          = &stpc_lpt_init,
+    .close         = &stpc_lpt_close,
+    .reset         = &stpc_lpt_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,

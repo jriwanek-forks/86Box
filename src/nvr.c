@@ -190,7 +190,7 @@ nvr_init(nvr_t *nvr)
 
 /* Get path to the NVR folder. */
 char *
-nvr_path(char *str)
+nvr_path(const char *str)
 {
     static char temp[1024];
 
@@ -310,8 +310,8 @@ nvr_close(void)
 void
 nvr_time_sync(void)
 {
-    struct tm *tm;
-    time_t     now;
+    const struct tm *tm;
+    time_t           now;
 
     /* Get the current time of day, and convert to local time. */
     (void) time(&now);
@@ -352,7 +352,7 @@ nvr_time_get(struct tm *tm)
 
 /* Set internal clock time. */
 void
-nvr_time_set(struct tm *tm)
+nvr_time_set(const struct tm *tm)
 {
     intclk.tm_sec  = tm->tm_sec;
     intclk.tm_min  = tm->tm_min;
@@ -365,7 +365,7 @@ nvr_time_set(struct tm *tm)
 
 /* Open or create a file in the NVR area. */
 FILE *
-nvr_fopen(char *str, char *mode)
+nvr_fopen(const char *str, const char *mode)
 {
     return (plat_fopen(nvr_path(str), mode));
 }

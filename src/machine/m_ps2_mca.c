@@ -160,7 +160,7 @@ ps2_mca_log(const char *fmt, ...)
 #endif
 
 static uint8_t
-ps2_read_cache_ram(uint32_t addr, UNUSED(void *priv))
+ps2_read_cache_ram(uint32_t addr, UNUSED(const void *priv))
 {
     ps2_mca_log("ps2_read_cache_ram: addr=%08x %i %04x:%04x\n", addr, ps2_cache_valid[addr >> 3], CS, cpu_state.pc);
     if (!ps2_cache_valid[addr >> 3]) {
@@ -172,7 +172,7 @@ ps2_read_cache_ram(uint32_t addr, UNUSED(void *priv))
     return ps2_cache[addr];
 }
 static uint16_t
-ps2_read_cache_ramw(uint32_t addr, UNUSED(void *priv))
+ps2_read_cache_ramw(uint32_t addr, UNUSED(const void *priv))
 {
     ps2_mca_log("ps2_read_cache_ramw: addr=%08x %i %04x:%04x\n", addr, ps2_cache_valid[addr >> 3], CS, cpu_state.pc);
     if (!ps2_cache_valid[addr >> 3]) {
@@ -184,7 +184,7 @@ ps2_read_cache_ramw(uint32_t addr, UNUSED(void *priv))
     return *(uint16_t *) &ps2_cache[addr];
 }
 static uint32_t
-ps2_read_cache_raml(uint32_t addr, UNUSED(void *priv))
+ps2_read_cache_raml(uint32_t addr, UNUSED(const void *priv))
 {
     ps2_mca_log("ps2_read_cache_raml: addr=%08x %i %04x:%04x\n", addr, ps2_cache_valid[addr >> 3], CS, cpu_state.pc);
     if (!ps2_cache_valid[addr >> 3]) {
@@ -196,7 +196,7 @@ ps2_read_cache_raml(uint32_t addr, UNUSED(void *priv))
     return *(uint32_t *) &ps2_cache[addr];
 }
 static void
-ps2_write_cache_ram(uint32_t addr, uint8_t val, UNUSED(void *priv))
+ps2_write_cache_ram(uint32_t addr, uint8_t val, UNUSED(const void *priv))
 {
     ps2_mca_log("ps2_write_cache_ram: addr=%08x val=%02x %04x:%04x %i\n", addr, val, CS, cpu_state.pc);
     ps2_cache[addr] = val;
@@ -209,37 +209,37 @@ ps2_cache_clean(void)
 }
 
 static uint8_t
-ps2_read_split_ram(uint32_t addr, void *priv)
+ps2_read_split_ram(uint32_t addr, const void *priv)
 {
     addr = (addr % (ps2.split_size << 10)) + ps2.split_phys;
     return mem_read_ram(addr, priv);
 }
 static uint16_t
-ps2_read_split_ramw(uint32_t addr, void *priv)
+ps2_read_split_ramw(uint32_t addr, const void *priv)
 {
     addr = (addr % (ps2.split_size << 10)) + ps2.split_phys;
     return mem_read_ramw(addr, priv);
 }
 static uint32_t
-ps2_read_split_raml(uint32_t addr, void *priv)
+ps2_read_split_raml(uint32_t addr, const void *priv)
 {
     addr = (addr % (ps2.split_size << 10)) + ps2.split_phys;
     return mem_read_raml(addr, priv);
 }
 static void
-ps2_write_split_ram(uint32_t addr, uint8_t val, void *priv)
+ps2_write_split_ram(uint32_t addr, uint8_t val, const void *priv)
 {
     addr = (addr % (ps2.split_size << 10)) + ps2.split_phys;
     mem_write_ram(addr, val, priv);
 }
 static void
-ps2_write_split_ramw(uint32_t addr, uint16_t val, void *priv)
+ps2_write_split_ramw(uint32_t addr, uint16_t val, const void *priv)
 {
     addr = (addr % (ps2.split_size << 10)) + ps2.split_phys;
     mem_write_ramw(addr, val, priv);
 }
 static void
-ps2_write_split_raml(uint32_t addr, uint32_t val, void *priv)
+ps2_write_split_raml(uint32_t addr, uint32_t val, const void *priv)
 {
     addr = (addr % (ps2.split_size << 10)) + ps2.split_phys;
     mem_write_raml(addr, val, priv);
@@ -656,7 +656,7 @@ model_80_write(uint16_t port, uint8_t val)
 }
 
 uint8_t
-ps2_mca_read(uint16_t port, UNUSED(void *priv))
+ps2_mca_read(uint16_t port, UNUSED(const void *priv))
 {
     uint8_t temp;
 
@@ -763,7 +763,7 @@ ps2_mca_read(uint16_t port, UNUSED(void *priv))
 }
 
 static void
-ps2_mca_write(uint16_t port, uint8_t val, UNUSED(void *priv))
+ps2_mca_write(uint16_t port, uint8_t val, UNUSED(const void *priv)
 {
     ps2_mca_log("ps2_write: port=%04x val=%02x %04x:%04x\n", port, val, CS, cpu_state.pc);
 
@@ -850,13 +850,13 @@ ps2_mca_board_common_init(void)
 }
 
 static uint8_t
-ps2_mem_expansion_read(int port, UNUSED(void *priv))
+ps2_mem_expansion_read(int port, UNUSED(const void *priv))
 {
     return ps2.mem_pos_regs[port & 7];
 }
 
 static void
-ps2_mem_expansion_write(int port, uint8_t val, UNUSED(void *priv))
+ps2_mem_expansion_write(int port, uint8_t val, UNUSED(const void *priv))
 {
     if (port < 0x102 || port == 0x104)
         return;
@@ -870,7 +870,7 @@ ps2_mem_expansion_write(int port, uint8_t val, UNUSED(void *priv))
 }
 
 static uint8_t
-ps2_mem_expansion_feedb(UNUSED(void *priv))
+ps2_mem_expansion_feedb(UNUSED(const void *priv))
 {
     return (ps2.mem_pos_regs[2] & 1);
 }
@@ -1121,7 +1121,7 @@ mem_encoding_update(void)
 }
 
 static uint8_t
-mem_encoding_read(uint16_t addr, UNUSED(void *priv))
+mem_encoding_read(uint16_t addr, UNUSED(const void *priv))
 {
     switch (addr) {
         case 0xe0:
@@ -1135,7 +1135,7 @@ mem_encoding_read(uint16_t addr, UNUSED(void *priv))
     return 0xff;
 }
 static void
-mem_encoding_write(uint16_t addr, uint8_t val, UNUSED(void *priv))
+mem_encoding_write(uint16_t addr, uint8_t val, UNUSED(const void *priv))
 {
     switch (addr) {
         case 0xe0:
@@ -1152,7 +1152,7 @@ mem_encoding_write(uint16_t addr, uint8_t val, UNUSED(void *priv))
 }
 
 static uint8_t
-mem_encoding_read_cached(uint16_t addr, UNUSED(void *priv))
+mem_encoding_read_cached(uint16_t addr, UNUSED(const void *priv))
 {
     switch (addr) {
         case 0xe0:
@@ -1169,7 +1169,7 @@ mem_encoding_read_cached(uint16_t addr, UNUSED(void *priv))
 }
 
 static void
-mem_encoding_write_cached(uint16_t addr, uint8_t val, UNUSED(void *priv))
+mem_encoding_write_cached(uint16_t addr, uint8_t val, UNUSED(const void *priv))
 {
     uint8_t old;
 

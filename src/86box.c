@@ -1306,7 +1306,7 @@ pc_reset_hard(void)
 }
 
 void
-pc_close(UNUSED(thread_t *ptr))
+pc_close(UNUSED(const thread_t *ptr))
 {
     /* Wait a while so things can shut down. */
     plat_delay_ms(200);

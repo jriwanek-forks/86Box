@@ -49,7 +49,7 @@
 static int cycles_sub = 0;
 
 static void
-port_6x_write(uint16_t port, uint8_t val, void *priv)
+port_6x_write(uint16_t port, uint8_t val, const void *priv)
 {
     const port_6x_t *dev = (port_6x_t *) priv;
 
@@ -81,7 +81,7 @@ port_6x_write(uint16_t port, uint8_t val, void *priv)
 }
 
 static uint8_t
-port_61_read_simple(UNUSED(uint16_t port), UNUSED(void *priv))
+port_61_read_simple(UNUSED(uint16_t port), UNUSED(const void *priv))
 {
     uint8_t ret = ppi.pb & 0x1f;
 
@@ -94,7 +94,7 @@ port_61_read_simple(UNUSED(uint16_t port), UNUSED(void *priv))
 }
 
 static uint8_t
-port_61_read(UNUSED(uint16_t port), void *priv)
+port_61_read(UNUSED(uint16_t port), const void *priv)
 {
     const port_6x_t *dev = (port_6x_t *) priv;
     uint8_t          ret = 0xff;
@@ -119,7 +119,7 @@ port_61_read(UNUSED(uint16_t port), void *priv)
 }
 
 static uint8_t
-port_62_read(UNUSED(uint16_t port), UNUSED(void *priv))
+port_62_read(UNUSED(uint16_t port), UNUSED(const void *priv))
 {
     uint8_t ret = 0xff;
 
@@ -155,7 +155,7 @@ port_62_read(UNUSED(uint16_t port), UNUSED(void *priv))
 }
 
 static void
-port_6x_refresh(void *priv)
+port_6x_refresh(const void *priv)
 {
     port_6x_t *dev = (port_6x_t *) priv;
 
@@ -164,7 +164,7 @@ port_6x_refresh(void *priv)
 }
 
 static void
-port_6x_close(void *priv)
+port_6x_close(const void *priv)
 {
     port_6x_t *dev = (port_6x_t *) priv;
 
@@ -190,14 +190,14 @@ port_6x_init(const device_t *info)
         if (dev->flags & PORT_6X_MIRROR)
             io_sethandler(0x0063, 1, port_61_read, NULL, NULL, port_6x_write, NULL, NULL, dev);
     } else {
-        io_sethandler(0x0061, 1, port_61_read_simple, NULL, NULL, port_6x_write, NULL, NULL, dev);
+        io_sethandler(0x0061, 1, &port_61_read_simple, NULL, NULL, port_6x_write, NULL, NULL, dev);
 
         if (dev->flags & PORT_6X_MIRROR)
-            io_sethandler(0x0063, 1, port_61_read_simple, NULL, NULL, port_6x_write, NULL, NULL, dev);
+            io_sethandler(0x0063, 1, &port_61_read_simple, NULL, NULL, port_6x_write, NULL, NULL, dev);
     }
 
     if (dev->flags & PORT_6X_SWA)
-        io_sethandler(0x0062, 1, port_62_read, NULL, NULL, NULL, NULL, NULL, dev);
+        io_sethandler(0x0062, 1, &port_62_read, NULL, NULL, NULL, NULL, NULL, dev);
 
     cycles_sub = is486 ? ISA_CYCLES(8) : 0;
 

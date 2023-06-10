@@ -57,7 +57,7 @@ opti499_log(const char *fmt, ...)
 #endif
 
 static void
-opti499_recalc(opti499_t *dev)
+opti499_recalc(const opti499_t *dev)
 {
     uint32_t base;
     uint32_t shflags = 0;
@@ -121,9 +121,9 @@ opti499_recalc(opti499_t *dev)
 }
 
 static void
-opti499_write(uint16_t addr, uint8_t val, void *priv)
+opti499_write(uint16_t addr, uint8_t val, const void *priv)
 {
-    opti499_t *dev = (opti499_t *) priv;
+    opti499_t *dev = (const opti499_t *) priv;
 
     switch (addr) {
         case 0x22:
@@ -172,10 +172,10 @@ opti499_write(uint16_t addr, uint8_t val, void *priv)
 }
 
 static uint8_t
-opti499_read(uint16_t addr, void *priv)
+opti499_read(uint16_t addr, const void *priv)
 {
-    uint8_t    ret = 0xff;
-    opti499_t *dev = (opti499_t *) priv;
+    uint8_t          ret = 0xff;
+    const opti499_t *dev = (const opti499_t *) priv;
 
     switch (addr) {
         case 0x22:
@@ -203,9 +203,9 @@ opti499_read(uint16_t addr, void *priv)
 }
 
 static void
-opti499_reset(void *priv)
+opti499_reset(const void *priv)
 {
-    opti499_t *dev = (opti499_t *) priv;
+    opti499_t *dev = (const opti499_t *) priv;
 
     memset(dev->regs, 0xff, sizeof(dev->regs));
     memset(&(dev->regs[0x20]), 0x00, 14 * sizeof(uint8_t));
@@ -231,9 +231,9 @@ opti499_reset(void *priv)
 }
 
 static void
-opti499_close(void *priv)
+opti499_close(const void *priv)
 {
-    opti499_t *dev = (opti499_t *) priv;
+    const opti499_t *dev = (const opti499_t *) priv;
 
     free(dev);
 }

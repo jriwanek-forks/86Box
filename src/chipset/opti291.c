@@ -57,7 +57,7 @@ typedef struct opti291_t {
 } opti291_t;
 
 static void
-opti291_recalc(opti291_t *dev)
+opti291_recalc(const opti291_t *dev)
 {
     mem_set_mem_state_both(0xf0000, 0x10000, (!(dev->regs[0x23] & 0x40) ? MEM_READ_INTERNAL : MEM_READ_EXTANY) | ((dev->regs[0x27] & 0x80) ? MEM_WRITE_DISABLED : MEM_WRITE_INTERNAL));
 
@@ -69,9 +69,9 @@ opti291_recalc(opti291_t *dev)
     flushmmucache();
 }
 static void
-opti291_write(uint16_t addr, uint8_t val, void *priv)
+opti291_write(uint16_t addr, uint8_t val, const void *priv)
 {
-    opti291_t *dev = (opti291_t *) priv;
+    opti291_t *dev = (const opti291_t *) priv;
 
     switch (addr) {
         case 0x22:
@@ -120,17 +120,17 @@ opti291_write(uint16_t addr, uint8_t val, void *priv)
 }
 
 static uint8_t
-opti291_read(uint16_t addr, void *priv)
+opti291_read(uint16_t addr, const void *priv)
 {
-    const opti291_t *dev = (opti291_t *) priv;
+    const opti291_t *dev = (const opti291_t *) priv;
 
     return (addr == 0x24) ? dev->regs[dev->index] : 0xff;
 }
 
 static void
-opti291_close(void *priv)
+opti291_close(const void *priv)
 {
-    opti291_t *dev = (opti291_t *) priv;
+    const opti291_t *dev = (const opti291_t *) priv;
 
     free(dev);
 }

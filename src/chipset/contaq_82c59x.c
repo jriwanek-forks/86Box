@@ -64,7 +64,7 @@ typedef struct contaq_82c59x_t {
 } contaq_82c59x_t;
 
 static void
-contaq_82c59x_isa_speed_recalc(contaq_82c59x_t *dev)
+contaq_82c59x_isa_speed_recalc(const contaq_82c59x_t *dev)
 {
     if (dev->regs[0x1c] & 0x02)
         cpu_set_isa_speed(7159091);
@@ -90,7 +90,7 @@ contaq_82c59x_isa_speed_recalc(contaq_82c59x_t *dev)
 }
 
 static void
-contaq_82c59x_shadow_recalc(contaq_82c59x_t *dev)
+contaq_82c59x_shadow_recalc(const contaq_82c59x_t *dev)
 {
     uint32_t i;
     uint32_t base;
@@ -165,7 +165,7 @@ contaq_82c59x_shadow_recalc(contaq_82c59x_t *dev)
 }
 
 static void
-contaq_82c59x_smram_recalc(contaq_82c59x_t *dev)
+contaq_82c59x_smram_recalc(const contaq_82c59x_t *dev)
 {
     smram_disable(dev->smram[1]);
 
@@ -327,7 +327,7 @@ contaq_82c59x_init(const device_t *info)
 
     dev->green = (uint8_t) info->local;
 
-    io_sethandler(0x0022, 0x0002, contaq_82c59x_read, NULL, NULL, contaq_82c59x_write, NULL, NULL, dev);
+    io_sethandler(0x0022, 0x0002, &contaq_82c59x_read, NULL, NULL, &contaq_82c59x_write, NULL, NULL, dev);
 
     contaq_82c59x_isa_speed_recalc(dev);
 
@@ -356,8 +356,8 @@ const device_t contaq_82c596a_device = {
     .internal_name = "contaq_82c596a",
     .flags         = 0,
     .local         = 0,
-    .init          = contaq_82c59x_init,
-    .close         = contaq_82c59x_close,
+    .init          = &contaq_82c59x_init,
+    .close         = &contaq_82c59x_close,
     .reset         = NULL,
     { .available = NULL },
     .speed_changed = NULL,
@@ -370,8 +370,8 @@ const device_t contaq_82c597_device = {
     .internal_name = "contaq_82c597",
     .flags         = 0,
     .local         = 1,
-    .init          = contaq_82c59x_init,
-    .close         = contaq_82c59x_close,
+    .init          = &contaq_82c59x_init,
+    .close         = &contaq_82c59x_close,
     .reset         = NULL,
     { .available = NULL },
     .speed_changed = NULL,

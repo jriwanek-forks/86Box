@@ -98,7 +98,7 @@ ali1531_smram_recalc(uint8_t val, ali1531_t *dev)
 }
 
 static void
-ali1531_shadow_recalc(UNUSED(int cur_reg), ali1531_t *dev)
+ali1531_shadow_recalc(UNUSED(int cur_reg), const ali1531_t *dev)
 {
     int      bit;
     int      r_reg;
@@ -133,7 +133,7 @@ ali1531_shadow_recalc(UNUSED(int cur_reg), ali1531_t *dev)
 }
 
 static void
-ali1531_write(UNUSED(int func), int addr, uint8_t val, void *priv)
+ali1531_write(UNUSED(int func), int addr, uint8_t val, const void *priv)
 {
     ali1531_t *dev = (ali1531_t *) priv;
 
@@ -306,9 +306,9 @@ ali1531_write(UNUSED(int func), int addr, uint8_t val, void *priv)
 }
 
 static uint8_t
-ali1531_read(UNUSED(int func), int addr, void *priv)
+ali1531_read(UNUSED(int func), int addr, const void *priv)
 {
-    const ali1531_t *dev = (ali1531_t *) priv;
+    const ali1531_t *dev = (const ali1531_t *) priv;
     uint8_t          ret = 0xff;
 
     ret = dev->pci_conf[addr];
@@ -317,9 +317,9 @@ ali1531_read(UNUSED(int func), int addr, void *priv)
 }
 
 static void
-ali1531_reset(void *priv)
+ali1531_reset(const void *priv)
 {
-    ali1531_t *dev = (ali1531_t *) priv;
+    ali1531_t *dev = (const ali1531_t *) priv;
 
     /* Default Registers */
     dev->pci_conf[0x00] = 0xb9;
@@ -365,7 +365,7 @@ ali1531_reset(void *priv)
 }
 
 static void
-ali1531_close(void *priv)
+ali1531_close(const void *priv)
 {
     ali1531_t *dev = (ali1531_t *) priv;
 
@@ -379,7 +379,7 @@ ali1531_init(UNUSED(const device_t *info))
     ali1531_t *dev = (ali1531_t *) malloc(sizeof(ali1531_t));
     memset(dev, 0, sizeof(ali1531_t));
 
-    pci_add_card(PCI_ADD_NORTHBRIDGE, ali1531_read, ali1531_write, dev, &dev->pci_slot);
+    pci_add_card(PCI_ADD_NORTHBRIDGE, &ali1531_read, &ali1531_write, dev, &dev->pci_slot);
 
     dev->smram = smram_add();
 
@@ -393,9 +393,9 @@ const device_t ali1531_device = {
     .internal_name = "ali1531",
     .flags         = DEVICE_PCI,
     .local         = 0,
-    .init          = ali1531_init,
-    .close         = ali1531_close,
-    .reset         = ali1531_reset,
+    .init          = &ali1531_init,
+    .close         = &ali1531_close,
+    .reset         = &ali1531_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,

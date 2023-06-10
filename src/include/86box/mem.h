@@ -181,12 +181,12 @@ typedef struct _mem_mapping_ {
 
     uint32_t mask;
 
-    uint8_t (*read_b)(uint32_t addr, void *priv);
-    uint16_t (*read_w)(uint32_t addr, void *priv);
-    uint32_t (*read_l)(uint32_t addr, void *priv);
-    void (*write_b)(uint32_t addr, uint8_t val, void *priv);
-    void (*write_w)(uint32_t addr, uint16_t val, void *priv);
-    void (*write_l)(uint32_t addr, uint32_t val, void *priv);
+    uint8_t (*read_b)(uint32_t addr, const void *priv);
+    uint16_t (*read_w)(uint32_t addr, const void *priv);
+    uint32_t (*read_l)(uint32_t addr, const void *priv);
+    void (*write_b)(uint32_t addr, uint8_t val, const void *priv);
+    void (*write_w)(uint32_t addr, uint16_t val, const void *priv);
+    void (*write_l)(uint32_t addr, uint32_t val, const void *priv);
 
     uint8_t *exec;
 
@@ -359,35 +359,35 @@ extern void     addwritelookup(uint32_t virt, uint32_t phys);
 extern void mem_mapping_set(mem_mapping_t *,
                             uint32_t base,
                             uint32_t size,
-                            uint8_t (*read_b)(uint32_t addr, void *priv),
-                            uint16_t (*read_w)(uint32_t addr, void *priv),
-                            uint32_t (*read_l)(uint32_t addr, void *priv),
-                            void (*write_b)(uint32_t addr, uint8_t val, void *priv),
-                            void (*write_w)(uint32_t addr, uint16_t val, void *priv),
-                            void (*write_l)(uint32_t addr, uint32_t val, void *priv),
+                            uint8_t (*read_b)(uint32_t addr, const void *priv),
+                            uint16_t (*read_w)(uint32_t addr, const void *priv),
+                            uint32_t (*read_l)(uint32_t addr, const void *priv),
+                            void (*write_b)(uint32_t addr, uint8_t val, const void *priv),
+                            void (*write_w)(uint32_t addr, uint16_t val, const void *priv),
+                            void (*write_l)(uint32_t addr, uint32_t val, const void *priv),
                             uint8_t *exec,
                             uint32_t flags,
                             void    *priv);
 extern void mem_mapping_add(mem_mapping_t *,
                             uint32_t base,
                             uint32_t size,
-                            uint8_t (*read_b)(uint32_t addr, void *priv),
-                            uint16_t (*read_w)(uint32_t addr, void *priv),
-                            uint32_t (*read_l)(uint32_t addr, void *priv),
-                            void (*write_b)(uint32_t addr, uint8_t val, void *priv),
-                            void (*write_w)(uint32_t addr, uint16_t val, void *priv),
-                            void (*write_l)(uint32_t addr, uint32_t val, void *priv),
+                            uint8_t (*read_b)(uint32_t addr, const void *priv),
+                            uint16_t (*read_w)(uint32_t addr, const void *priv),
+                            uint32_t (*read_l)(uint32_t addr, const void *priv),
+                            void (*write_b)(uint32_t addr, uint8_t val, const void *priv),
+                            void (*write_w)(uint32_t addr, uint16_t val, const void *priv),
+                            void (*write_l)(uint32_t addr, uint32_t val, const void *priv),
                             uint8_t *exec,
                             uint32_t flags,
                             void    *priv);
 
 extern void mem_mapping_set_handler(mem_mapping_t *,
-                                    uint8_t (*read_b)(uint32_t addr, void *priv),
-                                    uint16_t (*read_w)(uint32_t addr, void *priv),
-                                    uint32_t (*read_l)(uint32_t addr, void *priv),
-                                    void (*write_b)(uint32_t addr, uint8_t val, void *priv),
-                                    void (*write_w)(uint32_t addr, uint16_t val, void *priv),
-                                    void (*write_l)(uint32_t addr, uint32_t val, void *priv));
+                                    uint8_t (*read_b)(uint32_t addr, const void *priv),
+                                    uint16_t (*read_w)(uint32_t addr, const void *priv),
+                                    uint32_t (*read_l)(uint32_t addr, const void *priv),
+                                    void (*write_b)(uint32_t addr, uint8_t val, const void *priv),
+                                    void (*write_w)(uint32_t addr, uint16_t val, const void *priv),
+                                    void (*write_l)(uint32_t addr, uint32_t val, const void *priv));
 
 extern void mem_mapping_set_p(mem_mapping_t *, void *priv);
 
@@ -405,25 +405,25 @@ extern void mem_set_access(uint8_t bitmap, int mode, uint32_t base, uint32_t siz
 extern uint8_t  mem_readb_phys(uint32_t addr);
 extern uint16_t mem_readw_phys(uint32_t addr);
 extern uint32_t mem_readl_phys(uint32_t addr);
-extern void     mem_read_phys(void *dest, uint32_t addr, int tranfer_size);
+extern void     mem_read_phys(const void *dest, uint32_t addr, int tranfer_size);
 extern void     mem_writeb_phys(uint32_t addr, uint8_t val);
 extern void     mem_writew_phys(uint32_t addr, uint16_t val);
 extern void     mem_writel_phys(uint32_t addr, uint32_t val);
-extern void     mem_write_phys(void *src, uint32_t addr, int tranfer_size);
+extern void     mem_write_phys(const void *src, uint32_t addr, int tranfer_size);
 
-extern uint8_t  mem_read_ram(uint32_t addr, void *priv);
-extern uint16_t mem_read_ramw(uint32_t addr, void *priv);
-extern uint32_t mem_read_raml(uint32_t addr, void *priv);
-extern void     mem_write_ram(uint32_t addr, uint8_t val, void *priv);
-extern void     mem_write_ramw(uint32_t addr, uint16_t val, void *priv);
-extern void     mem_write_raml(uint32_t addr, uint32_t val, void *priv);
+extern uint8_t  mem_read_ram(uint32_t addr, const void *priv);
+extern uint16_t mem_read_ramw(uint32_t addr, const void *priv);
+extern uint32_t mem_read_raml(uint32_t addr, const void *priv);
+extern void     mem_write_ram(uint32_t addr, uint8_t val, const void *priv);
+extern void     mem_write_ramw(uint32_t addr, uint16_t val, const void *priv);
+extern void     mem_write_raml(uint32_t addr, uint32_t val, const void *priv);
 
-extern uint8_t  mem_read_ram_2gb(uint32_t addr, void *priv);
-extern uint16_t mem_read_ram_2gbw(uint32_t addr, void *priv);
-extern uint32_t mem_read_ram_2gbl(uint32_t addr, void *priv);
-extern void     mem_write_ram_2gb(uint32_t addr, uint8_t val, void *priv);
-extern void     mem_write_ram_2gbw(uint32_t addr, uint16_t val, void *priv);
-extern void     mem_write_ram_2gbl(uint32_t addr, uint32_t val, void *priv);
+extern uint8_t  mem_read_ram_2gb(uint32_t addr, const void *priv);
+extern uint16_t mem_read_ram_2gbw(uint32_t addr, const void *priv);
+extern uint32_t mem_read_ram_2gbl(uint32_t addr, const void *priv);
+extern void     mem_write_ram_2gb(uint32_t addr, uint8_t val, const void *priv);
+extern void     mem_write_ram_2gbw(uint32_t addr, uint16_t val, const void *priv);
+extern void     mem_write_ram_2gbl(uint32_t addr, uint32_t val, const void *priv);
 
 extern int mem_addr_is_ram(uint32_t addr);
 

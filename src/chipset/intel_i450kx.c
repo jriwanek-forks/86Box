@@ -87,7 +87,7 @@ i450kx_map(i450kx_t *dev, int bus, uint32_t addr, uint32_t size, int state)
 }
 
 static void
-i450kx_smram_recalc(i450kx_t *dev, int bus)
+i450kx_smram_recalc(const i450kx_t *dev, int bus)
 {
     const uint8_t *regs = bus ? dev->pb_pci_conf : dev->mc_pci_conf;
     uint32_t       addr;
@@ -110,7 +110,7 @@ i450kx_smram_recalc(i450kx_t *dev, int bus)
 }
 
 static void
-i450kx_vid_buf_recalc(i450kx_t *dev, int bus)
+i450kx_vid_buf_recalc(const i450kx_t *dev, int bus)
 {
     const uint8_t *regs = bus ? dev->pb_pci_conf : dev->mc_pci_conf;
 
@@ -371,9 +371,9 @@ pb_write(int func, int addr, uint8_t val, void *priv)
 }
 
 static uint8_t
-pb_read(int func, int addr, void *priv)
+pb_read(int func, int addr, const void *priv)
 {
-    const i450kx_t *dev = (i450kx_t *) priv;
+    const i450kx_t *dev = (const i450kx_t *) priv;
     uint8_t   ret = 0xff;
 
     if (func == 0) {
@@ -601,9 +601,9 @@ mc_write(int func, int addr, uint8_t val, void *priv)
 }
 
 static uint8_t
-mc_read(int func, int addr, void *priv)
+mc_read(int func, int addr, const void *priv)
 {
-    const i450kx_t *dev = (i450kx_t *) priv;
+    const i450kx_t *dev = (const i450kx_t *) priv;
     uint8_t   ret = 0xff;
 
     if (func == 0) {
@@ -617,9 +617,9 @@ mc_read(int func, int addr, void *priv)
 }
 
 static void
-i450kx_reset(void *priv)
+i450kx_reset(const void *priv)
 {
-    i450kx_t *dev = (i450kx_t *) priv;
+    i450kx_t *dev = (const i450kx_t *) priv;
     uint32_t  i;
 
     /* Defaults PB */
@@ -801,8 +801,8 @@ i450kx_init(UNUSED(const device_t *info))
 {
     i450kx_t *dev = (i450kx_t *) malloc(sizeof(i450kx_t));
     memset(dev, 0, sizeof(i450kx_t));
-    pci_add_card(PCI_ADD_NORTHBRIDGE, pb_read, pb_write, dev, &dev->pb_slot);        /* Device 19h: Intel 450KX PCI Bridge PB */
-    pci_add_card(PCI_ADD_NORTHBRIDGE_SEC, mc_read, mc_write, dev, &dev->mc_slot);    /* Device 14h: Intel 450KX Memory Controller MC */
+    pci_add_card(PCI_ADD_NORTHBRIDGE, &pb_read, &pb_write, dev, &dev->pb_slot);        /* Device 19h: Intel 450KX PCI Bridge PB */
+    pci_add_card(PCI_ADD_NORTHBRIDGE_SEC, &mc_read, &mc_write, dev, &dev->mc_slot);    /* Device 14h: Intel 450KX Memory Controller MC */
 
     dev->smram[0] = smram_add();
     dev->smram[1] = smram_add();
@@ -821,9 +821,9 @@ const device_t i450kx_device = {
     .internal_name = "i450kx",
     .flags         = DEVICE_PCI,
     .local         = 0,
-    .init          = i450kx_init,
-    .close         = i450kx_close,
-    .reset         = i450kx_reset,
+    .init          = &i450kx_init,
+    .close         = &i450kx_close,
+    .reset         = &i450kx_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,

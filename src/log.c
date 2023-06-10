@@ -61,7 +61,7 @@ log_set_dev_name(void *priv, char *dev_name)
 }
 
 static void
-log_copy(log_t *log, char *dest, const char *src, size_t dest_size)
+log_copy(const log_t *log, char *dest, const char *src, size_t dest_size)
 {
     memset(dest, 0x00, dest_size * sizeof(char));
     if (log && log->dev_name && strcmp(log->dev_name, "")) {
@@ -120,9 +120,9 @@ log_out(void *priv, const char *fmt, va_list ap)
 void
 log_fatal(void *priv, const char *fmt, ...)
 {
-    log_t  *log = (log_t *) priv;
-    char    temp[1024];
-    char    fmt2[1024];
+    const log_t *log = (log_t *) priv;
+    char         temp[1024];
+    char         fmt2[1024];
     va_list ap;
 
     if (log == NULL)

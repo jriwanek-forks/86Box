@@ -142,9 +142,9 @@ sis_5572_read(int func, int addr, void *priv)
 }
 
 static void
-sis_5571_close(void *priv)
+sis_5571_close(const void *priv)
 {
-    sis_5571_t *dev = (sis_5571_t *) priv;
+    const sis_5571_t *dev = (const sis_5571_t *) priv;
 
     free(dev);
 }

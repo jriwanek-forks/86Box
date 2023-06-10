@@ -55,7 +55,7 @@ typedef struct sis_85c4xx_t {
 } sis_85c4xx_t;
 
 static void
-sis_85c4xx_recalcremap(sis_85c4xx_t *dev)
+sis_85c4xx_recalcremap(const sis_85c4xx_t *dev)
 {
     if (dev->is_471) {
         if ((mem_size > 8192) || (dev->shadowed & 0x3c) || (dev->regs[0x0b] & 0x02))
@@ -130,38 +130,38 @@ sis_85c4xx_recalcmapping(sis_85c4xx_t *dev)
 }
 
 static void
-sis_85c4xx_sw_smi_out(UNUSED(uint16_t port), UNUSED(uint8_t val), void *priv)
+sis_85c4xx_sw_smi_out(UNUSED(uint16_t port), UNUSED(uint8_t val), const void *priv)
 {
-    sis_85c4xx_t *dev = (sis_85c4xx_t *) priv;
+    sis_85c4xx_t *dev = (const sis_85c4xx_t *) priv;
 
     if (dev->regs[0x18] & 0x02) {
         if (dev->regs[0x0b] & 0x10)
             smi_raise();
         else
-            picint(1 << ((dev->regs[0x0b] & 0x08) ? 15 : 12));
+            picint((uint16_t) (1 << ((dev->regs[0x0b] & 0x08) ? 15 : 12)));
         soft_reset_mask = 1;
         dev->regs[0x19] |= 0x02;
     }
 }
 
 static void
-sis_85c4xx_sw_smi_handler(sis_85c4xx_t *dev)
+sis_85c4xx_sw_smi_handler(const sis_85c4xx_t *dev)
 {
     uint16_t addr;
 
     if (!dev->is_471)
         return;
 
-    addr = dev->regs[0x14] | (dev->regs[0x15] << 8);
+    addr = (uint16_t) (dev->regs[0x14] | (dev->regs[0x15] << 8));
 
     io_handler((dev->regs[0x0b] & 0x80) && (dev->regs[0x18] & 0x02), addr, 0x0001,
-               NULL, NULL, NULL, sis_85c4xx_sw_smi_out, NULL, NULL, dev);
+               NULL, NULL, NULL, &sis_85c4xx_sw_smi_out, NULL, NULL, dev);
 }
 
 static void
-sis_85c4xx_out(uint16_t port, uint8_t val, void *priv)
+sis_85c4xx_out(uint16_t port, uint8_t val, const void *priv)
 {
-    sis_85c4xx_t *dev       = (sis_85c4xx_t *) priv;
+    sis_85c4xx_t *dev       = (const sis_85c4xx_t *) priv;
     uint8_t       rel_reg   = dev->cur_reg - dev->reg_base;
     uint8_t       valxor    = 0x00;
     uint32_t      host_base = 0x000e0000;
@@ -261,9 +261,9 @@ sis_85c4xx_out(uint16_t port, uint8_t val, void *priv)
 }
 
 static uint8_t
-sis_85c4xx_in(uint16_t port, void *priv)
+sis_85c4xx_in(uint16_t port, const void *priv)
 {
-    sis_85c4xx_t *dev     = (sis_85c4xx_t *) priv;
+    sis_85c4xx_t *dev     = (const sis_85c4xx_t *) priv;
     uint8_t       rel_reg = dev->cur_reg - dev->reg_base;
     uint8_t       ret     = 0xff;
 
@@ -295,9 +295,9 @@ sis_85c4xx_in(uint16_t port, void *priv)
 }
 
 static void
-sis_85c4xx_reset(void *priv)
+sis_85c4xx_reset(const void *priv)
 {
-    sis_85c4xx_t  *dev         = (sis_85c4xx_t *) priv;
+    sis_85c4xx_t  *dev         = (const sis_85c4xx_t *) priv;
     int            mem_size_mb = mem_size >> 10;
     static uint8_t ram_4xx[64] = { 0x00, 0x00, 0x01, 0x00, 0x02, 0x00, 0x03, 0x00, 0x04, 0x00, 0x05, 0x00, 0x0b, 0x00, 0x00, 0x00,
                                    0x19, 0x00, 0x06, 0x00, 0x14, 0x00, 0x00, 0x00, 0x15, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -357,9 +357,9 @@ sis_85c4xx_reset(void *priv)
 }
 
 static void
-sis_85c4xx_close(void *priv)
+sis_85c4xx_close(const void *priv)
 {
-    sis_85c4xx_t *dev = (sis_85c4xx_t *) priv;
+    const sis_85c4xx_t *dev = (const sis_85c4xx_t *) priv;
 
     if (dev->is_471)
         smram_del(dev->smram);
@@ -387,10 +387,10 @@ sis_85c4xx_init(const device_t *info)
         dev->reg_last = dev->reg_base + 0x11;
 
     io_sethandler(0x0022, 0x0002,
-                  sis_85c4xx_in, NULL, NULL, sis_85c4xx_out, NULL, NULL, dev);
+                  &sis_85c4xx_in, NULL, NULL, &sis_85c4xx_out, NULL, NULL, dev);
 
     io_sethandler(0x00e1, 0x0002,
-                  sis_85c4xx_in, NULL, NULL, sis_85c4xx_out, NULL, NULL, dev);
+                  &sis_85c4xx_in, NULL, NULL, &sis_85c4xx_out, NULL, NULL, dev);
 
     sis_85c4xx_reset(dev);
 
@@ -402,9 +402,9 @@ const device_t sis_85c401_device = {
     .internal_name = "sis_85c401",
     .flags         = 0,
     .local         = 0x060,
-    .init          = sis_85c4xx_init,
-    .close         = sis_85c4xx_close,
-    .reset         = sis_85c4xx_reset,
+    .init          = &sis_85c4xx_init,
+    .close         = &sis_85c4xx_close,
+    .reset         = &sis_85c4xx_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,
@@ -416,9 +416,9 @@ const device_t sis_85c460_device = {
     .internal_name = "sis_85c460",
     .flags         = 0,
     .local         = 0x050,
-    .init          = sis_85c4xx_init,
-    .close         = sis_85c4xx_close,
-    .reset         = sis_85c4xx_reset,
+    .init          = &sis_85c4xx_init,
+    .close         = &sis_85c4xx_close,
+    .reset         = &sis_85c4xx_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,
@@ -431,9 +431,9 @@ const device_t sis_85c461_device = {
     .internal_name = "sis_85c461",
     .flags         = 0,
     .local         = 0x050,
-    .init          = sis_85c4xx_init,
-    .close         = sis_85c4xx_close,
-    .reset         = sis_85c4xx_reset,
+    .init          = &sis_85c4xx_init,
+    .close         = &sis_85c4xx_close,
+    .reset         = &sis_85c4xx_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,
@@ -445,9 +445,9 @@ const device_t sis_85c471_device = {
     .internal_name = "sis_85c471",
     .flags         = 0,
     .local         = 0x150,
-    .init          = sis_85c4xx_init,
-    .close         = sis_85c4xx_close,
-    .reset         = sis_85c4xx_reset,
+    .init          = &sis_85c4xx_init,
+    .close         = &sis_85c4xx_close,
+    .reset         = &sis_85c4xx_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,

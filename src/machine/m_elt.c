@@ -55,7 +55,7 @@
 #include <86box/plat_unused.h>
 
 static void
-elt_vid_off_poll(void *priv)
+elt_vid_off_poll(const void *priv)
 {
     cga_t  *cga   = priv;
     uint8_t hdisp = cga->crtc[1];
@@ -68,7 +68,7 @@ elt_vid_off_poll(void *priv)
 }
 
 static void
-sysstat_out(UNUSED(uint16_t port), uint8_t val, void *priv)
+sysstat_out(UNUSED(uint16_t port), uint8_t val, const void *priv)
 {
     cga_t *cga = priv;
 
@@ -91,7 +91,7 @@ sysstat_out(UNUSED(uint16_t port), uint8_t val, void *priv)
 }
 
 static uint8_t
-sysstat_in(UNUSED(uint16_t port), void *priv)
+sysstat_in(uint16_t port, const void *priv)
 {
     const cga_t  *cga = priv;
     uint8_t       ret = 0x0a; /* No idea what these bits are */
@@ -106,7 +106,7 @@ sysstat_in(UNUSED(uint16_t port), void *priv)
 }
 
 static void
-elt_vid_out(uint16_t addr, uint8_t val, void *priv)
+elt_vid_out(uint16_t addr, uint8_t val, const void *priv)
 {
     cga_t *cga = priv;
 
@@ -134,7 +134,7 @@ elt_vid_out(uint16_t addr, uint8_t val, void *priv)
 }
 
 static uint8_t
-elt_vid_in(uint16_t addr, void *priv)
+elt_vid_in(uint16_t addr, const void *priv)
 {
     cga_t *cga = priv;
 
@@ -155,8 +155,8 @@ load_font_rom(uint32_t font_data)
 int
 machine_elt_init(const machine_t *model)
 {
-    cga_t *cga = NULL;
-    int    ret;
+    const cga_t *cga = NULL;
+    int          ret;
 
     ret = bios_load_interleavedr("roms/machines/elt/HLO-B2.rom",
                                  "roms/machines/elt/HLO-A2.rom",

@@ -107,7 +107,7 @@ static int compaq_machine_type = 0;
 /* Compaq Deskpro 386 remaps RAM from 0xA0000-0xFFFFF to 0xFA0000-0xFFFFFF */
 static mem_mapping_t ram_mapping;
 
-static void compaq_plasma_recalcattrs(compaq_plasma_t *self);
+static void compaq_plasma_recalcattrs(const compaq_plasma_t *self);
 
 static void
 compaq_plasma_recalctimings(compaq_plasma_t *self)
@@ -139,18 +139,18 @@ compaq_plasma_waitstates(UNUSED(void *priv))
 }
 
 static void
-compaq_plasma_write(uint32_t addr, uint8_t val, void *priv)
+compaq_plasma_write(uint32_t addr, uint8_t val, const void *priv)
 {
-    compaq_plasma_t *self = (compaq_plasma_t *) priv;
+    compaq_plasma_t *self = (const compaq_plasma_t *) priv;
 
     self->cga.vram[addr & 0x7fff] = val;
     compaq_plasma_waitstates(&self->cga);
 }
 
 static uint8_t
-compaq_plasma_read(uint32_t addr, void *priv)
+compaq_plasma_read(uint32_t addr, const void *priv)
 {
-    compaq_plasma_t *self = (compaq_plasma_t *) priv;
+    const compaq_plasma_t *self = (const compaq_plasma_t *) priv;
     uint8_t          ret;
 
     compaq_plasma_waitstates(&self->cga);
@@ -160,7 +160,7 @@ compaq_plasma_read(uint32_t addr, void *priv)
 }
 
 static void
-compaq_plasma_out(uint16_t addr, uint8_t val, void *priv)
+compaq_plasma_out(uint16_t addr, uint8_t val, const void *priv)
 {
     compaq_plasma_t *self = (compaq_plasma_t *) priv;
     uint8_t          old;
@@ -214,9 +214,9 @@ compaq_plasma_out(uint16_t addr, uint8_t val, void *priv)
 }
 
 static uint8_t
-compaq_plasma_in(uint16_t addr, void *priv)
+compaq_plasma_in(uint16_t addr, const void *priv)
 {
-    compaq_plasma_t *self = (compaq_plasma_t *) priv;
+    const compaq_plasma_t *self = (const compaq_plasma_t *) priv;
     uint8_t          ret  = 0xff;
 
     switch (addr) {
@@ -263,7 +263,7 @@ compaq_plasma_in(uint16_t addr, void *priv)
 }
 
 static void
-compaq_plasma_poll(void *priv)
+compaq_plasma_poll(const void *priv)
 {
     compaq_plasma_t *self = (compaq_plasma_t *) priv;
     uint8_t  chr;
@@ -665,18 +665,18 @@ compaq_plasma_init(UNUSED(const device_t *info))
 }
 
 static void
-compaq_plasma_close(void *priv)
+compaq_plasma_close(const void *priv)
 {
-    compaq_plasma_t *self = (compaq_plasma_t *) priv;
+    const compaq_plasma_t *self = (const compaq_plasma_t *) priv;
 
     free(self->cga.vram);
     free(self);
 }
 
 static void
-compaq_plasma_speed_changed(void *priv)
+compaq_plasma_speed_changed(const void *priv)
 {
-    compaq_plasma_t *self = (compaq_plasma_t *) priv;
+    const compaq_plasma_t *self = (const compaq_plasma_t *) priv;
 
     compaq_plasma_recalctimings(self);
 }
@@ -718,7 +718,7 @@ const device_t compaq_plasma_device = {
 };
 
 static uint8_t
-read_ram(uint32_t addr, UNUSED(void *priv))
+read_ram(uint32_t addr, UNUSED(const void *priv))
 {
     addr = (addr & 0x7ffff) + 0x80000;
     addreadlookup(mem_logical_addr, addr);
@@ -727,7 +727,7 @@ read_ram(uint32_t addr, UNUSED(void *priv))
 }
 
 static uint16_t
-read_ramw(uint32_t addr, UNUSED(void *priv))
+read_ramw(uint32_t addr, UNUSED(const void *priv))
 {
     addr = (addr & 0x7ffff) + 0x80000;
     addreadlookup(mem_logical_addr, addr);
@@ -736,7 +736,7 @@ read_ramw(uint32_t addr, UNUSED(void *priv))
 }
 
 static uint32_t
-read_raml(uint32_t addr, UNUSED(void *priv))
+read_raml(uint32_t addr, UNUSED(const void *priv))
 {
     addr = (addr & 0x7ffff) + 0x80000;
     addreadlookup(mem_logical_addr, addr);
@@ -745,7 +745,7 @@ read_raml(uint32_t addr, UNUSED(void *priv))
 }
 
 static void
-write_ram(uint32_t addr, uint8_t val, UNUSED(void *priv))
+write_ram(uint32_t addr, uint8_t val, UNUSED(const void *priv))
 {
     addr = (addr & 0x7ffff) + 0x80000;
     addwritelookup(mem_logical_addr, addr);
@@ -754,7 +754,7 @@ write_ram(uint32_t addr, uint8_t val, UNUSED(void *priv))
 }
 
 static void
-write_ramw(uint32_t addr, uint16_t val, UNUSED(void *priv))
+write_ramw(uint32_t addr, uint16_t val, UNUSED(const void *priv))
 {
     addr = (addr & 0x7ffff) + 0x80000;
     addwritelookup(mem_logical_addr, addr);
@@ -763,7 +763,7 @@ write_ramw(uint32_t addr, uint16_t val, UNUSED(void *priv))
 }
 
 static void
-write_raml(uint32_t addr, uint32_t val, UNUSED(void *priv))
+write_raml(uint32_t addr, uint32_t val, UNUSED(const void *priv))
 {
     addr = (addr & 0x7ffff) + 0x80000;
     addwritelookup(mem_logical_addr, addr);

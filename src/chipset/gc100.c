@@ -143,9 +143,9 @@ gc100_write(uint16_t port, uint8_t val, void *priv)
 }
 
 static uint8_t
-gc100_read(uint16_t port, void *priv)
+gc100_read(uint16_t port, const void *priv)
 {
-    const gc100_t *dev  = (gc100_t *) priv;
+    const gc100_t *dev  = (const gc100_t *) priv;
     uint8_t        ret  = 0xff;
     uint16_t       addr = port & 0xf;
 
@@ -219,12 +219,12 @@ gc100_init(const device_t *info)
 
     if (info->local) {
         /* GC100A */
-        io_sethandler(0x0c2, 0x02, gc100_read, NULL, NULL, gc100_write, NULL, NULL, dev);
-        io_sethandler(0x0c5, 0x03, gc100_read, NULL, NULL, gc100_write, NULL, NULL, dev);
+        io_sethandler(0x0c2, 0x02, &gc100_read, NULL, NULL, &gc100_write, NULL, NULL, dev);
+        io_sethandler(0x0c5, 0x03, &gc100_read, NULL, NULL, &gc100_write, NULL, NULL, dev);
     } else {
         /* GC100 */
-        io_sethandler(0x022, 0x02, gc100_read, NULL, NULL, gc100_write, NULL, NULL, dev);
-        io_sethandler(0x025, 0x01, gc100_read, NULL, NULL, gc100_write, NULL, NULL, dev);
+        io_sethandler(0x022, 0x02, &gc100_read, NULL, NULL, &gc100_write, NULL, NULL, dev);
+        io_sethandler(0x025, 0x01, &gc100_read, NULL, NULL, &gc100_write, NULL, NULL, dev);
     }
 
     return dev;
@@ -235,8 +235,8 @@ const device_t gc100_device = {
     .internal_name = "gc100",
     .flags         = 0,
     .local         = 0,
-    .init          = gc100_init,
-    .close         = gc100_close,
+    .init          = &gc100_init,
+    .close         = &gc100_close,
     .reset         = NULL,
     { .available = NULL },
     .speed_changed = NULL,
@@ -249,8 +249,8 @@ const device_t gc100a_device = {
     .internal_name = "gc100a",
     .flags         = 0,
     .local         = 1,
-    .init          = gc100_init,
-    .close         = gc100_close,
+    .init          = &gc100_init,
+    .close         = &gc100_close,
     .reset         = NULL,
     { .available = NULL },
     .speed_changed = NULL,

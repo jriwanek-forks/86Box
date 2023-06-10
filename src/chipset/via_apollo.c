@@ -81,7 +81,7 @@ apollo_map(uint32_t addr, uint32_t size, int state)
 }
 
 static void
-apollo_smram_map(via_apollo_t *dev, int smm, uint32_t host_base, uint32_t size, int is_smram)
+apollo_smram_map(const via_apollo_t *dev, int smm, uint32_t host_base, uint32_t size, int is_smram)
 {
     if (((is_smram & 0x03) == 0x01) || ((is_smram & 0x03) == 0x02))
         smram_enable(dev->smram, host_base, 0x000a0000, size, 0, 1);
@@ -227,9 +227,9 @@ via_apollo_setup(via_apollo_t *dev)
 }
 
 static void
-via_apollo_host_bridge_write(int func, int addr, uint8_t val, void *priv)
+via_apollo_host_bridge_write(int func, int addr, uint8_t val, const void *priv)
 {
-    via_apollo_t *dev = (via_apollo_t *) priv;
+    via_apollo_t *dev = (const via_apollo_t *) priv;
     if (func)
         return;
 
@@ -673,9 +673,9 @@ via_apollo_host_bridge_write(int func, int addr, uint8_t val, void *priv)
 }
 
 static uint8_t
-via_apollo_read(int func, int addr, void *priv)
+via_apollo_read(int func, int addr, const void *priv)
 {
-    const via_apollo_t *dev = (via_apollo_t *) priv;
+    const via_apollo_t *dev = (const via_apollo_t *) priv;
     uint8_t             ret = 0xff;
 
     switch (func) {
@@ -690,7 +690,7 @@ via_apollo_read(int func, int addr, void *priv)
 }
 
 static void
-via_apollo_write(int func, int addr, uint8_t val, void *priv)
+via_apollo_write(int func, int addr, uint8_t val, const void *priv)
 {
     switch (func) {
         case 0:
@@ -702,7 +702,7 @@ via_apollo_write(int func, int addr, uint8_t val, void *priv)
 }
 
 static void
-via_apollo_reset(void *priv)
+via_apollo_reset(const void *priv)
 {
     via_apollo_write(0, 0x61, 0x00, priv);
     via_apollo_write(0, 0x62, 0x00, priv);
@@ -719,7 +719,7 @@ via_apollo_init(const device_t *info)
     if (dev->id != VIA_8601)
         apollo_smram_map(dev, 1, 0x000a0000, 0x00020000, 1); /* SMM: Code DRAM, Data DRAM */
 
-    pci_add_card(PCI_ADD_NORTHBRIDGE, via_apollo_read, via_apollo_write, dev, &dev->pci_slot);
+    pci_add_card(PCI_ADD_NORTHBRIDGE, &via_apollo_read, &via_apollo_write, dev, &dev->pci_slot);
 
     dev->id = info->local;
 
@@ -763,9 +763,9 @@ via_apollo_init(const device_t *info)
 }
 
 static void
-via_apollo_close(void *priv)
+via_apollo_close(const void *priv)
 {
-    via_apollo_t *dev = (via_apollo_t *) priv;
+    const via_apollo_t *dev = (const via_apollo_t *) priv;
 
     smram_del(dev->smram);
 
@@ -777,9 +777,9 @@ const device_t via_vpx_device = {
     .internal_name = "via_vpx",
     .flags         = DEVICE_PCI,
     .local         = VIA_585, /*VT82C585*/
-    .init          = via_apollo_init,
-    .close         = via_apollo_close,
-    .reset         = via_apollo_reset,
+    .init          = &via_apollo_init,
+    .close         = &via_apollo_close,
+    .reset         = &via_apollo_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,
@@ -791,9 +791,9 @@ const device_t amd640_device = {
     .internal_name = "amd640",
     .flags         = DEVICE_PCI,
     .local         = VIA_595, /*VT82C595*/
-    .init          = via_apollo_init,
-    .close         = via_apollo_close,
-    .reset         = via_apollo_reset,
+    .init          = &via_apollo_init,
+    .close         = &via_apollo_close,
+    .reset         = &via_apollo_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,
@@ -805,9 +805,9 @@ const device_t via_vp3_device = {
     .internal_name = "via_vp3",
     .flags         = DEVICE_PCI,
     .local         = VIA_597, /*VT82C597*/
-    .init          = via_apollo_init,
-    .close         = via_apollo_close,
-    .reset         = via_apollo_reset,
+    .init          = &via_apollo_init,
+    .close         = &via_apollo_close,
+    .reset         = &via_apollo_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,
@@ -819,9 +819,9 @@ const device_t via_mvp3_device = {
     .internal_name = "via_mvp3",
     .flags         = DEVICE_PCI,
     .local         = VIA_598, /*VT82C598MVP*/
-    .init          = via_apollo_init,
-    .close         = via_apollo_close,
-    .reset         = via_apollo_reset,
+    .init          = &via_apollo_init,
+    .close         = &via_apollo_close,
+    .reset         = &via_apollo_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,
@@ -833,9 +833,9 @@ const device_t via_apro_device = {
     .internal_name = "via_apro",
     .flags         = DEVICE_PCI,
     .local         = VIA_691, /*VT82C691*/
-    .init          = via_apollo_init,
-    .close         = via_apollo_close,
-    .reset         = via_apollo_reset,
+    .init          = &via_apollo_init,
+    .close         = &via_apollo_close,
+    .reset         = &via_apollo_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,
@@ -847,9 +847,9 @@ const device_t via_apro133_device = {
     .internal_name = "via_apro133",
     .flags         = DEVICE_PCI,
     .local         = VIA_693A, /*VT82C693A*/
-    .init          = via_apollo_init,
-    .close         = via_apollo_close,
-    .reset         = via_apollo_reset,
+    .init          = &via_apollo_init,
+    .close         = &via_apollo_close,
+    .reset         = &via_apollo_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,
@@ -861,9 +861,9 @@ const device_t via_apro133a_device = {
     .internal_name = "via_apro_133a",
     .flags         = DEVICE_PCI,
     .local         = VIA_694, /*VT82C694X*/
-    .init          = via_apollo_init,
-    .close         = via_apollo_close,
-    .reset         = via_apollo_reset,
+    .init          = &via_apollo_init,
+    .close         = &via_apollo_close,
+    .reset         = &via_apollo_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,
@@ -875,9 +875,9 @@ const device_t via_vt8601_device = {
     .internal_name = "via_vt8601",
     .flags         = DEVICE_PCI,
     .local         = VIA_8601, /*VT8601*/
-    .init          = via_apollo_init,
-    .close         = via_apollo_close,
-    .reset         = via_apollo_reset,
+    .init          = &via_apollo_init,
+    .close         = &via_apollo_close,
+    .reset         = &via_apollo_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,

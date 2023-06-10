@@ -118,10 +118,9 @@ i4x0_smram_handler_phase0(i4x0_t *dev)
 }
 
 static void
-i4x0_smram_handler_phase1(i4x0_t *dev)
+i4x0_smram_handler_phase1(const i4x0_t *dev)
 {
-
-    const uint8_t *regs    = (uint8_t *) dev->regs;
+    const uint8_t *regs    = (const uint8_t *) dev->regs;
     uint32_t       tom     = (mem_size << 10);
     const uint8_t *reg     = (dev->type >= INTEL_430LX) ? &(regs[0x72]) : &(regs[0x57]);
     const uint8_t *ext_reg = (dev->type >= INTEL_440BX) ? &(regs[0x73]) : &(regs[0x71]);
@@ -229,25 +228,25 @@ i4x0_mask_bar(uint8_t *regs, void *agpgart)
 }
 
 static uint8_t
-pm2_cntrl_read(UNUSED(uint16_t addr), void *priv)
+pm2_cntrl_read(UNUSED(uint16_t addr), const void *priv)
 {
-    const i4x0_t *dev = (i4x0_t *) priv;
+    const i4x0_t *dev = (const i4x0_t *) priv;
 
     return dev->pm2_cntrl & 0x01;
 }
 
 static void
-pm2_cntrl_write(UNUSED(uint16_t addr), uint8_t val, void *priv)
+pm2_cntrl_write(UNUSED(uint16_t addr), uint8_t val, const void *priv)
 {
-    i4x0_t *dev = (i4x0_t *) priv;
+    i4x0_t *dev = (const i4x0_t *) priv;
 
     dev->pm2_cntrl = val & 0x01;
 }
 
 static void
-i4x0_write(int func, int addr, uint8_t val, void *priv)
+i4x0_write(int func, int addr, uint8_t val, const void *priv)
 {
-    i4x0_t  *dev    = (i4x0_t *) priv;
+    i4x0_t  *dev    = (const i4x0_t *) priv;
     uint8_t *regs   = (uint8_t *) dev->regs;
     uint8_t *regs_l = (uint8_t *) dev->regs_locked;
 
@@ -1108,9 +1107,9 @@ i4x0_write(int func, int addr, uint8_t val, void *priv)
                 switch (dev->type) {
                     case INTEL_430TX:
                         regs[0x79] = val & 0x74;
-                        io_removehandler(0x0022, 0x01, pm2_cntrl_read, NULL, NULL, pm2_cntrl_write, NULL, NULL, dev);
+                        io_removehandler(0x0022, 0x01, &pm2_cntrl_read, NULL, NULL, &pm2_cntrl_write, NULL, NULL, dev);
                         if (val & 0x40)
-                            io_sethandler(0x0022, 0x01, pm2_cntrl_read, NULL, NULL, pm2_cntrl_write, NULL, NULL, dev);
+                            io_sethandler(0x0022, 0x01, &pm2_cntrl_read, NULL, NULL, &pm2_cntrl_write, NULL, NULL, dev);
                         break;
                     case INTEL_440BX:
                     case INTEL_440ZX:
@@ -1127,9 +1126,9 @@ i4x0_write(int func, int addr, uint8_t val, void *priv)
                     case INTEL_440ZX:
                     case INTEL_440GX:
                         regs[0x7a] = (regs[0x7a] & 0x0a) | (val & 0xf5);
-                        io_removehandler(0x0022, 0x01, pm2_cntrl_read, NULL, NULL, pm2_cntrl_write, NULL, NULL, dev);
+                        io_removehandler(0x0022, 0x01, &pm2_cntrl_read, NULL, NULL, &pm2_cntrl_write, NULL, NULL, dev);
                         if (val & 0x40)
-                            io_sethandler(0x0022, 0x01, pm2_cntrl_read, NULL, NULL, pm2_cntrl_write, NULL, NULL, dev);
+                            io_sethandler(0x0022, 0x01, &pm2_cntrl_read, NULL, NULL, &pm2_cntrl_write, NULL, NULL, dev);
                         break;
                     default:
                         break;
@@ -1510,11 +1509,11 @@ i4x0_write(int func, int addr, uint8_t val, void *priv)
 }
 
 static uint8_t
-i4x0_read(int func, int addr, void *priv)
+i4x0_read(int func, int addr, const void *priv)
 {
-    i4x0_t        *dev  = (i4x0_t *) priv;
+    const i4x0_t  *dev  = (const i4x0_t *) priv;
     uint8_t        ret  = 0xff;
-    const uint8_t *regs = (uint8_t *) dev->regs;
+    const uint8_t *regs = (const uint8_t *) dev->regs;
 
     if (func == 0) {
         ret = regs[addr];
@@ -1530,9 +1529,9 @@ i4x0_read(int func, int addr, void *priv)
 }
 
 static void
-i4x0_reset(void *priv)
+i4x0_reset(const void *priv)
 {
-    i4x0_t *dev = (i4x0_t *) priv;
+    i4x0_t *dev = (const i4x0_t *) priv;
 
     if ((dev->type == INTEL_440LX) || (dev->type == INTEL_440BX) || (dev->type == INTEL_440ZX))
         memset(dev->regs_locked, 0x00, 256 * sizeof(uint8_t));
@@ -1571,7 +1570,7 @@ i4x0_reset(void *priv)
 }
 
 static void
-i4x0_close(void *priv)
+i4x0_close(const void *priv)
 {
     i4x0_t *dev = (i4x0_t *) priv;
 
@@ -1922,7 +1921,7 @@ i4x0_init(const device_t *info)
                    (dev->type >= INTEL_440BX) ? 0x38 : 0x00, dev);
     }
 
-    pci_add_card(PCI_ADD_NORTHBRIDGE, i4x0_read, i4x0_write, dev, &dev->pci_slot);
+    pci_add_card(PCI_ADD_NORTHBRIDGE, &i4x0_read, &i4x0_write, dev, &dev->pci_slot);
 
     if ((dev->type >= INTEL_440BX) && !(regs[0x7a] & 0x02)) {
         device_add((dev->type == INTEL_440GX) ? &i440gx_agp_device : &i440bx_agp_device);
@@ -1940,9 +1939,9 @@ const device_t i420tx_device = {
     .internal_name = "i420tx",
     .flags         = DEVICE_PCI,
     .local         = INTEL_420TX,
-    .init          = i4x0_init,
-    .close         = i4x0_close,
-    .reset         = i4x0_reset,
+    .init          = &i4x0_init,
+    .close         = &i4x0_close,
+    .reset         = &i4x0_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,
@@ -1954,9 +1953,9 @@ const device_t i420zx_device = {
     .internal_name = "i420zx",
     .flags         = DEVICE_PCI,
     .local         = INTEL_420ZX,
-    .init          = i4x0_init,
-    .close         = i4x0_close,
-    .reset         = i4x0_reset,
+    .init          = &i4x0_init,
+    .close         = &i4x0_close,
+    .reset         = &i4x0_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,
@@ -1968,9 +1967,9 @@ const device_t i430lx_device = {
     .internal_name = "i430lx",
     .flags         = DEVICE_PCI,
     .local         = INTEL_430LX,
-    .init          = i4x0_init,
-    .close         = i4x0_close,
-    .reset         = i4x0_reset,
+    .init          = &i4x0_init,
+    .close         = &i4x0_close,
+    .reset         = &i4x0_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,
@@ -1982,9 +1981,9 @@ const device_t i430nx_device = {
     .internal_name = "i430nx",
     .flags         = DEVICE_PCI,
     .local         = INTEL_430NX,
-    .init          = i4x0_init,
-    .close         = i4x0_close,
-    .reset         = i4x0_reset,
+    .init          = &i4x0_init,
+    .close         = &i4x0_close,
+    .reset         = &i4x0_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,
@@ -1996,9 +1995,9 @@ const device_t i430fx_device = {
     .internal_name = "i430fx",
     .flags         = DEVICE_PCI,
     .local         = INTEL_430FX,
-    .init          = i4x0_init,
-    .close         = i4x0_close,
-    .reset         = i4x0_reset,
+    .init          = &i4x0_init,
+    .close         = &i4x0_close,
+    .reset         = &i4x0_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,
@@ -2010,9 +2009,9 @@ const device_t i430fx_rev02_device = {
     .internal_name = "i430fx_rev02",
     .flags         = DEVICE_PCI,
     .local         = 0x0200 | INTEL_430FX,
-    .init          = i4x0_init,
-    .close         = i4x0_close,
-    .reset         = i4x0_reset,
+    .init          = &i4x0_init,
+    .close         = &i4x0_close,
+    .reset         = &i4x0_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,
@@ -2024,9 +2023,9 @@ const device_t i430hx_device = {
     .internal_name = "i430hx",
     .flags         = DEVICE_PCI,
     .local         = INTEL_430HX,
-    .init          = i4x0_init,
-    .close         = i4x0_close,
-    .reset         = i4x0_reset,
+    .init          = &i4x0_init,
+    .close         = &i4x0_close,
+    .reset         = &i4x0_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,
@@ -2038,9 +2037,9 @@ const device_t i430vx_device = {
     .internal_name = "i430vx",
     .flags         = DEVICE_PCI,
     .local         = INTEL_430VX,
-    .init          = i4x0_init,
-    .close         = i4x0_close,
-    .reset         = i4x0_reset,
+    .init          = &i4x0_init,
+    .close         = &i4x0_close,
+    .reset         = &i4x0_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,
@@ -2052,9 +2051,9 @@ const device_t i430tx_device = {
     .internal_name = "i430tx",
     .flags         = DEVICE_PCI,
     .local         = INTEL_430TX,
-    .init          = i4x0_init,
-    .close         = i4x0_close,
-    .reset         = i4x0_reset,
+    .init          = &i4x0_init,
+    .close         = &i4x0_close,
+    .reset         = &i4x0_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,
@@ -2066,9 +2065,9 @@ const device_t i440fx_device = {
     .internal_name = "i440fx",
     .flags         = DEVICE_PCI,
     .local         = INTEL_440FX,
-    .init          = i4x0_init,
-    .close         = i4x0_close,
-    .reset         = i4x0_reset,
+    .init          = &i4x0_init,
+    .close         = &i4x0_close,
+    .reset         = &i4x0_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,
@@ -2080,9 +2079,9 @@ const device_t i440lx_device = {
     .internal_name = "i440lx",
     .flags         = DEVICE_PCI,
     .local         = INTEL_440LX,
-    .init          = i4x0_init,
-    .close         = i4x0_close,
-    .reset         = i4x0_reset,
+    .init          = &i4x0_init,
+    .close         = &i4x0_close,
+    .reset         = &i4x0_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,
@@ -2094,9 +2093,9 @@ const device_t i440ex_device = {
     .internal_name = "i440ex",
     .flags         = DEVICE_PCI,
     .local         = INTEL_440EX,
-    .init          = i4x0_init,
-    .close         = i4x0_close,
-    .reset         = i4x0_reset,
+    .init          = &i4x0_init,
+    .close         = &i4x0_close,
+    .reset         = &i4x0_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,
@@ -2108,9 +2107,9 @@ const device_t i440bx_device = {
     .internal_name = "i440bx",
     .flags         = DEVICE_PCI,
     .local         = 0x8000 | INTEL_440BX,
-    .init          = i4x0_init,
-    .close         = i4x0_close,
-    .reset         = i4x0_reset,
+    .init          = &i4x0_init,
+    .close         = &i4x0_close,
+    .reset         = &i4x0_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,
@@ -2122,9 +2121,9 @@ const device_t i440bx_no_agp_device = {
     .internal_name = "i440bx_no_agp",
     .flags         = DEVICE_PCI,
     .local         = 0x8200 | INTEL_440BX,
-    .init          = i4x0_init,
-    .close         = i4x0_close,
-    .reset         = i4x0_reset,
+    .init          = &i4x0_init,
+    .close         = &i4x0_close,
+    .reset         = &i4x0_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,
@@ -2136,9 +2135,9 @@ const device_t i440gx_device = {
     .internal_name = "i440gx",
     .flags         = DEVICE_PCI,
     .local         = 0x8000 | INTEL_440GX,
-    .init          = i4x0_init,
-    .close         = i4x0_close,
-    .reset         = i4x0_reset,
+    .init          = &i4x0_init,
+    .close         = &i4x0_close,
+    .reset         = &i4x0_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,
@@ -2150,9 +2149,9 @@ const device_t i440zx_device = {
     .internal_name = "i440zx",
     .flags         = DEVICE_PCI,
     .local         = 0x8000 | INTEL_440ZX,
-    .init          = i4x0_init,
-    .close         = i4x0_close,
-    .reset         = i4x0_reset,
+    .init          = &i4x0_init,
+    .close         = &i4x0_close,
+    .reset         = &i4x0_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,

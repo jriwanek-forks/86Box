@@ -216,8 +216,8 @@ flushmmucache(void)
     }
     mmuflush++;
 
-    pccache  = (uint32_t) 0xffffffff;
-    pccache2 = (uint8_t *) 0xffffffff;
+    pccache  = 0xffffffff;
+    pccache2 = 0xffffffff;
 
 #ifdef USE_DYNAREC
     codegen_flush();
@@ -256,7 +256,7 @@ mem_flush_write_page(uint32_t addr, uint32_t virt)
 #if (defined __amd64__ || defined _M_X64 || defined __aarch64__ || defined _M_ARM64)
             uintptr_t target = (uintptr_t) &ram[(uintptr_t) (addr & ~0xfff) - (virt & ~0xfff)];
 #else
-            a = (uintptr_t) (addr & ~0xfff) - (virt & ~0xfff);
+            a = (addr & ~0xfff) - (virt & ~0xfff);
             uintptr_t target;
 
             if ((addr & ~0xfff) >= (1 << 30))
@@ -589,7 +589,7 @@ addreadlookup(uint32_t virt, uint32_t phys)
 #if (defined __amd64__ || defined _M_X64 || defined __aarch64__ || defined _M_ARM64)
     readlookup2[virt >> 12] = (uintptr_t) &ram[(uintptr_t) (phys & ~0xFFF) - (uintptr_t) (virt & ~0xfff)];
 #else
-    a = ((uint32_t) (phys & ~0xfff) - (uint32_t) (virt & ~0xfff));
+    a = ((phys & ~0xfff) - (virt & ~0xfff));
 
     if ((phys & ~0xfff) >= (1 << 30))
         readlookup2[virt >> 12] = (uintptr_t) &ram2[a - (1 << 30)];
@@ -641,7 +641,7 @@ addwritelookup(uint32_t virt, uint32_t phys)
 #if (defined __amd64__ || defined _M_X64 || defined __aarch64__ || defined _M_ARM64)
         writelookup2[virt >> 12] = (uintptr_t) &ram[(uintptr_t) (phys & ~0xFFF) - (uintptr_t) (virt & ~0xfff)];
 #else
-        a = ((uint32_t) (phys & ~0xfff) - (uint32_t) (virt & ~0xfff));
+        a = ((phys & ~0xfff) - (virt & ~0xfff));
 
         if ((phys & ~0xfff) >= (1 << 30))
             writelookup2[virt >> 12] = (uintptr_t) &ram2[a - (1 << 30)];
@@ -805,7 +805,7 @@ readmembl(uint32_t addr)
         if (a > 0xffffffffULL)
             return 0xff;
     }
-    addr = (uint32_t) (addr64 & rammask);
+    addr = (addr64 & rammask);
 
     map = read_mapping[addr >> MEM_GRANULARITY_BITS];
     if (map && map->read_b)
@@ -839,7 +839,7 @@ writemembl(uint32_t addr, uint8_t val)
         if (a > 0xffffffffULL)
             return;
     }
-    addr = (uint32_t) (addr64 & rammask);
+    addr = (addr64 & rammask);
 
     map = write_mapping[addr >> MEM_GRANULARITY_BITS];
     if (map && map->write_b)
@@ -1033,7 +1033,7 @@ writememwl(uint32_t addr, uint16_t val)
 
 /* Read a word from memory without MMU translation - results of previous MMU translation passed as array. */
 uint16_t
-readmemwl_no_mmut(uint32_t addr, uint32_t *a64)
+readmemwl_no_mmut(uint32_t addr, const uint32_t *a64)
 {
     mem_mapping_t *map;
 
@@ -1061,7 +1061,7 @@ readmemwl_no_mmut(uint32_t addr, uint32_t *a64)
         if (cpu_state.abrt || high_page)
             return 0xffff;
 
-        addr = (uint32_t) (a64[0] & rammask);
+        addr = (a64[0] & rammask);
     } else
         addr &= rammask;
 
@@ -1079,7 +1079,7 @@ readmemwl_no_mmut(uint32_t addr, uint32_t *a64)
 
 /* Write a word to memory without MMU translation - results of previous MMU translation passed as array. */
 void
-writememwl_no_mmut(uint32_t addr, uint32_t *a64, uint16_t val)
+writememwl_no_mmut(uint32_t addr, const uint32_t *a64, uint16_t val)
 {
     mem_mapping_t *map;
 
@@ -1116,7 +1116,7 @@ writememwl_no_mmut(uint32_t addr, uint32_t *a64, uint16_t val)
         if (cpu_state.abrt || high_page)
             return;
 
-        addr = (uint32_t) (a64[0] & rammask);
+        addr = (a64[0] & rammask);
     } else
         addr &= rammask;
 
@@ -1331,7 +1331,7 @@ readmemll_no_mmut(uint32_t addr, uint32_t *a64)
         if (cpu_state.abrt || high_page)
             return 0xffffffff;
 
-        addr = (uint32_t) (a64[0] & rammask);
+        addr = (a64[0] & rammask);
     } else
         addr &= rammask;
 
@@ -1388,7 +1388,7 @@ writememll_no_mmut(uint32_t addr, uint32_t *a64, uint32_t val)
         if (cpu_state.abrt || high_page)
             return;
 
-        addr = (uint32_t) (a64[0] & rammask);
+        addr = (a64[0] & rammask);
     } else
         addr &= rammask;
 
@@ -1687,20 +1687,20 @@ mem_readl_phys(uint32_t addr)
 }
 
 void
-mem_read_phys(void *dest, uint32_t addr, int transfer_size)
+mem_read_phys(const void *dest, uint32_t addr, int transfer_size)
 {
     uint8_t  *pb;
     uint16_t *pw;
     uint32_t *pl;
 
     if (transfer_size == 4) {
-        pl  = (uint32_t *) dest;
+        pl  = (const uint32_t *) dest;
         *pl = mem_readl_phys(addr);
     } else if (transfer_size == 2) {
-        pw  = (uint16_t *) dest;
+        pw  = (const uint16_t *) dest;
         *pw = mem_readw_phys(addr);
     } else if (transfer_size == 1) {
-        pb  = (uint8_t *) dest;
+        pb  = (const uint8_t *) dest;
         *pb = mem_readb_phys(addr);
     }
 }
@@ -1759,26 +1759,26 @@ mem_writel_phys(uint32_t addr, uint32_t val)
 }
 
 void
-mem_write_phys(void *src, uint32_t addr, int transfer_size)
+mem_write_phys(const void *src, uint32_t addr, int transfer_size)
 {
     const uint8_t  *pb;
     const uint16_t *pw;
     const uint32_t *pl;
 
     if (transfer_size == 4) {
-        pl = (uint32_t *) src;
+        pl = (const uint32_t *) src;
         mem_writel_phys(addr, *pl);
     } else if (transfer_size == 2) {
-        pw = (uint16_t *) src;
+        pw = (const uint16_t *) src;
         mem_writew_phys(addr, *pw);
     } else if (transfer_size == 1) {
-        pb = (uint8_t *) src;
+        pb = (const uint8_t *) src;
         mem_writeb_phys(addr, *pb);
     }
 }
 
 uint8_t
-mem_read_ram(uint32_t addr, UNUSED(void *priv))
+mem_read_ram(uint32_t addr, UNUSED(const void *priv))
 {
 #ifdef ENABLE_MEM_LOG
     if ((addr >= 0xa0000) && (addr <= 0xbffff))
@@ -1792,7 +1792,7 @@ mem_read_ram(uint32_t addr, UNUSED(void *priv))
 }
 
 uint16_t
-mem_read_ramw(uint32_t addr, UNUSED(void *priv))
+mem_read_ramw(uint32_t addr, UNUSED(const void *priv))
 {
 #ifdef ENABLE_MEM_LOG
     if ((addr >= 0xa0000) && (addr <= 0xbffff))
@@ -1806,7 +1806,7 @@ mem_read_ramw(uint32_t addr, UNUSED(void *priv))
 }
 
 uint32_t
-mem_read_raml(uint32_t addr, UNUSED(void *priv))
+mem_read_raml(uint32_t addr, UNUSED(const void *priv))
 {
 #ifdef ENABLE_MEM_LOG
     if ((addr >= 0xa0000) && (addr <= 0xbffff))
@@ -1820,7 +1820,7 @@ mem_read_raml(uint32_t addr, UNUSED(void *priv))
 }
 
 uint8_t
-mem_read_ram_2gb(uint32_t addr, UNUSED(void *priv))
+mem_read_ram_2gb(uint32_t addr, UNUSED(const void *priv))
 {
 #ifdef ENABLE_MEM_LOG
     if ((addr >= 0xa0000) && (addr <= 0xbffff))
@@ -1833,7 +1833,7 @@ mem_read_ram_2gb(uint32_t addr, UNUSED(void *priv))
 }
 
 uint16_t
-mem_read_ram_2gbw(uint32_t addr, UNUSED(void *priv))
+mem_read_ram_2gbw(uint32_t addr, UNUSED(const void *priv))
 {
 #ifdef ENABLE_MEM_LOG
     if ((addr >= 0xa0000) && (addr <= 0xbffff))
@@ -1846,7 +1846,7 @@ mem_read_ram_2gbw(uint32_t addr, UNUSED(void *priv))
 }
 
 uint32_t
-mem_read_ram_2gbl(uint32_t addr, UNUSED(void *priv))
+mem_read_ram_2gbl(uint32_t addr, UNUSED(const void *priv))
 {
 #ifdef ENABLE_MEM_LOG
     if ((addr >= 0xa0000) && (addr <= 0xbffff))
@@ -2039,7 +2039,7 @@ mem_write_raml_page(uint32_t addr, uint32_t val, page_t *page)
 #endif
 
 void
-mem_write_ram(uint32_t addr, uint8_t val, UNUSED(void *priv))
+mem_write_ram(uint32_t addr, uint8_t val, UNUSED(const void *priv))
 {
 #ifdef ENABLE_MEM_LOG
     if ((addr >= 0xa0000) && (addr <= 0xbffff))
@@ -2053,7 +2053,7 @@ mem_write_ram(uint32_t addr, uint8_t val, UNUSED(void *priv))
 }
 
 void
-mem_write_ramw(uint32_t addr, uint16_t val, UNUSED(void *priv))
+mem_write_ramw(uint32_t addr, uint16_t val, UNUSED(const void *priv))
 {
 #ifdef ENABLE_MEM_LOG
     if ((addr >= 0xa0000) && (addr <= 0xbffff))
@@ -2067,7 +2067,7 @@ mem_write_ramw(uint32_t addr, uint16_t val, UNUSED(void *priv))
 }
 
 void
-mem_write_raml(uint32_t addr, uint32_t val, UNUSED(void *priv))
+mem_write_raml(uint32_t addr, uint32_t val, UNUSED(const void *priv))
 {
 #ifdef ENABLE_MEM_LOG
     if ((addr >= 0xa0000) && (addr <= 0xbffff))
@@ -2081,7 +2081,7 @@ mem_write_raml(uint32_t addr, uint32_t val, UNUSED(void *priv))
 }
 
 static uint8_t
-mem_read_remapped(uint32_t addr, UNUSED(void *priv))
+mem_read_remapped(uint32_t addr, UNUSED(const void *priv))
 {
     addr = 0xA0000 + (addr - remap_start_addr);
     if (cpu_use_exec)
@@ -2090,7 +2090,7 @@ mem_read_remapped(uint32_t addr, UNUSED(void *priv))
 }
 
 static uint16_t
-mem_read_remappedw(uint32_t addr, UNUSED(void *priv))
+mem_read_remappedw(uint32_t addr, UNUSED(const void *priv))
 {
     addr = 0xA0000 + (addr - remap_start_addr);
     if (cpu_use_exec)
@@ -2099,7 +2099,7 @@ mem_read_remappedw(uint32_t addr, UNUSED(void *priv))
 }
 
 static uint32_t
-mem_read_remappedl(uint32_t addr, UNUSED(void *priv))
+mem_read_remappedl(uint32_t addr, UNUSED(const void *priv))
 {
     addr = 0xA0000 + (addr - remap_start_addr);
     if (cpu_use_exec)
@@ -2108,7 +2108,7 @@ mem_read_remappedl(uint32_t addr, UNUSED(void *priv))
 }
 
 static uint8_t
-mem_read_remapped2(uint32_t addr, UNUSED(void *priv))
+mem_read_remapped2(uint32_t addr, UNUSED(const void *priv))
 {
     addr = 0xD0000 + (addr - remap_start_addr2);
     if (cpu_use_exec)
@@ -2117,7 +2117,7 @@ mem_read_remapped2(uint32_t addr, UNUSED(void *priv))
 }
 
 static uint16_t
-mem_read_remappedw2(uint32_t addr, UNUSED(void *priv))
+mem_read_remappedw2(uint32_t addr, UNUSED(const void *priv))
 {
     addr = 0xD0000 + (addr - remap_start_addr2);
     if (cpu_use_exec)
@@ -2126,7 +2126,7 @@ mem_read_remappedw2(uint32_t addr, UNUSED(void *priv))
 }
 
 static uint32_t
-mem_read_remappedl2(uint32_t addr, UNUSED(void *priv))
+mem_read_remappedl2(uint32_t addr, UNUSED(const void *priv))
 {
     addr = 0xD0000 + (addr - remap_start_addr2);
     if (cpu_use_exec)
@@ -2135,7 +2135,7 @@ mem_read_remappedl2(uint32_t addr, UNUSED(void *priv))
 }
 
 static void
-mem_write_remapped(uint32_t addr, uint8_t val, UNUSED(void *priv))
+mem_write_remapped(uint32_t addr, uint8_t val, UNUSED(const void *priv))
 {
     uint32_t oldaddr = addr;
     addr             = 0xA0000 + (addr - remap_start_addr);
@@ -2147,7 +2147,7 @@ mem_write_remapped(uint32_t addr, uint8_t val, UNUSED(void *priv))
 }
 
 static void
-mem_write_remappedw(uint32_t addr, uint16_t val, UNUSED(void *priv))
+mem_write_remappedw(uint32_t addr, uint16_t val, UNUSED(const void *priv))
 {
     uint32_t oldaddr = addr;
     addr             = 0xA0000 + (addr - remap_start_addr);
@@ -2159,7 +2159,7 @@ mem_write_remappedw(uint32_t addr, uint16_t val, UNUSED(void *priv))
 }
 
 static void
-mem_write_remappedl(uint32_t addr, uint32_t val, UNUSED(void *priv))
+mem_write_remappedl(uint32_t addr, uint32_t val, UNUSED(const void *priv))
 {
     uint32_t oldaddr = addr;
     addr             = 0xA0000 + (addr - remap_start_addr);
@@ -2171,7 +2171,7 @@ mem_write_remappedl(uint32_t addr, uint32_t val, UNUSED(void *priv))
 }
 
 static void
-mem_write_remapped2(uint32_t addr, uint8_t val, UNUSED(void *priv))
+mem_write_remapped2(uint32_t addr, uint8_t val, UNUSED(const void *priv))
 {
     uint32_t oldaddr = addr;
     addr             = 0xD0000 + (addr - remap_start_addr2);
@@ -2183,7 +2183,7 @@ mem_write_remapped2(uint32_t addr, uint8_t val, UNUSED(void *priv))
 }
 
 static void
-mem_write_remappedw2(uint32_t addr, uint16_t val, UNUSED(void *priv))
+mem_write_remappedw2(uint32_t addr, uint16_t val, UNUSED(const void *priv))
 {
     uint32_t oldaddr = addr;
     addr             = 0xD0000 + (addr - remap_start_addr2);
@@ -2195,7 +2195,7 @@ mem_write_remappedw2(uint32_t addr, uint16_t val, UNUSED(void *priv))
 }
 
 static void
-mem_write_remappedl2(uint32_t addr, uint32_t val, UNUSED(void *priv))
+mem_write_remappedl2(uint32_t addr, uint32_t val, UNUSED(const void *priv))
 {
     uint32_t oldaddr = addr;
     addr             = 0xD0000 + (addr - remap_start_addr2);
@@ -2418,15 +2418,15 @@ void
 mem_mapping_set(mem_mapping_t *map,
                 uint32_t       base,
                 uint32_t       size,
-                uint8_t (*read_b)(uint32_t addr, void *priv),
-                uint16_t (*read_w)(uint32_t addr, void *priv),
-                uint32_t (*read_l)(uint32_t addr, void *priv),
-                void (*write_b)(uint32_t addr, uint8_t val, void *priv),
-                void (*write_w)(uint32_t addr, uint16_t val, void *priv),
-                void (*write_l)(uint32_t addr, uint32_t val, void *priv),
+                uint8_t (*read_b)(uint32_t addr, const void *priv),
+                uint16_t (*read_w)(uint32_t addr, const void *priv),
+                uint32_t (*read_l)(uint32_t addr, const void *priv),
+                void (*write_b)(uint32_t addr, uint8_t val, const void *priv),
+                void (*write_w)(uint32_t addr, uint16_t val, const void *priv),
+                void (*write_l)(uint32_t addr, uint32_t val, const void *priv),
                 uint8_t *exec,
                 uint32_t fl,
-                void    *priv)
+                const void *priv)
 {
     if (size != 0x00000000)
         map->enable = 1;
@@ -2456,15 +2456,15 @@ void
 mem_mapping_add(mem_mapping_t *map,
                 uint32_t       base,
                 uint32_t       size,
-                uint8_t (*read_b)(uint32_t addr, void *priv),
-                uint16_t (*read_w)(uint32_t addr, void *priv),
-                uint32_t (*read_l)(uint32_t addr, void *priv),
-                void (*write_b)(uint32_t addr, uint8_t val, void *priv),
-                void (*write_w)(uint32_t addr, uint16_t val, void *priv),
-                void (*write_l)(uint32_t addr, uint32_t val, void *priv),
+                uint8_t (*read_b)(uint32_t addr, const void *priv),
+                uint16_t (*read_w)(uint32_t addr, const void *priv),
+                uint32_t (*read_l)(uint32_t addr, const void *priv),
+                void (*write_b)(uint32_t addr, uint8_t val, const void *priv),
+                void (*write_w)(uint32_t addr, uint16_t val, const void *priv),
+                void (*write_l)(uint32_t addr, uint32_t val, const void *priv),
                 uint8_t *exec,
                 uint32_t fl,
-                void    *priv)
+                const void *priv)
 {
     /* Do a sanity check */
     if ((base_mapping == NULL) && (last_mapping != NULL)) {
@@ -2499,19 +2499,19 @@ mem_mapping_add(mem_mapping_t *map,
 }
 
 void
-mem_mapping_do_recalc(mem_mapping_t *map)
+mem_mapping_do_recalc(const mem_mapping_t *map)
 {
     mem_mapping_recalc(map->base, map->size);
 }
 
 void
 mem_mapping_set_handler(mem_mapping_t *map,
-                        uint8_t (*read_b)(uint32_t addr, void *priv),
-                        uint16_t (*read_w)(uint32_t addr, void *priv),
-                        uint32_t (*read_l)(uint32_t addr, void *priv),
-                        void (*write_b)(uint32_t addr, uint8_t val, void *priv),
-                        void (*write_w)(uint32_t addr, uint16_t val, void *priv),
-                        void (*write_l)(uint32_t addr, uint32_t val, void *priv))
+                        uint8_t (*read_b)(uint32_t addr, const void *priv),
+                        uint16_t (*read_w)(uint32_t addr, const void *priv),
+                        uint32_t (*read_l)(uint32_t addr, const void *priv),
+                        void (*write_b)(uint32_t addr, uint8_t val, const void *priv),
+                        void (*write_w)(uint32_t addr, uint16_t val, const void *priv),
+                        void (*write_l)(uint32_t addr, uint32_t val, const void *priv))
 {
     map->read_b  = read_b;
     map->read_w  = read_w;
@@ -2555,7 +2555,7 @@ mem_mapping_set_mask(mem_mapping_t *map, uint32_t mask)
 }
 
 void
-mem_mapping_set_p(mem_mapping_t *map, void *priv)
+mem_mapping_set_p(mem_mapping_t *map, const void *priv)
 {
     map->priv = priv;
 }

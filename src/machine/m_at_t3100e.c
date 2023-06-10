@@ -222,7 +222,7 @@ struct t3100e_ems_regs {
     /* Bit 0 is 0 for colour, 1 for mono */
 } t3100e_ems;
 
-void t3100e_ems_out(uint16_t addr, uint8_t val, void *priv);
+void t3100e_ems_out(uint16_t addr, uint8_t val, const void *priv);
 
 #ifdef ENABLE_T3100E_LOG
 int t3100e_do_log = ENABLE_T3100E_LOG;
@@ -478,7 +478,7 @@ t3100e_turbo_set(uint8_t value)
 }
 
 uint8_t
-t3100e_sys_in(UNUSED(uint16_t addr), void *priv)
+t3100e_sys_in(UNUSED(uint16_t addr), const void *priv)
 {
     const struct t3100e_ems_regs *regs = (struct t3100e_ems_regs *) priv;
 
@@ -491,7 +491,7 @@ t3100e_sys_in(UNUSED(uint16_t addr), void *priv)
 
 /* Handle writes to the T3100e system control port at 0x8084 */
 void
-t3100e_sys_out(UNUSED(uint16_t addr), uint8_t val, UNUSED(void *priv))
+t3100e_sys_out(UNUSED(uint16_t addr), uint8_t val, UNUSED(const void *priv))
 {
 #if 0
     struct t3100e_ems_regs *regs = (struct t3100e_ems_regs *) priv;
@@ -611,7 +611,7 @@ t3100e_config_get(void)
 
 /* Read EMS page register */
 uint8_t
-t3100e_ems_in(uint16_t addr, void *priv)
+t3100e_ems_in(uint16_t addr, const void *priv)
 {
     const struct t3100e_ems_regs *regs = (struct t3100e_ems_regs *) priv;
 
@@ -626,7 +626,7 @@ t3100e_ems_in(uint16_t addr, void *priv)
 
 /* Write EMS page register */
 void
-t3100e_ems_out(uint16_t addr, uint8_t val, void *priv)
+t3100e_ems_out(uint16_t addr, uint8_t val, const void *priv)
 {
     struct t3100e_ems_regs *regs = (struct t3100e_ems_regs *) priv;
     int                     pg   = port_to_page(addr);
@@ -655,7 +655,7 @@ t3100e_ems_out(uint16_t addr, uint8_t val, void *priv)
 
 /* Read RAM in the EMS page frame */
 static uint8_t
-ems_read_ram(uint32_t addr, void *priv)
+ems_read_ram(uint32_t addr, const void *priv)
 {
     const struct t3100e_ems_regs *regs = (struct t3100e_ems_regs *) priv;
     int                           pg   = addr_to_page(addr);
@@ -667,7 +667,7 @@ ems_read_ram(uint32_t addr, void *priv)
 }
 
 static uint16_t
-ems_read_ramw(uint32_t addr, void *priv)
+ems_read_ramw(uint32_t addr, const void *priv)
 {
     const struct t3100e_ems_regs *regs = (struct t3100e_ems_regs *) priv;
     int                           pg   = addr_to_page(addr);
@@ -685,7 +685,7 @@ ems_read_ramw(uint32_t addr, void *priv)
 }
 
 static uint32_t
-ems_read_raml(uint32_t addr, void *priv)
+ems_read_raml(uint32_t addr, const void *priv)
 {
     const struct t3100e_ems_regs *regs = (struct t3100e_ems_regs *) priv;
     int                           pg   = addr_to_page(addr);
@@ -698,7 +698,7 @@ ems_read_raml(uint32_t addr, void *priv)
 
 /* Write RAM in the EMS page frame */
 static void
-ems_write_ram(uint32_t addr, uint8_t val, void *priv)
+ems_write_ram(uint32_t addr, uint8_t val, const void *priv)
 {
     const struct t3100e_ems_regs *regs = (struct t3100e_ems_regs *) priv;
     int                           pg   = addr_to_page(addr);
@@ -710,7 +710,7 @@ ems_write_ram(uint32_t addr, uint8_t val, void *priv)
 }
 
 static void
-ems_write_ramw(uint32_t addr, uint16_t val, void *priv)
+ems_write_ramw(uint32_t addr, uint16_t val, const void *priv)
 {
     const struct t3100e_ems_regs *regs = (struct t3100e_ems_regs *) priv;
     int                           pg   = addr_to_page(addr);
@@ -729,7 +729,7 @@ ems_write_ramw(uint32_t addr, uint16_t val, void *priv)
 }
 
 static void
-ems_write_raml(uint32_t addr, uint32_t val, void *priv)
+ems_write_raml(uint32_t addr, uint32_t val, const void *priv)
 {
     const struct t3100e_ems_regs *regs = (struct t3100e_ems_regs *) priv;
     int                           pg   = addr_to_page(addr);
@@ -743,7 +743,7 @@ ems_write_raml(uint32_t addr, uint32_t val, void *priv)
 /* Read RAM in the upper area. This is basically what the 'remapped'
  * mapping in mem.c does, except that the upper area can move around */
 static uint8_t
-upper_read_ram(uint32_t addr, void *priv)
+upper_read_ram(uint32_t addr, const void *priv)
 {
     const struct t3100e_ems_regs *regs = (struct t3100e_ems_regs *) priv;
 
@@ -752,7 +752,7 @@ upper_read_ram(uint32_t addr, void *priv)
 }
 
 static uint16_t
-upper_read_ramw(uint32_t addr, void *priv)
+upper_read_ramw(uint32_t addr, const void *priv)
 {
     const struct t3100e_ems_regs *regs = (struct t3100e_ems_regs *) priv;
 
@@ -761,7 +761,7 @@ upper_read_ramw(uint32_t addr, void *priv)
 }
 
 static uint32_t
-upper_read_raml(uint32_t addr, void *priv)
+upper_read_raml(uint32_t addr, const void *priv)
 {
     const struct t3100e_ems_regs *regs = (struct t3100e_ems_regs *) priv;
 
@@ -770,7 +770,7 @@ upper_read_raml(uint32_t addr, void *priv)
 }
 
 static void
-upper_write_ram(uint32_t addr, uint8_t val, void *priv)
+upper_write_ram(uint32_t addr, uint8_t val, const void *priv)
 {
     const struct t3100e_ems_regs *regs = (struct t3100e_ems_regs *) priv;
 
@@ -779,7 +779,7 @@ upper_write_ram(uint32_t addr, uint8_t val, void *priv)
 }
 
 static void
-upper_write_ramw(uint32_t addr, uint16_t val, void *priv)
+upper_write_ramw(uint32_t addr, uint16_t val, const void *priv)
 {
     const struct t3100e_ems_regs *regs = (struct t3100e_ems_regs *) priv;
 
@@ -788,7 +788,7 @@ upper_write_ramw(uint32_t addr, uint16_t val, void *priv)
 }
 
 static void
-upper_write_raml(uint32_t addr, uint32_t val, void *priv)
+upper_write_raml(uint32_t addr, uint32_t val, const void *priv)
 {
     const struct t3100e_ems_regs *regs = (struct t3100e_ems_regs *) priv;
 

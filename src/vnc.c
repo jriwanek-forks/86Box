@@ -65,7 +65,7 @@ vnc_log(const char *fmt, ...)
 #endif
 
 static void
-vnc_kbdevent(rfbBool down, rfbKeySym k, rfbClientPtr cl)
+vnc_kbdevent(rfbBool down, rfbKeySym k, const rfbClientPtr *cl)
 {
     (void) cl;
 
@@ -111,7 +111,7 @@ vnc_ptrevent(int but, int x, int y, rfbClientPtr cl)
 }
 
 static void
-vnc_clientgone(UNUSED(rfbClientPtr cl))
+vnc_clientgone(UNUSED(const rfbClientPtr *cl))
 {
     vnc_log("VNC: client disconnected: %s\n", cl->host);
 
@@ -135,7 +135,7 @@ static enum rfbNewClientAction
 vnc_newclient(rfbClientPtr cl)
 {
     /* Hook the ClientGone function so we know when they're gone. */
-    cl->clientGoneHook = vnc_clientgone;
+    cl->clientGoneHook = &vnc_clientgone;
 
     vnc_log("VNC: new client: %s\n", cl->host);
     if (++clients == 1) {
@@ -162,7 +162,7 @@ vnc_newclient(rfbClientPtr cl)
 }
 
 static void
-vnc_display(rfbClientPtr cl)
+vnc_display(const rfbClientPtr *cl)
 {
     /* Avoid race condition between resize and update. */
     if (!updatingSize && cl->newFBSizePending) {
@@ -228,9 +228,9 @@ vnc_init(UNUSED(void *arg))
 
         rfb->serverFormat  = rpf;
         rfb->alwaysShared  = TRUE;
-        rfb->displayHook   = vnc_display;
+        rfb->displayHook   = &vnc_display;
         rfb->ptrAddEvent   = vnc_ptrevent;
-        rfb->kbdAddEvent   = vnc_kbdevent;
+        rfb->kbdAddEvent   = &vnc_kbdevent;
         rfb->newClientHook = vnc_newclient;
 
         /* Set up our current resolution. */
@@ -307,7 +307,7 @@ vnc_pause(void)
 }
 
 void
-vnc_take_screenshot(UNUSED(wchar_t *fn))
+vnc_take_screenshot(UNUSED(const wchar_t *fn))
 {
     vnc_log("VNC: take_screenshot\n");
 }

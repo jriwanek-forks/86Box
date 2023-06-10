@@ -275,8 +275,8 @@ static uint8_t ccr6;
 
 static int cyrix_addr;
 
-static void    cpu_write(uint16_t addr, uint8_t val, void *priv);
-static uint8_t cpu_read(uint16_t addr, void *priv);
+static void    cpu_write(uint16_t addr, uint8_t val, const void *priv);
+static uint8_t cpu_read(uint16_t addr, const void *priv);
 
 #ifdef ENABLE_CPU_LOG
 int cpu_do_log = ENABLE_CPU_LOG;
@@ -556,10 +556,10 @@ cpu_set(void)
     cpu_set_pci_speed(0);
     cpu_set_agp_speed(0);
 
-    io_handler(cpu_iscyrix, 0x0022, 0x0002, cpu_read, NULL, NULL, cpu_write, NULL, NULL, NULL);
+    io_handler(cpu_iscyrix, 0x0022, 0x0002, &cpu_read, NULL, NULL, &cpu_write, NULL, NULL, NULL);
 
-    io_handler(hasfpu, 0x00f0, 0x000f, cpu_read, NULL, NULL, cpu_write, NULL, NULL, NULL);
-    io_handler(hasfpu, 0xf007, 0x0001, cpu_read, NULL, NULL, cpu_write, NULL, NULL, NULL);
+    io_handler(hasfpu, 0x00f0, 0x000f, &cpu_read, NULL, NULL, &cpu_write, NULL, NULL, NULL);
+    io_handler(hasfpu, 0xf007, 0x0001, &cpu_read, NULL, NULL, &cpu_write, NULL, NULL, NULL);
 
 #ifdef USE_DYNAREC
     x86_setopcodes(ops_386, ops_386_0f, dynarec_ops_386, dynarec_ops_386_0f);
@@ -4177,7 +4177,7 @@ i686_invalid_wrmsr:
 }
 
 static void
-cpu_write(uint16_t addr, uint8_t val, UNUSED(void *priv))
+cpu_write(uint16_t addr, uint8_t val, UNUSED(const void *priv))
 {
     if (addr == 0xf0) {
         /* Writes to F0 clear FPU error and deassert the interrupt. */
@@ -4259,7 +4259,7 @@ cpu_write(uint16_t addr, uint8_t val, UNUSED(void *priv))
 }
 
 static uint8_t
-cpu_read(uint16_t addr, UNUSED(void *priv))
+cpu_read(uint16_t addr, UNUSED(const void *priv))
 {
     if (addr == 0xf007)
         return 0x7f;

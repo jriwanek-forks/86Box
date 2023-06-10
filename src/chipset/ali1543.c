@@ -105,13 +105,13 @@ ali1543_log(const char *fmt, ...)
 #endif
 
 static void
-ali1533_ddma_handler(UNUSED(ali1543_t *dev))
+ali1533_ddma_handler(UNUSED(const ali1543_t *dev))
 {
     /* TODO: Find any documentation that actually explains the ALi southbridge DDMA mapping. */
 }
 
-static void ali5229_ide_handler(ali1543_t *dev);
-static void ali5229_ide_irq_handler(ali1543_t *dev);
+static void ali5229_ide_handler(const ali1543_t *dev);
+static void ali5229_ide_irq_handler(const ali1543_t *dev);
 
 static void ali5229_write(int func, int addr, uint8_t val, void *priv);
 
@@ -486,7 +486,7 @@ ali1533_read(int func, int addr, void *priv)
 }
 
 static void
-ali5229_ide_irq_handler(ali1543_t *dev)
+ali5229_ide_irq_handler(const ali1543_t *dev)
 {
     int ctl = 0;
     int bit = 0;
@@ -566,7 +566,7 @@ ali5229_ide_irq_handler(ali1543_t *dev)
 }
 
 static void
-ali5229_ide_handler(ali1543_t *dev)
+ali5229_ide_handler(const ali1543_t *dev)
 {
     uint32_t ch = 0;
 
@@ -1594,16 +1594,16 @@ ali1543_init(const device_t *info)
     memset(dev, 0, sizeof(ali1543_t));
 
     /* Device 02: M1533 Southbridge */
-    pci_add_card(PCI_ADD_SOUTHBRIDGE, ali1533_read, ali1533_write, dev, &dev->pci_slot);
+    pci_add_card(PCI_ADD_SOUTHBRIDGE, &ali1533_read, &ali1533_write, dev, &dev->pci_slot);
 
     /* Device 0B: M5229 IDE Controller*/
-    pci_add_card(PCI_ADD_SOUTHBRIDGE_IDE, ali5229_read, ali5229_write, dev, &dev->ide_slot);
+    pci_add_card(PCI_ADD_SOUTHBRIDGE_IDE, &ali5229_read, &ali5229_write, dev, &dev->ide_slot);
 
     /* Device 0C: M7101 Power Managment Controller */
-    pci_add_card(PCI_ADD_SOUTHBRIDGE_PMU, ali7101_read, ali7101_write, dev, &dev->pmu_slot);
+    pci_add_card(PCI_ADD_SOUTHBRIDGE_PMU, &ali7101_read, &ali7101_write, dev, &dev->pmu_slot);
 
     /* Device 0F: M5237 USB */
-    pci_add_card(PCI_ADD_SOUTHBRIDGE_USB, ali5237_read, ali5237_write, dev, &dev->usb_slot);
+    pci_add_card(PCI_ADD_SOUTHBRIDGE_USB, &ali5237_read, &ali5237_write, dev, &dev->usb_slot);
 
     /* ACPI */
     dev->acpi = device_add(&acpi_ali_device);
@@ -1661,9 +1661,9 @@ const device_t ali1543_device = {
     .flags         = DEVICE_PCI,
     .local         = 0x8500, /* -5 slot offset, we can do this because we currently
                                 have no case of M1543 non-C with a different offset */
-    .init  = ali1543_init,
-    .close = ali1543_close,
-    .reset = ali1543_reset,
+    .init  = &ali1543_init,
+    .close = &ali1543_close,
+    .reset = &ali1543_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,
@@ -1675,9 +1675,9 @@ const device_t ali1543c_device = {
     .internal_name = "ali1543c",
     .flags         = DEVICE_PCI,
     .local         = 1,
-    .init          = ali1543_init,
-    .close         = ali1543_close,
-    .reset         = ali1543_reset,
+    .init          = &ali1543_init,
+    .close         = &ali1543_close,
+    .reset         = &ali1543_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,

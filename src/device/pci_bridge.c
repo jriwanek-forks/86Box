@@ -78,7 +78,7 @@ pci_bridge_log(const char *fmt, ...)
 #endif
 
 void
-pci_bridge_set_ctl(void *priv, uint8_t ctl)
+pci_bridge_set_ctl(const void *priv, uint8_t ctl)
 {
     pci_bridge_t *dev = (pci_bridge_t *) priv;
 

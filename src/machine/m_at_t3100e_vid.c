@@ -135,14 +135,14 @@ typedef struct t3100e_t {
 static video_timings_t timing_t3100e = { VIDEO_ISA, 8, 16, 32, 8, 16, 32 };
 
 void    t3100e_recalctimings(t3100e_t *t3100e);
-void    t3100e_write(uint32_t addr, uint8_t val, void *priv);
-uint8_t t3100e_read(uint32_t addr, void *priv);
-void    t3100e_recalcattrs(t3100e_t *t3100e);
+void    t3100e_write(uint32_t addr, uint8_t val, const void *priv);
+uint8_t t3100e_read(uint32_t addr, const void *priv);
+void    t3100e_recalcattrs(const t3100e_t *t3100e);
 
 void
-t3100e_out(uint16_t addr, uint8_t val, void *priv)
+t3100e_out(uint16_t addr, uint8_t val, const void *priv)
 {
-    t3100e_t *t3100e = (t3100e_t *) priv;
+    t3100e_t *t3100e = (const t3100e_t *) priv;
     switch (addr) {
         /* Emulated CRTC, register select */
         case 0x3d0:
@@ -180,9 +180,9 @@ t3100e_out(uint16_t addr, uint8_t val, void *priv)
 }
 
 uint8_t
-t3100e_in(uint16_t addr, void *priv)
+t3100e_in(uint16_t addr, const void *priv)
 {
-    t3100e_t *t3100e = (t3100e_t *) priv;
+    t3100e_t *t3100e = (const t3100e_t *) priv;
     uint8_t   val;
 
     switch (addr) {
@@ -206,19 +206,18 @@ t3100e_in(uint16_t addr, void *priv)
 }
 
 void
-t3100e_write(uint32_t addr, uint8_t val, void *priv)
+t3100e_write(uint32_t addr, uint8_t val, const void *priv)
 {
-    t3100e_t *t3100e = (t3100e_t *) priv;
+    t3100e_t *t3100e = (const t3100e_t *) priv;
 
     t3100e->vram[addr & 0x7fff] = val;
     cycles -= 4;
 }
 
 uint8_t
-t3100e_read(uint32_t addr, void *priv)
+t3100e_read(uint32_t addr, const void *priv)
 {
-    const t3100e_t *t3100e = (t3100e_t *) priv;
-
+    const t3100e_t *t3100e = (const t3100e_t *) priv;
     cycles -= 4;
 
     return t3100e->vram[addr & 0x7fff];
@@ -244,7 +243,7 @@ t3100e_recalctimings(t3100e_t *t3100e)
 
 /* Draw a row of text in 80-column mode */
 void
-t3100e_text_row80(t3100e_t *t3100e)
+t3100e_text_row80(const t3100e_t *t3100e)
 {
     uint32_t cols[2];
     uint8_t  chr;
@@ -304,7 +303,7 @@ t3100e_text_row80(t3100e_t *t3100e)
 
 /* Draw a row of text in 40-column mode */
 void
-t3100e_text_row40(t3100e_t *t3100e)
+t3100e_text_row40(const t3100e_t *t3100e)
 {
     uint32_t cols[2];
     int      c;
@@ -366,7 +365,7 @@ t3100e_text_row40(t3100e_t *t3100e)
 
 /* Draw a line in CGA 640x200 or T3100e 640x400 mode */
 void
-t3100e_cgaline6(t3100e_t *t3100e)
+t3100e_cgaline6(const t3100e_t *t3100e)
 {
     uint8_t  dat;
     uint32_t ink = 0;
@@ -399,7 +398,7 @@ t3100e_cgaline6(t3100e_t *t3100e)
 /* Draw a line in CGA 320x200 mode. Here the CGA colours are converted to
  * dither patterns: colour 1 to 25% grey, colour 2 to 50% grey */
 void
-t3100e_cgaline4(t3100e_t *t3100e)
+t3100e_cgaline4(const t3100e_t *t3100e)
 {
     uint8_t  dat;
     uint8_t  pattern;
@@ -461,9 +460,9 @@ t3100e_cgaline4(t3100e_t *t3100e)
 }
 
 void
-t3100e_poll(void *priv)
+t3100e_poll(const void *priv)
 {
-    t3100e_t *t3100e = (t3100e_t *) priv;
+    t3100e_t *t3100e = (const t3100e_t *) priv;
 
     if (t3100e->video_options != st_video_options) {
         t3100e->video_options = st_video_options;
@@ -564,7 +563,7 @@ t3100e_poll(void *priv)
 }
 
 void
-t3100e_recalcattrs(t3100e_t *t3100e)
+t3100e_recalcattrs(const t3100e_t *t3100e)
 {
     int n;
 
@@ -687,18 +686,18 @@ t3100e_init(UNUSED(const device_t *info))
 }
 
 void
-t3100e_close(void *priv)
+t3100e_close(const void *priv)
 {
-    t3100e_t *t3100e = (t3100e_t *) priv;
+    t3100e_t *t3100e = (const t3100e_t *) priv;
 
     free(t3100e->vram);
     free(t3100e);
 }
 
 void
-t3100e_speed_changed(void *priv)
+t3100e_speed_changed(const void *priv)
 {
-    t3100e_t *t3100e = (t3100e_t *) priv;
+    t3100e_t *t3100e = (const t3100e_t *) priv;
 
     t3100e_recalctimings(t3100e);
 }

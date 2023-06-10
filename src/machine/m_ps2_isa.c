@@ -42,9 +42,9 @@ typedef struct {
 } ps2_isa_t;
 
 static void
-ps2_write(uint16_t port, uint8_t val, void *priv)
+ps2_write(uint16_t port, uint8_t val, const void *priv)
 {
-    ps2_isa_t *ps2 = (ps2_isa_t *) priv;
+    ps2_isa_t *ps2 = (const ps2_isa_t *) priv;
 
     switch (port) {
         case 0x0094:
@@ -103,9 +103,9 @@ ps2_write(uint16_t port, uint8_t val, void *priv)
 }
 
 static uint8_t
-ps2_read(uint16_t port, void *priv)
+ps2_read(uint16_t port, const void *priv)
 {
-    ps2_isa_t *ps2  = (ps2_isa_t *) priv;
+    ps2_isa_t *ps2  = (const ps2_isa_t *) priv;
     uint8_t    temp = 0xff;
 
     switch (port) {

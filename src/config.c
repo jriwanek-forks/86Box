@@ -1703,7 +1703,7 @@ config_load(void)
         config_log("Config loaded.\n\n");
     }
 
-    video_copy = (video_grayscale || invert_display) ? video_transform_copy : memcpy;
+    video_copy = (video_grayscale || invert_display) ? &video_transform_copy : &memcpy;
 }
 
 /* Save "General" section. */

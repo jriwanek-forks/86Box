@@ -85,7 +85,7 @@ typedef struct {
 } ps1_t;
 
 static void
-recalc_memory(ps1_t *ps)
+recalc_memory(const ps1_t *ps)
 {
     /* Enable first 512K */
     mem_set_mem_state(0x00000, 0x80000,
@@ -97,9 +97,9 @@ recalc_memory(ps1_t *ps)
 }
 
 static void
-ps1_write(uint16_t port, uint8_t val, void *priv)
+ps1_write(uint16_t port, uint8_t val, const void *priv)
 {
-    ps1_t *ps = (ps1_t *) priv;
+    ps1_t *ps = (const ps1_t *) priv;
 
     switch (port) {
         case 0x0092:
@@ -185,9 +185,9 @@ ps1_write(uint16_t port, uint8_t val, void *priv)
 }
 
 static uint8_t
-ps1_read(uint16_t port, void *priv)
+ps1_read(uint16_t port, const void *priv)
 {
-    ps1_t  *ps  = (ps1_t *) priv;
+    ps1_t  *ps  = (const ps1_t *) priv;
     uint8_t ret = 0xff;
 
     switch (port) {

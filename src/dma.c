@@ -102,7 +102,7 @@ dma_set_drq(int channel, int set)
 }
 
 static int
-dma_transfer_size(dma_t *dev)
+dma_transfer_size(const dma_t *dev)
 {
     return dev->transfer_mode & 0xff;
 }
@@ -177,9 +177,9 @@ dma_mem_to_mem_transfer(void)
 }
 
 static void
-dma_sg_write(uint16_t port, uint8_t val, void *priv)
+dma_sg_write(uint16_t port, uint8_t val, const void *priv)
 {
-    dma_t *dev = (dma_t *) priv;
+    const dma_t *dev = (const dma_t *) priv;
 
     dma_log("DMA S/G BYTE  write: %04X       %02X\n", port, val);
 
@@ -234,9 +234,9 @@ dma_sg_write(uint16_t port, uint8_t val, void *priv)
 }
 
 static void
-dma_sg_writew(uint16_t port, uint16_t val, void *priv)
+dma_sg_writew(uint16_t port, uint16_t val, const void *priv)
 {
-    dma_t *dev = (dma_t *) priv;
+    const dma_t *dev = (const dma_t *) priv;
 
     dma_log("DMA S/G WORD  write: %04X     %04X\n", port, val);
 
@@ -267,9 +267,9 @@ dma_sg_writew(uint16_t port, uint16_t val, void *priv)
 }
 
 static void
-dma_sg_writel(uint16_t port, uint32_t val, void *priv)
+dma_sg_writel(uint16_t port, uint32_t val, const void *priv)
 {
-    dma_t *dev = (dma_t *) priv;
+    const dma_t *dev = (const dma_t *) priv;
 
     dma_log("DMA S/G DWORD write: %04X %08X\n", port, val);
 
@@ -296,9 +296,9 @@ dma_sg_writel(uint16_t port, uint32_t val, void *priv)
 }
 
 static uint8_t
-dma_sg_read(uint16_t port, void *priv)
+dma_sg_read(uint16_t port, const void *priv)
 {
-    const dma_t *dev = (dma_t *) priv;
+    const dma_t *dev = (const dma_t *) priv;
 
     uint8_t ret = 0xff;
 
@@ -344,9 +344,9 @@ dma_sg_read(uint16_t port, void *priv)
 }
 
 static uint16_t
-dma_sg_readw(uint16_t port, void *priv)
+dma_sg_readw(uint16_t port, const void *priv)
 {
-    const dma_t *dev = (dma_t *) priv;
+    const dma_t *dev = (const dma_t *) priv;
 
     uint16_t ret = 0xffff;
 
@@ -378,9 +378,9 @@ dma_sg_readw(uint16_t port, void *priv)
 }
 
 static uint32_t
-dma_sg_readl(uint16_t port, void *priv)
+dma_sg_readl(uint16_t port, const void *priv)
 {
-    const dma_t *dev = (dma_t *) priv;
+    const dma_t *dev = (const dma_t *) priv;
 
     uint32_t ret = 0xffffffff;
 
@@ -409,7 +409,7 @@ dma_sg_readl(uint16_t port, void *priv)
 }
 
 static void
-dma_ext_mode_write(uint16_t addr, uint8_t val, UNUSED(void *priv))
+dma_ext_mode_write(uint16_t addr, uint8_t val, UNUSED(const void *priv))
 {
     int channel = (val & 0x03);
 
@@ -440,7 +440,7 @@ dma_ext_mode_write(uint16_t addr, uint8_t val, UNUSED(void *priv))
 }
 
 static uint8_t
-dma_sg_int_status_read(UNUSED(uint16_t addr), UNUSED(void *priv))
+dma_sg_int_status_read(UNUSED(uint16_t addr), UNUSED(const void *priv))
 {
     uint8_t ret = 0x00;
 
@@ -453,7 +453,7 @@ dma_sg_int_status_read(UNUSED(uint16_t addr), UNUSED(void *priv))
 }
 
 static uint8_t
-dma_read(uint16_t addr, UNUSED(void *priv))
+dma_read(uint16_t addr, UNUSED(const void *priv))
 {
     int     channel = (addr >> 1) & 3;
     uint8_t temp;
@@ -497,7 +497,7 @@ dma_read(uint16_t addr, UNUSED(void *priv))
 }
 
 static void
-dma_write(uint16_t addr, uint8_t val, UNUSED(void *priv))
+dma_write(uint16_t addr, uint8_t val, UNUSED(const void *priv))
 {
     int channel = (addr >> 1) & 3;
 
@@ -592,7 +592,7 @@ dma_write(uint16_t addr, uint8_t val, UNUSED(void *priv))
 }
 
 static uint8_t
-dma_ps2_read(uint16_t addr, UNUSED(void *priv))
+dma_ps2_read(uint16_t addr, UNUSED(const void *priv))
 {
     const dma_t  *dma_c = &dma[dma_ps2.xfr_channel];
     uint8_t temp  = 0xff;
@@ -663,7 +663,7 @@ dma_ps2_read(uint16_t addr, UNUSED(void *priv))
 }
 
 static void
-dma_ps2_write(uint16_t addr, uint8_t val, UNUSED(void *priv))
+dma_ps2_write(uint16_t addr, uint8_t val, UNUSED(const void *priv))
 {
     dma_t  *dma_c = &dma[dma_ps2.xfr_channel];
     uint8_t mode;
@@ -764,7 +764,7 @@ dma_ps2_write(uint16_t addr, uint8_t val, UNUSED(void *priv))
 }
 
 static uint8_t
-dma16_read(uint16_t addr, UNUSED(void *priv))
+dma16_read(uint16_t addr, UNUSED(const void *priv))
 {
     int     channel = ((addr >> 2) & 3) + 4;
     uint8_t temp;
@@ -810,7 +810,7 @@ dma16_read(uint16_t addr, UNUSED(void *priv))
 }
 
 static void
-dma16_write(uint16_t addr, uint8_t val, UNUSED(void *priv))
+dma16_write(uint16_t addr, uint8_t val, UNUSED(const void *priv))
 {
     int channel = ((addr >> 2) & 3) + 4;
     addr >>= 1;
@@ -911,7 +911,7 @@ dma16_write(uint16_t addr, uint8_t val, UNUSED(void *priv))
     }
 
 static void
-dma_page_write(uint16_t addr, uint8_t val, UNUSED(void *priv))
+dma_page_write(uint16_t addr, uint8_t val, UNUSED(const void *priv))
 {
     uint8_t convert[8] = CHANNELS;
 
@@ -944,7 +944,7 @@ dma_page_write(uint16_t addr, uint8_t val, UNUSED(void *priv))
 }
 
 static uint8_t
-dma_page_read(uint16_t addr, UNUSED(void *priv))
+dma_page_read(uint16_t addr, UNUSED(const void *priv))
 {
     uint8_t convert[8] = CHANNELS;
     uint8_t ret        = 0xff;
@@ -995,7 +995,7 @@ dma_page_read(uint16_t addr, UNUSED(void *priv))
 }
 
 static void
-dma_high_page_write(uint16_t addr, uint8_t val, UNUSED(void *priv))
+dma_high_page_write(uint16_t addr, uint8_t val, UNUSED(const void *priv))
 {
     uint8_t convert[8] = CHANNELS;
 
@@ -1015,7 +1015,7 @@ dma_high_page_write(uint16_t addr, uint8_t val, UNUSED(void *priv))
 }
 
 static uint8_t
-dma_high_page_read(uint16_t addr, UNUSED(void *priv))
+dma_high_page_read(uint16_t addr, UNUSED(const void *priv))
 {
     uint8_t convert[8] = CHANNELS;
     uint8_t ret        = 0xff;
@@ -1097,7 +1097,7 @@ void
 dma_remove_sg(void)
 {
     io_removehandler(dma_sg_base + 0x0a, 0x01,
-                     dma_sg_int_status_read, NULL, NULL,
+                     &dma_sg_int_status_read, NULL, NULL,
                      NULL, NULL, NULL,
                      NULL);
 
@@ -1123,7 +1123,7 @@ dma_set_sg_base(uint8_t sg_base)
     dma_sg_base = sg_base << 8;
 
     io_sethandler(dma_sg_base + 0x0a, 0x01,
-                  dma_sg_int_status_read, NULL, NULL,
+                  &dma_sg_int_status_read, NULL, NULL,
                   NULL, NULL, NULL,
                   NULL);
 
@@ -1147,16 +1147,16 @@ void
 dma_ext_mode_init(void)
 {
     io_sethandler(0x040b, 0x01,
-                  NULL, NULL, NULL, dma_ext_mode_write, NULL, NULL, NULL);
+                  NULL, NULL, NULL, &dma_ext_mode_write, NULL, NULL, NULL);
     io_sethandler(0x04d6, 0x01,
-                  NULL, NULL, NULL, dma_ext_mode_write, NULL, NULL, NULL);
+                  NULL, NULL, NULL, &dma_ext_mode_write, NULL, NULL, NULL);
 }
 
 void
 dma_high_page_init(void)
 {
     io_sethandler(0x0480, 8,
-                  dma_high_page_read, NULL, NULL, dma_high_page_write, NULL, NULL, NULL);
+                  &dma_high_page_read, NULL, NULL, &dma_high_page_write, NULL, NULL, NULL);
 }
 
 void
@@ -1165,9 +1165,9 @@ dma_init(void)
     dma_reset();
 
     io_sethandler(0x0000, 16,
-                  dma_read, NULL, NULL, dma_write, NULL, NULL, NULL);
+                  &dma_read, NULL, NULL, &dma_write, NULL, NULL, NULL);
     io_sethandler(0x0080, 8,
-                  dma_page_read, NULL, NULL, dma_page_write, NULL, NULL, NULL);
+                  &dma_page_read, NULL, NULL, &dma_page_write, NULL, NULL, NULL);
     dma_ps2.is_ps2 = 0;
 }
 
@@ -1177,53 +1177,53 @@ dma16_init(void)
     dma_reset();
 
     io_sethandler(0x00C0, 32,
-                  dma16_read, NULL, NULL, dma16_write, NULL, NULL, NULL);
+                  &dma16_read, NULL, NULL, &dma16_write, NULL, NULL, NULL);
     io_sethandler(0x0088, 8,
-                  dma_page_read, NULL, NULL, dma_page_write, NULL, NULL, NULL);
+                  &dma_page_read, NULL, NULL, &dma_page_write, NULL, NULL, NULL);
 }
 
 void
 dma_alias_set(void)
 {
     io_sethandler(0x0090, 2,
-                  dma_page_read, NULL, NULL, dma_page_write, NULL, NULL, NULL);
+                  &dma_page_read, NULL, NULL, &dma_page_write, NULL, NULL, NULL);
     io_sethandler(0x0093, 13,
-                  dma_page_read, NULL, NULL, dma_page_write, NULL, NULL, NULL);
+                  &dma_page_read, NULL, NULL, &dma_page_write, NULL, NULL, NULL);
 }
 
 void
 dma_alias_set_piix(void)
 {
     io_sethandler(0x0090, 1,
-                  dma_page_read, NULL, NULL, dma_page_write, NULL, NULL, NULL);
+                  &dma_page_read, NULL, NULL, &dma_page_write, NULL, NULL, NULL);
     io_sethandler(0x0094, 3,
-                  dma_page_read, NULL, NULL, dma_page_write, NULL, NULL, NULL);
+                  &dma_page_read, NULL, NULL, &dma_page_write, NULL, NULL, NULL);
     io_sethandler(0x0098, 1,
-                  dma_page_read, NULL, NULL, dma_page_write, NULL, NULL, NULL);
+                  &dma_page_read, NULL, NULL, &dma_page_write, NULL, NULL, NULL);
     io_sethandler(0x009C, 3,
-                  dma_page_read, NULL, NULL, dma_page_write, NULL, NULL, NULL);
+                  &dma_page_read, NULL, NULL, &dma_page_write, NULL, NULL, NULL);
 }
 
 void
 dma_alias_remove(void)
 {
     io_removehandler(0x0090, 2,
-                     dma_page_read, NULL, NULL, dma_page_write, NULL, NULL, NULL);
+                     &dma_page_read, NULL, NULL, &dma_page_write, NULL, NULL, NULL);
     io_removehandler(0x0093, 13,
-                     dma_page_read, NULL, NULL, dma_page_write, NULL, NULL, NULL);
+                     &dma_page_read, NULL, NULL, &dma_page_write, NULL, NULL, NULL);
 }
 
 void
 dma_alias_remove_piix(void)
 {
     io_removehandler(0x0090, 1,
-                     dma_page_read, NULL, NULL, dma_page_write, NULL, NULL, NULL);
+                     &dma_page_read, NULL, NULL, &dma_page_write, NULL, NULL, NULL);
     io_removehandler(0x0094, 3,
-                     dma_page_read, NULL, NULL, dma_page_write, NULL, NULL, NULL);
+                     &dma_page_read, NULL, NULL, &dma_page_write, NULL, NULL, NULL);
     io_removehandler(0x0098, 1,
-                     dma_page_read, NULL, NULL, dma_page_write, NULL, NULL, NULL);
+                     &dma_page_read, NULL, NULL, &dma_page_write, NULL, NULL, NULL);
     io_removehandler(0x009C, 3,
-                     dma_page_read, NULL, NULL, dma_page_write, NULL, NULL, NULL);
+                     &dma_page_read, NULL, NULL, &dma_page_write, NULL, NULL, NULL);
 }
 
 void
@@ -1232,9 +1232,9 @@ ps2_dma_init(void)
     dma_reset();
 
     io_sethandler(0x0018, 1,
-                  dma_ps2_read, NULL, NULL, dma_ps2_write, NULL, NULL, NULL);
+                  &dma_ps2_read, NULL, NULL, &dma_ps2_write, NULL, NULL, NULL);
     io_sethandler(0x001a, 1,
-                  dma_ps2_read, NULL, NULL, dma_ps2_write, NULL, NULL, NULL);
+                  &dma_ps2_read, NULL, NULL, &dma_ps2_write, NULL, NULL, NULL);
     dma_ps2.is_ps2 = 1;
 }
 
@@ -1707,13 +1707,13 @@ dma_bm_write(uint32_t PhysAddress, const uint8_t *DataWrite, uint32_t TotalSize,
     /* Do the divisible block, if there is one. */
     if (n) {
         for (uint32_t i = 0; i < n; i += TransferSize)
-            mem_write_phys(&(DataWrite[i]), PhysAddress + i, TransferSize);
+            mem_write_phys((const void *) &(DataWrite[i]), PhysAddress + i, TransferSize);
     }
 
     /* Do the non-divisible block, if there is one. */
     if (n2) {
         mem_read_phys((void *) bytes, PhysAddress + n, TransferSize);
-        memcpy(bytes, &(DataWrite[n]), n2);
+        memcpy(bytes, (const void *) &(DataWrite[n]), n2);
         mem_write_phys((void *) bytes, PhysAddress + n, TransferSize);
     }
 

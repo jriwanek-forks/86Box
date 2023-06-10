@@ -17,6 +17,8 @@
 #ifndef EMU_I2C_H
 #define EMU_I2C_H
 
+#include <stdint.h>
+
 /* i2c.c */
 extern void *i2c_smbus;
 

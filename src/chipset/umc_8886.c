@@ -135,7 +135,7 @@ umc_8886_ide_handler(umc_8886_t *dev)
 }
 
 static void
-umc_8886_write(int func, int addr, uint8_t val, void *priv)
+umc_8886_write(int func, int addr, uint8_t val, const void *priv)
 {
     umc_8886_t *dev = (umc_8886_t *) priv;
     int irq_routing;
@@ -215,7 +215,7 @@ umc_8886_write(int func, int addr, uint8_t val, void *priv)
                         /* SMI Provocation (Bit 7 Enable SMM + Bit 6 Software SMI) */
                         if (((val & 0xc0) == 0xc0) && !(dev->pci_conf_sb[0][0xa3] & 0x40)) {
                             if (dev->pci_conf_sb[0][0x46] & 0x40)
-                                picint(1 << ((dev->pci_conf_sb[0][0x46] & 0x80) ? 15 : 10));
+                                picint((uint16_t) (1 << ((dev->pci_conf_sb[0][0x46] & 0x80) ? 15 : 10)));
                             else
                                 smi_raise();
                         }
@@ -271,9 +271,9 @@ umc_8886_write(int func, int addr, uint8_t val, void *priv)
 }
 
 static uint8_t
-umc_8886_read(int func, int addr, void *priv)
+umc_8886_read(int func, int addr, const void *priv)
 {
-    const umc_8886_t *dev = (umc_8886_t *) priv;
+    const umc_8886_t *dev = (const umc_8886_t *) priv;
     uint8_t           ret = 0xff;
 
     if (func <= dev->max_func)
@@ -283,9 +283,9 @@ umc_8886_read(int func, int addr, void *priv)
 }
 
 static void
-umc_8886_reset(void *priv)
+umc_8886_reset(const void *priv)
 {
-    umc_8886_t *dev = (umc_8886_t *) priv;
+    umc_8886_t *dev = (const umc_8886_t *) priv;
 
     memset(dev->pci_conf_sb[0], 0x00, sizeof(dev->pci_conf_sb[0]));
     memset(dev->pci_conf_sb[1], 0x00, sizeof(dev->pci_conf_sb[1]));
@@ -367,9 +367,9 @@ umc_8886_reset(void *priv)
 }
 
 static void
-umc_8886_close(void *priv)
+umc_8886_close(const void *priv)
 {
-    umc_8886_t *dev = (umc_8886_t *) priv;
+    const umc_8886_t *dev = (const umc_8886_t *) priv;
 
     free(dev);
 }

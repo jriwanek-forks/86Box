@@ -7,6 +7,7 @@
 
 #ifndef VIDEO_VOODOO_CODEGEN_X86_64_H
 #define VIDEO_VOODOO_CODEGEN_X86_64_H
+#include <stdint.h>
 
 #ifdef _MSC_VER
 #    include <intrin.h>

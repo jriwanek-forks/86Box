@@ -65,49 +65,49 @@ typedef struct opti283_t {
 } opti283_t;
 
 static uint8_t
-opti283_read_remapped_ram(uint32_t addr, void *priv)
+opti283_read_remapped_ram(uint32_t addr, const void *priv)
 {
-    const mem_remapping_t *dev = (mem_remapping_t *) priv;
+    const mem_remapping_t *dev = (const mem_remapping_t *) priv;
 
     return mem_read_ram((addr - dev->virt) + dev->phys, priv);
 }
 
 static uint16_t
-opti283_read_remapped_ramw(uint32_t addr, void *priv)
+opti283_read_remapped_ramw(uint32_t addr, const void *priv)
 {
-    const mem_remapping_t *dev = (mem_remapping_t *) priv;
+    const mem_remapping_t *dev = (const mem_remapping_t *) priv;
 
     return mem_read_ramw((addr - dev->virt) + dev->phys, priv);
 }
 
 static uint32_t
-opti283_read_remapped_raml(uint32_t addr, void *priv)
+opti283_read_remapped_raml(uint32_t addr, const void *priv)
 {
-    const mem_remapping_t *dev = (mem_remapping_t *) priv;
+    const mem_remapping_t *dev = (const mem_remapping_t *) priv;
 
     return mem_read_raml((addr - dev->virt) + dev->phys, priv);
 }
 
 static void
-opti283_write_remapped_ram(uint32_t addr, uint8_t val, void *priv)
+opti283_write_remapped_ram(uint32_t addr, uint8_t val, const void *priv)
 {
-    const mem_remapping_t *dev = (mem_remapping_t *) priv;
+    const mem_remapping_t *dev = (const mem_remapping_t *) priv;
 
     mem_write_ram((addr - dev->virt) + dev->phys, val, priv);
 }
 
 static void
-opti283_write_remapped_ramw(uint32_t addr, uint16_t val, void *priv)
+opti283_write_remapped_ramw(uint32_t addr, uint16_t val, const void *priv)
 {
-    const mem_remapping_t *dev = (mem_remapping_t *) priv;
+    const mem_remapping_t *dev = (const mem_remapping_t *) priv;
 
     mem_write_ramw((addr - dev->virt) + dev->phys, val, priv);
 }
 
 static void
-opti283_write_remapped_raml(uint32_t addr, uint32_t val, void *priv)
+opti283_write_remapped_raml(uint32_t addr, uint32_t val, const void *priv)
 {
-    const mem_remapping_t *dev = (mem_remapping_t *) priv;
+    const mem_remapping_t *dev = (const mem_remapping_t *) priv;
 
     mem_write_raml((addr - dev->virt) + dev->phys, val, priv);
 }
@@ -210,9 +210,9 @@ opti283_shadow_recalc(opti283_t *dev)
 }
 
 static void
-opti283_write(uint16_t addr, uint8_t val, void *priv)
+opti283_write(uint16_t addr, uint8_t val, const void *priv)
 {
-    opti283_t *dev = (opti283_t *) priv;
+    opti283_t *dev = (const opti283_t *) priv;
 
     switch (addr) {
         case 0x22:
@@ -248,9 +248,9 @@ opti283_write(uint16_t addr, uint8_t val, void *priv)
 }
 
 static uint8_t
-opti283_read(uint16_t addr, void *priv)
+opti283_read(uint16_t addr, const void *priv)
 {
-    const opti283_t *dev = (opti283_t *) priv;
+    const opti283_t *dev = (const opti283_t *) priv;
     uint8_t          ret = 0xff;
 
     if (addr == 0x24)
@@ -260,9 +260,9 @@ opti283_read(uint16_t addr, void *priv)
 }
 
 static void
-opti283_close(void *priv)
+opti283_close(const void *priv)
 {
-    opti283_t *dev = (opti283_t *) priv;
+    opti283_t *dev = (const opti283_t *) priv;
 
     free(dev);
 }

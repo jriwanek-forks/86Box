@@ -78,8 +78,8 @@ enum {
 };
 
 typedef struct pit_intf_t {
-    uint8_t (*read)(uint16_t addr, void *priv);
-    void (*write)(uint16_t addr, uint8_t val, void *priv);
+    uint8_t (*read)(uint16_t addr, const void *priv);
+    void (*write)(uint16_t addr, uint8_t val, const void *priv);
     /* Gets a counter's count. */
     uint16_t (*get_count)(void *data, int counter_id);
     /* Sets a counter's GATE input. */

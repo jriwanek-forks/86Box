@@ -34,25 +34,25 @@
 #define NPORTS 65536 /* PC/AT supports 64K ports */
 
 typedef struct _io_ {
-    uint8_t (*inb)(uint16_t addr, void *priv);
-    uint16_t (*inw)(uint16_t addr, void *priv);
-    uint32_t (*inl)(uint16_t addr, void *priv);
+    uint8_t (*inb)(uint16_t addr, const void *priv);
+    uint16_t (*inw)(uint16_t addr, const void *priv);
+    uint32_t (*inl)(uint16_t addr, const void *priv);
 
-    void (*outb)(uint16_t addr, uint8_t val, void *priv);
-    void (*outw)(uint16_t addr, uint16_t val, void *priv);
-    void (*outl)(uint16_t addr, uint32_t val, void *priv);
+    void (*outb)(uint16_t addr, uint8_t val, const void *priv);
+    void (*outw)(uint16_t addr, uint16_t val, const void *priv);
+    void (*outl)(uint16_t addr, uint32_t val, const void *priv);
 
-    void *priv;
+    const void *priv;
 
     struct _io_ *prev, *next;
 } io_t;
 
 typedef struct {
-    uint8_t   enable;
-    uint16_t  base;
-    uint16_t  size;
-    void    (*func)(int size, uint16_t addr, uint8_t write, uint8_t val, void *priv);
-    void     *priv;
+    uint8_t      enable;
+    uint16_t     base;
+    uint16_t     size;
+    const void (*func)(int size, uint16_t addr, uint8_t write, uint8_t val, const void *priv);
+    const void   *priv;
 } io_trap_t;
 
 int   initialized = 0;
@@ -110,13 +110,13 @@ io_init(void)
 
 void
 io_sethandler_common(uint16_t base, int size,
-                     uint8_t (*inb)(uint16_t addr, void *priv),
-                     uint16_t (*inw)(uint16_t addr, void *priv),
-                     uint32_t (*inl)(uint16_t addr, void *priv),
-                     void (*outb)(uint16_t addr, uint8_t val, void *priv),
-                     void (*outw)(uint16_t addr, uint16_t val, void *priv),
-                     void (*outl)(uint16_t addr, uint32_t val, void *priv),
-                     void *priv, int step)
+                     uint8_t (*inb)(uint16_t addr, const void *priv),
+                     uint16_t (*inw)(uint16_t addr, const void *priv),
+                     uint32_t (*inl)(uint16_t addr, const void *priv),
+                     void (*outb)(uint16_t addr, uint8_t val, const void *priv),
+                     void (*outw)(uint16_t addr, uint16_t val, const void *priv),
+                     void (*outl)(uint16_t addr, uint32_t val, const void *priv),
+                     const void *priv, int step)
 {
     io_t *p;
     io_t *q = NULL;
@@ -150,13 +150,13 @@ io_sethandler_common(uint16_t base, int size,
 
 void
 io_removehandler_common(uint16_t base, int size,
-                        uint8_t (*inb)(uint16_t addr, void *priv),
-                        uint16_t (*inw)(uint16_t addr, void *priv),
-                        uint32_t (*inl)(uint16_t addr, void *priv),
-                        void (*outb)(uint16_t addr, uint8_t val, void *priv),
-                        void (*outw)(uint16_t addr, uint16_t val, void *priv),
-                        void (*outl)(uint16_t addr, uint32_t val, void *priv),
-                        void *priv, int step)
+                        uint8_t (*inb)(uint16_t addr, const void *priv),
+                        uint16_t (*inw)(uint16_t addr, const void *priv),
+                        uint32_t (*inl)(uint16_t addr, const void *priv),
+                        void (*outb)(uint16_t addr, uint8_t val, const void *priv),
+                        void (*outw)(uint16_t addr, uint16_t val, const void *priv),
+                        void (*outl)(uint16_t addr, uint32_t val, const void *priv),
+                        const void *priv, int step)
 {
     io_t *p;
     io_t *q;
@@ -187,13 +187,13 @@ io_removehandler_common(uint16_t base, int size,
 
 void
 io_handler_common(int set, uint16_t base, int size,
-                  uint8_t (*inb)(uint16_t addr, void *priv),
-                  uint16_t (*inw)(uint16_t addr, void *priv),
-                  uint32_t (*inl)(uint16_t addr, void *priv),
-                  void (*outb)(uint16_t addr, uint8_t val, void *priv),
-                  void (*outw)(uint16_t addr, uint16_t val, void *priv),
-                  void (*outl)(uint16_t addr, uint32_t val, void *priv),
-                  void *priv, int step)
+                  uint8_t (*inb)(uint16_t addr, const void *priv),
+                  uint16_t (*inw)(uint16_t addr, const void *priv),
+                  uint32_t (*inl)(uint16_t addr, const void *priv),
+                  void (*outb)(uint16_t addr, uint8_t val, const void *priv),
+                  void (*outw)(uint16_t addr, uint16_t val, const void *priv),
+                  void (*outl)(uint16_t addr, uint32_t val, const void *priv),
+                  const void *priv, int step)
 {
     if (set)
         io_sethandler_common(base, size, inb, inw, inl, outb, outw, outl, priv, step);
@@ -203,78 +203,78 @@ io_handler_common(int set, uint16_t base, int size,
 
 void
 io_sethandler(uint16_t base, int size,
-              uint8_t (*inb)(uint16_t addr, void *priv),
-              uint16_t (*inw)(uint16_t addr, void *priv),
-              uint32_t (*inl)(uint16_t addr, void *priv),
-              void (*outb)(uint16_t addr, uint8_t val, void *priv),
-              void (*outw)(uint16_t addr, uint16_t val, void *priv),
-              void (*outl)(uint16_t addr, uint32_t val, void *priv),
-              void *priv)
+              uint8_t (*inb)(uint16_t addr, const void *priv),
+              uint16_t (*inw)(uint16_t addr, const void *priv),
+              uint32_t (*inl)(uint16_t addr, const void *priv),
+              void (*outb)(uint16_t addr, uint8_t val, const void *priv),
+              void (*outw)(uint16_t addr, uint16_t val, const void *priv),
+              void (*outl)(uint16_t addr, uint32_t val, const void *priv),
+              const void *priv)
 {
     io_sethandler_common(base, size, inb, inw, inl, outb, outw, outl, priv, 1);
 }
 
 void
 io_removehandler(uint16_t base, int size,
-                 uint8_t (*inb)(uint16_t addr, void *priv),
-                 uint16_t (*inw)(uint16_t addr, void *priv),
-                 uint32_t (*inl)(uint16_t addr, void *priv),
-                 void (*outb)(uint16_t addr, uint8_t val, void *priv),
-                 void (*outw)(uint16_t addr, uint16_t val, void *priv),
-                 void (*outl)(uint16_t addr, uint32_t val, void *priv),
-                 void *priv)
+                 uint8_t (*inb)(uint16_t addr, const void *priv),
+                 uint16_t (*inw)(uint16_t addr, const void *priv),
+                 uint32_t (*inl)(uint16_t addr, const void *priv),
+                 void (*outb)(uint16_t addr, uint8_t val, const void *priv),
+                 void (*outw)(uint16_t addr, uint16_t val, const void *priv),
+                 void (*outl)(uint16_t addr, uint32_t val, const void *priv),
+                 const void *priv)
 {
     io_removehandler_common(base, size, inb, inw, inl, outb, outw, outl, priv, 1);
 }
 
 void
 io_handler(int set, uint16_t base, int size,
-           uint8_t (*inb)(uint16_t addr, void *priv),
-           uint16_t (*inw)(uint16_t addr, void *priv),
-           uint32_t (*inl)(uint16_t addr, void *priv),
-           void (*outb)(uint16_t addr, uint8_t val, void *priv),
-           void (*outw)(uint16_t addr, uint16_t val, void *priv),
-           void (*outl)(uint16_t addr, uint32_t val, void *priv),
-           void *priv)
+           uint8_t (*inb)(uint16_t addr, const void *priv),
+           uint16_t (*inw)(uint16_t addr, const void *priv),
+           uint32_t (*inl)(uint16_t addr, const void *priv),
+           void (*outb)(uint16_t addr, uint8_t val, const void *priv),
+           void (*outw)(uint16_t addr, uint16_t val, const void *priv),
+           void (*outl)(uint16_t addr, uint32_t val, const void *priv),
+           const void *priv)
 {
     io_handler_common(set, base, size, inb, inw, inl, outb, outw, outl, priv, 1);
 }
 
 void
 io_sethandler_interleaved(uint16_t base, int size,
-                          uint8_t (*inb)(uint16_t addr, void *priv),
-                          uint16_t (*inw)(uint16_t addr, void *priv),
-                          uint32_t (*inl)(uint16_t addr, void *priv),
-                          void (*outb)(uint16_t addr, uint8_t val, void *priv),
-                          void (*outw)(uint16_t addr, uint16_t val, void *priv),
-                          void (*outl)(uint16_t addr, uint32_t val, void *priv),
-                          void *priv)
+                          uint8_t (*inb)(uint16_t addr, const void *priv),
+                          uint16_t (*inw)(uint16_t addr, const void *priv),
+                          uint32_t (*inl)(uint16_t addr, const void *priv),
+                          void (*outb)(uint16_t addr, uint8_t val, const void *priv),
+                          void (*outw)(uint16_t addr, uint16_t val, const void *priv),
+                          void (*outl)(uint16_t addr, uint32_t val, const void *priv),
+                          const void *priv)
 {
     io_sethandler_common(base, size, inb, inw, inl, outb, outw, outl, priv, 2);
 }
 
 void
 io_removehandler_interleaved(uint16_t base, int size,
-                             uint8_t (*inb)(uint16_t addr, void *priv),
-                             uint16_t (*inw)(uint16_t addr, void *priv),
-                             uint32_t (*inl)(uint16_t addr, void *priv),
-                             void (*outb)(uint16_t addr, uint8_t val, void *priv),
-                             void (*outw)(uint16_t addr, uint16_t val, void *priv),
-                             void (*outl)(uint16_t addr, uint32_t val, void *priv),
-                             void *priv)
+                             uint8_t (*inb)(uint16_t addr, const void *priv),
+                             uint16_t (*inw)(uint16_t addr, const void *priv),
+                             uint32_t (*inl)(uint16_t addr, const void *priv),
+                             void (*outb)(uint16_t addr, uint8_t val, const void *priv),
+                             void (*outw)(uint16_t addr, uint16_t val, const void *priv),
+                             void (*outl)(uint16_t addr, uint32_t val, const void *priv),
+                             const void *priv)
 {
     io_removehandler_common(base, size, inb, inw, inl, outb, outw, outl, priv, 2);
 }
 
 void
 io_handler_interleaved(int set, uint16_t base, int size,
-                       uint8_t (*inb)(uint16_t addr, void *priv),
-                       uint16_t (*inw)(uint16_t addr, void *priv),
-                       uint32_t (*inl)(uint16_t addr, void *priv),
-                       void (*outb)(uint16_t addr, uint8_t val, void *priv),
-                       void (*outw)(uint16_t addr, uint16_t val, void *priv),
-                       void (*outl)(uint16_t addr, uint32_t val, void *priv),
-                       void *priv)
+                       uint8_t (*inb)(uint16_t addr, const void *priv),
+                       uint16_t (*inw)(uint16_t addr, const void *priv),
+                       uint32_t (*inl)(uint16_t addr, const void *priv),
+                       void (*outb)(uint16_t addr, uint8_t val, const void *priv),
+                       void (*outw)(uint16_t addr, uint16_t val, const void *priv),
+                       void (*outl)(uint16_t addr, uint32_t val, const void *priv),
+                       const void *priv)
 {
     io_handler_common(set, base, size, inb, inw, inl, outb, outw, outl, priv, 2);
 }
@@ -719,53 +719,53 @@ outl(uint16_t port, uint32_t val)
 }
 
 static uint8_t
-io_trap_readb(uint16_t addr, void *priv)
+io_trap_readb(uint16_t addr, const void *priv)
 {
-    io_trap_t *trap = (io_trap_t *) priv;
+    const io_trap_t *trap = (const io_trap_t *) priv;
     trap->func(1, addr, 0, 0, trap->priv);
     return 0xff;
 }
 
 static uint16_t
-io_trap_readw(uint16_t addr, void *priv)
+io_trap_readw(uint16_t addr, const void *priv)
 {
-    io_trap_t *trap = (io_trap_t *) priv;
+    const io_trap_t *trap = (const io_trap_t *) priv;
     trap->func(2, addr, 0, 0, trap->priv);
     return 0xffff;
 }
 
 static uint32_t
-io_trap_readl(uint16_t addr, void *priv)
+io_trap_readl(uint16_t addr, const void *priv)
 {
-    io_trap_t *trap = (io_trap_t *) priv;
+    const io_trap_t *trap = (const io_trap_t *) priv;
     trap->func(4, addr, 0, 0, trap->priv);
     return 0xffffffff;
 }
 
 static void
-io_trap_writeb(uint16_t addr, uint8_t val, void *priv)
+io_trap_writeb(uint16_t addr, uint8_t val, const void *priv)
 {
-    io_trap_t *trap = (io_trap_t *) priv;
+    const io_trap_t *trap = (const io_trap_t *) priv;
     trap->func(1, addr, 1, val, trap->priv);
 }
 
 static void
-io_trap_writew(uint16_t addr, uint16_t val, void *priv)
+io_trap_writew(uint16_t addr, uint16_t val, const void *priv)
 {
-    io_trap_t *trap = (io_trap_t *) priv;
+    const io_trap_t *trap = (const io_trap_t *) priv;
     trap->func(2, addr, 1, val, trap->priv);
 }
 
 static void
-io_trap_writel(uint16_t addr, uint32_t val, void *priv)
+io_trap_writel(uint16_t addr, uint32_t val, const void *priv)
 {
-    io_trap_t *trap = (io_trap_t *) priv;
+    const io_trap_t *trap = (const io_trap_t *) priv;
     trap->func(4, addr, 1, val, trap->priv);
 }
 
 void *
-io_trap_add(void (*func)(int size, uint16_t addr, uint8_t write, uint8_t val, void *priv),
-            void *priv)
+io_trap_add(void (*func)(int size, uint16_t addr, uint8_t write, uint8_t val, const void *priv),
+            const void *priv)
 {
     /* Instantiate new I/O trap. */
     io_trap_t *trap = (io_trap_t *) malloc(sizeof(io_trap_t));

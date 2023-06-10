@@ -114,9 +114,9 @@ pic_clear_smi_irq_status(int irq)
 }
 
 void
-pic_elcr_write(uint16_t port, uint8_t val, void *priv)
+pic_elcr_write(uint16_t port, uint8_t val, const void *priv)
 {
-    pic_t *dev = (pic_t *) priv;
+    pic_t *dev = (const pic_t *) priv;
 
     pic_log("ELCR%i: WRITE %02X\n", port & 1, val);
 
@@ -140,9 +140,9 @@ pic_elcr_write(uint16_t port, uint8_t val, void *priv)
 }
 
 uint8_t
-pic_elcr_read(UNUSED(uint16_t port), void *priv)
+pic_elcr_read(UNUSED(uint16_t port), const void *priv)
 {
-    const pic_t *dev = (pic_t *) priv;
+    const pic_t *dev = (const pic_t *) priv;
 
     pic_log("ELCR%i: READ %02X\n", port & 1, dev->elcr);
 
@@ -173,13 +173,13 @@ pic_elcr_io_handler(int set)
 }
 
 static uint8_t
-pic_cascade_mode(pic_t *dev)
+pic_cascade_mode(const pic_t *dev)
 {
     return !(dev->icw1 & 2);
 }
 
 static __inline uint8_t
-pic_slave_on(pic_t *dev, int channel)
+pic_slave_on(const pic_t *dev, int channel)
 {
     pic_log("pic_slave_on(%i): %i, %02X, %02X\n", channel, pic_cascade_mode(dev), dev->icw4 & 0x0c, dev->icw3 & (1 << channel));
 
@@ -270,7 +270,7 @@ pic_reset(void)
     timer_add(&pic_timer, pic_callback, &pic, 0);
     tmr_inited = 1;
 
-    update_pending = is_at ? pic_update_pending_at : pic_update_pending_xt;
+    update_pending = is_at ? &pic_update_pending_at : &pic_update_pending_xt;
     pic.at = pic2.at = is_at;
 
     smi_irq_mask = smi_irq_status = 0x0000;
@@ -298,7 +298,7 @@ pic_set_pci_flag(int pci)
 }
 
 static uint8_t
-pic_level_triggered(pic_t *dev, int irq)
+pic_level_triggered(const pic_t *dev, int irq)
 {
     if (elcr_enabled)
         return !!(dev->elcr & (1 << irq));
@@ -326,7 +326,7 @@ pic_acknowledge(pic_t *dev)
 /* Find IRQ for non-specific EOI (either by command or automatic) by finding the highest IRQ
    priority with ISR bit set, that is also not masked if the PIC is in special mask mode. */
 static uint8_t
-pic_non_specific_find(pic_t *dev)
+pic_non_specific_find(const pic_t *dev)
 {
     uint8_t j;
     uint8_t b;
@@ -453,7 +453,7 @@ pic_read_ocw(uint8_t pic_id, uint8_t ocw)
 uint8_t
 pic_read(uint16_t addr, void *priv)
 {
-    pic_t *dev = (pic_t *) priv;
+    pic_t *dev = (const pic_t *) priv;
 
     if (shadow) {
         /* VIA PIC shadow read */
@@ -502,9 +502,9 @@ pic_read(uint16_t addr, void *priv)
 }
 
 static void
-pic_write(uint16_t addr, uint8_t val, void *priv)
+pic_write(uint16_t addr, uint8_t val, const void *priv)
 {
-    pic_t *dev = (pic_t *) priv;
+    pic_t *dev = (const pic_t *) priv;
 
     pic_log("pic_write(%04X, %02X, %08X)\n", addr, val, priv);
 
@@ -777,7 +777,7 @@ picint_common(uint16_t num, int level, int set, uint8_t *irq_state)
 }
 
 static uint8_t
-pic_i86_mode(pic_t *dev)
+pic_i86_mode(const pic_t *dev)
 {
     return !!(dev->icw4 & 1);
 }

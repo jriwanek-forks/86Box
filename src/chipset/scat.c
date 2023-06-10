@@ -109,11 +109,11 @@ static const uint8_t scatsx_external_is_RAS[33] = {
     0
 };
 
-static uint8_t scat_in(uint16_t port, void *priv);
-static void    scat_out(uint16_t port, uint8_t val, void *priv);
+static uint8_t scat_in(uint16_t port, const void *priv);
+static void    scat_out(uint16_t port, uint8_t val, const void *priv);
 
 static void
-shadow_state_update(scat_t *dev)
+shadow_state_update(const scat_t *dev)
 {
     int val;
 
@@ -259,7 +259,7 @@ set_xms_bound(scat_t *dev, uint8_t val)
 }
 
 static uint32_t
-get_addr(scat_t *dev, uint32_t addr, ems_page_t *p)
+get_addr(const scat_t *dev, uint32_t addr, const ems_page_t *p)
 {
 #if 1
     int      nbanks_2048k;
@@ -1015,9 +1015,9 @@ memmap_state_update(scat_t *dev)
 }
 
 static void
-scat_out(uint16_t port, uint8_t val, void *priv)
+scat_out(uint16_t port, uint8_t val, const void *priv)
 {
-    scat_t  *dev           = (scat_t *) priv;
+    scat_t  *dev           = (const scat_t *) priv;
     uint8_t  reg_valid     = 0;
     uint8_t  shadow_update = 0;
     uint8_t  map_update    = 0;
@@ -1039,14 +1039,14 @@ scat_out(uint16_t port, uint8_t val, void *priv)
                     break;
 
                 case SCAT_EMS_CONTROL:
-                    io_removehandler(0x0208, 0x0003, scat_in, NULL, NULL, scat_out, NULL, NULL, dev);
-                    io_removehandler(0x0218, 0x0003, scat_in, NULL, NULL, scat_out, NULL, NULL, dev);
+                    io_removehandler(0x0208, 0x0003, &scat_in, NULL, NULL, &scat_out, NULL, NULL, dev);
+                    io_removehandler(0x0218, 0x0003, &scat_in, NULL, NULL, &scat_out, NULL, NULL, dev);
 
                     if (val & 0x40) {
                         if (val & 1)
-                            io_sethandler(0x0218, 3, scat_in, NULL, NULL, scat_out, NULL, NULL, dev);
+                            io_sethandler(0x0218, 3, &scat_in, NULL, NULL, &scat_out, NULL, NULL, dev);
                         else
-                            io_sethandler(0x0208, 3, scat_in, NULL, NULL, scat_out, NULL, NULL, dev);
+                            io_sethandler(0x0208, 3, &scat_in, NULL, NULL, &scat_out, NULL, NULL, dev);
                     }
                     set_global_EMS_state(dev, val & 0x80);
                     reg_valid = 1;
@@ -1202,9 +1202,9 @@ scat_out(uint16_t port, uint8_t val, void *priv)
 }
 
 static uint8_t
-scat_in(uint16_t port, void *priv)
+scat_in(uint16_t port, const void *priv)
 {
-    const scat_t *dev = (scat_t *) priv;
+    const scat_t *dev = (const scat_t *) priv;
     uint8_t       ret = 0xff;
     uint8_t       indx;
 
@@ -1273,10 +1273,10 @@ scat_in(uint16_t port, void *priv)
 }
 
 static uint8_t
-mem_read_scatb(uint32_t addr, void *priv)
+mem_read_scatb(uint32_t addr, const void *priv)
 {
-    ems_page_t *page = (ems_page_t *) priv;
-    scat_t     *dev  = page->scat;
+    const ems_page_t *page = (const ems_page_t *) priv;
+    const scat_t     *dev  = (const scat_t *) page->scat;
     uint8_t     val  = 0xff;
 
     addr = get_addr(dev, addr, page);
@@ -1287,11 +1287,11 @@ mem_read_scatb(uint32_t addr, void *priv)
 }
 
 static uint16_t
-mem_read_scatw(uint32_t addr, void *priv)
+mem_read_scatw(uint32_t addr, const void *priv)
 {
-    ems_page_t *page = (ems_page_t *) priv;
-    scat_t     *dev  = page->scat;
-    uint16_t    val  = 0xffff;
+    const ems_page_t *page = (const ems_page_t *) priv;
+    const scat_t     *dev  = (const scat_t *) page->scat;
+    uint16_t          val  = 0xffff;
 
     addr = get_addr(dev, addr, page);
     if (addr < (mem_size << 10))
@@ -1301,11 +1301,11 @@ mem_read_scatw(uint32_t addr, void *priv)
 }
 
 static uint32_t
-mem_read_scatl(uint32_t addr, void *priv)
+mem_read_scatl(uint32_t addr, const void *priv)
 {
-    ems_page_t *page = (ems_page_t *) priv;
-    scat_t     *dev  = page->scat;
-    uint32_t    val  = 0xffffffff;
+    const ems_page_t *page = (const ems_page_t *) priv;
+    const scat_t     *dev  = (const scat_t *) page->scat;
+    uint32_t          val  = 0xffffffff;
 
     addr = get_addr(dev, addr, page);
     if (addr < (mem_size << 10))
@@ -1315,12 +1315,12 @@ mem_read_scatl(uint32_t addr, void *priv)
 }
 
 static void
-mem_write_scatb(uint32_t addr, uint8_t val, void *priv)
+mem_write_scatb(uint32_t addr, uint8_t val, const void *priv)
 {
-    ems_page_t *page    = (ems_page_t *) priv;
-    scat_t     *dev     = page->scat;
-    uint32_t    oldaddr = addr;
-    uint32_t    chkaddr;
+    const ems_page_t *page    = (const ems_page_t *) priv;
+    const scat_t     *dev     = (const scat_t *) page->scat;
+    uint32_t          oldaddr = addr;
+    uint32_t          chkaddr;
 
     addr    = get_addr(dev, addr, page);
     chkaddr = page->valid ? addr : oldaddr;
@@ -1334,12 +1334,12 @@ mem_write_scatb(uint32_t addr, uint8_t val, void *priv)
 }
 
 static void
-mem_write_scatw(uint32_t addr, uint16_t val, void *priv)
+mem_write_scatw(uint32_t addr, uint16_t val, const void *priv)
 {
-    ems_page_t *page    = (ems_page_t *) priv;
-    scat_t     *dev     = page->scat;
-    uint32_t    oldaddr = addr;
-    uint32_t    chkaddr;
+    const ems_page_t *page    = (const ems_page_t *) priv;
+    const scat_t     *dev     = (const scat_t *) page->scat;
+    uint32_t          oldaddr = addr;
+    uint32_t          chkaddr;
 
     addr    = get_addr(dev, addr, page);
     chkaddr = page->valid ? addr : oldaddr;
@@ -1353,12 +1353,12 @@ mem_write_scatw(uint32_t addr, uint16_t val, void *priv)
 }
 
 static void
-mem_write_scatl(uint32_t addr, uint32_t val, void *priv)
+mem_write_scatl(uint32_t addr, uint32_t val, const void *priv)
 {
-    ems_page_t *page    = (ems_page_t *) priv;
-    scat_t     *dev     = page->scat;
-    uint32_t    oldaddr = addr;
-    uint32_t    chkaddr;
+    const ems_page_t *page    = (const ems_page_t *) priv;
+    const scat_t     *dev     = (const scat_t *) page->scat;
+    uint32_t          oldaddr = addr;
+    uint32_t          chkaddr;
 
     addr    = get_addr(dev, addr, page);
     chkaddr = page->valid ? addr : oldaddr;
@@ -1372,7 +1372,7 @@ mem_write_scatl(uint32_t addr, uint32_t val, void *priv)
 }
 
 static void
-scat_close(void *priv)
+scat_close(const void *priv)
 {
     scat_t *dev = (scat_t *) priv;
 
@@ -1445,19 +1445,19 @@ scat_init(const device_t *info)
     dev->null_page.scat     = dev;
 
     mem_mapping_add(&dev->low_mapping[0], 0, k,
-                    mem_read_scatb, mem_read_scatw, mem_read_scatl,
-                    mem_write_scatb, mem_write_scatw, mem_write_scatl,
+                    &mem_read_scatb, &mem_read_scatw, &mem_read_scatl,
+                    &mem_write_scatb, &mem_write_scatw, &mem_write_scatl,
                     ram, MEM_MAPPING_INTERNAL, &dev->null_page);
 
     mem_mapping_add(&dev->low_mapping[1], 0xf0000, 0x10000,
-                    mem_read_scatb, mem_read_scatw, mem_read_scatl,
-                    mem_write_scatb, mem_write_scatw, mem_write_scatl,
+                    &mem_read_scatb, &mem_read_scatw, &mem_read_scatl,
+                    &mem_write_scatb, &mem_write_scatw, &mem_write_scatl,
                     ram + 0xf0000, MEM_MAPPING_INTERNAL, &dev->null_page);
 
     for (uint8_t i = 2; i < 32; i++) {
         mem_mapping_add(&dev->low_mapping[i], (i << 19), 0x80000,
-                        mem_read_scatb, mem_read_scatw, mem_read_scatl,
-                        mem_write_scatb, mem_write_scatw, mem_write_scatl,
+                        &mem_read_scatb, &mem_read_scatw, &mem_read_scatl,
+                        &mem_write_scatb, &mem_write_scatw, &mem_write_scatl,
                         ram + (i << 19), MEM_MAPPING_INTERNAL, &dev->null_page);
     }
 
@@ -1472,8 +1472,8 @@ scat_init(const device_t *info)
 
     for (; j < 44; j++) {
         mem_mapping_add(&dev->efff_mapping[j], 0x40000 + (j << 14), 0x4000,
-                        mem_read_scatb, mem_read_scatw, mem_read_scatl,
-                        mem_write_scatb, mem_write_scatw, mem_write_scatl,
+                        &mem_read_scatb, &mem_read_scatw, &mem_read_scatl,
+                        &mem_write_scatb, &mem_write_scatw, &mem_write_scatl,
                         mem_size > (256 + (j << 4)) ? ram + 0x40000 + (j << 14) : NULL,
                         MEM_MAPPING_INTERNAL, &dev->null_page);
 
@@ -1488,8 +1488,8 @@ scat_init(const device_t *info)
             dev->page[i].regs_2x9 = 0x03;
             dev->page[i].scat     = dev;
             mem_mapping_add(&dev->ems_mapping[i], (i + 28) << 14, 0x04000,
-                            mem_read_scatb, mem_read_scatw, mem_read_scatl,
-                            mem_write_scatb, mem_write_scatw, mem_write_scatl,
+                            &mem_read_scatb, &mem_read_scatw, &mem_read_scatl,
+                            &mem_write_scatb, &mem_write_scatw, &mem_write_scatl,
                             ram + ((i + 28) << 14), 0, &dev->page[i]);
             mem_mapping_disable(&dev->ems_mapping[i]);
         }
@@ -1500,8 +1500,8 @@ scat_init(const device_t *info)
             dev->page[i].regs_2x9 = 0x03;
             dev->page[i].scat     = dev;
             mem_mapping_add(&dev->ems_mapping[i], (i + (i >= 24 ? 28 : 16)) << 14, 0x04000,
-                            mem_read_scatb, mem_read_scatw, mem_read_scatl,
-                            mem_write_scatb, mem_write_scatw, mem_write_scatl,
+                            &mem_read_scatb, &mem_read_scatw, &mem_read_scatl,
+                            &mem_write_scatb, &mem_write_scatw, &mem_write_scatl,
                             ram + ((i + (i >= 24 ? 28 : 16)) << 14),
                             0, &dev->page[i]);
         }
@@ -1509,8 +1509,8 @@ scat_init(const device_t *info)
 
     for (uint8_t i = 0; i < 6; i++) {
         mem_mapping_add(&dev->remap_mapping[i], 0x100000 + (i << 16), 0x10000,
-                        mem_read_scatb, mem_read_scatw, mem_read_scatl,
-                        mem_write_scatb, mem_write_scatw, mem_write_scatl,
+                        &mem_read_scatb, &mem_read_scatw, &mem_read_scatl,
+                        &mem_write_scatb, &mem_write_scatw, &mem_write_scatl,
                         mem_size >= 1024 ? ram + get_addr(dev, 0x100000 + (i << 16), &dev->null_page) : NULL,
                         MEM_MAPPING_INTERNAL, &dev->null_page);
     }
@@ -1526,7 +1526,7 @@ scat_init(const device_t *info)
     shadow_state_update(dev);
 
     io_sethandler(0x0022, 2,
-                  scat_in, NULL, NULL, scat_out, NULL, NULL, dev);
+                  &scat_in, NULL, NULL, &scat_out, NULL, NULL, dev);
 
     device_add(&port_92_device);
 
@@ -1538,8 +1538,8 @@ const device_t scat_device = {
     .internal_name = "scat",
     .flags         = 0,
     .local         = 0,
-    .init          = scat_init,
-    .close         = scat_close,
+    .init          = &scat_init,
+    .close         = &scat_close,
     .reset         = NULL,
     { .available = NULL },
     .speed_changed = NULL,
@@ -1552,8 +1552,8 @@ const device_t scat_4_device = {
     .internal_name = "scat_4",
     .flags         = 0,
     .local         = 4,
-    .init          = scat_init,
-    .close         = scat_close,
+    .init          = &scat_init,
+    .close         = &scat_close,
     .reset         = NULL,
     { .available = NULL },
     .speed_changed = NULL,
@@ -1566,8 +1566,8 @@ const device_t scat_sx_device = {
     .internal_name = "scat_sx",
     .flags         = 0,
     .local         = 32,
-    .init          = scat_init,
-    .close         = scat_close,
+    .init          = &scat_init,
+    .close         = &scat_close,
     .reset         = NULL,
     { .available = NULL },
     .speed_changed = NULL,

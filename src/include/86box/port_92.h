@@ -30,11 +30,11 @@ typedef struct port_92_t {
 } port_92_t;
 #endif
 
-extern void port_92_set_period(void *priv, uint64_t pulse_period);
-extern void port_92_set_features(void *priv, int reset, int a20);
+extern void port_92_set_period(const void *priv, uint64_t pulse_period);
+extern void port_92_set_features(const void *priv, int reset, int a20);
 
-extern void port_92_add(void *priv);
-extern void port_92_remove(void *priv);
+extern void port_92_add(const void *priv);
+extern void port_92_remove(const void *priv);
 
 extern const device_t port_92_device;
 extern const device_t port_92_inv_device;

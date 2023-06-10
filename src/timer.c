@@ -167,7 +167,7 @@ timer_init(void)
 }
 
 void
-timer_add(pc_timer_t *timer, void (*callback)(void *priv), void *priv, int start_timer)
+timer_add(pc_timer_t *timer, void (*callback)(const void *priv), const void *priv, int start_timer)
 {
     memset(timer, 0, sizeof(pc_timer_t));
 

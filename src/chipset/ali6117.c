@@ -102,7 +102,7 @@ ali6117_log(const char *fmt, ...)
 #endif
 
 static void
-ali6117_recalcmapping(ali6117_t *dev)
+ali6117_recalcmapping(const ali6117_t *dev)
 {
     uint32_t base;
     uint32_t size;
@@ -148,7 +148,7 @@ ali6117_recalcmapping(ali6117_t *dev)
 }
 
 static void
-ali6117_bank_recalc(ali6117_t *dev)
+ali6117_bank_recalc(const ali6117_t *dev)
 {
     uint32_t bank;
     uint32_t addr;
@@ -192,7 +192,7 @@ ali6117_bank_recalc(ali6117_t *dev)
 }
 
 static void
-ali6117_reg_write(uint16_t addr, uint8_t val, void *priv)
+ali6117_reg_write(uint16_t addr, uint8_t val, const void *priv)
 {
     ali6117_t *dev = (ali6117_t *) priv;
 
@@ -387,9 +387,9 @@ ali6117_reg_write(uint16_t addr, uint8_t val, void *priv)
 }
 
 static uint8_t
-ali6117_reg_read(uint16_t addr, void *priv)
+ali6117_reg_read(uint16_t addr, const void *priv)
 {
-    const ali6117_t *dev = (ali6117_t *) priv;
+    const ali6117_t *dev = (const ali6117_t *) priv;
     uint8_t    ret;
 
     if (addr == 0x22)
@@ -402,9 +402,9 @@ ali6117_reg_read(uint16_t addr, void *priv)
 }
 
 static void
-ali6117_reset(void *priv)
+ali6117_reset(const void *priv)
 {
-    ali6117_t *dev = (ali6117_t *) priv;
+    ali6117_t *dev = (const ali6117_t *) priv;
 
     ali6117_log("ALI6117: reset()\n");
 
@@ -437,24 +437,24 @@ ali6117_reset(void *priv)
 }
 
 static void
-ali6117_setup(ali6117_t *dev)
+ali6117_setup(const ali6117_t *dev)
 {
     ali6117_log("ALI6117: setup()\n");
 
     /* Main register interface */
     io_sethandler(0x22, 2,
-                  ali6117_reg_read, NULL, NULL, ali6117_reg_write, NULL, NULL, dev);
+                  &ali6117_reg_read, NULL, NULL, &ali6117_reg_write, NULL, NULL, dev);
 }
 
 static void
-ali6117_close(void *priv)
+ali6117_close(const void *priv)
 {
-    ali6117_t *dev = (ali6117_t *) priv;
+    const ali6117_t *dev = (const ali6117_t *) priv;
 
     ali6117_log("ALI6117: close()\n");
 
     io_removehandler(0x22, 2,
-                     ali6117_reg_read, NULL, NULL, ali6117_reg_write, NULL, NULL, dev);
+                     &ali6117_reg_read, NULL, NULL, &ali6117_reg_write, NULL, NULL, dev);
 
     free(dev);
 }
@@ -495,9 +495,9 @@ const device_t ali1217_device = {
     .internal_name = "ali1217",
     .flags         = DEVICE_AT,
     .local         = 0x8,
-    .init          = ali6117_init,
-    .close         = ali6117_close,
-    .reset         = ali6117_reset,
+    .init          = &ali6117_init,
+    .close         = &ali6117_close,
+    .reset         = &ali6117_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,
@@ -509,9 +509,9 @@ const device_t ali6117d_device = {
     .internal_name = "ali6117d",
     .flags         = DEVICE_AT,
     .local         = 0x2,
-    .init          = ali6117_init,
-    .close         = ali6117_close,
-    .reset         = ali6117_reset,
+    .init          = &ali6117_init,
+    .close         = &ali6117_close,
+    .reset         = &ali6117_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,

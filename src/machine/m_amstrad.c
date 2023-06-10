@@ -219,7 +219,7 @@ recalc_timings_1512(amsvid_t *vid)
 }
 
 static void
-vid_out_1512(uint16_t addr, uint8_t val, void *priv)
+vid_out_1512(uint16_t addr, uint8_t val, const void *priv)
 {
     amsvid_t *vid = (amsvid_t *) priv;
     uint8_t   old;
@@ -273,7 +273,7 @@ vid_out_1512(uint16_t addr, uint8_t val, void *priv)
 }
 
 static uint8_t
-vid_in_1512(uint16_t addr, void *priv)
+vid_in_1512(uint16_t addr, const void *priv)
 {
     const amsvid_t *vid = (amsvid_t *) priv;
     uint8_t         ret = 0xff;
@@ -302,7 +302,7 @@ vid_in_1512(uint16_t addr, void *priv)
 }
 
 static void
-vid_write_1512(uint32_t addr, uint8_t val, void *priv)
+vid_write_1512(uint32_t addr, uint8_t val, const void *priv)
 {
     amsvid_t *vid = (amsvid_t *) priv;
 
@@ -323,7 +323,7 @@ vid_write_1512(uint32_t addr, uint8_t val, void *priv)
 }
 
 static uint8_t
-vid_read_1512(uint32_t addr, void *priv)
+vid_read_1512(uint32_t addr, const void *priv)
 {
     const amsvid_t *vid = (amsvid_t *) priv;
 
@@ -337,7 +337,7 @@ vid_read_1512(uint32_t addr, void *priv)
 }
 
 static void
-vid_poll_1512(void *priv)
+vid_poll_1512(const void *priv)
 {
     amsvid_t *vid = (amsvid_t *) priv;
     uint16_t  ca  = (vid->crtc[15] | (vid->crtc[14] << 8)) & 0x3fff;
@@ -646,7 +646,7 @@ vid_init_1512(amstrad_t *ams)
 }
 
 static void
-vid_close_1512(void *priv)
+vid_close_1512(const void *priv)
 {
     amsvid_t *vid = (amsvid_t *) priv;
 
@@ -656,7 +656,7 @@ vid_close_1512(void *priv)
 }
 
 static void
-vid_speed_change_1512(void *priv)
+vid_speed_change_1512(const void *priv)
 {
     amsvid_t *vid = (amsvid_t *) priv;
 
@@ -753,7 +753,7 @@ recalc_timings_1640(amsvid_t *vid)
 }
 
 static void
-vid_out_1640(uint16_t addr, uint8_t val, void *priv)
+vid_out_1640(uint16_t addr, uint8_t val, const void *priv)
 {
     amsvid_t *vid = (amsvid_t *) priv;
 
@@ -807,7 +807,7 @@ vid_out_1640(uint16_t addr, uint8_t val, void *priv)
 }
 
 static uint8_t
-vid_in_1640(uint16_t addr, void *priv)
+vid_in_1640(uint16_t addr, const void *priv)
 {
     amsvid_t *vid = (amsvid_t *) priv;
 
@@ -855,7 +855,7 @@ vid_init_1640(amstrad_t *ams)
 }
 
 static void
-vid_close_1640(void *priv)
+vid_close_1640(const void *priv)
 {
     amsvid_t *vid = (amsvid_t *) priv;
 
@@ -865,7 +865,7 @@ vid_close_1640(void *priv)
 }
 
 static void
-vid_speed_changed_1640(void *priv)
+vid_speed_changed_1640(const void *priv)
 {
     amsvid_t *vid = (amsvid_t *) priv;
 
@@ -946,7 +946,7 @@ ams_inform(amsvid_t *vid)
 }
 
 static void
-vid_speed_changed_200(void *priv)
+vid_speed_changed_200(const void *priv)
 {
     amsvid_t *vid = (amsvid_t *) priv;
 
@@ -1039,7 +1039,7 @@ set_lcd_cols(uint8_t mode_reg)
 }
 
 static uint8_t
-vid_in_200(uint16_t addr, void *priv)
+vid_in_200(uint16_t addr, const void *priv)
 {
     amsvid_t *vid = (amsvid_t *) priv;
     cga_t    *cga = &vid->cga;
@@ -1079,7 +1079,7 @@ vid_in_200(uint16_t addr, void *priv)
 }
 
 static void
-vid_out_200(uint16_t addr, uint8_t val, void *priv)
+vid_out_200(uint16_t addr, uint8_t val, const void *priv)
 {
     amsvid_t *vid = (amsvid_t *) priv;
     cga_t    *cga = &vid->cga;
@@ -1595,7 +1595,7 @@ lcdc_poll(amsvid_t *vid)
 }
 
 static void
-vid_poll_200(void *priv)
+vid_poll_200(const void *priv)
 {
     amsvid_t *vid = (amsvid_t *) priv;
 
@@ -1730,7 +1730,7 @@ vid_init_200(amstrad_t *ams)
 }
 
 static void
-vid_close_200(void *priv)
+vid_close_200(const void *priv)
 {
     amsvid_t *vid = (amsvid_t *) priv;
 
@@ -2006,7 +2006,7 @@ const device_t vid_pc3086_device = {
 };
 
 static void
-ms_write(uint16_t addr, UNUSED(uint8_t val), UNUSED(void *priv))
+ms_write(uint16_t addr, UNUSED(uint8_t val), UNUSED(const void *priv))
 {
     if ((addr == 0x78) || (addr == 0x79))
         mouse_clear_x();
@@ -2015,7 +2015,7 @@ ms_write(uint16_t addr, UNUSED(uint8_t val), UNUSED(void *priv))
 }
 
 static uint8_t
-ms_read(uint16_t addr, UNUSED(void *priv))
+ms_read(uint16_t addr, UNUSED(const void *priv))
 {
     uint8_t ret;
     int     delta = 0;
@@ -2068,7 +2068,7 @@ kbd_adddata_ex(uint16_t val)
 }
 
 static void
-kbd_write(uint16_t port, uint8_t val, void *priv)
+kbd_write(uint16_t port, uint8_t val, const void *priv)
 {
     amstrad_t *ams = (amstrad_t *) priv;
 
@@ -2132,7 +2132,7 @@ kbd_write(uint16_t port, uint8_t val, void *priv)
 }
 
 static uint8_t
-kbd_read(uint16_t port, void *priv)
+kbd_read(uint16_t port, const void *priv)
 {
     amstrad_t *ams = (amstrad_t *) priv;
     uint8_t    ret = 0xff;
@@ -2222,7 +2222,7 @@ kbd_read(uint16_t port, void *priv)
 }
 
 static void
-kbd_poll(void *priv)
+kbd_poll(const void *priv)
 {
     amstrad_t *ams = (amstrad_t *) priv;
 
@@ -2242,7 +2242,7 @@ kbd_poll(void *priv)
 }
 
 static void
-ams_write(uint16_t port, uint8_t val, void *priv)
+ams_write(uint16_t port, uint8_t val, const void *priv)
 {
     amstrad_t *ams = (amstrad_t *) priv;
 
@@ -2263,7 +2263,7 @@ ams_write(uint16_t port, uint8_t val, void *priv)
 }
 
 static uint8_t
-ams_read(uint16_t port, void *priv)
+ams_read(uint16_t port, const void *priv)
 {
     amstrad_t *ams = (amstrad_t *) priv;
     uint8_t    ret = 0xff;

@@ -434,7 +434,7 @@ pipc_reset_hard(void *priv)
         for (i = 0; i <= dev->max_pcs; i++) {
             trap       = &dev->io_traps[TRAP_GR0 + i];
             trap->dev  = dev;
-            trap->trap = io_trap_add(pipc_io_trap_glb, trap);
+            trap->trap = io_trap_add(&pipc_io_trap_glb, trap);
             if (i & 2) {
                 trap->sts_reg = (uint32_t *) &dev->acpi->regs.extiotrapsts;
                 trap->en_reg  = (uint32_t *) &dev->acpi->regs.extiotrapen;
@@ -772,12 +772,12 @@ pipc_fmnmi_handlers(pipc_t *dev, uint8_t modem)
         return;
 
     if (dev->fmnmi_base)
-        io_removehandler(dev->fmnmi_base, 4, pipc_fmnmi_read, NULL, NULL, NULL, NULL, NULL, dev);
+        io_removehandler(dev->fmnmi_base, 4, &pipc_fmnmi_read, NULL, NULL, NULL, NULL, NULL, dev);
 
     dev->fmnmi_base = (dev->ac97_regs[0][0x15] << 8) | (dev->ac97_regs[0][0x14] & 0xfc);
 
     if (dev->fmnmi_base && (dev->ac97_regs[0][0x04] & PCI_COMMAND_IO))
-        io_sethandler(dev->fmnmi_base, 4, pipc_fmnmi_read, NULL, NULL, NULL, NULL, NULL, dev);
+        io_sethandler(dev->fmnmi_base, 4, &pipc_fmnmi_read, NULL, NULL, NULL, NULL, NULL, dev);
 }
 
 static uint8_t
@@ -848,7 +848,7 @@ pipc_sb_handlers(pipc_t *dev, uint8_t modem)
     if (dev->sb_base) {
         io_removehandler(dev->sb_base, 4, dev->sb->opl.read, NULL, NULL, dev->sb->opl.write, NULL, NULL, dev->sb->opl.priv);
         io_removehandler(dev->sb_base + 8, 2, dev->sb->opl.read, NULL, NULL, dev->sb->opl.write, NULL, NULL, dev->sb->opl.priv);
-        io_removehandler(dev->sb_base + 4, 2, sb_ct1345_mixer_read, NULL, NULL, sb_ct1345_mixer_write, NULL, NULL, dev->sb);
+        io_removehandler(dev->sb_base + 4, 2, &sb_ct1345_mixer_read, NULL, NULL, &sb_ct1345_mixer_write, NULL, NULL, dev->sb);
     }
 
     mpu401_change_addr(dev->sb->mpu, 0);
@@ -863,7 +863,7 @@ pipc_sb_handlers(pipc_t *dev, uint8_t modem)
             io_sethandler(dev->sb_base, 4, dev->sb->opl.read, NULL, NULL, dev->sb->opl.write, NULL, NULL, dev->sb->opl.priv);
             io_sethandler(dev->sb_base + 8, 2, dev->sb->opl.read, NULL, NULL, dev->sb->opl.write, NULL, NULL, dev->sb->opl.priv);
         }
-        io_sethandler(dev->sb_base + 4, 2, sb_ct1345_mixer_read, NULL, NULL, sb_ct1345_mixer_write, NULL, NULL, dev->sb);
+        io_sethandler(dev->sb_base + 4, 2, &sb_ct1345_mixer_read, NULL, NULL, &sb_ct1345_mixer_write, NULL, NULL, dev->sb);
 
         uint8_t irq = 5 + (2 * ((dev->ac97_regs[0][0x43] >> 6) & 0x03));
         sb_dsp_setirq(&dev->sb->dsp, (irq == 11) ? 10 : irq);
@@ -887,7 +887,7 @@ pipc_sb_handlers(pipc_t *dev, uint8_t modem)
     }
 
     if (dev->ac97_regs[0][0x42] & 0x04) {
-        io_sethandler(0x388, 4, pipc_fm_read, NULL, NULL, pipc_fm_write, NULL, NULL, dev);
+        io_sethandler(0x388, 4, &pipc_fm_read, NULL, NULL, &pipc_fm_write, NULL, NULL, dev);
 #ifndef VIA_PIPC_FM_EMULATION
         dev->sb->opl_enabled = 1;
     } else {
@@ -1633,7 +1633,7 @@ pipc_init(const device_t *info)
     pipc_log("PIPC: init()\n");
 
     dev->local = info->local;
-    pci_add_card(PCI_ADD_SOUTHBRIDGE, pipc_read, pipc_write, dev, &dev->pci_slot);
+    pci_add_card(PCI_ADD_SOUTHBRIDGE, &pipc_read, &pipc_write, dev, &dev->pci_slot);
 
     dev->bm[0] = device_add_inst(&sff8038i_device, 1);
     sff_set_irq_mode(dev->bm[0], IRQ_MODE_LEGACY);
@@ -1652,10 +1652,10 @@ pipc_init(const device_t *info)
 
     if (dev->local >= VIA_PIPC_596A) {
         dev->acpi = device_add(&acpi_via_596b_device);
-        acpi_set_trap_update(dev->acpi, pipc_trap_update_596, dev);
+        acpi_set_trap_update(dev->acpi, &pipc_trap_update_596, dev);
     } else if (dev->local >= VIA_PIPC_586B) {
         dev->acpi = device_add(&acpi_via_device);
-        acpi_set_trap_update(dev->acpi, pipc_trap_update_586, dev);
+        acpi_set_trap_update(dev->acpi, &pipc_trap_update_586, dev);
     }
 
     dev->usb[0] = device_add_inst(&usb_device, 1);
@@ -1718,9 +1718,9 @@ const device_t via_vt82c586b_device = {
     .internal_name = "via_vt82c586b",
     .flags         = DEVICE_PCI,
     .local         = VIA_PIPC_586B,
-    .init          = pipc_init,
-    .close         = pipc_close,
-    .reset         = pipc_reset,
+    .init          = &pipc_init,
+    .close         = &pipc_close,
+    .reset         = &pipc_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,
@@ -1732,9 +1732,9 @@ const device_t via_vt82c596a_device = {
     .internal_name = "via_vt82c596a",
     .flags         = DEVICE_PCI,
     .local         = VIA_PIPC_596A,
-    .init          = pipc_init,
-    .close         = pipc_close,
-    .reset         = pipc_reset,
+    .init          = &pipc_init,
+    .close         = &pipc_close,
+    .reset         = &pipc_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,
@@ -1746,9 +1746,9 @@ const device_t via_vt82c596b_device = {
     .internal_name = "via_vt82c596b",
     .flags         = DEVICE_PCI,
     .local         = VIA_PIPC_596B,
-    .init          = pipc_init,
-    .close         = pipc_close,
-    .reset         = pipc_reset,
+    .init          = &pipc_init,
+    .close         = &pipc_close,
+    .reset         = &pipc_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,
@@ -1760,9 +1760,9 @@ const device_t via_vt82c686a_device = {
     .internal_name = "via_vt82c686a",
     .flags         = DEVICE_PCI,
     .local         = VIA_PIPC_686A,
-    .init          = pipc_init,
-    .close         = pipc_close,
-    .reset         = pipc_reset,
+    .init          = &pipc_init,
+    .close         = &pipc_close,
+    .reset         = &pipc_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,
@@ -1774,9 +1774,9 @@ const device_t via_vt82c686b_device = {
     .internal_name = "via_vt82c686b",
     .flags         = DEVICE_PCI,
     .local         = VIA_PIPC_686B,
-    .init          = pipc_init,
-    .close         = pipc_close,
-    .reset         = pipc_reset,
+    .init          = &pipc_init,
+    .close         = &pipc_close,
+    .reset         = &pipc_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,
@@ -1788,9 +1788,9 @@ const device_t via_vt8231_device = {
     .internal_name = "via_vt8231",
     .flags         = DEVICE_PCI,
     .local         = VIA_PIPC_8231,
-    .init          = pipc_init,
-    .close         = pipc_close,
-    .reset         = pipc_reset,
+    .init          = &pipc_init,
+    .close         = &pipc_close,
+    .reset         = &pipc_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,

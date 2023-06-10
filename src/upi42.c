@@ -688,13 +688,13 @@ upi42_op_SEL_RB1(upi42_t *upi42, UNUSED(uint32_t fetchdat))
 }
 
 static int
-upi42_op_NOP(UNUSED(upi42_t *upi42), UNUSED(uint32_t fetchdat))
+upi42_op_NOP(UNUSED(const upi42_t *upi42), UNUSED(uint32_t fetchdat))
 {
     return 1;
 }
 
 static int
-upi42_op_CALL_imm(upi42_t *upi42, uint32_t fetchdat)
+upi42_op_CALL_imm(const upi42_t *upi42, uint32_t fetchdat)
 {
     /* Push new frame onto stack. */
     uint8_t sp           = (upi42->psw & 0x07) << 1;
@@ -775,20 +775,20 @@ UPI42_COND_JMP_IMM(JNIBF, !(upi42->sts & 0x02), )
 UPI42_COND_JMP_IMM(JOBF, upi42->sts & 0x01, )
 
 static int
-upi42_op_EN_A20(UNUSED(upi42_t *upi42), UNUSED(uint32_t fetchdat))
+upi42_op_EN_A20(UNUSED(const upi42_t *upi42), UNUSED(uint32_t fetchdat))
 {
     /* Enable fast A20 until reset. */
     return 1;
 }
 
 static int
-upi42_op_EN_DMA(UNUSED(upi42_t *upi42), UNUSED(uint32_t fetchdat))
+upi42_op_EN_DMA(UNUSED(const upi42_t *upi42), UNUSED(uint32_t fetchdat))
 {
     return 1;
 }
 
 static int
-upi42_op_EN_FLAGS(upi42_t *upi42, UNUSED(uint32_t fetchdat))
+upi42_op_EN_FLAGS(const upi42_t *upi42, UNUSED(uint32_t fetchdat))
 {
     upi42->flags = 1;
     return 1;
@@ -1006,7 +1006,7 @@ upi42_reset(upi42_t *upi42)
 }
 
 void
-upi42_do_init(upi32_t type, uint8_t *rom)
+upi42_do_init(upi32_t type, const uint8_t *rom)
 {
     memset(upi42, 0x00, sizeof(upi42_t));
     upi42->rom = rom;
@@ -1033,7 +1033,7 @@ upi42_do_init(upi32_t type, uint8_t *rom)
 }
 
 void *
-upi42_init(uint32_t type, uint8_t *rom)
+upi42_init(uint32_t type, const uint8_t *rom)
 {
     /* Allocate state structure. */
     upi42_t *upi42 = (upi42_t *) malloc(sizeof(upi42_t));
@@ -1178,7 +1178,7 @@ upi42_write(uint16_t port, uint8_t val, void *priv)
 {
     upi42_t *upi42 = (upi42_t *) priv;
     uint32_t temp_type;
-    uint8_t *temp_rom;
+    const uint8_t *temp_rom;
     int i;
 
     switch (port) {

@@ -857,7 +857,7 @@ ini_section_set_string(ini_section_t self, const char *name, const char *val)
 }
 
 void
-ini_section_set_wstring(ini_section_t self, const char *name, wchar_t *val)
+ini_section_set_wstring(ini_section_t self, const char *name, const wchar_t *val)
 {
     section_t *section = (section_t *) self;
     entry_t   *ent;

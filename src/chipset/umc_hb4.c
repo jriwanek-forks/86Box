@@ -391,7 +391,7 @@ hb4_init(UNUSED(const device_t *info))
     hb4_t *dev = (hb4_t *) malloc(sizeof(hb4_t));
     memset(dev, 0, sizeof(hb4_t));
 
-    pci_add_card(PCI_ADD_NORTHBRIDGE, hb4_read, hb4_write, dev, &dev->pci_slot); /* Device 10: UMC 8881x */
+    pci_add_card(PCI_ADD_NORTHBRIDGE, &hb4_read, &hb4_write, dev, &dev->pci_slot); /* Device 10: UMC 8881x */
 
     /* Port 92 */
     device_add(&port_92_pci_device);
@@ -410,9 +410,9 @@ const device_t umc_hb4_device = {
     .internal_name = "umc_hb4",
     .flags         = DEVICE_PCI,
     .local         = 0x886a,
-    .init          = hb4_init,
-    .close         = hb4_close,
-    .reset         = hb4_reset,
+    .init          = &hb4_init,
+    .close         = &hb4_close,
+    .reset         = &hb4_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,

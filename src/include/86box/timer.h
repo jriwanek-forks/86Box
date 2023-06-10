@@ -47,7 +47,7 @@ typedef struct pc_timer_t {
     double period; /* This is used for large period timers to count
                       the microseconds and split the period. */
 
-    void (*callback)(void *priv);
+    const void (*callback)(const void *priv);
     void *priv;
 
     struct pc_timer_t *prev;
@@ -76,7 +76,7 @@ extern void timer_init(void);
 
 /*Add new timer. If start_timer is set, timer will be enabled with a zero
   timestamp - this is useful for permanently enabled timers*/
-extern void timer_add(pc_timer_t *timer, void (*callback)(void *priv), void *priv, int start_timer);
+extern void timer_add(pc_timer_t *timer, void (*callback)(const void *priv), const void *priv, int start_timer);
 
 /*1us in 32:32 format*/
 extern uint64_t TIMER_USEC;
@@ -101,7 +101,7 @@ timer_advance_u64(pc_timer_t *timer, uint64_t delay)
 /*Set a timer to the given delay, specified in 32:32 format. This should be used
   when starting a timer*/
 static __inline void
-timer_set_delay_u64(pc_timer_t *timer, uint64_t delay)
+timer_set_delay_u64(const pc_timer_t *timer, uint64_t delay)
 {
     timer->ts.ts64         = 0ULL;
     timer->ts.ts32.integer = tsc;
@@ -112,7 +112,7 @@ timer_set_delay_u64(pc_timer_t *timer, uint64_t delay)
 
 /*True if timer currently enabled*/
 static __inline int
-timer_is_enabled(pc_timer_t *timer)
+timer_is_enabled(const pc_timer_t *timer)
 {
     return !!(timer->flags & TIMER_ENABLED);
 }
@@ -126,7 +126,7 @@ timer_is_on(pc_timer_t *timer)
 
 /*Return integer timestamp of timer*/
 static __inline uint32_t
-timer_get_ts_int(pc_timer_t *timer)
+timer_get_ts_int(const pc_timer_t *timer)
 {
     return timer->ts.ts32.integer;
 }
@@ -134,7 +134,7 @@ timer_get_ts_int(pc_timer_t *timer)
 /*Return remaining time before timer expires, in us. If the timer has already
   expired then return 0*/
 static __inline uint32_t
-timer_get_remaining_us(pc_timer_t *timer)
+timer_get_remaining_us(const pc_timer_t *timer)
 {
     int64_t remaining;
 
@@ -152,7 +152,7 @@ timer_get_remaining_us(pc_timer_t *timer)
 /*Return remaining time before timer expires, in 32:32 timestamp format. If the
   timer has already expired then return 0*/
 static __inline uint64_t
-timer_get_remaining_u64(pc_timer_t *timer)
+timer_get_remaining_u64(const pc_timer_t *timer)
 {
     int64_t remaining;
 

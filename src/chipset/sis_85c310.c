@@ -20,7 +20,7 @@ typedef struct rabbit_t {
 } rabbit_t;
 
 static void
-rabbit_recalcmapping(rabbit_t *dev)
+rabbit_recalcmapping(const rabbit_t *dev)
 {
     uint32_t shread;
     uint32_t shwrite;
@@ -73,9 +73,9 @@ rabbit_recalcmapping(rabbit_t *dev)
 }
 
 static void
-rabbit_write(uint16_t addr, uint8_t val, void *priv)
+rabbit_write(uint16_t addr, uint8_t val, const void *priv)
 {
-    rabbit_t *dev = (rabbit_t *) priv;
+    rabbit_t *dev = (const rabbit_t *) priv;
 
     switch (addr) {
         case 0x22:
@@ -98,10 +98,10 @@ rabbit_write(uint16_t addr, uint8_t val, void *priv)
 }
 
 static uint8_t
-rabbit_read(uint16_t addr, void *priv)
+rabbit_read(uint16_t addr, const void *priv)
 {
     uint8_t   ret = 0xff;
-    rabbit_t *dev = (rabbit_t *) priv;
+    rabbit_t *dev = (const rabbit_t *) priv;
 
     switch (addr) {
         case 0x23:
@@ -120,7 +120,7 @@ rabbit_read(uint16_t addr, void *priv)
 }
 
 static void
-rabbit_close(void *priv)
+rabbit_close(const void *priv)
 {
     rabbit_t *dev = (rabbit_t *) priv;
 
@@ -133,7 +133,7 @@ rabbit_init(UNUSED(const device_t *info))
     rabbit_t *dev = (rabbit_t *) malloc(sizeof(rabbit_t));
     memset(dev, 0, sizeof(rabbit_t));
 
-    io_sethandler(0x0022, 0x0002, rabbit_read, NULL, NULL, rabbit_write, NULL, NULL, dev);
+    io_sethandler(0x0022, 0x0002, &rabbit_read, NULL, NULL, &rabbit_write, NULL, NULL, dev);
 
     return dev;
 }
@@ -143,8 +143,8 @@ const device_t rabbit_device = {
     .internal_name = "rabbit",
     .flags         = 0,
     .local         = 0,
-    .init          = rabbit_init,
-    .close         = rabbit_close,
+    .init          = &rabbit_init,
+    .close         = &rabbit_close,
     .reset         = NULL,
     { .available = NULL },
     .speed_changed = NULL,

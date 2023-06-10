@@ -103,25 +103,25 @@ fifo8_reset(Fifo8 *fifo)
 }
 
 int
-fifo8_is_empty(Fifo8 *fifo)
+fifo8_is_empty(const Fifo8 *fifo)
 {
     return (fifo->num == 0);
 }
 
 int
-fifo8_is_full(Fifo8 *fifo)
+fifo8_is_full(const Fifo8 *fifo)
 {
     return (fifo->num == fifo->capacity);
 }
 
 uint32_t
-fifo8_num_free(Fifo8 *fifo)
+fifo8_num_free(const Fifo8 *fifo)
 {
     return fifo->capacity - fifo->num;
 }
 
 uint32_t
-fifo8_num_used(Fifo8 *fifo)
+fifo8_num_used(const Fifo8 *fifo)
 {
     return fifo->num;
 }
