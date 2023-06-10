@@ -52,9 +52,9 @@ apm_set_do_smi(apm_t *dev, uint8_t do_smi)
 }
 
 static void
-apm_out(uint16_t port, uint8_t val, void *priv)
+apm_out(uint16_t port, uint8_t val, const void *priv)
 {
-    apm_t *dev = (apm_t *) priv;
+    const apm_t *dev = (const apm_t *) priv;
 
     apm_log("[%04X:%08X] APM write: %04X = %02X (BX = %04X, CX = %04X)\n", CS, cpu_state.pc, port, val, BX, CX);
 
@@ -69,9 +69,9 @@ apm_out(uint16_t port, uint8_t val, void *priv)
 }
 
 static uint8_t
-apm_in(uint16_t port, void *priv)
+apm_in(uint16_t port, const void *priv)
 {
-    const apm_t  *dev = (apm_t *) priv;
+    const apm_t  *dev = (const apm_t *) priv;
     uint8_t       ret = 0xff;
 
     port &= 0x0001;
@@ -87,19 +87,19 @@ apm_in(uint16_t port, void *priv)
 }
 
 static void
-apm_reset(void *priv)
+apm_reset(const void *priv)
 {
-    apm_t *dev = (apm_t *) priv;
+    const apm_t *dev = (const apm_t *) priv;
 
     dev->cmd = dev->stat = 0x00;
 }
 
 static void
-apm_close(void *priv)
+apm_close(const void *priv)
 {
-    apm_t *dev = (apm_t *) priv;
+    const apm_t *dev = (const apm_t *) priv;
 
-    free(dev);
+    free((apm_t *) dev);
 }
 
 static void *
@@ -119,8 +119,8 @@ const device_t apm_device = {
     .internal_name = "apm",
     .flags         = 0,
     .local         = 0,
-    .init          = apm_init,
-    .close         = apm_close,
+    .init          = &apm_init,
+    .close         = &apm_close,
     .reset         = NULL,
     { .available = NULL },
     .speed_changed = NULL,
@@ -133,9 +133,9 @@ const device_t apm_pci_device = {
     .internal_name = "apm_pci",
     .flags         = DEVICE_PCI,
     .local         = 0,
-    .init          = apm_init,
-    .close         = apm_close,
-    .reset         = apm_reset,
+    .init          = &apm_init,
+    .close         = &apm_close,
+    .reset         = &apm_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,
@@ -147,9 +147,9 @@ const device_t apm_pci_acpi_device = {
     .internal_name = "apm_pci_acpi",
     .flags         = DEVICE_PCI,
     .local         = 1,
-    .init          = apm_init,
-    .close         = apm_close,
-    .reset         = apm_reset,
+    .init          = &apm_init,
+    .close         = &apm_close,
+    .reset         = &apm_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,

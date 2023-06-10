@@ -789,7 +789,7 @@ device_is_valid(const device_t *device, int m)
 }
 
 int
-machine_get_config_int(char *s)
+machine_get_config_int(const char *s)
 {
     const device_t        *d = machine_get_device(machine);
     const device_config_t *c;
@@ -809,7 +809,7 @@ machine_get_config_int(char *s)
 }
 
 char *
-machine_get_config_string(char *s)
+machine_get_config_string(const char *s)
 {
     const device_t        *d = machine_get_device(machine);
     const device_config_t *c;

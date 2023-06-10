@@ -151,7 +151,7 @@ ims8848_log(const char *fmt, ...)
 
 /* Shadow write always enabled, 1B and 1C control C000-DFFF read. */
 static void
-ims8848_recalc(ims8848_t *dev)
+ims8848_recalc(const ims8848_t *dev)
 {
     int      state_on;
     uint32_t base;
@@ -187,14 +187,14 @@ ims8848_recalc(ims8848_t *dev)
 }
 
 static void
-ims8848_base_memory(ims8848_t *dev)
+ims8848_base_memory(const ims8848_t *dev)
 {
     /* We can use the proper mem_set_access to handle that. */
     mem_set_mem_state_both(0x80000, 0x20000, (dev->regs[0x12] & 2) ? (MEM_READ_DISABLED | MEM_WRITE_DISABLED) : (MEM_READ_INTERNAL | MEM_WRITE_INTERNAL));
 }
 
 static void
-ims8848_smram(ims8848_t *dev)
+ims8848_smram(const ims8848_t *dev)
 {
     smram_disable_all();
 
@@ -202,10 +202,10 @@ ims8848_smram(ims8848_t *dev)
 }
 
 static void
-ims8848_write(uint16_t addr, uint8_t val, void *priv)
+ims8848_write(uint16_t addr, uint8_t val, const void *priv)
 {
-    ims8848_t *dev = (ims8848_t *) priv;
-    uint8_t    old = dev->regs[dev->idx];
+    ims8848_t *dev = (const ims8848_t *) priv;
+    uint8_t          old = dev->regs[dev->idx];
 
     switch (addr) {
         case 0x22:
@@ -294,7 +294,7 @@ ims8848_read(uint16_t addr, void *priv)
 }
 
 static void
-ims8849_pci_write(int func, int addr, uint8_t val, void *priv)
+ims8849_pci_write(int func, int addr, uint8_t val, const void *priv)
 {
     ims8848_t *dev = (ims8848_t *) priv;
 
@@ -328,9 +328,9 @@ ims8849_pci_write(int func, int addr, uint8_t val, void *priv)
 }
 
 static uint8_t
-ims8849_pci_read(int func, int addr, void *priv)
+ims8849_pci_read(int func, int addr, const void *priv)
 {
-    const ims8848_t *dev = (ims8848_t *) priv;
+    const ims8848_t *dev = (const ims8848_t *) priv;
     uint8_t          ret = 0xff;
 
     if (func == 0)
@@ -340,9 +340,9 @@ ims8849_pci_read(int func, int addr, void *priv)
 }
 
 static void
-ims8848_reset(void *priv)
+ims8848_reset(const void *priv)
 {
-    ims8848_t *dev = (ims8848_t *) priv;
+    ims8848_t *dev = (const ims8848_t *) priv;
 
     memset(dev->regs, 0x00, sizeof(dev->regs));
     memset(dev->pci_conf, 0x00, sizeof(dev->pci_conf));
@@ -369,7 +369,7 @@ ims8848_reset(void *priv)
 }
 
 static void
-ims8848_close(void *priv)
+ims8848_close(const void *priv)
 {
     ims8848_t *dev = (ims8848_t *) priv;
 
@@ -394,8 +394,8 @@ ims8848_init(UNUSED(const device_t *info))
        IMS 8849:
                 PCI Device 0: IMS 8849 Dummy for compatibility reasons
     */
-    io_sethandler(0x0022, 0x0003, ims8848_read, NULL, NULL, ims8848_write, NULL, NULL, dev);
-    pci_add_card(PCI_ADD_NORTHBRIDGE, ims8849_pci_read, ims8849_pci_write, dev, &dev->pci_slot);
+    io_sethandler(0x0022, 0x0003, &ims8848_read, NULL, NULL, &ims8848_write, NULL, NULL, dev);
+    pci_add_card(PCI_ADD_NORTHBRIDGE, &ims8849_pci_read, &ims8849_pci_write, dev, &dev->pci_slot);
 
     dev->smram = smram_add();
     smram_set_separate_smram(1);
@@ -413,9 +413,9 @@ const device_t ims8848_device = {
     .internal_name = "ims8848",
     .flags         = 0,
     .local         = 0,
-    .init          = ims8848_init,
-    .close         = ims8848_close,
-    .reset         = ims8848_reset,
+    .init          = &ims8848_init,
+    .close         = &ims8848_close,
+    .reset         = &ims8848_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,

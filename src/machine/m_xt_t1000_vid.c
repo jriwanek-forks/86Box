@@ -128,7 +128,7 @@ typedef struct t1000_t {
 static void    t1000_recalctimings(t1000_t *t1000);
 static void    t1000_write(uint32_t addr, uint8_t val, void *priv);
 static uint8_t t1000_read(uint32_t addr, void *priv);
-static void    t1000_recalcattrs(t1000_t *t1000);
+static void    t1000_recalcattrs(const t1000_t *t1000);
 
 static void
 t1000_out(uint16_t addr, uint8_t val, void *priv)
@@ -235,7 +235,7 @@ t1000_recalctimings(t1000_t *t1000)
 
 /* Draw a row of text in 80-column mode */
 static void
-t1000_text_row80(t1000_t *t1000)
+t1000_text_row80(const t1000_t *t1000)
 {
     uint32_t cols[2];
     uint8_t  chr;
@@ -296,7 +296,7 @@ t1000_text_row80(t1000_t *t1000)
 
 /* Draw a row of text in 40-column mode */
 static void
-t1000_text_row40(t1000_t *t1000)
+t1000_text_row40(const t1000_t *t1000)
 {
     uint32_t cols[2];
     uint8_t  chr;
@@ -358,7 +358,7 @@ t1000_text_row40(t1000_t *t1000)
 
 /* Draw a line in CGA 640x200 mode */
 static void
-t1000_cgaline6(t1000_t *t1000)
+t1000_cgaline6(const t1000_t *t1000)
 {
     uint8_t  dat;
     uint32_t ink = 0;
@@ -387,7 +387,7 @@ t1000_cgaline6(t1000_t *t1000)
 /* Draw a line in CGA 320x200 mode. Here the CGA colours are converted to
  * dither patterns: colour 1 to 25% grey, colour 2 to 50% grey */
 static void
-t1000_cgaline4(t1000_t *t1000)
+t1000_cgaline4(const t1000_t *t1000)
 {
     uint8_t  dat;
     uint8_t  pattern;
@@ -545,7 +545,7 @@ t1000_poll(void *priv)
 }
 
 static void
-t1000_recalcattrs(t1000_t *t1000)
+t1000_recalcattrs(const t1000_t *t1000)
 {
     int n;
 

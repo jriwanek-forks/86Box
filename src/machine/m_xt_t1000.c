@@ -126,8 +126,8 @@ enum TC8521_ADDR {
     TC8521_MONTH10  = 0x0a,
     TC8521_YEAR1    = 0x0b,
     TC8521_YEAR10   = 0x0c,
-    TC8521_PAGE     = 0x0d,  /* PAGE register */
-    TC8521_TEST     = 0x0e,  /* TEST register */
+    TC8521_PAGE     = 0x0d, /* PAGE register */
+    TC8521_TEST     = 0x0e, /* TEST register */
     TC8521_RESET    = 0x0f, /* RESET register */
 
     /* Page 1 registers */
@@ -196,7 +196,7 @@ t1000_log(const char *fmt, ...)
 
 /* Set the chip time. */
 static void
-tc8521_time_set(uint8_t *regs, struct tm *tm)
+tc8521_time_set(uint8_t *regs, const struct tm *tm)
 {
     regs[TC8521_SECOND1]  = (tm->tm_sec % 10);
     regs[TC8521_SECOND10] = (tm->tm_sec / 10);
@@ -221,7 +221,7 @@ tc8521_time_set(uint8_t *regs, struct tm *tm)
 /* Get the chip time. */
 #define nibbles(a) (regs[(a##1)] + 10 * regs[(a##10)])
 static void
-tc8521_time_get(uint8_t *regs, struct tm *tm)
+tc8521_time_get(const uint8_t *regs, struct tm *tm)
 {
     tm->tm_sec = nibbles(TC8521_SECOND);
     tm->tm_min = nibbles(TC8521_MINUTE);
@@ -237,7 +237,7 @@ tc8521_time_get(uint8_t *regs, struct tm *tm)
 
 /* This is called every second through the NVR/RTC hook. */
 static void
-tc8521_tick(UNUSED(nvr_t *nvr))
+tc8521_tick(UNUSED(const nvr_t *nvr))
 {
     t1000_log("TC8521: ping\n");
 }
@@ -336,7 +336,7 @@ tc8521_init(nvr_t *nvr, int size)
 
 /* Given an EMS page ID, return its physical address in RAM. */
 static uint32_t
-ems_execaddr(t1000_t *sys, UNUSED(int pg), uint16_t val)
+ems_execaddr(const t1000_t *sys, UNUSED(int pg), uint16_t val)
 {
     if (!(val & 0x80))
         return 0; /* Bit 7 reset => not mapped */

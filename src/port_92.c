@@ -38,10 +38,10 @@
 #define PORT_92_A20   16
 
 static uint8_t
-port_92_readb(uint16_t port, void *priv)
+port_92_readb(uint16_t port, const void *priv)
 {
     uint8_t          ret = 0x00;
-    const port_92_t *dev = (port_92_t *) priv;
+    const port_92_t *dev = (const port_92_t *) priv;
 
     if (port == 0x92) {
         /* Return bit 1 directly from mem_a20_alt, so the
@@ -59,10 +59,10 @@ port_92_readb(uint16_t port, void *priv)
 }
 
 static uint16_t
-port_92_readw(uint16_t port, void *priv)
+port_92_readw(uint16_t port, const void *priv)
 {
     uint16_t         ret = 0xffff;
-    const port_92_t *dev = (port_92_t *) priv;
+    const port_92_t *dev = (const port_92_t *) priv;
 
     if (!(dev->flags & PORT_92_PCI))
         ret = port_92_readb(port, priv);
@@ -75,7 +75,7 @@ port_92_readw(uint16_t port, void *priv)
    TODO: ALi M1543(c) behavior.
  */
 static void
-port_92_pulse(UNUSED(void *priv))
+port_92_pulse(UNUSED(const void *priv))
 {
     softresetx86(); /* Pulse reset! */
     cpu_set_edx();
@@ -85,9 +85,9 @@ port_92_pulse(UNUSED(void *priv))
 }
 
 static void
-port_92_writeb(uint16_t port, uint8_t val, void *priv)
+port_92_writeb(uint16_t port, uint8_t val, const void *priv)
 {
-    port_92_t *dev = (port_92_t *) priv;
+    port_92_t *dev = (const port_92_t *) priv;
 
     if (port != 0x92)
         return;
@@ -111,26 +111,26 @@ port_92_writeb(uint16_t port, uint8_t val, void *priv)
 }
 
 static void
-port_92_writew(uint16_t port, uint16_t val, void *priv)
+port_92_writew(uint16_t port, uint16_t val, const void *priv)
 {
-    const port_92_t *dev = (port_92_t *) priv;
+    const port_92_t *dev = (const port_92_t *) priv;
 
     if (!(dev->flags & PORT_92_PCI))
         port_92_writeb(port, val & 0xff, priv);
 }
 
 void
-port_92_set_period(void *priv, uint64_t pulse_period)
+port_92_set_period(const void *priv, uint64_t pulse_period)
 {
-    port_92_t *dev = (port_92_t *) priv;
+    port_92_t *dev = (const port_92_t *) priv;
 
     dev->pulse_period = pulse_period;
 }
 
 void
-port_92_set_features(void *priv, int reset, int a20)
+port_92_set_features(const void *priv, int reset, int a20)
 {
-    port_92_t *dev = (port_92_t *) priv;
+    port_92_t *dev = (const port_92_t *) priv;
 
     dev->flags &= ~(PORT_92_RESET | PORT_92_A20);
 
@@ -149,9 +149,9 @@ port_92_set_features(void *priv, int reset, int a20)
 }
 
 void
-port_92_add(void *priv)
+port_92_add(const void *priv)
 {
-    port_92_t *dev = (port_92_t *) priv;
+    const port_92_t *dev = (const port_92_t *) priv;
 
     if (dev->flags & (PORT_92_WORD | PORT_92_PCI))
         io_sethandler(0x0092, 2,
@@ -162,9 +162,9 @@ port_92_add(void *priv)
 }
 
 void
-port_92_remove(void *priv)
+port_92_remove(const void *priv)
 {
-    port_92_t *dev = (port_92_t *) priv;
+    const port_92_t *dev = (const port_92_t *) priv;
 
     if (dev->flags & (PORT_92_WORD | PORT_92_PCI))
         io_removehandler(0x0092, 2,
@@ -184,9 +184,9 @@ port_92_reset(UNUSED(void *priv))
 }
 
 static void
-port_92_close(void *priv)
+port_92_close(const void *priv)
 {
-    port_92_t *dev = (port_92_t *) priv;
+    port_92_t *dev = (const port_92_t *) priv;
 
     timer_disable(&dev->pulse_timer);
 
@@ -201,7 +201,7 @@ port_92_init(const device_t *info)
 
     dev->flags = info->local & 0xff;
 
-    timer_add(&dev->pulse_timer, port_92_pulse, dev, 0);
+    timer_add(&dev->pulse_timer, &port_92_pulse, dev, 0);
 
     dev->reg    = 0;
     mem_a20_alt = 0;

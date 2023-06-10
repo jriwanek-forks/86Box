@@ -410,8 +410,8 @@ static uint8_t crtcmask_sl[32] = {
 };
 static int eep_data_out;
 
-static uint8_t vid_in(uint16_t addr, void *priv);
-static void    vid_out(uint16_t addr, uint8_t val, void *priv);
+static uint8_t vid_in(uint16_t addr, const void *priv);
+static void    vid_out(uint16_t addr, uint8_t val, const void *priv);
 
 #ifdef ENABLE_TANDY_LOG
 int tandy_do_log = ENABLE_TANDY_LOG;
@@ -512,9 +512,9 @@ recalc_address_sl(tandy_t *dev)
 }
 
 static void
-vid_out(uint16_t addr, uint8_t val, void *priv)
+vid_out(uint16_t addr, uint8_t val, const void *priv)
 {
-    tandy_t  *dev = (tandy_t *) priv;
+    tandy_t  *dev = (const tandy_t *) priv;
     t1kvid_t *vid = dev->vid;
     uint8_t   old;
 
@@ -587,9 +587,9 @@ vid_out(uint16_t addr, uint8_t val, void *priv)
 }
 
 static uint8_t
-vid_in(uint16_t addr, void *priv)
+vid_in(uint16_t addr, const void *priv)
 {
-    const tandy_t  *dev = (tandy_t *) priv;
+    const tandy_t  *dev = (const tandy_t *) priv;
     const t1kvid_t *vid = dev->vid;
     uint8_t         ret = 0xff;
 
@@ -617,9 +617,9 @@ vid_in(uint16_t addr, void *priv)
 }
 
 static void
-vid_write(uint32_t addr, uint8_t val, void *priv)
+vid_write(uint32_t addr, uint8_t val, const void *priv)
 {
-    tandy_t  *dev = (tandy_t *) priv;
+    tandy_t  *dev = (const tandy_t *) priv;
     t1kvid_t *vid = dev->vid;
 
     if (vid->memctrl == -1)
@@ -638,9 +638,9 @@ vid_write(uint32_t addr, uint8_t val, void *priv)
 }
 
 static uint8_t
-vid_read(uint32_t addr, void *priv)
+vid_read(uint32_t addr, const void *priv)
 {
-    const tandy_t  *dev = (tandy_t *) priv;
+    const tandy_t  *dev = (const tandy_t *) priv;
     const t1kvid_t *vid = dev->vid;
 
     if (vid->memctrl == -1)
@@ -659,9 +659,9 @@ vid_read(uint32_t addr, void *priv)
 }
 
 static void
-vid_poll(void *priv)
+vid_poll(const void *priv)
 {
-    tandy_t  *dev = (tandy_t *) priv;
+    tandy_t  *dev = (const tandy_t *) priv;
     t1kvid_t *vid = dev->vid;
     uint16_t  ca  = (vid->crtc[15] | (vid->crtc[14] << 8)) & 0x3fff;
     int       drawcursor;
@@ -700,7 +700,7 @@ vid_poll(void *priv)
                         buffer32->line[vid->displine << 1][c + (vid->crtc[1] << 4) + 8] = buffer32->line[(vid->displine << 1) + 1][c + (vid->crtc[1] << 4) + 8] = cols[0];
                     }
                 } else if ((vid->mode & 0x12) == 0x12) {
-                    buffer32->line[vid->displine << 1][c] = buffer32->line[(vid->displine << 1) + 1][c] = 0;
+                    buffer32->line[vid->displine << 1][c] = buffer32->line[vid->displine << 1 + 1][c] = 0;
                     if (vid->mode & 1) {
                         buffer32->line[vid->displine << 1][c + (vid->crtc[1] << 3) + 8] = buffer32->line[(vid->displine << 1) + 1][c + (vid->crtc[1] << 3) + 8] = 0;
                     } else {
@@ -1040,17 +1040,17 @@ vid_poll(void *priv)
 }
 
 static void
-vid_speed_changed(void *priv)
+vid_speed_changed(const void *priv)
 {
-    tandy_t *dev = (tandy_t *) priv;
+    tandy_t *dev = (const tandy_t *) priv;
 
     recalc_timings(dev);
 }
 
 static void
-vid_close(void *priv)
+vid_close(const void *priv)
 {
-    tandy_t *dev = (tandy_t *) priv;
+    tandy_t *dev = (const tandy_t *) priv;
 
     free(dev->vid);
     dev->vid = NULL;
@@ -1360,9 +1360,9 @@ tandy_write(uint16_t addr, uint8_t val, void *priv)
 }
 
 static uint8_t
-tandy_read(uint16_t addr, void *priv)
+tandy_read(uint16_t addr, const void *priv)
 {
-    const tandy_t *dev = (tandy_t *) priv;
+    const tandy_t *dev = (const tandy_t *) priv;
     uint8_t        ret = 0xff;
 
     switch (addr) {
@@ -1386,43 +1386,43 @@ tandy_read(uint16_t addr, void *priv)
 }
 
 static void
-write_ram(uint32_t addr, uint8_t val, void *priv)
+write_ram(uint32_t addr, uint8_t val, const void *priv)
 {
-    const tandy_t *dev = (tandy_t *) priv;
+    const tandy_t *dev = (const tandy_t *) priv;
 
     ram[dev->base + (addr & dev->mask)] = val;
 }
 
 static uint8_t
-read_ram(uint32_t addr, void *priv)
+read_ram(uint32_t addr, const void *priv)
 {
-    const tandy_t *dev = (tandy_t *) priv;
+    const tandy_t *dev = (const tandy_t *) priv;
 
     return (ram[dev->base + (addr & dev->mask)]);
 }
 
 static uint8_t
-read_rom(uint32_t addr, void *priv)
+read_rom(uint32_t addr, const void *priv)
 {
-    const tandy_t *dev   = (tandy_t *) priv;
+    const tandy_t *dev   = (const tandy_t *) priv;
     uint32_t       addr2 = (addr & 0xffff) + dev->rom_offset;
 
     return (dev->rom[addr2]);
 }
 
 static uint16_t
-read_romw(uint32_t addr, void *priv)
+read_romw(uint32_t addr, const void *priv)
 {
-    tandy_t *dev   = (tandy_t *) priv;
+    const tandy_t *dev   = (const tandy_t *) priv;
     uint32_t addr2 = (addr & 0xffff) + dev->rom_offset;
 
     return (*(uint16_t *) &dev->rom[addr2]);
 }
 
 static uint32_t
-read_roml(uint32_t addr, void *priv)
+read_roml(uint32_t addr, const void *priv)
 {
-    tandy_t *dev = (tandy_t *) priv;
+    const tandy_t *dev = (const tandy_t *) priv;
 
     return (*(uint32_t *) &dev->rom[addr]);
 }

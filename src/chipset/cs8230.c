@@ -59,7 +59,7 @@ shadow_control(uint32_t addr, uint32_t size, int state)
 }
 
 static void
-rethink_shadow_mappings(cs8230_t *cs8230)
+rethink_shadow_mappings(const cs8230_t *cs8230)
 {
     for (uint8_t c = 0; c < 32; c++) {
         /* Addresses 40000-bffff in 16k blocks */
@@ -79,9 +79,9 @@ rethink_shadow_mappings(cs8230_t *cs8230)
 }
 
 static uint8_t
-cs8230_read(uint16_t port, void *priv)
+cs8230_read(uint16_t port, const void *priv)
 {
-    const cs8230_t *cs8230 = (cs8230_t *) priv;
+    const cs8230_t *cs8230 = (const cs8230_t *) priv;
     uint8_t         ret    = 0xff;
 
     if (port & 1) {
@@ -122,7 +122,7 @@ cs8230_read(uint16_t port, void *priv)
 }
 
 static void
-cs8230_write(uint16_t port, uint8_t val, void *priv)
+cs8230_write(uint16_t port, uint8_t val, const void *priv)
 {
     cs8230_t *cs8230 = (cs8230_t *) priv;
 
@@ -147,7 +147,7 @@ cs8230_write(uint16_t port, uint8_t val, void *priv)
 }
 
 static void
-cs8230_close(void *priv)
+cs8230_close(const void *priv)
 {
     cs8230_t *cs8230 = (cs8230_t *) priv;
 
@@ -160,7 +160,7 @@ cs8230_init(UNUSED(const device_t *info))
     cs8230_t *cs8230 = (cs8230_t *) malloc(sizeof(cs8230_t));
     memset(cs8230, 0, sizeof(cs8230_t));
 
-    io_sethandler(0x0022, 0x0002, cs8230_read, NULL, NULL, cs8230_write, NULL, NULL, cs8230);
+    io_sethandler(0x0022, 0x0002, &cs8230_read, NULL, NULL, &cs8230_write, NULL, NULL, cs8230);
 
     if (mem_size > 768) {
         mem_mapping_set_addr(&ram_mid_mapping, 0xa0000, mem_size > 1024 ? 0x60000 : 0x20000 + (mem_size - 768) * 1024);
@@ -175,8 +175,8 @@ const device_t cs8230_device = {
     .internal_name = "cs8230",
     .flags         = 0,
     .local         = 0,
-    .init          = cs8230_init,
-    .close         = cs8230_close,
+    .init          = &cs8230_init,
+    .close         = &cs8230_close,
     .reset         = NULL,
     { .available = NULL },
     .speed_changed = NULL,

@@ -67,8 +67,8 @@ extern void     pic_clear_smi_irq_status(int irq);
 extern int     pic_elcr_get_enabled(void);
 extern void    pic_elcr_set_enabled(int enabled);
 extern void    pic_elcr_io_handler(int set);
-extern void    pic_elcr_write(uint16_t port, uint8_t val, void *priv);
-extern uint8_t pic_elcr_read(uint16_t port, void *priv);
+extern void    pic_elcr_write(uint16_t port, uint8_t val, const void *priv);
+extern uint8_t pic_elcr_read(uint16_t port, const void *priv);
 
 extern void pic_set_shadow(int sh);
 extern int  pic_get_pci_flag(void);

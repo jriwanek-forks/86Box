@@ -78,8 +78,8 @@ enum {
 };
 
 typedef struct pit_intf_t {
-    uint8_t (*read)(uint16_t addr, void *priv);
-    void (*write)(uint16_t addr, uint8_t val, void *priv);
+    uint8_t (*read)(uint16_t addr, const void *priv);
+    void (*write)(uint16_t addr, uint8_t val, const void *priv);
     /* Gets a counter's count. */
     uint16_t (*get_count)(void *data, int counter_id);
     /* Sets a counter's GATE input. */
@@ -129,7 +129,7 @@ extern void pit_speaker_timer(int new_out, int old_out);
 extern void pit_nmi_timer_ps2(int new_out, int old_out);
 
 extern void pit_set_clock(int clock);
-extern void pit_handler(int set, uint16_t base, int size, void *priv);
+extern void pit_handler(int set, uint16_t base, int size, const void *priv);
 
 #ifdef EMU_DEVICE_H
 extern const device_t i8253_device;

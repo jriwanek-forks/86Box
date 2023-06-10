@@ -56,7 +56,7 @@ cs4031_log(const char *fmt, ...)
 #endif
 
 static void
-cs4031_shadow_recalc(cs4031_t *dev)
+cs4031_shadow_recalc(const cs4031_t *dev)
 {
     mem_set_mem_state_both(0xa0000, 0x10000, (dev->regs[0x18] & 0x01) ? (MEM_READ_INTERNAL | MEM_WRITE_INTERNAL) : (MEM_READ_EXTANY | MEM_WRITE_EXTANY));
     mem_set_mem_state_both(0xb0000, 0x10000, (dev->regs[0x18] & 0x02) ? (MEM_READ_INTERNAL | MEM_WRITE_INTERNAL) : (MEM_READ_EXTANY | MEM_WRITE_EXTANY));
@@ -146,17 +146,17 @@ cs4031_write(uint16_t addr, uint8_t val, void *priv)
 }
 
 static uint8_t
-cs4031_read(uint16_t addr, void *priv)
+cs4031_read(uint16_t addr, const void *priv)
 {
-    const cs4031_t *dev = (cs4031_t *) priv;
+    const cs4031_t *dev = (const cs4031_t *) priv;
 
     return (addr == 0x23) ? dev->regs[dev->index] : 0xff;
 }
 
 static void
-cs4031_close(void *priv)
+cs4031_close(const void *priv)
 {
-    cs4031_t *dev = (cs4031_t *) priv;
+    const cs4031_t *dev = (const cs4031_t *) priv;
 
     free(dev);
 }
@@ -172,7 +172,7 @@ cs4031_init(UNUSED(const device_t *info))
     dev->regs[0x05] = 0x05;
     dev->regs[0x1b] = 0x60;
 
-    io_sethandler(0x0022, 0x0002, cs4031_read, NULL, NULL, cs4031_write, NULL, NULL, dev);
+    io_sethandler(0x0022, 0x0002, &cs4031_read, NULL, NULL, &cs4031_write, NULL, NULL, dev);
 
     return dev;
 }
@@ -182,8 +182,8 @@ const device_t cs4031_device = {
     .internal_name = "cs4031",
     .flags         = 0,
     .local         = 0,
-    .init          = cs4031_init,
-    .close         = cs4031_close,
+    .init          = &cs4031_init,
+    .close         = &cs4031_close,
     .reset         = NULL,
     { .available = NULL },
     .speed_changed = NULL,

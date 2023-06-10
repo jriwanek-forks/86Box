@@ -403,7 +403,7 @@ pit_ctr_get_count(void *data, int counter_id)
 }
 
 void
-pit_ctr_set_load_func(void *data, int counter_id, void (*func)(uint8_t new_m, int new_count))
+pit_ctr_set_load_func(void *data, int counter_id, const void (*func)(uint8_t new_m, int new_count))
 {
     if (data == NULL)
         return;
@@ -415,7 +415,7 @@ pit_ctr_set_load_func(void *data, int counter_id, void (*func)(uint8_t new_m, in
 }
 
 void
-pit_ctr_set_out_func(void *data, int counter_id, void (*func)(int new_out, int old_out))
+pit_ctr_set_out_func(void *data, int counter_id, const void (*func)(int new_out, int old_out))
 {
     if (data == NULL)
         return;
@@ -509,9 +509,9 @@ pit_ctr_set_using_timer(void *data, int counter_id, int using_timer)
 }
 
 static void
-pit_timer_over(void *priv)
+pit_timer_over(const void *priv)
 {
-    pit_t *dev = (pit_t *) priv;
+    const pit_t *dev = (const pit_t *) priv;
 
     dev->clock ^= 1;
 
@@ -522,9 +522,9 @@ pit_timer_over(void *priv)
 }
 
 static void
-pit_write(uint16_t addr, uint8_t val, void *priv)
+pit_write(uint16_t addr, uint8_t val, const void *priv)
 {
-    pit_t *dev = (pit_t *) priv;
+    const pit_t *dev = (const pit_t *) priv;
     int    t   = (addr & 3);
     ctr_t *ctr;
 
@@ -638,13 +638,13 @@ pit_write(uint16_t addr, uint8_t val, void *priv)
 extern uint8_t *ram;
 
 static uint8_t
-pit_read(uint16_t addr, void *priv)
+pit_read(uint16_t addr, const void *priv)
 {
-    pit_t  *dev = (pit_t *) priv;
-    uint8_t ret = 0xff;
-    int     count;
-    int     t = (addr & 3);
-    ctr_t  *ctr;
+    const pit_t *dev = (const pit_t *) priv;
+    uint8_t      ret = 0xff;
+    int          count;
+    int          t = (addr & 3);
+    ctr_t       *ctr;
 
     switch (addr & 3) {
         case 3: /* Control. */
@@ -808,13 +808,13 @@ pit_reset(pit_t *dev)
 }
 
 void
-pit_handler(int set, uint16_t base, int size, void *priv)
+pit_handler(int set, uint16_t base, int size, const void *priv)
 {
     io_handler(set, base, size, pit_read, NULL, NULL, pit_write, NULL, NULL, priv);
 }
 
 static void
-pit_close(void *priv)
+pit_close(const void *priv)
 {
     pit_t *dev = (pit_t *) priv;
 
@@ -920,7 +920,7 @@ const device_t i8254_ps2_device = {
 };
 
 pit_t *
-pit_common_init(int type, void (*out0)(int new_out, int old_out), void (*out1)(int new_out, int old_out))
+pit_common_init(int type, const void (*out0)(int new_out, int old_out), const void (*out1)(int new_out, int old_out))
 {
     void *pit;
 

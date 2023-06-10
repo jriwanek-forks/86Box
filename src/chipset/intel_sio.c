@@ -101,9 +101,9 @@ sio_timer_writew(uint16_t addr, uint16_t val, void *priv)
 }
 
 static uint8_t
-sio_timer_read(uint16_t addr, void *priv)
+sio_timer_read(uint16_t addr, const void *priv)
 {
-    sio_t   *dev = (sio_t *) priv;
+    const sio_t   *dev = (const sio_t *) priv;
     uint16_t sio_timer_latch;
     uint8_t  ret = 0xff;
 
@@ -122,9 +122,9 @@ sio_timer_read(uint16_t addr, void *priv)
 }
 
 static uint16_t
-sio_timer_readw(uint16_t addr, void *priv)
+sio_timer_readw(uint16_t addr, const void *priv)
 {
-    sio_t   *dev = (sio_t *) priv;
+    const sio_t   *dev = (const sio_t *) priv;
     uint16_t ret = 0xffff;
 
     if (!(addr & 0x0002)) {
@@ -137,9 +137,9 @@ sio_timer_readw(uint16_t addr, void *priv)
 }
 
 static void
-sio_write(int func, int addr, uint8_t val, void *priv)
+sio_write(int func, int addr, uint8_t val, const void *priv)
 {
-    sio_t  *dev = (sio_t *) priv;
+    sio_t  *dev = (const sio_t *) priv;
     uint8_t old;
 
     if (func > 0)
@@ -248,14 +248,14 @@ sio_write(int func, int addr, uint8_t val, void *priv)
 
             if (dev->timer_base & 0x01) {
                 io_removehandler(dev->timer_base & 0xfffc, 0x0004,
-                                 sio_timer_read, sio_timer_readw, NULL,
-                                 sio_timer_write, sio_timer_writew, NULL, dev);
+                                 &sio_timer_read, &sio_timer_readw, NULL,
+                                 &sio_timer_write, &sio_timer_writew, NULL, dev);
             }
             dev->timer_base = (dev->regs[0x81] << 8) | (dev->regs[0x80] & 0xfd);
             if (dev->timer_base & 0x01) {
                 io_sethandler(dev->timer_base & 0xfffc, 0x0004,
-                              sio_timer_read, sio_timer_readw, NULL,
-                              sio_timer_write, sio_timer_writew, NULL, dev);
+                              &sio_timer_read, &sio_timer_readw, NULL,
+                              &sio_timer_write, &sio_timer_writew, NULL, dev);
             }
             break;
         case 0xa0:
@@ -326,9 +326,9 @@ sio_write(int func, int addr, uint8_t val, void *priv)
 }
 
 static uint8_t
-sio_read(int func, int addr, void *priv)
+sio_read(int func, int addr, const void *priv)
 {
-    const sio_t  *dev = (sio_t *) priv;
+    const sio_t  *dev = (const sio_t *) priv;
     uint8_t       ret;
 
     ret = 0xff;
@@ -340,13 +340,13 @@ sio_read(int func, int addr, void *priv)
 }
 
 static void
-sio_config_write(UNUSED(uint16_t addr), UNUSED(uint8_t val), UNUSED(void *priv))
+sio_config_write(UNUSED(uint16_t addr), UNUSED(uint8_t val), UNUSED(const void *priv))
 {
     //
 }
 
 static uint8_t
-sio_config_read(uint16_t port, UNUSED(void *priv))
+sio_config_read(uint16_t port, UNUSED(const void *priv))
 {
     uint8_t ret = 0x00;
 
@@ -382,9 +382,9 @@ sio_config_read(uint16_t port, UNUSED(void *priv))
 }
 
 static void
-sio_reset_hard(void *priv)
+sio_reset_hard(const void *priv)
 {
-    sio_t *dev = (sio_t *) priv;
+    sio_t *dev = (const sio_t *) priv;
 
     memset(dev->regs, 0, 256);
 
@@ -428,35 +428,35 @@ sio_reset_hard(void *priv)
 
     if (dev->timer_base & 0x0001) {
         io_removehandler(dev->timer_base & 0xfffc, 0x0004,
-                         sio_timer_read, sio_timer_readw, NULL,
-                         sio_timer_write, sio_timer_writew, NULL, dev);
+                         &sio_timer_read, &sio_timer_readw, NULL,
+                         &sio_timer_write, &sio_timer_writew, NULL, dev);
     }
 
     dev->timer_base = 0x0078;
 }
 
 static void
-sio_apm_out(UNUSED(uint16_t port), UNUSED(uint8_t val), void *priv)
+sio_apm_out(UNUSED(uint16_t port), UNUSED(uint8_t val), const void *priv)
 {
-    sio_t *dev = (sio_t *) priv;
+    sio_t *dev = (const sio_t *) priv;
 
     if (dev->apm->do_smi)
         dev->regs[0xaa] |= 0x80;
 }
 
 static void
-sio_fast_off_count(void *priv)
+sio_fast_off_count(const void *priv)
 {
-    sio_t *dev = (sio_t *) priv;
+    sio_t *dev = (const sio_t *) priv;
 
     smi_raise();
     dev->regs[0xaa] |= 0x20;
 }
 
 static void
-sio_reset(void *priv)
+sio_reset(const void *priv)
 {
-    const sio_t *dev = (sio_t *) priv;
+    const sio_t *dev = (const sio_t *) priv;
 
     /* Disable the PIC mouse latch. */
     sio_write(0, 0x4d, 0x40, priv);
@@ -477,17 +477,17 @@ sio_reset(void *priv)
 }
 
 static void
-sio_close(void *priv)
+sio_close(const void *priv)
 {
-    sio_t *dev = (sio_t *) priv;
+    sio_t *dev = (const sio_t *) priv;
 
     free(dev);
 }
 
 static void
-sio_speed_changed(void *priv)
+sio_speed_changed(const void *priv)
 {
-    sio_t *dev = (sio_t *) priv;
+    sio_t *dev = (const sio_t *) priv;
     int    te;
 
     te = timer_is_enabled(&dev->timer);
@@ -516,7 +516,7 @@ sio_init(const device_t *info)
     dev->id = info->local;
 
     if (dev->id == 0x03)
-        timer_add(&dev->fast_off_timer, sio_fast_off_count, dev, 0);
+        timer_add(&dev->fast_off_timer, &sio_fast_off_count, dev, 0);
 
     sio_reset_hard(dev);
 

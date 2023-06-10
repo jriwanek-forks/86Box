@@ -89,9 +89,9 @@ philips_write(uint16_t port, uint8_t val, void *priv)
 }
 
 static uint8_t
-philips_read(uint16_t port, void *priv)
+philips_read(uint16_t port, const void *priv)
 {
-    const philips_t *dev = (philips_t *) priv;
+    const philips_t *dev = (const philips_t *) priv;
     uint8_t          ret = 0xff;
 
     switch (port) {
@@ -129,7 +129,7 @@ philips_init(UNUSED(const device_t *info))
 
     dev->reg = 0x40;
 
-    io_sethandler(0x0c0, 0x01, philips_read, NULL, NULL, philips_write, NULL, NULL, dev);
+    io_sethandler(0x0c0, 0x01, philips_read, NULL, NULL, &philips_write, NULL, NULL, dev);
 
     return dev;
 }
@@ -139,8 +139,8 @@ const device_t philips_device = {
     .internal_name = "philips",
     .flags         = 0,
     .local         = 0,
-    .init          = philips_init,
-    .close         = philips_close,
+    .init          = &philips_init,
+    .close         = &philips_close,
     .reset         = NULL,
     { .available = NULL },
     .speed_changed = NULL,

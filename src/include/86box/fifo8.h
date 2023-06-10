@@ -110,7 +110,7 @@ extern void fifo8_reset(Fifo8 *fifo);
  * Returns: True if the fifo is empty, false otherwise.
  */
 
-extern int fifo8_is_empty(Fifo8 *fifo);
+extern int fifo8_is_empty(const Fifo8 *fifo);
 
 /**
  * fifo8_is_full:
@@ -121,7 +121,7 @@ extern int fifo8_is_empty(Fifo8 *fifo);
  * Returns: True if the fifo is full, false otherwise.
  */
 
-extern int fifo8_is_full(Fifo8 *fifo);
+extern int fifo8_is_full(const Fifo8 *fifo);
 
 /**
  * fifo8_num_free:
@@ -132,7 +132,7 @@ extern int fifo8_is_full(Fifo8 *fifo);
  * Returns: Number of free bytes.
  */
 
-extern uint32_t fifo8_num_free(Fifo8 *fifo);
+extern uint32_t fifo8_num_free(const Fifo8 *fifo);
 
 /**
  * fifo8_num_used:
@@ -143,6 +143,6 @@ extern uint32_t fifo8_num_free(Fifo8 *fifo);
  * Returns: Number of used bytes.
  */
 
-extern uint32_t fifo8_num_used(Fifo8 *fifo);
+extern uint32_t fifo8_num_used(const Fifo8 *fifo);
 
 #endif /* EMU_FIFO8_H */

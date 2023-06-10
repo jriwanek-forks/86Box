@@ -119,9 +119,9 @@ et6000_write(uint16_t addr, uint8_t val, void *priv)
 }
 
 static uint8_t
-et6000_read(uint16_t addr, void *priv)
+et6000_read(uint16_t addr, const void *priv)
 {
-    const et6000_t *dev = (et6000_t *) priv;
+    const et6000_t *dev = (const et6000_t *) priv;
 
     return ((addr == 0x23) && (INDEX >= 0) && (INDEX <= 5)) ? dev->regs[INDEX] : 0xff;
 }
@@ -149,7 +149,7 @@ et6000_init(UNUSED(const device_t *info))
     /* Shadow Programming */
     et6000_shadow_control(0xf0000, 0x10000, 0, 1);
 
-    io_sethandler(0x0022, 2, et6000_read, NULL, NULL, et6000_write, NULL, NULL, dev); /* Ports 22h-23h: ETEQ Cheetah ET6000 */
+    io_sethandler(0x0022, 2, &et6000_read, NULL, NULL, &et6000_write, NULL, NULL, dev); /* Ports 22h-23h: ETEQ Cheetah ET6000 */
 
     return dev;
 }
@@ -159,8 +159,8 @@ const device_t et6000_device = {
     .internal_name = "et6000",
     .flags         = 0,
     .local         = 0,
-    .init          = et6000_init,
-    .close         = et6000_close,
+    .init          = &et6000_init,
+    .close         = &et6000_close,
     .reset         = NULL,
     { .available = NULL },
     .speed_changed = NULL,

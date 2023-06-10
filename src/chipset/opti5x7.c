@@ -57,7 +57,7 @@ opti5x7_log(const char *fmt, ...)
 #endif
 
 static void
-opti5x7_shadow_map(int cur_reg, opti5x7_t *dev)
+opti5x7_shadow_map(int cur_reg, const opti5x7_t *dev)
 {
 
     /*
@@ -96,9 +96,9 @@ opti5x7_shadow_map(int cur_reg, opti5x7_t *dev)
 }
 
 static void
-opti5x7_write(uint16_t addr, uint8_t val, void *priv)
+opti5x7_write(uint16_t addr, uint8_t val, const void *priv)
 {
-    opti5x7_t *dev = (opti5x7_t *) priv;
+    opti5x7_t *dev = (const opti5x7_t *) priv;
 
     switch (addr) {
         case 0x22:
@@ -154,17 +154,17 @@ opti5x7_write(uint16_t addr, uint8_t val, void *priv)
 }
 
 static uint8_t
-opti5x7_read(uint16_t addr, void *priv)
+opti5x7_read(uint16_t addr, const void *priv)
 {
-    const opti5x7_t *dev = (opti5x7_t *) priv;
+    const opti5x7_t *dev = (const opti5x7_t *) priv;
 
     return (addr == 0x24) ? dev->regs[dev->idx] : 0xff;
 }
 
 static void
-opti5x7_close(void *priv)
+opti5x7_close(const void *priv)
 {
-    opti5x7_t *dev = (opti5x7_t *) priv;
+    const opti5x7_t *dev = (const opti5x7_t *) priv;
 
     free(dev);
 }
@@ -177,8 +177,8 @@ opti5x7_init(const device_t *info)
 
     dev->is_pci = (uint8_t) info->local;
 
-    io_sethandler(0x0022, 0x0001, opti5x7_read, NULL, NULL, opti5x7_write, NULL, NULL, dev);
-    io_sethandler(0x0024, 0x0001, opti5x7_read, NULL, NULL, opti5x7_write, NULL, NULL, dev);
+    io_sethandler(0x0022, 0x0001, &opti5x7_read, NULL, NULL, &opti5x7_write, NULL, NULL, dev);
+    io_sethandler(0x0024, 0x0001, &opti5x7_read, NULL, NULL, &opti5x7_write, NULL, NULL, dev);
 
     device_add(&port_92_device);
 
@@ -190,8 +190,8 @@ const device_t opti5x7_device = {
     .internal_name = "opti5x7",
     .flags         = 0,
     .local         = 0,
-    .init          = opti5x7_init,
-    .close         = opti5x7_close,
+    .init          = &opti5x7_init,
+    .close         = &opti5x7_close,
     .reset         = NULL,
     { .available = NULL },
     .speed_changed = NULL,

@@ -57,7 +57,7 @@
 static serial_t *cmd_uart;
 
 static void
-cbm_io_write(UNUSED(uint16_t port), uint8_t val, UNUSED(void *priv))
+cbm_io_write(UNUSED(uint16_t port), uint8_t val, UNUSED(const void *priv))
 {
     lpt1_remove();
     lpt2_remove();

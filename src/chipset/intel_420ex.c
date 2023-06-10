@@ -120,9 +120,9 @@ i420ex_smram_handler_phase0(void)
 }
 
 static void
-i420ex_smram_handler_phase1(i420ex_t *dev)
+i420ex_smram_handler_phase1(const i420ex_t *dev)
 {
-    const uint8_t *regs = (uint8_t *) dev->regs;
+    const uint8_t *regs = (const uint8_t *) dev->regs;
 
     uint32_t host_base = 0x000a0000;
     uint32_t ram_base  = 0x000a0000;
@@ -399,9 +399,9 @@ i420ex_write(int func, int addr, uint8_t val, void *priv)
 }
 
 static uint8_t
-i420ex_read(int func, int addr, void *priv)
+i420ex_read(int func, int addr, const void *priv)
 {
-    const i420ex_t *dev = (i420ex_t *) priv;
+    const i420ex_t *dev = (const i420ex_t *) priv;
     uint8_t         ret;
 
     ret = 0xff;
@@ -413,9 +413,9 @@ i420ex_read(int func, int addr, void *priv)
 }
 
 static void
-i420ex_reset_hard(void *priv)
+i420ex_reset_hard(const void *priv)
 {
-    i420ex_t *dev = (i420ex_t *) priv;
+    i420ex_t *dev = (const i420ex_t *) priv;
 
     memset(dev->regs, 0, 256);
 
@@ -538,7 +538,7 @@ i420ex_init(const device_t *info)
 
     dev->smram = smram_add();
 
-    pci_add_card(PCI_ADD_NORTHBRIDGE, i420ex_read, i420ex_write, dev, &dev->pci_slot);
+    pci_add_card(PCI_ADD_NORTHBRIDGE, &i420ex_read, &i420ex_write, dev, &dev->pci_slot);
 
     dev->has_ide = info->local;
 
@@ -553,7 +553,7 @@ i420ex_init(const device_t *info)
 
     dev->apm = device_add(&apm_pci_device);
     /* APM intercept handler to update 82420EX SMI status on APM SMI. */
-    io_sethandler(0x00b2, 0x0001, NULL, NULL, NULL, i420ex_apm_out, NULL, NULL, dev);
+    io_sethandler(0x00b2, 0x0001, NULL, NULL, NULL, &i420ex_apm_out, NULL, NULL, dev);
 
     dev->port_92 = device_add(&port_92_pci_device);
 
@@ -576,11 +576,11 @@ const device_t i420ex_device = {
     .internal_name = "i420ex",
     .flags         = DEVICE_PCI,
     .local         = 0x00,
-    .init          = i420ex_init,
-    .close         = i420ex_close,
-    .reset         = i420ex_reset,
+    .init          = &i420ex_init,
+    .close         = &i420ex_close,
+    .reset         = &i420ex_reset,
     { .available = NULL },
-    .speed_changed = i420ex_speed_changed,
+    .speed_changed = &i420ex_speed_changed,
     .force_redraw  = NULL,
     .config        = NULL
 };
@@ -590,11 +590,11 @@ const device_t i420ex_ide_device = {
     .internal_name = "i420ex_ide",
     .flags         = DEVICE_PCI,
     .local         = 0x01,
-    .init          = i420ex_init,
-    .close         = i420ex_close,
-    .reset         = i420ex_reset,
+    .init          = &i420ex_init,
+    .close         = &i420ex_close,
+    .reset         = &i420ex_reset,
     { .available = NULL },
-    .speed_changed = i420ex_speed_changed,
+    .speed_changed = &i420ex_speed_changed,
     .force_redraw  = NULL,
     .config        = NULL
 };

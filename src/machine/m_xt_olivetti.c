@@ -170,7 +170,7 @@ xt_olivetti_log(const char *fmt, ...)
 
 /* Set the chip time. */
 static void
-mm58174_time_set(uint8_t *regs, struct tm *tm)
+mm58174_time_set(uint8_t *regs, const struct tm *tm)
 {
     regs[MM58174_SECOND1]  = (tm->tm_sec % 10);
     regs[MM58174_SECOND10] = (tm->tm_sec / 10);
@@ -191,7 +191,7 @@ mm58174_time_set(uint8_t *regs, struct tm *tm)
 /* Get the chip time. */
 #define nibbles(a) (regs[(a##1)] + 10 * regs[(a##10)])
 static void
-mm58174_time_get(uint8_t *regs, struct tm *tm)
+mm58174_time_get(const uint8_t *regs, struct tm *tm)
 {
     tm->tm_sec  = nibbles(MM58174_SECOND);
     tm->tm_min  = nibbles(MM58174_MINUTE);
@@ -254,9 +254,9 @@ mm58174_start(nvr_t *nvr)
 
 /* Write to one of the chip registers. */
 static void
-mm58174_write(uint16_t addr, uint8_t val, void *priv)
+mm58174_write(uint16_t addr, uint8_t val, const void *priv)
 {
-    nvr_t *nvr = (nvr_t *) priv;
+    nvr_t *nvr = (const nvr_t *) priv;
 
     addr &= 0x0f;
     val &= 0x0f;
@@ -285,9 +285,9 @@ mm58174_write(uint16_t addr, uint8_t val, void *priv)
 
 /* Read from one of the chip registers. */
 static uint8_t
-mm58174_read(uint16_t addr, void *priv)
+mm58174_read(uint16_t addr, const void *priv)
 {
-    nvr_t *nvr = (nvr_t *) priv;
+    nvr_t *nvr = (const nvr_t *) priv;
 
     addr &= 0x0f;
 
@@ -334,7 +334,7 @@ mm58174_init(nvr_t *nvr, int size)
 
 /* Set the chip time. */
 static void
-mm58274_time_set(uint8_t *regs, struct tm *tm)
+mm58274_time_set(uint8_t *regs, const struct tm *tm)
 {
     regs[MM58274_SECOND1]  = (tm->tm_sec % 10);
     regs[MM58274_SECOND10] = (tm->tm_sec / 10);
@@ -369,7 +369,7 @@ mm58274_time_set(uint8_t *regs, struct tm *tm)
 
 /* Get the chip time. */
 static void
-mm58274_time_get(uint8_t *regs, struct tm *tm)
+mm58274_time_get(const uint8_t *regs, struct tm *tm)
 {
     tm->tm_sec = nibbles(MM58274_SECOND);
     tm->tm_min = nibbles(MM58274_MINUTE);
@@ -413,9 +413,9 @@ mm58274_start(nvr_t *nvr)
 
 /* Write to one of the chip registers. */
 static void
-mm58274_write(uint16_t addr, uint8_t val, void *priv)
+mm58274_write(uint16_t addr, uint8_t val, const void *priv)
 {
-    nvr_t *nvr = (nvr_t *) priv;
+    nvr_t *nvr = (const nvr_t *) priv;
 
     addr &= 0x0f;
     val &= 0x0f;
@@ -439,9 +439,9 @@ mm58274_write(uint16_t addr, uint8_t val, void *priv)
 
 /* Read from one of the chip registers. */
 static uint8_t
-mm58274_read(uint16_t addr, void *priv)
+mm58274_read(uint16_t addr, const void *priv)
 {
-    const nvr_t *nvr = (nvr_t *) priv;
+    const nvr_t *nvr = (const nvr_t *) priv;
 
     addr &= 0x0f;
 
@@ -484,9 +484,9 @@ mm58274_init(nvr_t *nvr, int size)
 }
 
 static void
-m24_kbd_poll(void *priv)
+m24_kbd_poll(const void *priv)
 {
-    m24_kbd_t *m24_kbd = (m24_kbd_t *) priv;
+    m24_kbd_t *m24_kbd = (const m24_kbd_t *) priv;
 
     timer_advance_u64(&m24_kbd->send_delay_timer, 1000 * TIMER_USEC);
     if (m24_kbd->wantirq) {
@@ -534,9 +534,9 @@ m24_kbd_adddata_ex(uint16_t val)
    67h    System Configuration Read
  */
 static void
-m24_kbd_write(uint16_t port, uint8_t val, void *priv)
+m24_kbd_write(uint16_t port, uint8_t val, const void *priv)
 {
-    m24_kbd_t *m24_kbd = (m24_kbd_t *) priv;
+    m24_kbd_t *m24_kbd = (const m24_kbd_t *) priv;
     uint8_t    ret;
 
     xt_olivetti_log("M24: write %04X %02X\n", port, val);
@@ -690,9 +690,9 @@ m24_kbd_read(uint16_t port, void *priv)
 }
 
 static void
-m24_kbd_close(void *priv)
+m24_kbd_close(const void *priv)
 {
-    m24_kbd_t *kbd = (m24_kbd_t *) priv;
+    m24_kbd_t *kbd = (const m24_kbd_t *) priv;
 
     /* Stop the timer. */
     timer_disable(&kbd->send_delay_timer);
@@ -711,9 +711,9 @@ m24_kbd_close(void *priv)
 }
 
 static void
-m24_kbd_reset(void *priv)
+m24_kbd_reset(const void *priv)
 {
-    m24_kbd_t *m24_kbd = (m24_kbd_t *) priv;
+    m24_kbd_t *m24_kbd = (const m24_kbd_t *) priv;
 
     /* Initialize the keyboard. */
     m24_kbd->status  = STAT_LOCK | STAT_CD;
@@ -1397,9 +1397,9 @@ m24_kbd_init(m24_kbd_t *kbd)
 }
 
 static void
-m19_vid_out(uint16_t addr, uint8_t val, void *priv)
+m19_vid_out(uint16_t addr, uint8_t val, const void *priv)
 {
-    m19_vid_t *vid     = (m19_vid_t *) priv;
+    m19_vid_t *vid     = (const m19_vid_t *) priv;
     int        oldmode = vid->mode;
 
     /* activating plantronics mode */
@@ -1437,9 +1437,9 @@ m19_vid_out(uint16_t addr, uint8_t val, void *priv)
 }
 
 static uint8_t
-m19_vid_in(uint16_t addr, void *priv)
+m19_vid_in(uint16_t addr, const void *priv)
 {
-    m19_vid_t *vid = (m19_vid_t *) priv;
+    m19_vid_t *vid = (const m19_vid_t *) priv;
 
     if (vid->mode == PLANTRONICS_MODE)
         return colorplus_in(addr, &vid->colorplus);
@@ -1448,9 +1448,9 @@ m19_vid_in(uint16_t addr, void *priv)
 }
 
 static uint8_t
-m19_vid_read(uint32_t addr, void *priv)
+m19_vid_read(uint32_t addr, const void *priv)
 {
-    m19_vid_t *vid = (m19_vid_t *) priv;
+    m19_vid_t *vid = (const m19_vid_t *) priv;
 
     vid->colorplus.cga.mapping = vid->ogc.cga.mapping;
     if (vid->mode == PLANTRONICS_MODE)
@@ -1460,18 +1460,18 @@ m19_vid_read(uint32_t addr, void *priv)
 }
 
 static void
-m19_vid_write(uint32_t addr, uint8_t val, void *priv)
+m19_vid_write(uint32_t addr, uint8_t val, const void *priv)
 {
-    m19_vid_t *vid = (m19_vid_t *) priv;
+    m19_vid_t *vid = (const m19_vid_t *) priv;
 
     colorplus_write(addr, val, &vid->colorplus);
     ogc_write(addr, val, &vid->ogc);
 }
 
 static void
-m19_vid_close(void *priv)
+m19_vid_close(const void *priv)
 {
-    m19_vid_t *vid = (m19_vid_t *) priv;
+    m19_vid_t *vid = (const m19_vid_t *) priv;
 
     free(vid->ogc.cga.vram);
     free(vid->colorplus.cga.vram);
@@ -1479,9 +1479,9 @@ m19_vid_close(void *priv)
 }
 
 static void
-m19_vid_speed_changed(void *priv)
+m19_vid_speed_changed(const void *priv)
 {
-    m19_vid_t *vid = (m19_vid_t *) priv;
+    m19_vid_t *vid = (const m19_vid_t *) priv;
 
     colorplus_recalctimings(&vid->colorplus);
     ogc_recalctimings(&vid->ogc);
@@ -1612,7 +1612,7 @@ const device_t m19_vid_device = {
 };
 
 static uint8_t
-m24_read(uint16_t port, UNUSED(void *priv))
+m24_read(uint16_t port, UNUSED(const void *priv))
 {
     uint8_t ret       = 0x00;
     int     fdd_count = 0;
@@ -1725,7 +1725,7 @@ m24_read(uint16_t port, UNUSED(void *priv))
 }
 
 static uint8_t
-m240_read(uint16_t port, UNUSED(void *priv))
+m240_read(uint16_t port, UNUSED(const void *priv))
 {
     uint8_t ret = 0x00;
     int     fdd_count = 0;

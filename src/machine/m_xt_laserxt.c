@@ -38,7 +38,7 @@ get_laserxt_ems_addr(uint32_t addr)
 }
 
 static void
-laserxt_write(uint16_t port, uint8_t val, UNUSED(void *priv))
+laserxt_write(uint16_t port, uint8_t val, UNUSED(const void *priv))
 {
     uint32_t paddr;
     uint32_t vaddr;
@@ -81,7 +81,7 @@ laserxt_write(uint16_t port, uint8_t val, UNUSED(void *priv))
 }
 
 static uint8_t
-laserxt_read(uint16_t port, UNUSED(void *priv))
+laserxt_read(uint16_t port, UNUSED(const void *priv))
 {
     switch (port) {
         case 0x0208:
@@ -102,7 +102,7 @@ laserxt_read(uint16_t port, UNUSED(void *priv))
 }
 
 static void
-mem_write_laserxtems(uint32_t addr, uint8_t val, UNUSED(void *priv))
+mem_write_laserxtems(uint32_t addr, uint8_t val, UNUSED(const void *priv))
 {
     addr = get_laserxt_ems_addr(addr);
     if (addr < (mem_size << 10))
@@ -110,7 +110,7 @@ mem_write_laserxtems(uint32_t addr, uint8_t val, UNUSED(void *priv))
 }
 
 static uint8_t
-mem_read_laserxtems(uint32_t addr, UNUSED(void *priv))
+mem_read_laserxtems(uint32_t addr, UNUSED(const void *priv))
 {
     uint8_t val = 0xFF;
     addr        = get_laserxt_ems_addr(addr);

@@ -38,7 +38,7 @@ pci_dummy_interrupt(int set, pci_dummy_t *dev)
 }
 
 static uint8_t
-pci_dummy_read(uint16_t port, void *priv)
+pci_dummy_read(uint16_t port, const void *priv)
 {
     pci_dummy_t *dev = (pci_dummy_t *) priv;
     uint8_t      ret = 0xff;
@@ -78,19 +78,19 @@ pci_dummy_read(uint16_t port, void *priv)
 }
 
 static uint16_t
-pci_dummy_readw(uint16_t port, void *priv)
+pci_dummy_readw(uint16_t port, const void *priv)
 {
     return pci_dummy_read(port, priv);
 }
 
 static uint32_t
-pci_dummy_readl(uint16_t port, void *priv)
+pci_dummy_readl(uint16_t port, const void *priv)
 {
     return pci_dummy_read(port, priv);
 }
 
 static void
-pci_dummy_write(uint16_t port, UNUSED(uint8_t val), void *priv)
+pci_dummy_write(uint16_t port, UNUSED(uint8_t val), const void *priv)
 {
     pci_dummy_t *dev = (pci_dummy_t *) priv;
 
@@ -108,13 +108,13 @@ pci_dummy_write(uint16_t port, UNUSED(uint8_t val), void *priv)
 }
 
 static void
-pci_dummy_writew(uint16_t port, uint16_t val, void *priv)
+pci_dummy_writew(uint16_t port, uint16_t val, const void *priv)
 {
     pci_dummy_write(port, val & 0xFF, priv);
 }
 
 static void
-pci_dummy_writel(uint16_t port, uint32_t val, void *priv)
+pci_dummy_writel(uint16_t port, uint32_t val, const void *priv)
 {
     pci_dummy_write(port, val & 0xFF, priv);
 }
@@ -122,17 +122,17 @@ pci_dummy_writel(uint16_t port, uint32_t val, void *priv)
 static void
 pci_dummy_io_remove(pci_dummy_t *dev)
 {
-    io_removehandler(dev->pci_bar[0].addr, 0x0020, pci_dummy_read, pci_dummy_readw, pci_dummy_readl, pci_dummy_write, pci_dummy_writew, pci_dummy_writel, dev);
+    io_removehandler(dev->pci_bar[0].addr, 0x0020, &pci_dummy_read, &pci_dummy_readw, &pci_dummy_readl, &pci_dummy_write, &pci_dummy_writew, &pci_dummy_writel, dev);
 }
 
 static void
 pci_dummy_io_set(pci_dummy_t *dev)
 {
-    io_sethandler(dev->pci_bar[0].addr, 0x0020, pci_dummy_read, pci_dummy_readw, pci_dummy_readl, pci_dummy_write, pci_dummy_writew, pci_dummy_writel, dev);
+    io_sethandler(dev->pci_bar[0].addr, 0x0020, &pci_dummy_read, &pci_dummy_readw, &pci_dummy_readl, &pci_dummy_write, &pci_dummy_writew, &pci_dummy_writel, dev);
 }
 
 static uint8_t
-pci_dummy_pci_read(int func, int addr, void *priv)
+pci_dummy_pci_read(int func, int addr, const void *priv)
 {
     const pci_dummy_t *dev = (pci_dummy_t *) priv;
     uint8_t            ret = 0xff;
@@ -195,7 +195,7 @@ pci_dummy_pci_read(int func, int addr, void *priv)
 }
 
 static void
-pci_dummy_pci_write(int func, int addr, uint8_t val, void *priv)
+pci_dummy_pci_write(int func, int addr, uint8_t val, const void *priv)
 {
     pci_dummy_t *dev = (pci_dummy_t *) priv;
     uint8_t      valxor;

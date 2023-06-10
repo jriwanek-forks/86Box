@@ -55,9 +55,9 @@ ddma_log(const char *fmt, ...)
 #endif
 
 static uint8_t
-ddma_reg_read(uint16_t addr, void *priv)
+ddma_reg_read(uint16_t addr, const void *priv)
 {
-    const ddma_channel_t *dev  = (ddma_channel_t *) priv;
+    const ddma_channel_t *dev  = (const ddma_channel_t *) priv;
     uint8_t               ret  = 0xff;
     int                   ch   = dev->channel;
     uint8_t               dmab = (ch >= 4) ? 0xc0 : 0x00;
@@ -90,9 +90,9 @@ ddma_reg_read(uint16_t addr, void *priv)
 }
 
 static void
-ddma_reg_write(uint16_t addr, uint8_t val, void *priv)
+ddma_reg_write(uint16_t addr, uint8_t val, const void *priv)
 {
-    const ddma_channel_t *dev          = (ddma_channel_t *) priv;
+    const ddma_channel_t *dev          = (const ddma_channel_t *) priv;
     uint8_t               ch           = dev->channel;
     uint8_t               page_regs[4] = { 7, 3, 1, 2 };
     uint8_t               dmab = (ch >= 4) ? 0xc0 : 0x00;
@@ -162,11 +162,11 @@ ddma_update_io_mapping(ddma_t *dev, int ch, uint8_t base_l, uint8_t base_h, int 
 }
 
 static void
-ddma_close(void *priv)
+ddma_close(const void *priv)
 {
-    ddma_t *dev = (ddma_t *) priv;
+    const ddma_t *dev = (const ddma_t *) priv;
 
-    free(dev);
+    free((ddma_t *) dev);
 }
 
 static void *

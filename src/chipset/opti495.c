@@ -56,7 +56,7 @@ opti495_log(const char *fmt, ...)
 #endif
 
 static void
-opti495_recalc(opti495_t *dev)
+opti495_recalc(const opti495_t *dev)
 {
     uint32_t base;
     uint32_t shflags = 0;
@@ -114,9 +114,9 @@ opti495_recalc(opti495_t *dev)
 }
 
 static void
-opti495_write(uint16_t addr, uint8_t val, void *priv)
+opti495_write(uint16_t addr, uint8_t val, const void *priv)
 {
-    opti495_t *dev = (opti495_t *) priv;
+    opti495_t *dev = (const opti495_t *) priv;
 
     switch (addr) {
         case 0x22:
@@ -155,10 +155,10 @@ opti495_write(uint16_t addr, uint8_t val, void *priv)
 }
 
 static uint8_t
-opti495_read(uint16_t addr, void *priv)
+opti495_read(uint16_t addr, const void *priv)
 {
     uint8_t          ret = 0xff;
-    const opti495_t *dev = (opti495_t *) priv;
+    const opti495_t *dev = (const opti495_t *) priv;
 
     switch (addr) {
         case 0x22:
@@ -182,9 +182,9 @@ opti495_read(uint16_t addr, void *priv)
 }
 
 static void
-opti495_close(void *priv)
+opti495_close(const void *priv)
 {
-    opti495_t *dev = (opti495_t *) priv;
+    opti495_t *dev = (const opti495_t *) priv;
 
     free(dev);
 }

@@ -90,7 +90,7 @@ typedef struct sis_5571_t {
 } sis_5571_t;
 
 static void
-sis_5571_shadow_recalc(int cur_reg, sis_5571_t *dev)
+sis_5571_shadow_recalc(int cur_reg, const sis_5571_t *dev)
 {
     if (cur_reg != 0x76) {
         mem_set_mem_state_both(0xc0000 + (0x8000 * (cur_reg & 0x07)), 0x4000, LSB_READ | LSB_WRITE);
@@ -102,7 +102,7 @@ sis_5571_shadow_recalc(int cur_reg, sis_5571_t *dev)
 }
 
 static void
-sis_5571_smm_recalc(sis_5571_t *dev)
+sis_5571_smm_recalc(const sis_5571_t *dev)
 {
     smram_disable_all();
 
@@ -128,35 +128,35 @@ sis_5571_smm_recalc(sis_5571_t *dev)
 }
 
 void
-sis_5571_ide_handler(sis_5571_t *dev)
+sis_5571_ide_handler(const sis_5571_t *dev)
 {
     ide_pri_disable();
     ide_sec_disable();
     if (dev->pci_conf_sb[1][4] & 1) {
         if (dev->pci_conf_sb[1][0x4a] & 4) {
-            ide_set_base(0, PRIMARY_COMP_NAT_SWITCH ? PRIMARY_NATIVE_BASE : 0x1f0);
-            ide_set_side(0, PRIMARY_COMP_NAT_SWITCH ? PRIMARY_NATIVE_SIDE : 0x3f6);
+            ide_set_base(0, PRIMARY_COMP_NAT_SWITCH ? (uint16_t) PRIMARY_NATIVE_BASE : 0x1f0);
+            ide_set_side(0, PRIMARY_COMP_NAT_SWITCH ? (uint16_t) PRIMARY_NATIVE_SIDE : 0x3f6);
             ide_pri_enable();
         }
         if (dev->pci_conf_sb[1][0x4a] & 2) {
-            ide_set_base(1, SECONDARY_COMP_NAT_SWITCH ? SECONDARY_NATIVE_BASE : 0x170);
-            ide_set_side(1, SECONDARY_COMP_NAT_SWITCH ? SECONDARY_NATIVE_SIDE : 0x376);
+            ide_set_base(1, SECONDARY_COMP_NAT_SWITCH ? (uint16_t) SECONDARY_NATIVE_BASE : 0x170);
+            ide_set_side(1, SECONDARY_COMP_NAT_SWITCH ? (uint16_t) SECONDARY_NATIVE_SIDE : 0x376);
             ide_sec_enable();
         }
     }
 }
 
 void
-sis_5571_bm_handler(sis_5571_t *dev)
+sis_5571_bm_handler(const sis_5571_t *dev)
 {
-    sff_bus_master_handler(dev->ide_drive[0], dev->pci_conf_sb[1][4] & 4, BUS_MASTER_BASE);
-    sff_bus_master_handler(dev->ide_drive[1], dev->pci_conf_sb[1][4] & 4, BUS_MASTER_BASE + 8);
+    sff_bus_master_handler(dev->ide_drive[0], dev->pci_conf_sb[1][4] & 4, (uint16_t) BUS_MASTER_BASE);
+    sff_bus_master_handler(dev->ide_drive[1], dev->pci_conf_sb[1][4] & 4, (uint16_t) BUS_MASTER_BASE + 8);
 }
 
 static void
-memory_pci_bridge_write(UNUSED(int func), int addr, uint8_t val, void *priv)
+memory_pci_bridge_write(UNUSED(int func), int addr, uint8_t val, const void *priv)
 {
-    sis_5571_t *dev = (sis_5571_t *) priv;
+    sis_5571_t *dev = (const sis_5571_t *) priv;
 
     switch (addr) {
         case 0x04: /* Command - low byte */
@@ -337,18 +337,18 @@ memory_pci_bridge_write(UNUSED(int func), int addr, uint8_t val, void *priv)
 }
 
 static uint8_t
-memory_pci_bridge_read(UNUSED(int func), int addr, void *priv)
+memory_pci_bridge_read(UNUSED(int func), int addr, const void *priv)
 {
-    const sis_5571_t *dev = (sis_5571_t *) priv;
+    const sis_5571_t *dev = (const sis_5571_t *) priv;
 
     sis_5571_log("SiS5571: dev->pci_conf[%02x] (%02x)\n", addr, dev->pci_conf[addr]);
     return dev->pci_conf[addr];
 }
 
 static void
-pci_isa_bridge_write(int func, int addr, uint8_t val, void *priv)
+pci_isa_bridge_write(int func, int addr, uint8_t val, const void *priv)
 {
-    sis_5571_t *dev = (sis_5571_t *) priv;
+    sis_5571_t *dev = (const sis_5571_t *) priv;
     switch (func) {
         case 0: /* Bridge */
             switch (addr) {
@@ -646,9 +646,9 @@ pci_isa_bridge_write(int func, int addr, uint8_t val, void *priv)
 }
 
 static uint8_t
-pci_isa_bridge_read(int func, int addr, void *priv)
+pci_isa_bridge_read(int func, int addr, const void *priv)
 {
-    const sis_5571_t *dev = (sis_5571_t *) priv;
+    const sis_5571_t *dev = (const sis_5571_t *) priv;
 
     switch (func) {
         case 0:
@@ -669,7 +669,7 @@ pci_isa_bridge_read(int func, int addr, void *priv)
 static void
 sis_5571_reset(void *priv)
 {
-    sis_5571_t *dev = (sis_5571_t *) priv;
+    sis_5571_t *dev = (const sis_5571_t *) priv;
 
     /* Memory/PCI Bridge */
     dev->pci_conf[0x00] = 0x39;
@@ -703,8 +703,8 @@ sis_5571_reset(void *priv)
     dev->pci_conf_sb[1][0x4a] = 0x06;
     sff_set_slot(dev->ide_drive[0], dev->sb_slot);
     sff_set_slot(dev->ide_drive[1], dev->sb_slot);
-    sff_bus_master_reset(dev->ide_drive[0], BUS_MASTER_BASE);
-    sff_bus_master_reset(dev->ide_drive[1], BUS_MASTER_BASE + 8);
+    sff_bus_master_reset(dev->ide_drive[0], (uint16_t) BUS_MASTER_BASE);
+    sff_bus_master_reset(dev->ide_drive[1], (uint16_t) BUS_MASTER_BASE + 8);
 
     /* USB Controller */
     dev->pci_conf_sb[2][0x00] = 0x39;
@@ -721,9 +721,9 @@ sis_5571_reset(void *priv)
 }
 
 static void
-sis_5571_close(void *priv)
+sis_5571_close(const void *priv)
 {
-    sis_5571_t *dev = (sis_5571_t *) priv;
+    const sis_5571_t *dev = (const sis_5571_t *) priv;
 
     smram_del(dev->smram);
     free(dev);
@@ -735,8 +735,8 @@ sis_5571_init(UNUSED(const device_t *info))
     sis_5571_t *dev = (sis_5571_t *) malloc(sizeof(sis_5571_t));
     memset(dev, 0x00, sizeof(sis_5571_t));
 
-    pci_add_card(PCI_ADD_NORTHBRIDGE, memory_pci_bridge_read, memory_pci_bridge_write, dev, &dev->nb_slot);
-    pci_add_card(PCI_ADD_SOUTHBRIDGE, pci_isa_bridge_read, pci_isa_bridge_write, dev, &dev->sb_slot);
+    pci_add_card(PCI_ADD_NORTHBRIDGE, &memory_pci_bridge_read, &memory_pci_bridge_write, dev, &dev->nb_slot);
+    pci_add_card(PCI_ADD_SOUTHBRIDGE, &pci_isa_bridge_read, &pci_isa_bridge_write, dev, &dev->sb_slot);
 
     /* MIRQ */
     pci_enable_mirq(0);
@@ -762,9 +762,9 @@ const device_t sis_5571_device = {
     .internal_name = "sis_5571",
     .flags         = DEVICE_PCI,
     .local         = 0,
-    .init          = sis_5571_init,
-    .close         = sis_5571_close,
-    .reset         = sis_5571_reset,
+    .init          = &sis_5571_init,
+    .close         = &sis_5571_close,
+    .reset         = &sis_5571_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,

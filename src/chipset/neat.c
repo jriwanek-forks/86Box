@@ -245,9 +245,9 @@ neat_log(const char *fmt, ...)
 
 /* Read one byte from paged RAM. */
 static uint8_t
-ems_readb(uint32_t addr, void *priv)
+ems_readb(uint32_t addr, const void *priv)
 {
-    const neat_t *dev = (neat_t *) priv;
+    const neat_t *dev = (const neat_t *) priv;
     uint8_t ret = 0xff;
 
     /* Grab the data. */
@@ -258,9 +258,9 @@ ems_readb(uint32_t addr, void *priv)
 
 /* Read one word from paged RAM. */
 static uint16_t
-ems_readw(uint32_t addr, void *priv)
+ems_readw(uint32_t addr, const void *priv)
 {
-    neat_t  *dev = (neat_t *) priv;
+    const neat_t  *dev = (const neat_t *) priv;
     uint16_t ret = 0xffff;
 
     /* Grab the data. */
@@ -271,9 +271,9 @@ ems_readw(uint32_t addr, void *priv)
 
 /* Write one byte to paged RAM. */
 static void
-ems_writeb(uint32_t addr, uint8_t val, void *priv)
+ems_writeb(uint32_t addr, uint8_t val, const void *priv)
 {
-    neat_t *dev = (neat_t *) priv;
+    neat_t *dev = (const neat_t *) priv;
 
     /* Write the data. */
     *(dev->ems[(addr & 0xffff) >> 14].addr + (addr & 0x3fff)) = val;
@@ -281,9 +281,9 @@ ems_writeb(uint32_t addr, uint8_t val, void *priv)
 
 /* Write one word to paged RAM. */
 static void
-ems_writew(uint32_t addr, uint16_t val, void *priv)
+ems_writew(uint32_t addr, uint16_t val, const void *priv)
 {
-    neat_t *dev = (neat_t *) priv;
+    neat_t *dev = (const neat_t *) priv;
 
     /* Write the data. */
     *(uint16_t *) (dev->ems[(addr & 0xffff) >> 14].addr + (addr & 0x3fff)) = val;
@@ -291,7 +291,7 @@ ems_writew(uint32_t addr, uint16_t val, void *priv)
 
 /* Re-calculate the active-page physical address. */
 static void
-ems_recalc(neat_t *dev, emspage_t *ems)
+ems_recalc(const neat_t *dev, emspage_t *ems)
 {
     if (ems->page >= dev->ems_pages) {
         /* That page does not exist. */
@@ -319,9 +319,9 @@ ems_recalc(neat_t *dev, emspage_t *ems)
 }
 
 static void
-ems_write(uint16_t port, uint8_t val, void *priv)
+ems_write(uint16_t port, uint8_t val, const void *priv)
 {
-    neat_t    *dev = (neat_t *) priv;
+    neat_t    *dev = (const neat_t *) priv;
     emspage_t *ems;
     int        vpage;
 
@@ -347,9 +347,9 @@ ems_write(uint16_t port, uint8_t val, void *priv)
 }
 
 static uint8_t
-ems_read(uint16_t port, void *priv)
+ems_read(uint16_t port, const void *priv)
 {
-    const neat_t *dev = (neat_t *) priv;
+    const neat_t *dev = (const neat_t *) priv;
     uint8_t       ret = 0xff;
     int           vpage;
 
@@ -415,8 +415,8 @@ ems_init(neat_t *dev, int en)
         /* Create and initialize a page mapping. */
         mem_mapping_add(&dev->ems[i].mapping,
                         dev->ems_frame + (EMS_PGSIZE * i), EMS_PGSIZE,
-                        ems_readb, ems_readw, NULL,
-                        ems_writeb, ems_writew, NULL,
+                        &ems_readb, &ems_readw, NULL,
+                        &ems_writeb, &ems_writew, NULL,
                         ram, MEM_MAPPING_EXTERNAL,
                         dev);
 
@@ -438,9 +438,9 @@ ems_init(neat_t *dev, int en)
 }
 
 static void
-neat_write(uint16_t port, uint8_t val, void *priv)
+neat_write(uint16_t port, uint8_t val, const void *priv)
 {
-    neat_t  *dev = (neat_t *) priv;
+    neat_t  *dev = (const neat_t *) priv;
     uint8_t  xval;
     uint8_t *reg;
     int      i;
@@ -635,9 +635,9 @@ neat_write(uint16_t port, uint8_t val, void *priv)
 }
 
 static uint8_t
-neat_read(uint16_t port, void *priv)
+neat_read(uint16_t port, const void *priv)
 {
-    const neat_t *dev = (neat_t *) priv;
+    const neat_t *dev = (const neat_t *) priv;
     uint8_t       ret = 0xff;
 
     switch (port) {
@@ -661,9 +661,9 @@ neat_read(uint16_t port, void *priv)
 }
 
 static void
-neat_close(void *priv)
+neat_close(const void *priv)
 {
-    neat_t *dev = (neat_t *) priv;
+    neat_t *dev = (const neat_t *) priv;
 
     free(dev);
 }

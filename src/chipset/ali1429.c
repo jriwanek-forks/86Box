@@ -124,7 +124,7 @@ typedef struct ali_1429_t {
 } ali1429_t;
 
 static void
-ali1429_shadow_recalc(ali1429_t *dev)
+ali1429_shadow_recalc(const ali1429_t *dev)
 {
     uint32_t base;
     uint32_t can_write;
@@ -149,7 +149,7 @@ ali1429_shadow_recalc(ali1429_t *dev)
 }
 
 static void
-ali1429_write(uint16_t addr, uint8_t val, void *priv)
+ali1429_write(uint16_t addr, uint8_t val, const void *priv)
 {
     ali1429_t *dev = (ali1429_t *) priv;
 
@@ -278,9 +278,9 @@ ali1429_write(uint16_t addr, uint8_t val, void *priv)
 }
 
 static uint8_t
-ali1429_read(uint16_t addr, void *priv)
+ali1429_read(uint16_t addr, const void *priv)
 {
-    const ali1429_t *dev = (ali1429_t *) priv;
+    const ali1429_t *dev = (const ali1429_t *) priv;
     uint8_t          ret = 0xff;
 
     if ((addr == 0x23) && (dev->index >= 0x10) && (dev->index <= 0x4a))
@@ -294,7 +294,7 @@ ali1429_read(uint16_t addr, void *priv)
 }
 
 static void
-ali1429_close(void *priv)
+ali1429_close(const void *priv)
 {
     ali1429_t *dev = (ali1429_t *) priv;
 
@@ -341,7 +341,7 @@ ali1429_init(const device_t *info)
                 22h	Index Port
                 23h	Data Port
     */
-    io_sethandler(0x0022, 0x0002, ali1429_read, NULL, NULL, ali1429_write, NULL, NULL, dev);
+    io_sethandler(0x0022, 0x0002, ali1429_read, NULL, NULL, &ali1429_write, NULL, NULL, dev);
 
     device_add(&port_92_device);
 
@@ -355,8 +355,8 @@ const device_t ali1429_device = {
     .internal_name = "ali1429",
     .flags         = 0,
     .local         = 0,
-    .init          = ali1429_init,
-    .close         = ali1429_close,
+    .init          = &ali1429_init,
+    .close         = &ali1429_close,
     .reset         = NULL,
     { .available = NULL },
     .speed_changed = NULL,
@@ -369,8 +369,8 @@ const device_t ali1429g_device = {
     .internal_name = "ali1429g",
     .flags         = 0,
     .local         = 1,
-    .init          = ali1429_init,
-    .close         = ali1429_close,
+    .init          = &ali1429_init,
+    .close         = &ali1429_close,
     .reset         = NULL,
     { .available = NULL },
     .speed_changed = NULL,

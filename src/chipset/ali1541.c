@@ -98,7 +98,7 @@ ali1541_smram_recalc(uint8_t val, ali1541_t *dev)
 }
 
 static void
-ali1541_shadow_recalc(UNUSED(int cur_reg), ali1541_t *dev)
+ali1541_shadow_recalc(UNUSED(int cur_reg), const ali1541_t *dev)
 {
     int      bit;
     int      r_reg;
@@ -563,9 +563,9 @@ ali1541_write(UNUSED(int func), int addr, uint8_t val, void *priv)
 }
 
 static uint8_t
-ali1541_read(UNUSED(int func), int addr, void *priv)
+ali1541_read(UNUSED(int func), int addr, const void *priv)
 {
-    const ali1541_t *dev = (ali1541_t *) priv;
+    const ali1541_t *dev = (const ali1541_t *) priv;
     uint8_t          ret = 0xff;
 
     ret = dev->pci_conf[addr];
@@ -646,7 +646,7 @@ ali1541_init(UNUSED(const device_t *info))
     ali1541_t *dev = (ali1541_t *) malloc(sizeof(ali1541_t));
     memset(dev, 0, sizeof(ali1541_t));
 
-    pci_add_card(PCI_ADD_NORTHBRIDGE, ali1541_read, ali1541_write, dev, &dev->pci_slot);
+    pci_add_card(PCI_ADD_NORTHBRIDGE, &ali1541_read, &ali1541_write, dev, &dev->pci_slot);
 
     dev->smram = smram_add();
 
@@ -662,9 +662,9 @@ const device_t ali1541_device = {
     .internal_name = "ali1541",
     .flags         = DEVICE_PCI,
     .local         = 0,
-    .init          = ali1541_init,
-    .close         = ali1541_close,
-    .reset         = ali1541_reset,
+    .init          = &ali1541_init,
+    .close         = &ali1541_close,
+    .reset         = &ali1541_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,

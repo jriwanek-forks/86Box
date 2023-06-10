@@ -97,7 +97,7 @@ ct_82c100_ems_pages_recalc(ct_82c100_t *dev)
 }
 
 static void
-ct_82c100_ems_out(uint16_t port, uint8_t val, void *priv)
+ct_82c100_ems_out(uint16_t port, uint8_t val, const void *priv)
 {
     ct_82c100_t *dev = (ct_82c100_t *) priv;
 
@@ -107,9 +107,9 @@ ct_82c100_ems_out(uint16_t port, uint8_t val, void *priv)
 }
 
 static uint8_t
-ct_82c100_ems_in(uint16_t port, void *priv)
+ct_82c100_ems_in(uint16_t port, const void *priv)
 {
-    const ct_82c100_t *dev = (ct_82c100_t *) priv;
+    const ct_82c100_t *dev = (const ct_82c100_t *) priv;
     uint8_t      ret = 0xff;
 
     ret = dev->ems_page_regs[port >> 14];
@@ -123,7 +123,7 @@ ct_82c100_ems_update(ct_82c100_t *dev)
     for (uint8_t i = 0; i < 4; i++) {
         ct_82c100_log("Disabling EMS I/O handler %i at %04X\n", i, dev->ems_io_base + (i << 14));
         io_handler(0, dev->ems_io_base + (i << 14), 1,
-                   ct_82c100_ems_in, NULL, NULL, ct_82c100_ems_out, NULL, NULL, dev);
+                   &ct_82c100_ems_in, NULL, NULL, &ct_82c100_ems_out, NULL, NULL, dev);
     }
 
     dev->ems_io_base = 0x0208 + (dev->regs[0x4c] & 0xf0);
@@ -131,7 +131,7 @@ ct_82c100_ems_update(ct_82c100_t *dev)
     for (uint8_t i = 0; i < 4; i++) {
         ct_82c100_log("Enabling EMS I/O handler %i at %04X\n", i, dev->ems_io_base + (i << 14));
         io_handler(1, dev->ems_io_base + (i << 14), 1,
-                   ct_82c100_ems_in, NULL, NULL, ct_82c100_ems_out, NULL, NULL, dev);
+                   &ct_82c100_ems_in, NULL, NULL, &ct_82c100_ems_out, NULL, NULL, dev);
     }
 
     dev->ems_window_base = 0xc0000 + (((uint32_t) (dev->regs[0x4c] & 0x0f)) << 14);
@@ -163,7 +163,7 @@ ct_82c100_reset(void *priv)
 }
 
 static void
-ct_82c100_out(uint16_t port, uint8_t val, void *priv)
+ct_82c100_out(uint16_t port, uint8_t val, const void *priv)
 {
     ct_82c100_t *dev = (ct_82c100_t *) priv;
 
@@ -243,7 +243,7 @@ ct_82c100_out(uint16_t port, uint8_t val, void *priv)
 }
 
 static uint8_t
-ct_82c100_in(uint16_t port, void *priv)
+ct_82c100_in(uint16_t port, const void *priv)
 {
     ct_82c100_t *dev = (ct_82c100_t *) priv;
     uint8_t      ret = 0xff;
@@ -276,9 +276,9 @@ ct_82c100_in(uint16_t port, void *priv)
 }
 
 static uint8_t
-mem_read_emsb(uint32_t addr, void *priv)
+mem_read_emsb(uint32_t addr, const void *priv)
 {
-    const ems_page_t *page = (ems_page_t *) priv;
+    const ems_page_t *page = (const ems_page_t *) priv;
     uint8_t           ret  = 0xff;
 #ifdef ENABLE_CT_82C100_LOG
     uint32_t old_addr = addr;
@@ -295,9 +295,9 @@ mem_read_emsb(uint32_t addr, void *priv)
 }
 
 static uint16_t
-mem_read_emsw(uint32_t addr, void *priv)
+mem_read_emsw(uint32_t addr, const void *priv)
 {
-    const ems_page_t *page = (ems_page_t *) priv;
+    const ems_page_t *page = (const ems_page_t *) priv;
     uint16_t    ret  = 0xffff;
 #ifdef ENABLE_CT_82C100_LOG
     uint32_t old_addr = addr;
@@ -314,9 +314,9 @@ mem_read_emsw(uint32_t addr, void *priv)
 }
 
 static void
-mem_write_emsb(uint32_t addr, uint8_t val, void *priv)
+mem_write_emsb(uint32_t addr, uint8_t val, const void *priv)
 {
-    const ems_page_t *page = (ems_page_t *) priv;
+    const ems_page_t *page = (const ems_page_t *) priv;
 #ifdef ENABLE_CT_82C100_LOG
     uint32_t old_addr = addr;
 #endif
@@ -330,9 +330,9 @@ mem_write_emsb(uint32_t addr, uint8_t val, void *priv)
 }
 
 static void
-mem_write_emsw(uint32_t addr, uint16_t val, void *priv)
+mem_write_emsw(uint32_t addr, uint16_t val, const void *priv)
 {
-    const ems_page_t *page = (ems_page_t *) priv;
+    const ems_page_t *page = (const ems_page_t *) priv;
 #ifdef ENABLE_CT_82C100_LOG
     uint32_t old_addr = addr;
 #endif
@@ -346,7 +346,7 @@ mem_write_emsw(uint32_t addr, uint16_t val, void *priv)
 }
 
 static void
-ct_82c100_close(void *priv)
+ct_82c100_close(const void *priv)
 {
     ct_82c100_t *dev = (ct_82c100_t *) priv;
 
@@ -364,16 +364,16 @@ ct_82c100_init(UNUSED(const device_t *info))
     ct_82c100_reset(dev);
 
     io_sethandler(0x0022, 2,
-                  ct_82c100_in, NULL, NULL, ct_82c100_out, NULL, NULL, dev);
+                  &ct_82c100_in, NULL, NULL, &ct_82c100_out, NULL, NULL, dev);
     io_sethandler(0x0072, 1,
-                  ct_82c100_in, NULL, NULL, ct_82c100_out, NULL, NULL, dev);
+                  &ct_82c100_in, NULL, NULL, &ct_82c100_out, NULL, NULL, dev);
     io_sethandler(0x007e, 2,
-                  ct_82c100_in, NULL, NULL, ct_82c100_out, NULL, NULL, dev);
+                  &ct_82c100_in, NULL, NULL, &ct_82c100_out, NULL, NULL, dev);
 
     for (uint8_t i = 0; i < 4; i++) {
         mem_mapping_add(&(dev->ems_mappings[i]), (i + 28) << 14, 0x04000,
-                        mem_read_emsb, mem_read_emsw, NULL,
-                        mem_write_emsb, mem_write_emsw, NULL,
+                        &mem_read_emsb, &mem_read_emsw, NULL,
+                        &mem_write_emsb, &mem_write_emsw, NULL,
                         ram + 0xa0000 + (i << 14), MEM_MAPPING_INTERNAL, &dev->ems_pages[i]);
         mem_mapping_disable(&(dev->ems_mappings[i]));
     }
@@ -390,9 +390,9 @@ const device_t ct_82c100_device = {
     .internal_name = "ct_82c100",
     .flags         = 0,
     .local         = 0,
-    .init          = ct_82c100_init,
-    .close         = ct_82c100_close,
-    .reset         = ct_82c100_reset,
+    .init          = &ct_82c100_init,
+    .close         = &ct_82c100_close,
+    .reset         = &ct_82c100_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,

@@ -52,7 +52,7 @@ ioapic_log(const char *fmt, ...)
 #endif
 
 static void
-ioapic_write(UNUSED(uint16_t port), uint8_t val, UNUSED(void *priv))
+ioapic_write(UNUSED(uint16_t port), uint8_t val, UNUSED(const void *priv))
 {
     uint32_t pcmp;
 
@@ -84,7 +84,7 @@ ioapic_write(UNUSED(uint16_t port), uint8_t val, UNUSED(void *priv))
 }
 
 static void
-ioapic_reset(UNUSED(ioapic_t *dev))
+ioapic_reset(UNUSED(const ioapic_t *dev))
 {
     //
 }
@@ -95,7 +95,7 @@ ioapic_close(void *priv)
     ioapic_t *dev = (ioapic_t *) priv;
 
     io_removehandler(0x80, 1,
-                     NULL, NULL, NULL, ioapic_write, NULL, NULL, NULL);
+                     NULL, NULL, NULL, &ioapic_write, NULL, NULL, NULL);
 
     free(dev);
 }
@@ -109,7 +109,7 @@ ioapic_init(UNUSED(const device_t *info))
     ioapic_reset(dev);
 
     io_sethandler(0x80, 1,
-                  NULL, NULL, NULL, ioapic_write, NULL, NULL, NULL);
+                  NULL, NULL, NULL, &ioapic_write, NULL, NULL, NULL);
 
     return dev;
 }
@@ -119,8 +119,8 @@ const device_t ioapic_device = {
     .internal_name = "ioapic",
     .flags         = DEVICE_AT,
     .local         = 0,
-    .init          = ioapic_init,
-    .close         = ioapic_close,
+    .init          = &ioapic_init,
+    .close         = &ioapic_close,
     .reset         = NULL,
     { .available = NULL },
     .speed_changed = NULL,

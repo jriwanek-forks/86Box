@@ -100,9 +100,9 @@ olivetti_eva_write(uint16_t addr, uint8_t val, void *priv)
 }
 
 static uint8_t
-olivetti_eva_read(uint16_t addr, void *priv)
+olivetti_eva_read(uint16_t addr, const void *priv)
 {
-    const olivetti_eva_t *dev = (olivetti_eva_t *) priv;
+    const olivetti_eva_t *dev = (const olivetti_eva_t *) priv;
     uint8_t         ret = 0xff;
 
     switch (addr) {
@@ -124,9 +124,9 @@ olivetti_eva_read(uint16_t addr, void *priv)
 }
 
 static void
-olivetti_eva_close(void *priv)
+olivetti_eva_close(const void *priv)
 {
-    olivetti_eva_t *dev = (olivetti_eva_t *) priv;
+    const olivetti_eva_t *dev = (const olivetti_eva_t *) priv;
 
     free(dev);
 }
@@ -146,9 +146,9 @@ olivetti_eva_init(UNUSED(const device_t *info))
     /* RAM enable registers */
     dev->reg_069 = 0x0;
 
-    io_sethandler(0x0065, 0x0001, olivetti_eva_read, NULL, NULL, olivetti_eva_write, NULL, NULL, dev);
-    io_sethandler(0x0067, 0x0001, olivetti_eva_read, NULL, NULL, olivetti_eva_write, NULL, NULL, dev);
-    io_sethandler(0x0069, 0x0001, olivetti_eva_read, NULL, NULL, olivetti_eva_write, NULL, NULL, dev);
+    io_sethandler(0x0065, 0x0001, &olivetti_eva_read, NULL, NULL, &olivetti_eva_write, NULL, NULL, dev);
+    io_sethandler(0x0067, 0x0001, &olivetti_eva_read, NULL, NULL, &olivetti_eva_write, NULL, NULL, dev);
+    io_sethandler(0x0069, 0x0001, &olivetti_eva_read, NULL, NULL, &olivetti_eva_write, NULL, NULL, dev);
 
     /* When shadowing is not enabled in BIOS, all upper memory is available as XMS */
     mem_remap_top(384);
@@ -168,8 +168,8 @@ const device_t olivetti_eva_device = {
     .internal_name = "olivetta_eva",
     .flags         = 0,
     .local         = 0,
-    .init          = olivetti_eva_init,
-    .close         = olivetti_eva_close,
+    .init          = &olivetti_eva_init,
+    .close         = &olivetti_eva_close,
     .reset         = NULL,
     { .available = NULL },
     .speed_changed = NULL,

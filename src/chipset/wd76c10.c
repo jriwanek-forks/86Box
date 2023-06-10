@@ -476,86 +476,86 @@ wd76c10_init(UNUSED(const device_t *info))
     LOCK = 1;
 
     /* Clock Control */
-    io_sethandler(0x1072, 1, NULL, wd76c10_read, NULL, NULL, wd76c10_write, NULL, dev);
+    io_sethandler(0x1072, 1, NULL, &wd76c10_read, NULL, NULL, &wd76c10_write, NULL, dev);
 
     /* Bus Timing & Power Down Control */
-    io_sethandler(0x1872, 1, NULL, wd76c10_read, NULL, NULL, wd76c10_write, NULL, dev);
+    io_sethandler(0x1872, 1, NULL, &wd76c10_read, NULL, NULL, &wd76c10_write, NULL, dev);
 
     /* Refresh Control(Serial & Parallel) */
-    io_sethandler(0x2072, 1, NULL, wd76c10_read, NULL, NULL, wd76c10_write, NULL, dev);
+    io_sethandler(0x2072, 1, NULL, &wd76c10_read, NULL, NULL, &wd76c10_write, NULL, dev);
 
     /* Disk Chip Select */
-    io_sethandler(0x2872, 1, NULL, wd76c10_read, NULL, NULL, wd76c10_write, NULL, dev);
+    io_sethandler(0x2872, 1, NULL, &wd76c10_read, NULL, NULL, &wd76c10_write, NULL, dev);
 
     /* Programmable Chip Select Address(Needs more further examination!) */
-    io_sethandler(0x3072, 1, NULL, wd76c10_read, NULL, NULL, wd76c10_write, NULL, dev);
+    io_sethandler(0x3072, 1, NULL, &wd76c10_read, NULL, NULL, &wd76c10_write, NULL, dev);
 
     /* Bank 1 & 0 Start Address */
-    io_sethandler(0x4872, 1, NULL, wd76c10_read, NULL, NULL, wd76c10_write, NULL, dev);
+    io_sethandler(0x4872, 1, NULL, &wd76c10_read, NULL, NULL, &wd76c10_write, NULL, dev);
 
     /* Bank 3 & 2 Start Address */
-    io_sethandler(0x5072, 1, NULL, wd76c10_read, NULL, NULL, wd76c10_write, NULL, dev);
+    io_sethandler(0x5072, 1, NULL, &wd76c10_read, NULL, NULL, &wd76c10_write, NULL, dev);
 
     /* Split Address */
-    io_sethandler(0x5872, 1, NULL, wd76c10_read, NULL, NULL, wd76c10_write, NULL, dev);
+    io_sethandler(0x5872, 1, NULL, &wd76c10_read, NULL, NULL, &wd76c10_write, NULL, dev);
 
     /* EMS Control & EMS Low level boundry */
-    io_sethandler(0x6072, 1, NULL, wd76c10_read, NULL, NULL, wd76c10_write, NULL, dev);
+    io_sethandler(0x6072, 1, NULL, &wd76c10_read, NULL, NULL, &wd76c10_write, NULL, dev);
 
     /* EMS Control & EMS Low level boundry */
-    io_sethandler(0x6872, 1, NULL, wd76c10_read, NULL, NULL, wd76c10_write, NULL, dev);
+    io_sethandler(0x6872, 1, NULL, &wd76c10_read, NULL, NULL, &wd76c10_write, NULL, dev);
 
     /* PMC Output */
-    io_sethandler(0x7072, 1, NULL, wd76c10_read, NULL, NULL, wd76c10_write, NULL, dev);
+    io_sethandler(0x7072, 1, NULL, &wd76c10_read, NULL, NULL, &wd76c10_write, NULL, dev);
 
     /* PMC Output */
-    io_sethandler(0x7872, 1, NULL, wd76c10_read, NULL, NULL, wd76c10_write, NULL, dev);
+    io_sethandler(0x7872, 1, NULL, &wd76c10_read, NULL, NULL, &wd76c10_write, NULL, dev);
 
     /* PMC Status */
-    io_sethandler(0x8072, 1, NULL, wd76c10_read, NULL, NULL, wd76c10_write, NULL, dev);
+    io_sethandler(0x8072, 1, NULL, &wd76c10_read, NULL, NULL, &wd76c10_write, NULL, dev);
 
     /* PMC Status */
-    io_sethandler(0x8872, 1, NULL, wd76c10_read, NULL, NULL, wd76c10_write, NULL, dev);
+    io_sethandler(0x8872, 1, NULL, &wd76c10_read, NULL, NULL, &wd76c10_write, NULL, dev);
 
     /* NMI Status (Needs further checkup) */
-    io_sethandler(0x9072, 1, NULL, wd76c10_read, NULL, NULL, wd76c10_write, NULL, dev);
+    io_sethandler(0x9072, 1, NULL, &wd76c10_read, NULL, NULL, &wd76c10_write, NULL, dev);
 
     /* Diagnostics */
-    io_sethandler(0x9872, 1, NULL, wd76c10_read, NULL, NULL, wd76c10_write, NULL, dev);
+    io_sethandler(0x9872, 1, NULL, &wd76c10_read, NULL, NULL, &wd76c10_write, NULL, dev);
 
     /* Delay Line */
-    io_sethandler(0xa072, 1, NULL, wd76c10_read, NULL, NULL, wd76c10_write, NULL, dev);
+    io_sethandler(0xa072, 1, NULL, &wd76c10_read, NULL, NULL, &wd76c10_write, NULL, dev);
 
     /* DMA Mode Shadow(Needs Involvement on the DMA code) */
-    io_sethandler(0xb872, 1, NULL, wd76c10_read, NULL, NULL, NULL, NULL, dev);
+    io_sethandler(0xb872, 1, NULL, &wd76c10_read, NULL, NULL, NULL, NULL, dev);
 
     /* High Memory Protection Boundry */
-    io_sethandler(0xc072, 1, NULL, wd76c10_read, NULL, NULL, NULL, NULL, dev);
+    io_sethandler(0xc072, 1, NULL, &wd76c10_read, NULL, NULL, NULL, NULL, dev);
 
     /* PMC Interrupt Enable */
-    io_sethandler(0xc872, 1, NULL, wd76c10_read, NULL, NULL, NULL, NULL, dev);
+    io_sethandler(0xc872, 1, NULL, &wd76c10_read, NULL, NULL, NULL, NULL, dev);
 
     /* Port Shadow (Needs further lookup) */
-    io_sethandler(0xd072, 1, NULL, wd76c10_read, NULL, NULL, NULL, NULL, dev);
+    io_sethandler(0xd072, 1, NULL, &wd76c10_read, NULL, NULL, NULL, NULL, dev);
 
     /* EMS Page Register Pointer */
-    io_sethandler(0xe072, 1, NULL, wd76c10_read, NULL, NULL, wd76c10_write, NULL, dev);
+    io_sethandler(0xe072, 1, NULL, &wd76c10_read, NULL, NULL, &wd76c10_write, NULL, dev);
 
     /* EMS Page Register */
-    io_sethandler(0xe872, 1, NULL, wd76c10_read, NULL, NULL, wd76c10_write, NULL, dev);
+    io_sethandler(0xe872, 1, NULL, &wd76c10_read, NULL, NULL, &wd76c10_write, NULL, dev);
 
     /* Lock/Unlock Configuration */
-    io_sethandler(0xf073, 1, NULL, NULL, NULL, NULL, wd76c10_write, NULL, dev);
+    io_sethandler(0xf073, 1, NULL, NULL, NULL, NULL, &wd76c10_write, NULL, dev);
 
     /* 40Mhz Oscillator Enable Disable */
-    io_sethandler(0xf072, 1, NULL, NULL, NULL, NULL, wd76c10_write, NULL, dev);
-    io_sethandler(0xf472, 1, NULL, NULL, NULL, NULL, wd76c10_write, NULL, dev);
+    io_sethandler(0xf072, 1, NULL, NULL, NULL, NULL, &wd76c10_write, NULL, dev);
+    io_sethandler(0xf472, 1, NULL, NULL, NULL, NULL, &wd76c10_write, NULL, dev);
 
     /* Lock Status */
-    io_sethandler(0xfc72, 1, NULL, wd76c10_read, NULL, NULL, NULL, NULL, dev);
+    io_sethandler(0xfc72, 1, NULL, &wd76c10_read, NULL, NULL, NULL, NULL, dev);
 
     /* Cache Flush */
-    io_sethandler(0xf872, 1, NULL, wd76c10_read, NULL, NULL, NULL, NULL, dev);
+    io_sethandler(0xf872, 1, NULL, &wd76c10_read, NULL, NULL, NULL, NULL, dev);
 
     dma_ext_mode_init();
 
@@ -570,8 +570,8 @@ const device_t wd76c10_device = {
     .internal_name = "wd76c10",
     .flags         = 0,
     .local         = 0,
-    .init          = wd76c10_init,
-    .close         = wd76c10_close,
+    .init          = &wd76c10_init,
+    .close         = &wd76c10_close,
     .reset         = NULL,
     { .available = NULL },
     .speed_changed = NULL,

@@ -40,9 +40,9 @@ typedef struct vt82c505_t {
 } vt82c505_t;
 
 static void
-vt82c505_write(int func, int addr, uint8_t val, void *priv)
+vt82c505_write(int func, int addr, uint8_t val, const void *priv)
 {
-    vt82c505_t   *dev = (vt82c505_t *) priv;
+    vt82c505_t   *dev = (const vt82c505_t *) priv;
     uint8_t       irq;
     const uint8_t irq_array[8] = { 0, 5, 9, 10, 11, 14, 15, 0 };
 
@@ -128,9 +128,9 @@ vt82c505_write(int func, int addr, uint8_t val, void *priv)
 }
 
 static uint8_t
-vt82c505_read(int func, int addr, void *priv)
+vt82c505_read(int func, int addr, const void *priv)
 {
-    const vt82c505_t *dev = (vt82c505_t *) priv;
+    const vt82c505_t *dev = (const vt82c505_t *) priv;
     uint8_t           ret = 0xff;
 
     if (func != 0)
@@ -142,9 +142,9 @@ vt82c505_read(int func, int addr, void *priv)
 }
 
 static void
-vt82c505_out(uint16_t addr, uint8_t val, void *priv)
+vt82c505_out(uint16_t addr, uint8_t val, const void *priv)
 {
-    vt82c505_t *dev = (vt82c505_t *) priv;
+    vt82c505_t *dev = (const vt82c505_t *) priv;
 
     if (addr == 0xa8)
         dev->index = val;
@@ -153,9 +153,9 @@ vt82c505_out(uint16_t addr, uint8_t val, void *priv)
 }
 
 static uint8_t
-vt82c505_in(uint16_t addr, void *priv)
+vt82c505_in(uint16_t addr, const void *priv)
 {
-    const vt82c505_t *dev = (vt82c505_t *) priv;
+    const vt82c505_t *dev = (const vt82c505_t *) priv;
     uint8_t           ret = 0xff;
 
     if ((addr == 0xa9) && (dev->index >= 0x80) && (dev->index <= 0x9f))
@@ -165,7 +165,7 @@ vt82c505_in(uint16_t addr, void *priv)
 }
 
 static void
-vt82c505_reset(void *priv)
+vt82c505_reset(const void *priv)
 {
     vt82c505_t *dev = (vt82c505_t *) malloc(sizeof(vt82c505_t));
 
@@ -194,9 +194,9 @@ vt82c505_reset(void *priv)
 }
 
 static void
-vt82c505_close(void *priv)
+vt82c505_close(const void *priv)
 {
-    vt82c505_t *dev = (vt82c505_t *) priv;
+    const vt82c505_t *dev = (const vt82c505_t *) priv;
 
     free(dev);
 }
@@ -207,7 +207,7 @@ vt82c505_init(UNUSED(const device_t *info))
     vt82c505_t *dev = (vt82c505_t *) malloc(sizeof(vt82c505_t));
     memset(dev, 0, sizeof(vt82c505_t));
 
-    pci_add_card(PCI_ADD_NORTHBRIDGE, vt82c505_read, vt82c505_write, dev, &dev->pci_slot);
+    pci_add_card(PCI_ADD_NORTHBRIDGE, &vt82c505_read, &vt82c505_write, dev, &dev->pci_slot);
 
     dev->pci_conf[0x00] = 0x06;
     dev->pci_conf[0x01] = 0x11;
@@ -219,7 +219,7 @@ vt82c505_init(UNUSED(const device_t *info))
     dev->pci_conf[0x84] = 0x03;
     dev->pci_conf[0x93] = 0x40;
 
-    io_sethandler(0x0a8, 0x0002, vt82c505_in, NULL, NULL, vt82c505_out, NULL, NULL, dev);
+    io_sethandler(0x0a8, 0x0002, &vt82c505_in, NULL, NULL, &vt82c505_out, NULL, NULL, dev);
 
     return dev;
 }

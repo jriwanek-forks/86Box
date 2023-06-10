@@ -59,7 +59,7 @@ typedef struct opti391_t {
 } opti391_t;
 
 static void
-opti391_shadow_recalc(opti391_t *dev)
+opti391_shadow_recalc(const opti391_t *dev)
 {
     uint32_t base;
     uint8_t  sh_enable;
@@ -130,9 +130,9 @@ opti391_shadow_recalc(opti391_t *dev)
 }
 
 static void
-opti391_write(uint16_t addr, uint8_t val, void *priv)
+opti391_write(uint16_t addr, uint8_t val, const void *priv)
 {
-    opti391_t *dev = (opti391_t *) priv;
+    opti391_t *dev = (const opti391_t *) priv;
 
     switch (addr) {
         case 0x22:
@@ -176,9 +176,9 @@ opti391_write(uint16_t addr, uint8_t val, void *priv)
 }
 
 static uint8_t
-opti391_read(uint16_t addr, void *priv)
+opti391_read(uint16_t addr, const void *priv)
 {
-    const opti391_t *dev = (opti391_t *) priv;
+    const opti391_t *dev = (const opti391_t *) priv;
     uint8_t          ret = 0xff;
 
     if (addr == 0x24)
@@ -188,9 +188,9 @@ opti391_read(uint16_t addr, void *priv)
 }
 
 static void
-opti391_close(void *priv)
+opti391_close(const void *priv)
 {
-    opti391_t *dev = (opti391_t *) priv;
+    const opti391_t *dev = (const opti391_t *) priv;
 
     free(dev);
 }

@@ -74,7 +74,7 @@ ali1435_log(const char *fmt, ...)
          when the most siginificant bit is set. We work around that by manipulating the
          emulated PIC's ELCR register. */
 static void
-ali1435_update_irqs(ali1435_t *dev, int set)
+ali1435_update_irqs(const ali1435_t *dev, int set)
 {
     uint8_t val;
     int     reg;
@@ -165,9 +165,9 @@ ali1435_pci_write(int func, int addr, uint8_t val, void *priv)
 }
 
 static uint8_t
-ali1435_pci_read(int func, int addr, void *priv)
+ali1435_pci_read(int func, int addr, const void *priv)
 {
-    const ali1435_t *dev = (ali1435_t *) priv;
+    const ali1435_t *dev = (const ali1435_t *) priv;
     uint8_t          ret;
 
     ret = 0xff;
@@ -228,9 +228,9 @@ ali1435_write(uint16_t addr, uint8_t val, void *priv)
 }
 
 static uint8_t
-ali1435_read(uint16_t addr, void *priv)
+ali1435_read(uint16_t addr, const void *priv)
 {
-    const ali1435_t *dev = (ali1435_t *) priv;
+    const ali1435_t *dev = (const ali1435_t *) priv;
     uint8_t          ret = 0xff;
 
     if ((addr == 0x23) && (dev->index < 0x10))
@@ -291,9 +291,9 @@ ali1435_init(UNUSED(const device_t *info))
                 22h Index Port
                 23h Data Port
     */
-    io_sethandler(0x0022, 0x0002, ali1435_read, NULL, NULL, ali1435_write, NULL, NULL, dev);
+    io_sethandler(0x0022, 0x0002, &ali1435_read, NULL, NULL, &ali1435_write, NULL, NULL, dev);
 
-    pci_add_card(PCI_ADD_NORTHBRIDGE, ali1435_pci_read, ali1435_pci_write, dev, &dev->pci_slot);
+    pci_add_card(PCI_ADD_NORTHBRIDGE, &ali1435_pci_read, &ali1435_pci_write, dev, &dev->pci_slot);
 
     ali1435_reset(dev);
 
@@ -305,9 +305,9 @@ const device_t ali1435_device = {
     .internal_name = "ali1435",
     .flags         = DEVICE_PCI,
     .local         = 0x00,
-    .init          = ali1435_init,
-    .close         = ali1435_close,
-    .reset         = ali1435_reset,
+    .init          = &ali1435_init,
+    .close         = &ali1435_close,
+    .reset         = &ali1435_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,

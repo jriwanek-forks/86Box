@@ -73,7 +73,7 @@ opti822_log(const char *fmt, ...)
          This is because we currently do not have separate access mappings for
          PCI and ISA at all. */
 static void
-opti822_recalc(opti822_t *dev)
+opti822_recalc(const opti822_t *dev)
 {
     int      reg;
     int      bit_r;
@@ -133,9 +133,9 @@ opti822_update_irqs(opti822_t *dev, int set)
 }
 
 static void
-opti822_pci_write(int func, int addr, uint8_t val, void *priv)
+opti822_pci_write(int func, int addr, uint8_t val, const void *priv)
 {
-    opti822_t *dev = (opti822_t *) priv;
+    opti822_t *dev = (const opti822_t *) priv;
     int        irq;
     int        irq_map[8] = { -1, 5, 9, 10, 11, 12, 14, 15 };
     int        pin;
@@ -338,9 +338,9 @@ opti822_pci_write(int func, int addr, uint8_t val, void *priv)
 }
 
 static uint8_t
-opti822_pci_read(int func, int addr, void *priv)
+opti822_pci_read(int func, int addr, const void *priv)
 {
-    const opti822_t *dev = (opti822_t *) priv;
+    const opti822_t *dev = (const opti822_t *) priv;
     uint8_t          ret;
 
     ret = 0xff;
@@ -354,9 +354,9 @@ opti822_pci_read(int func, int addr, void *priv)
 }
 
 static void
-opti822_reset(void *priv)
+opti822_reset(const void *priv)
 {
-    opti822_t *dev = (opti822_t *) priv;
+    opti822_t *dev = (const opti822_t *) priv;
 
     memset(dev->pci_regs, 0, 256);
 
@@ -384,9 +384,9 @@ opti822_reset(void *priv)
 }
 
 static void
-opti822_close(void *priv)
+opti822_close(const void *priv)
 {
-    opti822_t *dev = (opti822_t *) priv;
+    opti822_t *dev = (const opti822_t *) priv;
 
     free(dev);
 }

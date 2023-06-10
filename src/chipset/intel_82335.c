@@ -83,9 +83,9 @@ intel_82335_log(const char *fmt, ...)
 #endif
 
 static void
-intel_82335_write(uint16_t addr, uint16_t val, void *priv)
+intel_82335_write(uint16_t addr, uint16_t val, const void *priv)
 {
-    intel_82335_t *dev       = (intel_82335_t *) priv;
+    intel_82335_t *dev       = (const intel_82335_t *) priv;
     uint32_t       romsize   = 0;
     uint32_t       base      = 0;
     uint32_t       rc1_remap = 0;
@@ -151,9 +151,9 @@ intel_82335_write(uint16_t addr, uint16_t val, void *priv)
 }
 
 static uint16_t
-intel_82335_read(uint16_t addr, void *priv)
+intel_82335_read(uint16_t addr, const void *priv)
 {
-    const intel_82335_t *dev = (intel_82335_t *) priv;
+    const intel_82335_t *dev = (const intel_82335_t *) priv;
 
     intel_82335_log("Register %02x: Read %04x\n", addr, dev->regs[addr]);
 
@@ -161,9 +161,9 @@ intel_82335_read(uint16_t addr, void *priv)
 }
 
 static void
-intel_82335_close(void *priv)
+intel_82335_close(const void *priv)
 {
-    intel_82335_t *dev = (intel_82335_t *) priv;
+    const intel_82335_t *dev = (const intel_82335_t *) priv;
 
     free(dev);
 }
@@ -182,21 +182,21 @@ intel_82335_init(UNUSED(const device_t *info))
     dev->cfg_locked = 0;
 
     /* Memory Configuration */
-    io_sethandler(0x0022, 0x0001, NULL, intel_82335_read, NULL, NULL, intel_82335_write, NULL, dev);
+    io_sethandler(0x0022, 0x0001, NULL, &intel_82335_read, NULL, NULL, &intel_82335_write, NULL, dev);
 
     /* Roll Comparison */
-    io_sethandler(0x0024, 0x0001, NULL, intel_82335_read, NULL, NULL, intel_82335_write, NULL, dev);
-    io_sethandler(0x0026, 0x0001, NULL, intel_82335_read, NULL, NULL, intel_82335_write, NULL, dev);
+    io_sethandler(0x0024, 0x0001, NULL, &intel_82335_read, NULL, NULL, &intel_82335_write, NULL, dev);
+    io_sethandler(0x0026, 0x0001, NULL, &intel_82335_read, NULL, NULL, &intel_82335_write, NULL, dev);
 
     /* Address Range Comparison */
-    io_sethandler(0x0028, 0x0001, NULL, intel_82335_read, NULL, NULL, intel_82335_write, NULL, dev);
-    io_sethandler(0x002a, 0x0001, NULL, intel_82335_read, NULL, NULL, intel_82335_write, NULL, dev);
+    io_sethandler(0x0028, 0x0001, NULL, &intel_82335_read, NULL, NULL, &intel_82335_write, NULL, dev);
+    io_sethandler(0x002a, 0x0001, NULL, &intel_82335_read, NULL, NULL, &intel_82335_write, NULL, dev);
 
     /* Granularity Enable */
-    io_sethandler(0x002c, 0x0001, NULL, intel_82335_read, NULL, NULL, intel_82335_write, NULL, dev);
+    io_sethandler(0x002c, 0x0001, NULL, &intel_82335_read, NULL, NULL, &intel_82335_write, NULL, dev);
 
     /* Extended Granularity */
-    io_sethandler(0x002e, 0x0001, NULL, intel_82335_read, NULL, NULL, intel_82335_write, NULL, dev);
+    io_sethandler(0x002e, 0x0001, NULL, &intel_82335_read, NULL, NULL, &intel_82335_write, NULL, dev);
 
     return dev;
 }
@@ -206,8 +206,8 @@ const device_t intel_82335_device = {
     .internal_name = "intel_82335",
     .flags         = 0,
     .local         = 0,
-    .init          = intel_82335_init,
-    .close         = intel_82335_close,
+    .init          = &intel_82335_init,
+    .close         = &intel_82335_close,
     .reset         = NULL,
     { .available = NULL },
     .speed_changed = NULL,

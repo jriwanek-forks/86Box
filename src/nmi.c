@@ -12,7 +12,7 @@
 int nmi_mask;
 
 void
-nmi_write(UNUSED(uint16_t port), uint8_t val, UNUSED(void *priv))
+nmi_write(UNUSED(uint16_t port), uint8_t val, UNUSED(const void *priv))
 {
     nmi_mask = val & 0x80;
 }

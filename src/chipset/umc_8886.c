@@ -145,7 +145,7 @@ umc_8886_ide_handler(int status)
 }
 
 static void
-umc_8886_write(int func, int addr, uint8_t val, void *priv)
+umc_8886_write(int func, int addr, uint8_t val, const void *priv)
 {
     umc_8886_t *dev = (umc_8886_t *) priv;
 
@@ -240,7 +240,7 @@ umc_8886_write(int func, int addr, uint8_t val, void *priv)
                         /* SMI Provocation (Bit 7 Enable SMM + Bit 6 Software SMI) */
                         if (((val & 0xc0) == 0xc0) && !(dev->pci_conf_sb[0][0xa3] & 0x40)) {
                             if (dev->pci_conf_sb[0][0x46] & 0x40)
-                                picint(1 << ((dev->pci_conf_sb[0][0x46] & 0x80) ? 15 : 10));
+                                picint((uint16_t) (1 << ((dev->pci_conf_sb[0][0x46] & 0x80) ? 15 : 10)));
                             else
                                 smi_raise();
                             dev->pci_conf_sb[0][0xa3] |= 0x04;
@@ -292,9 +292,9 @@ umc_8886_write(int func, int addr, uint8_t val, void *priv)
 }
 
 static uint8_t
-umc_8886_read(int func, int addr, void *priv)
+umc_8886_read(int func, int addr, const void *priv)
 {
-    const umc_8886_t *dev = (umc_8886_t *) priv;
+    const umc_8886_t *dev = (const umc_8886_t *) priv;
     uint8_t           ret = 0xff;
 
     if (func <= dev->max_func)
@@ -304,9 +304,9 @@ umc_8886_read(int func, int addr, void *priv)
 }
 
 static void
-umc_8886_reset(void *priv)
+umc_8886_reset(const void *priv)
 {
-    umc_8886_t *dev = (umc_8886_t *) priv;
+    umc_8886_t *dev = (const umc_8886_t *) priv;
 
     memset(dev->pci_conf_sb[0], 0x00, sizeof(dev->pci_conf_sb[0]));
     memset(dev->pci_conf_sb[1], 0x00, sizeof(dev->pci_conf_sb[1]));
@@ -362,9 +362,9 @@ umc_8886_reset(void *priv)
 }
 
 static void
-umc_8886_close(void *priv)
+umc_8886_close(const void *priv)
 {
-    umc_8886_t *dev = (umc_8886_t *) priv;
+    const umc_8886_t *dev = (const umc_8886_t *) priv;
 
     free(dev);
 }
@@ -376,7 +376,7 @@ umc_8886_init(const device_t *info)
     memset(dev, 0, sizeof(umc_8886_t));
 
     dev->has_ide = !!(info->local == 0x886a);
-    pci_add_card(PCI_ADD_SOUTHBRIDGE, umc_8886_read, umc_8886_write, dev, &dev->pci_slot); /* Device 12: UMC 8886xx */
+    pci_add_card(PCI_ADD_SOUTHBRIDGE, &umc_8886_read, &umc_8886_write, dev, &dev->pci_slot); /* Device 12: UMC 8886xx */
 
     /* Add IDE if UM8886AF variant */
     if (HAS_IDE)
@@ -397,9 +397,9 @@ const device_t umc_8886f_device = {
     .internal_name = "umc_8886f",
     .flags         = DEVICE_PCI,
     .local         = 0x8886,
-    .init          = umc_8886_init,
-    .close         = umc_8886_close,
-    .reset         = umc_8886_reset,
+    .init          = &umc_8886_init,
+    .close         = &umc_8886_close,
+    .reset         = &umc_8886_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,
@@ -411,9 +411,9 @@ const device_t umc_8886af_device = {
     .internal_name = "umc_8886af",
     .flags         = DEVICE_PCI,
     .local         = 0x886a,
-    .init          = umc_8886_init,
-    .close         = umc_8886_close,
-    .reset         = umc_8886_reset,
+    .init          = &umc_8886_init,
+    .close         = &umc_8886_close,
+    .reset         = &umc_8886_reset,
     { .available = NULL },
     .speed_changed = NULL,
     .force_redraw  = NULL,
