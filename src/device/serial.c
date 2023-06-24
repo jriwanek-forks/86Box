@@ -50,7 +50,7 @@ const serial_device_t serial_none_device = {
     .serial = NULL,
 };
 
-/*
+#if 0
 static const struct {
     const char *internal_name;
     const serial_port_t *port;
@@ -62,11 +62,11 @@ static const struct {
     {"",                NULL           }
 // clang-format on
 };
-*/
+#endif
 
 static serial_device_t serial_devices[SERIAL_MAX];
 
-/*
+#if 0
 char *
 serial_device_get_name(int id)
 {
@@ -76,7 +76,7 @@ serial_device_get_name(int id)
         return "None";
     return (char *) serial_devices[id].device->name;
 }
-*/
+#endif
 
 char *
 serial_device_get_internal_name(int id)
@@ -678,6 +678,7 @@ serial_write(uint16_t addr, uint8_t val, void *priv)
             if (dev->type >= SERIAL_16450)
                 dev->scratch = val;
             break;
+
         default:
             break;
     }
@@ -757,6 +758,7 @@ serial_read(uint16_t addr, void *priv)
         case 7:
             ret = dev->scratch;
             break;
+
         default:
             break;
     }
@@ -1095,7 +1097,7 @@ const device_t ns16950_device = {
     .config        = NULL
 };
 
-/*
+#if 0
 const device_t uart_custom_device = {
     .name = "Custom UART",
     .internal_name = "uart_custom",
@@ -1109,4 +1111,4 @@ const device_t uart_custom_device = {
     .force_redraw = NULL,
     .config = NULL
 };
-*/
+#endif
