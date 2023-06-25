@@ -82,6 +82,7 @@ enum {
     CPU_PENTIUMPRO, /* 686 class CPUs */
     CPU_PENTIUM2,
     CPU_PENTIUM2D,
+    CPU_ATHLON,
     CPU_PENTIUM3
 };
 
@@ -110,7 +111,8 @@ enum {
     CPU_PKG_SOCKET8          = (1 << 21),
     CPU_PKG_SLOT1            = (1 << 22),
     CPU_PKG_SLOT2            = (1 << 23),
-    CPU_PKG_SOCKET370        = (1 << 24)
+    CPU_PKG_SOCKET370        = (1 << 24),
+    CPU_PKG_SLOTA            = (1 << 25)
 };
 
 #define CPU_SUPPORTS_DYNAREC 1
@@ -341,6 +343,23 @@ typedef struct {
     uint64_t mca_ctl[5]; /* 0x00000400, 0x00000404, 0x00000408, 0x0000040c, 0x00000410 - Machine Check Architecture */
     uint64_t ecx570;     /* 0x00000570 */
 
+    /* K7 MSRs */
+    uint64_t amd_syscfg; /* 0xc0010010 */
+
+    uint64_t amd_hwcr_athlon; /* 0xc0010015 */
+    uint64_t amd_iorrbase1;   /* 0xc0010016 */
+    uint64_t amd_iorrmask1;   /* 0xc0010017 */
+    uint64_t amd_iorrbase2;   /* 0xc0010018 */
+    uint64_t amd_iorrmask2;   /* 0xc0010019 */
+    uint64_t amd_topmem;      /* 0xc001001a */
+    uint64_t amd_clkctl;      /* 0xc001001b */
+
+    uint64_t ecxc001001c; /* 0xc001001c */
+
+    uint64_t amd_smbase;  /* 0xc0010111 */
+    uint64_t amd_smmaddr; /* 0xc0010112 */
+    uint64_t amd_smmmask; /* 0xc0010113 */
+
     /* Other/Unclassified MSRs */
     uint64_t ecx20; /* 0x00000020, really 0x40000020, but we filter out the top 18 bits
                        like a real Deschutes does. */
@@ -545,6 +564,7 @@ extern int is_pentium;
 extern int is_k5;
 extern int is_k6;
 extern int is_p6;
+extern int is_athlon;
 extern int is_pentium3;
 extern int is_cxsmm;
 extern int hascache;
