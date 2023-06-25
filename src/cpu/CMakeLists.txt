@@ -32,7 +32,7 @@ if(DYNAREC)
     target_sources(cpu PRIVATE 386_dynarec_ops.c)
 
     add_library(cgt OBJECT codegen_timing_486.c
-        codegen_timing_common.c codegen_timing_k6.c
+        codegen_timing_common.c codegen_timing_k6.c codegen_timing_k7.c
         codegen_timing_pentium.c codegen_timing_p6.c
         codegen_timing_winchip.c codegen_timing_winchip2.c)
 endif()

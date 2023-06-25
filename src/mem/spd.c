@@ -587,6 +587,69 @@ spd_write_drbs_ali1621(uint8_t *regs, uint8_t reg_min, uint8_t reg_max)
     }
 }
 
+/* This is needed because the AMD 751 does this stuff completely differently,
+   as it has DRAM bank registers instead of DRAM row boundary registers. */
+void
+spd_write_drbs_amd751(uint8_t *regs, uint8_t reg_min, uint8_t reg_max, uint8_t map_min, uint8_t map_max)
+{
+    uint8_t  dimm;
+    uint8_t  drb;
+    uint8_t  map;
+    uint16_t size;
+    uint16_t bank_addr = 0;
+
+    /* Write DRBs for each row. */
+    spd_log("SPD: Writing DRBs... regs=[%02X:%02X]\n", reg_min, reg_max);
+    for (dimm = 0; dimm <= ((reg_max - reg_min) >> 1); dimm++) {
+        size = 0;
+        drb  = reg_min + (dimm << 1);
+        map = map_min + (dimm >> 1);
+
+        if (spd_modules[dimm] == NULL)
+            continue;
+
+        /* SPD enabled: use SPD info for this slot, if present. */
+        size = (spd_modules[dimm]->row1 + spd_modules[dimm]->row2) >> 1;
+        bank_addr += size >> 2;
+
+        regs[drb]     = (bank_addr & 1) << 7;
+        regs[drb + 1] = (bank_addr >> 1);
+
+        if (spd_modules[dimm]->row1 || spd_modules[dimm]->row2)
+            regs[drb] |= 0x01;
+
+        if (spd_modules[dimm]->row2)
+            regs[map] |= 0x02 << ((dimm & 1) << 2);
+
+        switch (size) {
+            default:
+            case 4:
+                regs[drb] |= 0x00;
+                break;
+            case 8:
+                regs[drb] |= 0x02;
+                break;
+            case 16:
+                regs[drb] |= 0x06;
+                break;
+            case 32:
+                regs[drb] |= 0x0e;
+                break;
+            case 64:
+                regs[drb] |= 0x1e;
+                break;
+            case 128:
+                regs[drb] |= 0x3e;
+                break;
+            case 256:
+                regs[drb] |= 0x7e;
+                break;
+        }
+
+        spd_log("SPD: DIMM %i: %02X %02X %02X\n", dimm, regs[drb], regs[drb + 1], regs[map]);
+    }
+}
+
 void
 spd_write_drbs_intel_815ep(uint8_t *regs)
 {
