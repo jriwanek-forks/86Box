@@ -9,9 +9,12 @@
 
 #define RESID_FREQ 48000
 
+//using namespace reSIDfp;
+using reSIDfp::SID;
+
 typedef struct psid_t {
     /* resid sid implementation */
-    SIDFP  *sid;
+    SID    *sid;
     int16_t last_sample;
 } psid_t;
 
@@ -30,15 +33,15 @@ sid_init(void)
 #if 0
     psid = (psid_t *)malloc(sizeof(sound_t));
 #endif
-    psid->sid = new SIDFP;
+    psid->sid = new SID;
 
-    psid->sid->set_chip_model(MOS8580FP);
+    psid->sid->setChipModel(MOS8580FP);
 
     psid->sid->set_voice_nonlinearity(1.0f);
     psid->sid->get_filter().set_distortion_properties(0.f, 0.f, 0.f);
     psid->sid->get_filter().set_type4_properties(6.55f, 20.0f);
 
-    psid->sid->enable_filter(true);
+    psid->sid->enableFilter(true);
     psid->sid->enable_external_filter(true);
 
     psid->sid->reset();
@@ -46,14 +49,14 @@ sid_init(void)
     for (uint8_t c = 0; c < 32; c++)
         psid->sid->write(c, 0);
 
-    if (!psid->sid->set_sampling_parameters(cycles_per_sec, method,
+    if (!psid->sid->setSamplingParameters(cycles_per_sec, method,
                                             (float) RESID_FREQ, 0.9 * (float) RESID_FREQ / 2.0)) {
 #if 0
         printf("reSID failed!\n");
 #endif
     }
 
-    psid->sid->set_chip_model(MOS6581FP);
+    psid->sid->setChipModel(MOS6581FP);
     psid->sid->set_voice_nonlinearity(0.96f);
     psid->sid->get_filter().set_distortion_properties(3.7e-3f, 2048.f, 1.2e-4f);
 
