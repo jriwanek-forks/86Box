@@ -9,7 +9,6 @@
 
 #define RESID_FREQ 48000
 
-//using namespace reSIDfp;
 using reSIDfp::SID;
 
 typedef struct psid_t {
@@ -26,42 +25,33 @@ sid_init(void)
 #if 0
     psid_t *psid;
 #endif
-    sampling_method method         = SAMPLE_INTERPOLATE;
-    float           cycles_per_sec = 14318180.0 / 16.0;
+    reSIDfp::SamplingMethod method         = reSIDfp::DECIMATE;
+    float                   cycles_per_sec = 14318180.0 / 16.0;
 
     psid = new psid_t;
 #if 0
-    psid = (psid_t *)malloc(sizeof(sound_t));
+    psid = (psid_t *) malloc(sizeof(sound_t));
 #endif
     psid->sid = new SID;
 
-    psid->sid->setChipModel(MOS8580FP);
-
-    psid->sid->set_voice_nonlinearity(1.0f);
-    psid->sid->get_filter().set_distortion_properties(0.f, 0.f, 0.f);
-    psid->sid->get_filter().set_type4_properties(6.55f, 20.0f);
-
+    psid->sid->setChipModel(reSIDfp::MOS8580);
     psid->sid->enableFilter(true);
-    psid->sid->enable_external_filter(true);
 
     psid->sid->reset();
 
     for (uint8_t c = 0; c < 32; c++)
         psid->sid->write(c, 0);
 
-    if (!psid->sid->setSamplingParameters(cycles_per_sec, method,
-                                            (float) RESID_FREQ, 0.9 * (float) RESID_FREQ / 2.0)) {
+    try {
+        psid->sid->setSamplingParameters(cycles_per_sec, method, (float) RESID_FREQ, 0.9 * (float) RESID_FREQ / 2.0);
+    } catch (reSIDfp::SIDError) {
 #if 0
         printf("reSID failed!\n");
 #endif
     }
 
-    psid->sid->setChipModel(MOS6581FP);
-    psid->sid->set_voice_nonlinearity(0.96f);
-    psid->sid->get_filter().set_distortion_properties(3.7e-3f, 2048.f, 1.2e-4f);
-
+    psid->sid->setChipModel(reSIDfp::MOS6581);
     psid->sid->input(0);
-    psid->sid->get_filter().set_type3_properties(1.33e6f, 2.2e9f, 1.0056f, 7e3f);
 
     return (void *) psid;
 }
@@ -120,7 +110,7 @@ static void
 fillbuf2(int &count, int16_t *buf, int len)
 {
     int c;
-    c = psid->sid->clock(count, buf, len, 1);
+    c = psid->sid->clock(count, buf);
     if (!c)
         *buf = psid->last_sample;
     psid->last_sample = *buf;
