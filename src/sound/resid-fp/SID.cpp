@@ -22,7 +22,7 @@
 
 #define SID_CPP
 
-#include "SID.h"
+#include "sid.h"
 
 #include <limits>
 
