@@ -243,7 +243,7 @@ set_xms_bound(scat_t *dev, uint8_t val)
             mem_set_mem_state(0x100000, dev->xms_bound - 0x100000,
                               MEM_READ_INTERNAL | MEM_WRITE_INTERNAL);
 
-        if (dev->xms_bound < ((uint32_t) mem_size << 10))
+        if (dev->xms_bound < (mem_size << 10))
             mem_set_mem_state(dev->xms_bound, (mem_size << 10) - dev->xms_bound,
                               MEM_READ_EXTANY | MEM_WRITE_EXTANY);
     }
@@ -906,7 +906,7 @@ set_global_EMS_state(scat_t *dev, int state)
                 mem_mapping_disable(&dev->efff_mapping[i + 12]);
             mem_mapping_enable(&dev->ems_mapping[i]);
 
-            if (virt_addr < ((uint32_t) mem_size << 10))
+            if (virt_addr < (mem_size << 10))
                 mem_mapping_set_exec(&dev->ems_mapping[i], ram + virt_addr);
             else
                 mem_mapping_set_exec(&dev->ems_mapping[i], NULL);
@@ -939,21 +939,21 @@ memmap_state_update(scat_t *dev)
     for (uint8_t i = (((dev->regs[SCAT_VERSION] & 0xf0) == 0) ? 0 : 16); i < 44; i++) {
         addr = get_addr(dev, 0x40000 + (i << 14), &dev->null_page);
         mem_mapping_set_exec(&dev->efff_mapping[i],
-                             addr < ((uint32_t) mem_size << 10) ? ram + addr : NULL);
+                             addr < (mem_size << 10) ? ram + addr : NULL);
     }
 
     addr = get_addr(dev, 0, &dev->null_page);
     mem_mapping_set_exec(&dev->low_mapping[0],
-                         addr < ((uint32_t) mem_size << 10) ? ram + addr : NULL);
+                         addr < (mem_size << 10) ? ram + addr : NULL);
 
     addr = get_addr(dev, 0xf0000, &dev->null_page);
     mem_mapping_set_exec(&dev->low_mapping[1],
-                         addr < ((uint32_t) mem_size << 10) ? ram + addr : NULL);
+                         addr < (mem_size << 10) ? ram + addr : NULL);
 
     for (uint8_t i = 2; i < 32; i++) {
         addr = get_addr(dev, i << 19, &dev->null_page);
         mem_mapping_set_exec(&dev->low_mapping[i],
-                             addr < ((uint32_t) mem_size << 10) ? ram + addr : NULL);
+                             addr < (mem_size << 10) ? ram + addr : NULL);
     }
 
     if ((dev->regs[SCAT_VERSION] & 0xf0) == 0) {
@@ -994,7 +994,7 @@ memmap_state_update(scat_t *dev)
             for (uint8_t i = 0; i < 6; i++) {
                 addr = get_addr(dev, 0x100000 + (i << 16), &dev->null_page);
                 mem_mapping_set_exec(&dev->remap_mapping[i],
-                                     addr < ((uint32_t) mem_size << 10) ? ram + addr : NULL);
+                                     addr < (mem_size << 10) ? ram + addr : NULL);
                 mem_mapping_enable(&dev->remap_mapping[i]);
             }
         } else {
@@ -1145,7 +1145,7 @@ scat_out(uint16_t port, uint8_t val, void *priv)
 
                 if ((dev->regs[SCAT_EMS_CONTROL] & 0x80) && (dev->page[indx].regs_2x9 & 0x80)) {
                     virt_addr = get_addr(dev, base_addr, &dev->page[indx]);
-                    if (virt_addr < ((uint32_t) mem_size << 10))
+                    if (virt_addr < (mem_size << 10))
                         mem_mapping_set_exec(&dev->ems_mapping[indx], ram + virt_addr);
                     else
                         mem_mapping_set_exec(&dev->ems_mapping[indx], NULL);
@@ -1180,7 +1180,7 @@ scat_out(uint16_t port, uint8_t val, void *priv)
                             mem_mapping_disable(&dev->efff_mapping[indx]);
                         else
                             mem_mapping_disable(&dev->efff_mapping[indx + 12]);
-                        if (virt_addr < ((uint32_t) mem_size << 10))
+                        if (virt_addr < (mem_size << 10))
                             mem_mapping_set_exec(&dev->ems_mapping[indx], ram + virt_addr);
                         else
                             mem_mapping_set_exec(&dev->ems_mapping[indx], NULL);
@@ -1292,11 +1292,11 @@ static uint8_t
 mem_read_scatb(uint32_t addr, void *priv)
 {
     ems_page_t *page = (ems_page_t *) priv;
-    scat_t     *dev  = (scat_t *) page->scat;
+    scat_t     *dev  = page->scat;
     uint8_t     val  = 0xff;
 
     addr = get_addr(dev, addr, page);
-    if (addr < ((uint32_t) mem_size << 10))
+    if (addr < (mem_size << 10))
         val = ram[addr];
 
     return val;
@@ -1306,11 +1306,11 @@ static uint16_t
 mem_read_scatw(uint32_t addr, void *priv)
 {
     ems_page_t *page = (ems_page_t *) priv;
-    scat_t     *dev  = (scat_t *) page->scat;
+    scat_t     *dev  = page->scat;
     uint16_t    val  = 0xffff;
 
     addr = get_addr(dev, addr, page);
-    if (addr < ((uint32_t) mem_size << 10))
+    if (addr < (mem_size << 10))
         val = *(uint16_t *) &ram[addr];
 
     return val;
@@ -1320,11 +1320,11 @@ static uint32_t
 mem_read_scatl(uint32_t addr, void *priv)
 {
     ems_page_t *page = (ems_page_t *) priv;
-    scat_t     *dev  = (scat_t *) page->scat;
+    scat_t     *dev  = page->scat;
     uint32_t    val  = 0xffffffff;
 
     addr = get_addr(dev, addr, page);
-    if (addr < ((uint32_t) mem_size << 10))
+    if (addr < (mem_size << 10))
         val = *(uint32_t *) &ram[addr];
 
     return val;
@@ -1334,7 +1334,7 @@ static void
 mem_write_scatb(uint32_t addr, uint8_t val, void *priv)
 {
     ems_page_t *page    = (ems_page_t *) priv;
-    scat_t     *dev     = (scat_t *) page->scat;
+    scat_t     *dev     = page->scat;
     uint32_t    oldaddr = addr;
     uint32_t    chkaddr;
 
@@ -1345,7 +1345,7 @@ mem_write_scatb(uint32_t addr, uint8_t val, void *priv)
             return;
     }
 
-    if (addr < ((uint32_t) mem_size << 10))
+    if (addr < (mem_size << 10))
         ram[addr] = val;
 }
 
@@ -1353,7 +1353,7 @@ static void
 mem_write_scatw(uint32_t addr, uint16_t val, void *priv)
 {
     ems_page_t *page    = (ems_page_t *) priv;
-    scat_t     *dev     = (scat_t *) page->scat;
+    scat_t     *dev     = page->scat;
     uint32_t    oldaddr = addr;
     uint32_t    chkaddr;
 
@@ -1364,7 +1364,7 @@ mem_write_scatw(uint32_t addr, uint16_t val, void *priv)
             return;
     }
 
-    if (addr < ((uint32_t) mem_size << 10))
+    if (addr < (mem_size << 10))
         *(uint16_t *) &ram[addr] = val;
 }
 
@@ -1372,7 +1372,7 @@ static void
 mem_write_scatl(uint32_t addr, uint32_t val, void *priv)
 {
     ems_page_t *page    = (ems_page_t *) priv;
-    scat_t     *dev     = (scat_t *) page->scat;
+    scat_t     *dev     = page->scat;
     uint32_t    oldaddr = addr;
     uint32_t    chkaddr;
 
@@ -1383,7 +1383,7 @@ mem_write_scatl(uint32_t addr, uint32_t val, void *priv)
             return;
     }
 
-    if (addr < ((uint32_t) mem_size << 10))
+    if (addr < (mem_size << 10))
         *(uint32_t *) &ram[addr] = val;
 }
 

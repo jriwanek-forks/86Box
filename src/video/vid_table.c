@@ -421,7 +421,7 @@ video_get_internal_name(int card)
 }
 
 int
-video_get_video_from_internal_name(char *s)
+video_get_video_from_internal_name(const char *s)
 {
     int c = 0;
 

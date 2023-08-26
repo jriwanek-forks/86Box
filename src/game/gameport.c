@@ -153,7 +153,7 @@ joystick_get_internal_name(int js)
 }
 
 int
-joystick_get_from_internal_name(char *s)
+joystick_get_from_internal_name(const char *s)
 {
     int c = 0;
 

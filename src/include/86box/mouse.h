@@ -110,7 +110,7 @@ extern void            mouse_set_poll_ex(void (*poll_ex)(void));
 extern void            mouse_set_poll(int (*f)(void *), void *);
 extern const char *    mouse_get_name(int mouse);
 extern const char *    mouse_get_internal_name(int mouse);
-extern int             mouse_get_from_internal_name(char *s);
+extern int             mouse_get_from_internal_name(const char *s);
 extern int             mouse_has_config(int mouse);
 #ifdef EMU_DEVICE_H
 extern const device_t *mouse_get_device(int mouse);

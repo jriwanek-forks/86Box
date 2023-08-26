@@ -151,7 +151,7 @@ onesec_timer(void *priv)
         nvr->onesec_cnt = 0;
     }
 
-    timer_advance_u64(&nvr->onesec_time, (uint64_t) (10000ULL * TIMER_USEC));
+    timer_advance_u64(&nvr->onesec_time, (10000ULL * TIMER_USEC));
 }
 
 /* Initialize the generic NVRAM/RTC device. */
@@ -190,7 +190,7 @@ nvr_init(nvr_t *nvr)
 
 /* Get path to the NVR folder. */
 char *
-nvr_path(char *str)
+nvr_path(const char *str)
 {
     static char temp[1024];
 
@@ -368,7 +368,7 @@ nvr_time_set(void *priv)
 
 /* Open or create a file in the NVR area. */
 FILE *
-nvr_fopen(char *str, char *mode)
+nvr_fopen(const char *str, const char *mode)
 {
     return (plat_fopen(nvr_path(str), mode));
 }

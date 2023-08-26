@@ -919,7 +919,7 @@ isartc_get_internal_name(int board)
 }
 
 int
-isartc_get_from_internal_name(char *s)
+isartc_get_from_internal_name(const char *s)
 {
     int c = 0;
 
