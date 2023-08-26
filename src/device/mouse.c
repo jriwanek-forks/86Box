@@ -568,12 +568,12 @@ mouse_get_internal_name(int mouse)
 }
 
 int
-mouse_get_from_internal_name(char *s)
+mouse_get_from_internal_name(const char *s)
 {
     int c = 0;
 
     while (mouse_devices[c].device != NULL) {
-        if (!strcmp((char *) mouse_devices[c].device->internal_name, s))
+        if (!strcmp( mouse_devices[c].device->internal_name, s))
             return c;
         c++;
     }

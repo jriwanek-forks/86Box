@@ -188,11 +188,11 @@ extern int net_vde_prepare(void);
 extern void            network_connect(int id, int connect);
 extern int             network_is_connected(int id);
 extern int             network_dev_available(int);
-extern int             network_dev_to_id(char *);
+extern int             network_dev_to_id(const char *);
 extern int             network_card_available(int);
 extern int             network_card_has_config(int);
 extern const char     *network_card_get_internal_name(int);
-extern int             network_card_get_from_internal_name(char *);
+extern int             network_card_get_from_internal_name(const char *);
 #ifdef EMU_DEVICE_H
 extern const device_t *network_card_getdevice(int);
 #endif

@@ -70,7 +70,7 @@ lpt_device_get_internal_name(int id)
 }
 
 int
-lpt_device_get_from_internal_name(char *s)
+lpt_device_get_from_internal_name(const char *s)
 {
     int c = 0;
 

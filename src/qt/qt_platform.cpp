@@ -285,7 +285,7 @@ path_get_filename(char *s)
 }
 
 int
-path_abs(char *path)
+path_abs(const char *path)
 {
 #ifdef Q_OS_WINDOWS
     if ((path[1] == ':') || (path[0] == '\\') || (path[0] == '/') || (strstr(path, "ioctl://") == path))
@@ -324,7 +324,7 @@ path_slash(char *path)
 }
 
 const char *
-path_get_slash(char *path)
+path_get_slash(const char *path)
 {
     return QString(path).endsWith("/") ? "" : "/";
 }
@@ -478,7 +478,7 @@ QMap<uint32_t, QPair<QString, QString>> ProgSettings::lcid_langcode = {
 
 /* Sets up the program language before initialization. */
 uint32_t
-plat_language_code(char *langcode)
+plat_language_code(const char *langcode)
 {
     for (auto &curKey : ProgSettings::lcid_langcode.keys()) {
         if (ProgSettings::lcid_langcode[curKey].first == langcode) {

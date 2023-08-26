@@ -1739,7 +1739,7 @@ mem_readl_phys(uint32_t addr)
 }
 
 void
-mem_read_phys(void *dest, uint32_t addr, int transfer_size)
+mem_read_phys(const void *dest, uint32_t addr, int transfer_size)
 {
     uint8_t  *pb;
     uint16_t *pw;
@@ -1811,7 +1811,7 @@ mem_writel_phys(uint32_t addr, uint32_t val)
 }
 
 void
-mem_write_phys(void *src, uint32_t addr, int transfer_size)
+mem_write_phys(const void *src, uint32_t addr, int transfer_size)
 {
     const uint8_t  *pb;
     const uint16_t *pw;

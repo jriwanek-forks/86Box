@@ -2213,31 +2213,31 @@ acpi_set_timer32(acpi_t *dev, uint8_t timer32)
 }
 
 void
-acpi_set_slot(acpi_t *dev, int slot)
+acpi_set_slot(acpi_t *dev, uint8_t slot)
 {
     dev->slot = slot;
 }
 
 void
-acpi_set_irq_mode(acpi_t *dev, int irq_mode)
+acpi_set_irq_mode(acpi_t *dev, uint8_t irq_mode)
 {
     dev->irq_mode = irq_mode;
 }
 
 void
-acpi_set_irq_pin(acpi_t *dev, int irq_pin)
+acpi_set_irq_pin(acpi_t *dev, uint8_t irq_pin)
 {
     dev->irq_pin = irq_pin;
 }
 
 void
-acpi_set_irq_line(acpi_t *dev, int irq_line)
+acpi_set_irq_line(acpi_t *dev, uint8_t irq_line)
 {
     dev->irq_line = irq_line;
 }
 
 void
-acpi_set_mirq_is_level(acpi_t *dev, int mirq_is_level)
+acpi_set_mirq_is_level(acpi_t *dev, uint8_t mirq_is_level)
 {
     dev->mirq_is_level = mirq_is_level;
 }

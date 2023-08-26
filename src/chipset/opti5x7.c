@@ -174,7 +174,7 @@ opti5x7_init(const device_t *info)
 {
     opti5x7_t *dev = (opti5x7_t *) calloc(1, sizeof(opti5x7_t));
 
-    dev->is_pci = info->local;
+    dev->is_pci = (uint8_t) info->local;
 
     io_sethandler(0x0022, 0x0001, opti5x7_read, NULL, NULL, opti5x7_write, NULL, NULL, dev);
     io_sethandler(0x0024, 0x0001, opti5x7_read, NULL, NULL, opti5x7_write, NULL, NULL, dev);

@@ -1325,17 +1325,17 @@ dma_sg(uint8_t *data, int transfer_length, int out, void *priv)
         if (dev->count <= transfer_length) {
             dma_log("%sing %i bytes to %08X\n", sop, dev->count, dev->addr);
             if (out)
-                dma_bm_read(dev->addr, (uint8_t *) (data + buffer_pos), dev->count, 4);
+                dma_bm_read(dev->addr, (data + buffer_pos), dev->count, 4);
             else
-                dma_bm_write(dev->addr, (uint8_t *) (data + buffer_pos), dev->count, 4);
+                dma_bm_write(dev->addr, (data + buffer_pos), dev->count, 4);
             transfer_length -= dev->count;
             buffer_pos += dev->count;
         } else {
             dma_log("%sing %i bytes to %08X\n", sop, transfer_length, dev->addr);
             if (out)
-                dma_bm_read(dev->addr, (uint8_t *) (data + buffer_pos), transfer_length, 4);
+                dma_bm_read(dev->addr, (data + buffer_pos), transfer_length, 4);
             else
-                dma_bm_write(dev->addr, (uint8_t *) (data + buffer_pos), transfer_length, 4);
+                dma_bm_write(dev->addr, (data + buffer_pos), transfer_length, 4);
             /* Increase addr and decrease count so that resumed transfers do not mess up. */
             dev->addr += transfer_length;
             dev->count -= transfer_length;
@@ -1902,14 +1902,14 @@ dma_bm_write(uint32_t PhysAddress, const uint8_t *DataWrite, uint32_t TotalSize,
     /* Do the divisible block, if there is one. */
     if (n) {
         for (uint32_t i = 0; i < n; i += TransferSize)
-            mem_write_phys((void *) &(DataWrite[i]), PhysAddress + i, TransferSize);
+            mem_write_phys(&(DataWrite[i]), PhysAddress + i, TransferSize);
     }
 
     /* Do the non-divisible block, if there is one. */
     if (n2) {
         mem_read_phys((void *) bytes, PhysAddress + n, TransferSize);
         memcpy(bytes, (void *) &(DataWrite[n]), n2);
-        mem_write_phys((void *) bytes, PhysAddress + n, TransferSize);
+        mem_write_phys(bytes, PhysAddress + n, TransferSize);
     }
 
     if (dma_at)

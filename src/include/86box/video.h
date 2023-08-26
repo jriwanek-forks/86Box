@@ -239,7 +239,7 @@ extern const device_t *video_card_getdevice(int card);
 #endif
 extern int         video_card_has_config(int card);
 extern const char *video_get_internal_name(int card);
-extern int         video_get_video_from_internal_name(char *s);
+extern int         video_get_video_from_internal_name(const char *s);
 extern int         video_card_get_flags(int card);
 extern int         video_is_mda(void);
 extern int         video_is_cga(void);

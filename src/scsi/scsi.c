@@ -140,7 +140,7 @@ scsi_card_get_internal_name(int card)
 }
 
 int
-scsi_card_get_from_internal_name(char *s)
+scsi_card_get_from_internal_name(const char *s)
 {
     int c = 0;
 

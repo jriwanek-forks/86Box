@@ -564,7 +564,7 @@ hdd_preset_get_internal_name(int preset)
 }
 
 int
-hdd_preset_get_from_internal_name(char *s)
+hdd_preset_get_from_internal_name(const char *s)
 {
     int c = 0;
 

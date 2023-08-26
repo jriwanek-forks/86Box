@@ -45,8 +45,8 @@ extern double   ini_section_get_double(ini_section_t section, const char *name, 
 extern int      ini_section_get_hex16(ini_section_t section, const char *name, int def);
 extern int      ini_section_get_hex20(ini_section_t section, const char *name, int def);
 extern int      ini_section_get_mac(ini_section_t section, const char *name, int def);
-extern char    *ini_section_get_string(ini_section_t section, const char *name, char *def);
-extern wchar_t *ini_section_get_wstring(ini_section_t section, const char *name, wchar_t *def);
+extern const char *ini_section_get_string(ini_section_t section, const char *name, char *def);
+extern const wchar_t *ini_section_get_wstring(ini_section_t section, const char *name, wchar_t *def);
 extern void     ini_section_set_int(ini_section_t section, const char *name, int val);
 extern void     ini_section_set_uint(ini_section_t section, const char *name, uint32_t val);
 #if 0

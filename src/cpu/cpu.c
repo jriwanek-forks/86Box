@@ -271,8 +271,8 @@ msr_t msr;
 
 cyrix_t cyrix;
 
-cpu_family_t *cpu_f;
-CPU          *cpu_s;
+const cpu_family_t *cpu_f;
+const CPU          *cpu_s;
 
 uint8_t do_translate  = 0;
 uint8_t do_translate2 = 0;
@@ -340,14 +340,14 @@ cpu_set_edx(void)
         SF_FPU_reset();
 }
 
-cpu_family_t *
+const cpu_family_t *
 cpu_get_family(const char *internal_name)
 {
     int c = 0;
 
     while (cpu_families[c].package) {
         if (!strcmp(internal_name, cpu_families[c].internal_name))
-            return (cpu_family_t *) &cpu_families[c];
+            return &cpu_families[c];
         c++;
     }
 
@@ -505,7 +505,7 @@ cpu_set(void)
     cpu_inited = 1;
 
     cpu_effective = cpu;
-    cpu_s         = (CPU *) &cpu_f->cpus[cpu_effective];
+    cpu_s         = &cpu_f->cpus[cpu_effective];
 
 #ifdef USE_ACYCS
     acycs = 0;
@@ -4371,7 +4371,7 @@ x86_setopcodes_2386(const OpFn *opcodes, const OpFn *opcodes_0f)
 void
 cpu_update_waitstates(void)
 {
-    cpu_s = (CPU *) &cpu_f->cpus[cpu_effective];
+    cpu_s = &cpu_f->cpus[cpu_effective];
 
     if (is486)
         cpu_prefetch_width = 16;

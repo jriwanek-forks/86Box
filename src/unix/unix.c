@@ -296,7 +296,7 @@ plat_fopen64(const char *path, const char *mode)
 }
 
 int
-path_abs(char *path)
+path_abs(const char *path)
 {
     return path[0] == '/';
 }
@@ -317,7 +317,7 @@ path_slash(char *path)
 }
 
 const char *
-path_get_slash(char *path)
+path_get_slash(const char *path)
 {
     char *ret = "";
 
@@ -1378,7 +1378,7 @@ plat_vidapi_name(UNUSED(int i))
 
 /* Sets up the program language before initialization. */
 uint32_t
-plat_language_code(UNUSED(char *langcode))
+plat_language_code(UNUSED(const char *langcode))
 {
     /* or maybe not */
     return 0;

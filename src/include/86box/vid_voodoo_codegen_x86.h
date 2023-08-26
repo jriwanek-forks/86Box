@@ -3135,12 +3135,11 @@ int voodoo_recomp = 0;
 static inline void *
 voodoo_get_block(voodoo_t *voodoo, voodoo_params_t *params, voodoo_state_t *state, int odd_even)
 {
-    int                c;
     int                b = last_block[odd_even];
     voodoo_x86_data_t *data;
     voodoo_x86_data_t *codegen_data = voodoo->codegen_data;
 
-    for (c = 0; c < 8; c++) {
+    for (uint8_t c = 0; c < 8; c++) {
         data = &codegen_data[odd_even + b * 4];
 
         if (state->xdir == data->xdir && params->alphaMode == data->alphaMode && params->fbzMode == data->fbzMode && params->fogMode == data->fogMode && params->fbzColorPath == data->fbzColorPath && (voodoo->trexInit1[0] & (1 << 18)) == data->trexInit1 && params->textureMode[0] == data->textureMode[0] && params->textureMode[1] == data->textureMode[1] && (params->tLOD[0] & LOD_MASK) == data->tLOD[0] && (params->tLOD[1] & LOD_MASK) == data->tLOD[1] && ((params->col_tiled || params->aux_tiled) ? 1 : 0) == data->is_tiled) {

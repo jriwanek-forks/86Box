@@ -93,7 +93,7 @@ static void
 ddma_reg_write(uint16_t addr, uint8_t val, void *priv)
 {
     const ddma_channel_t *dev          = (ddma_channel_t *) priv;
-    int                   ch           = dev->channel;
+    uint8_t               ch           = dev->channel;
     uint8_t               page_regs[4] = { 7, 3, 1, 2 };
     uint8_t               dmab = (ch >= 4) ? 0xc0 : 0x00;
 

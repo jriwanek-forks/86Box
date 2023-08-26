@@ -133,7 +133,7 @@ extern uint8_t nvr_smi_status(nvr_t *nvr);
 extern void nvr_smi_status_clear(nvr_t *nvr);
 #endif
 
-extern char *nvr_path(char *str);
-extern FILE *nvr_fopen(char *str, char *mode);
+extern char *nvr_path(const char *str);
+extern FILE *nvr_fopen(const char *str, const char *mode);
 
 #endif /*EMU_NVR_H*/

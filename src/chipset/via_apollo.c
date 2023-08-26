@@ -114,8 +114,8 @@ via_apollo_setup(via_apollo_t *dev)
     /* Host Bridge */
     dev->pci_conf[0x00] = 0x06; /*VIA*/
     dev->pci_conf[0x01] = 0x11;
-    dev->pci_conf[0x02] = dev->id >> 16;
-    dev->pci_conf[0x03] = dev->id >> 24;
+    dev->pci_conf[0x02] = (uint8_t) dev->id >> 16;
+    dev->pci_conf[0x03] = (uint8_t) dev->id >> 24;
 
     dev->pci_conf[0x04] = 6;
     dev->pci_conf[0x05] = 0;
@@ -127,7 +127,7 @@ via_apollo_setup(via_apollo_t *dev)
 
     dev->pci_conf[0x07] = 0x02;
 
-    dev->pci_conf[0x08] = dev->id >> 8;
+    dev->pci_conf[0x08] = (uint8_t) dev->id >> 8;
     dev->pci_conf[0x09] = 0;
     dev->pci_conf[0x0a] = 0;
     dev->pci_conf[0x0b] = 6;
@@ -266,7 +266,7 @@ via_apollo_host_bridge_write(int func, int addr, uint8_t val, void *priv)
             else
                 dev->pci_conf[0x0d] = (dev->pci_conf[0x0d] & ~0x07) | (val & 0x07);
 
-            dev->pci_conf[0x75] = (dev->pci_conf[0x75] & ~0x30) | ((val & 0x06) << 3);
+            dev->pci_conf[0x75] = (uint8_t) (dev->pci_conf[0x75] & ~0x30) | ((val & 0x06) << 3);
             break;
 
         case 0x0f:

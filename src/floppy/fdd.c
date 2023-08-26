@@ -209,7 +209,7 @@ fdd_get_internal_name(int type)
 }
 
 int
-fdd_get_from_internal_name(char *s)
+fdd_get_from_internal_name(const char *s)
 {
     int   c = 0;
     char *n;

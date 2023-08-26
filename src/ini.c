@@ -716,11 +716,11 @@ ini_section_get_mac(ini_section_t self, const char *name, int def)
     return ((val0 << 16) + (val1 << 8) + val2);
 }
 
-char *
+const char *
 ini_section_get_string(ini_section_t self, const char *name, char *def)
 {
-    section_t *section = (section_t *) self;
-    entry_t   *entry;
+    section_t     *section = (section_t *) self;
+    const entry_t *entry;
 
     if (section == NULL)
         return def;
@@ -732,11 +732,11 @@ ini_section_get_string(ini_section_t self, const char *name, char *def)
     return (entry->data);
 }
 
-wchar_t *
+const wchar_t *
 ini_section_get_wstring(ini_section_t self, const char *name, wchar_t *def)
 {
-    section_t *section = (section_t *) self;
-    entry_t   *entry;
+    section_t     *section = (section_t *) self;
+    const entry_t *entry;
 
     if (section == NULL)
         return def;
