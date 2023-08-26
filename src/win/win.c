@@ -808,7 +808,7 @@ path_get_dirname(char *dest, const char *path)
 }
 
 char *
-path_get_filename(const char *s)
+path_get_filename(char *s)
 {
     int c = strlen(s) - 1;
 

@@ -248,7 +248,7 @@ path_get_extension(char *s)
 }
 
 char *
-path_get_filename(const char *s)
+path_get_filename(char *s)
 {
 #ifdef Q_OS_WINDOWS
     int c = strlen(s) - 1;
