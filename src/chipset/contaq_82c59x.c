@@ -324,7 +324,7 @@ contaq_82c59x_init(const device_t *info)
 {
     contaq_82c59x_t *dev = (contaq_82c59x_t *) calloc(1, sizeof(contaq_82c59x_t));
 
-    dev->green = info->local;
+    dev->green = (uint8_t) info->local;
 
     io_sethandler(0x0022, 0x0002, contaq_82c59x_read, NULL, NULL, contaq_82c59x_write, NULL, NULL, dev);
 

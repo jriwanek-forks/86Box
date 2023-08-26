@@ -265,7 +265,7 @@ opti895_init(const device_t *info)
 
     io_sethandler(0x0022, 0x0003, opti895_read, NULL, NULL, opti895_write, NULL, NULL, dev);
 
-    dev->is_pci = info->local;
+    dev->is_pci = (uint8_t) info->local;
 
     dev->scratch[0] = dev->scratch[1] = 0xff;
 

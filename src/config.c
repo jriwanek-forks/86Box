@@ -107,7 +107,7 @@ load_general(void)
 {
     ini_section_t cat = ini_find_section(config, "General");
     char          temp[512];
-    char         *p;
+    const char   *p;
 
     vid_resize = ini_section_get_int(cat, "vid_resize", 0);
     if (vid_resize & ~3)
@@ -287,7 +287,7 @@ load_machine(void)
         /* Iterate through NVR files. */
         DIR *dirp = opendir(nvr_path("."));
         if (dirp) {
-            struct dirent *entry;
+            const struct dirent *entry;
             while ((entry = readdir(dirp))) {
                 /* Check if this file corresponds to the old name. */
                 if (strncmp(entry->d_name, old_fn, c))
@@ -363,7 +363,7 @@ load_machine(void)
                 return;
             }
         }
-        cpu_f = (cpu_family_t *) &cpu_families[c];
+        cpu_f = &cpu_families[c];
 
         /* Find first eligible CPU in that family. */
         cpu = 0;
@@ -375,7 +375,7 @@ load_machine(void)
             }
         }
     }
-    cpu_s = (CPU *) &cpu_f->cpus[cpu];
+    cpu_s = &cpu_f->cpus[cpu];
 
     cpu_waitstates = ini_section_get_int(cat, "cpu_waitstates", 0);
 
@@ -413,7 +413,7 @@ static void
 load_video(void)
 {
     ini_section_t cat = ini_find_section(config, "Video");
-    char         *p;
+    const char   *p;
     int           free_p = 0;
 
     if (machine_has_flags(machine, MACHINE_VIDEO_ONLY)) {
@@ -424,10 +424,10 @@ load_video(void)
         if (p == NULL) {
             if (machine_has_flags(machine, MACHINE_VIDEO)) {
                 p = (char *) malloc((strlen("internal") + 1) * sizeof(char));
-                strcpy(p, "internal");
+                strcpy((char *) p, "internal");
             } else {
                 p = (char *) malloc((strlen("none") + 1) * sizeof(char));
-                strcpy(p, "none");
+                strcpy((char *) p, "none");
             }
             free_p = 1;
         } else if (!strcmp(p, "c&t_69000")) {
@@ -554,7 +554,7 @@ load_sound(void)
 {
     ini_section_t cat = ini_find_section(config, "Sound");
     char          temp[512];
-    char         *p;
+    const char   *p;
 
     p = ini_section_get_string(cat, "sndcard", NULL);
     if (p != NULL)
@@ -736,11 +736,11 @@ static void
 load_ports(void)
 {
     ini_section_t cat = ini_find_section(config, "Ports (COM & LPT)");
-    char         *p;
+    const char   *p;
     char          temp[512];
     memset(temp, 0, sizeof(temp));
 
-    for (int c = 0; c < SERIAL_MAX; c++) {
+    for (uint8_t c = 0; c < SERIAL_MAX; c++) {
         sprintf(temp, "serial%d_enabled", c + 1);
         com_ports[c].enabled = !!ini_section_get_int(cat, temp, (c >= 2) ? 0 : 1);
 
@@ -751,7 +751,7 @@ load_ports(void)
             config_log("Serial Port %d: passthrough enabled.\n\n", c + 1);
     }
 
-    for (int c = 0; c < PARALLEL_MAX; c++) {
+    for (uint8_t c = 0; c < PARALLEL_MAX; c++) {
         sprintf(temp, "lpt%d_enabled", c + 1);
         lpt_ports[c].enabled = !!ini_section_get_int(cat, temp, (c == 0) ? 1 : 0);
 
@@ -790,6 +790,7 @@ load_storage_controllers(void)
     ini_section_t cat = ini_find_section(config, "Storage controllers");
     ini_section_t migration_cat;
     char         *p;
+    const char   *section_string;
     char          temp[512];
     int           min = 0;
     int           free_p = 0;
@@ -797,9 +798,9 @@ load_storage_controllers(void)
     for (int c = min; c < SCSI_CARD_MAX; c++) {
         sprintf(temp, "scsicard_%d", c + 1);
 
-        p = ini_section_get_string(cat, temp, NULL);
-        if (p != NULL)
-            scsi_card_current[c] = scsi_card_get_from_internal_name(p);
+        section_string = (char*) ini_section_get_string(cat, temp, NULL);
+        if (section_string != NULL)
+            scsi_card_current[c] = scsi_card_get_from_internal_name(section_string);
         else
             scsi_card_current[c] = 0;
     }
@@ -831,7 +832,7 @@ load_storage_controllers(void)
     }
 #endif
 
-    p = ini_section_get_string(cat, "hdc", NULL);
+    p = (char *) ini_section_get_string(cat, "hdc", NULL);
     if (p == NULL) {
         if (machine_has_flags(machine, MACHINE_HDC)) {
             p = (char *) malloc((strlen("internal") + 1) * sizeof(char));
@@ -855,16 +856,16 @@ load_storage_controllers(void)
         hdc_current[0] = hdc_get_from_internal_name(p);
 
     if (free_p) {
-        free(p);
+        free((void *) p);
         p = NULL;
     }
 
-    p = ini_section_get_string(cat, "cdrom_interface", NULL);
-    if (p != NULL)
-        cdrom_interface_current = cdrom_interface_get_from_internal_name(p);
+    section_string = ini_section_get_string(cat, "cdrom_interface", NULL);
+    if (section_string != NULL)
+        cdrom_interface_current = cdrom_interface_get_from_internal_name(section_string);
 
     if (free_p) {
-        free(p);
+        free((void *) p);
         p = NULL;
     }
 
@@ -947,7 +948,7 @@ load_storage_controllers(void)
 
     for (int c = 0; c < 2; c++) {
         sprintf(temp, "cartridge_%02i_fn", c + 1);
-        p = ini_section_get_string(cat, temp, "");
+        p = (char *) ini_section_get_string(cat, temp, "");
 
         if (!strcmp(p, usr_path))
             p[0] = 0x00;
@@ -1675,7 +1676,7 @@ static void
 load_other_peripherals(void)
 {
     ini_section_t cat = ini_find_section(config, "Other peripherals");
-    char         *p;
+    const char   *p;
     char          temp[512];
 
     bugger_enabled         = !!ini_section_get_int(cat, "bugger_enabled", 0);
@@ -1734,7 +1735,7 @@ config_load(void)
         config         = ini_new();
         config_changed = 1;
 
-        cpu_f = (cpu_family_t *) &cpu_families[0];
+        cpu_f = &cpu_families[0];
         cpu   = 0;
 
         kbd_req_capture = 0;
@@ -2628,7 +2629,7 @@ save_hard_disks(void)
     ini_section_t cat = ini_find_or_create_section(config, "Hard disks");
     char          temp[32];
     char          tmp2[512];
-    char         *p;
+    const char   *p;
 
     memset(temp, 0x00, sizeof(temp));
     for (uint8_t c = 0; c < HDD_NUM; c++) {
