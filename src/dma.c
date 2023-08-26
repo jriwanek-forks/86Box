@@ -1713,8 +1713,8 @@ dma_bm_write(uint32_t PhysAddress, const uint8_t *DataWrite, uint32_t TotalSize,
     /* Do the non-divisible block, if there is one. */
     if (n2) {
         mem_read_phys((void *) bytes, PhysAddress + n, TransferSize);
-        memcpy(bytes, &(DataWrite[n]), n2);
-        mem_write_phys((void *) bytes, PhysAddress + n, TransferSize);
+        memcpy(bytes, (void *) &(DataWrite[n]), n2);
+        mem_write_phys(bytes, PhysAddress + n, TransferSize);
     }
 
     if (dma_at)

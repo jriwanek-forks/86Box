@@ -257,8 +257,8 @@ msr_t msr;
 
 cyrix_t cyrix;
 
-cpu_family_t *cpu_f;
-CPU          *cpu_s;
+const cpu_family_t *cpu_f;
+const CPU          *cpu_s;
 
 uint8_t do_translate  = 0;
 uint8_t do_translate2 = 0;

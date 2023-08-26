@@ -156,7 +156,7 @@ cdrom_interface_get_internal_name(int cdinterface)
 }
 
 int
-cdrom_interface_get_from_internal_name(char *s)
+cdrom_interface_get_from_internal_name(const char *s)
 {
     int c = 0;
 
@@ -214,12 +214,12 @@ cdrom_get_internal_name(int type)
 }
 
 int
-cdrom_get_from_internal_name(char *s)
+cdrom_get_from_internal_name(const char *s)
 {
     int c = 0;
 
     while (strlen(cdrom_drive_types[c].internal_name)) {
-        if (!strcmp((char *) cdrom_drive_types[c].internal_name, s))
+        if (!strcmp(cdrom_drive_types[c].internal_name, s))
             return c;
         c++;
     }

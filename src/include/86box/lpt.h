@@ -91,7 +91,7 @@ extern void    lpt_irq(void *priv, int raise);
 extern const char *lpt_device_get_name(int id);
 extern const char *lpt_device_get_internal_name(int id);
 
-extern int lpt_device_get_from_internal_name(char *s);
+extern int lpt_device_get_from_internal_name(const char *s);
 
 extern const lpt_device_t lpt_dac_device;
 extern const lpt_device_t lpt_dac_stereo_device;

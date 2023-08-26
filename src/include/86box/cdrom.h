@@ -264,7 +264,7 @@ extern cdrom_t cdrom[CDROM_NUM];
 extern char   *cdrom_getname(int type);
 
 extern char   *cdrom_get_internal_name(int type);
-extern int     cdrom_get_from_internal_name(char *s);
+extern int     cdrom_get_from_internal_name(const char *s);
 extern void    cdrom_set_type(int model, int type);
 extern int     cdrom_get_type(int model);
 

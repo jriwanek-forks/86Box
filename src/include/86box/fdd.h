@@ -61,7 +61,7 @@ extern int fdd_get_densel(int drive);
 extern char *fdd_getname(int type);
 
 extern char *fdd_get_internal_name(int type);
-extern int   fdd_get_from_internal_name(char *s);
+extern int   fdd_get_from_internal_name(const char *s);
 
 extern int fdd_current_track(int drive);
 

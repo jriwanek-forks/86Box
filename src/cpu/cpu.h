@@ -504,10 +504,10 @@ COMPILE_TIME_ASSERT(sizeof(cpu_state_t) <= 128)
 extern cpu_state_t cpu_state;
 extern fpu_state_t fpu_state;
 
-extern const cpu_family_t         cpu_families[];
-extern cpu_family_t              *cpu_f;
-extern CPU                       *cpu_s;
-extern int                        cpu_override;
+extern const cpu_family_t cpu_families[];
+extern cpu_family_t      *cpu_f;
+extern CPU               *cpu_s;
+extern int                cpu_override;
 
 extern int    cpu_isintel;
 extern int    cpu_iscyrix;

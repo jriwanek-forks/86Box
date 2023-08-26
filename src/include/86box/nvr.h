@@ -104,8 +104,8 @@ extern const device_t elt_nvr_device;
 extern void rtc_tick(void);
 
 extern void  nvr_init(nvr_t *);
-extern char *nvr_path(char *str);
-extern FILE *nvr_fopen(char *str, char *mode);
+extern char *nvr_path(const char *str);
+extern FILE *nvr_fopen(const char *str, const char *mode);
 extern int   nvr_load(void);
 extern void  nvr_close(void);
 extern void  nvr_set_ven_save(void (*ven_save)(void));
