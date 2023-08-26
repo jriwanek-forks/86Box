@@ -749,13 +749,13 @@ extern int sysexit(uint32_t fetchdat);
 extern int syscall_op(uint32_t fetchdat);
 extern int sysret(uint32_t fetchdat);
 
-extern cpu_family_t *cpu_get_family(const char *internal_name);
-extern uint8_t       cpu_is_eligible(const cpu_family_t *cpu_family, int cpu, int machine);
-extern uint8_t       cpu_family_is_eligible(const cpu_family_t *cpu_family, int machine);
-extern int           fpu_get_type(const cpu_family_t *cpu_family, int cpu, const char *internal_name);
-extern const char   *fpu_get_internal_name(const cpu_family_t *cpu_family, int cpu, int type);
-extern const char   *fpu_get_name_from_index(const cpu_family_t *cpu_family, int cpu, int c);
-extern int           fpu_get_type_from_index(const cpu_family_t *cpu_family, int cpu, int c);
+extern const cpu_family_t *cpu_get_family(const char *internal_name);
+extern uint8_t             cpu_is_eligible(const cpu_family_t *cpu_family, int cpu, int machine);
+extern uint8_t             cpu_family_is_eligible(const cpu_family_t *cpu_family, int machine);
+extern int                 fpu_get_type(const cpu_family_t *cpu_family, int cpu, const char *internal_name);
+extern const char         *fpu_get_internal_name(const cpu_family_t *cpu_family, int cpu, int type);
+extern const char         *fpu_get_name_from_index(const cpu_family_t *cpu_family, int cpu, int c);
+extern int                 fpu_get_type_from_index(const cpu_family_t *cpu_family, int cpu, int c);
 
 void cyrix_load_seg_descriptor(uint32_t addr, x86seg *seg);
 void cyrix_write_seg_descriptor(uint32_t addr, x86seg *seg);

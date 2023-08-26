@@ -281,7 +281,7 @@ load_machine(void)
         /* Iterate through NVR files. */
         DIR *dirp = opendir(nvr_path("."));
         if (dirp) {
-            struct dirent *entry;
+            const struct dirent *entry;
             while ((entry = readdir(dirp))) {
                 /* Check if this file corresponds to the old name. */
                 if (strncmp(entry->d_name, old_fn, c))
@@ -356,7 +356,7 @@ load_machine(void)
                 return;
             }
         }
-        cpu_f = (cpu_family_t *) &cpu_families[c];
+        cpu_f = &cpu_families[c];
 
         /* Find first eligible CPU in that family. */
         cpu = 0;
@@ -368,7 +368,7 @@ load_machine(void)
             }
         }
     }
-    cpu_s = (CPU *) &cpu_f->cpus[cpu];
+    cpu_s = &cpu_f->cpus[cpu];
 
     cpu_waitstates = ini_section_get_int(cat, "cpu_waitstates", 0);
 
@@ -734,7 +734,7 @@ static void
 load_ports(void)
 {
     ini_section_t cat = ini_find_section(config, "Ports (COM & LPT)");
-    char         *p;
+    const char   *p;
     char          temp[512];
     int           c;
     int           d;
@@ -1607,7 +1607,7 @@ config_load(void)
         config         = ini_new();
         config_changed = 1;
 
-        cpu_f = (cpu_family_t *) &cpu_families[0];
+        cpu_f = &cpu_families[0];
         cpu   = 0;
 
         kbd_req_capture = 0;

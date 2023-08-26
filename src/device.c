@@ -93,7 +93,7 @@ void
 device_set_context(device_context_t *c, const device_t *dev, int inst)
 {
     const void *sec;
-    void       *single_sec;
+    const void *single_sec;
 
     memset(c, 0, sizeof(device_context_t));
     c->dev      = dev;
@@ -390,7 +390,7 @@ device_available(const device_t *dev)
         if (config != NULL) {
             while (config->type != -1) {
                 if (config->type == CONFIG_BIOS) {
-                    bios = (const device_config_bios_t *) config->bios;
+                    bios = config->bios;
 
                     /* Go through the ROM's in the device configuration. */
                     while (bios->files_no != 0) {
