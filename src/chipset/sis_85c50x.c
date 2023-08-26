@@ -75,8 +75,8 @@ static void
 sis_85c50x_shadow_recalc(sis_85c50x_t *dev)
 {
     uint32_t base;
-    uint32_t can_read;
-    uint32_t can_write;
+    uint16_t can_read;
+    uint8_t can_write;
 
     can_read  = (dev->pci_conf[0x53] & 0x40) ? MEM_READ_INTERNAL : MEM_READ_EXTANY;
     can_write = (dev->pci_conf[0x53] & 0x20) ? MEM_WRITE_EXTANY : MEM_WRITE_INTERNAL;

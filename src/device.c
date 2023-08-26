@@ -91,7 +91,7 @@ void
 device_set_context(device_context_t *c, const device_t *dev, int inst)
 {
     const void *sec;
-    void       *single_sec;
+    const void *single_sec;
 
     memset(c, 0, sizeof(device_context_t));
     c->dev      = dev;
@@ -157,7 +157,7 @@ device_add_common(const device_t *dev, const device_t *cd, void *p, void *params
 
     /* Do this so that a chained device_add will not identify the same ID
        its master device is already trying to assign. */
-    devices[c] = (device_t *) dev;
+    devices[c] = dev;
 
     if (p == NULL) {
         memcpy(&device_prev, &device_current, sizeof(device_context_t));
@@ -353,7 +353,7 @@ device_available(const device_t *dev)
         if (config != NULL) {
             while (config->type != -1) {
                 if (config->type == CONFIG_BIOS) {
-                    bios = (const device_config_bios_t *) config->bios;
+                    bios = config->bios;
 
                     /* Go through the ROM's in the device configuration. */
                     while (bios->files_no != 0) {

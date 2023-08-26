@@ -385,7 +385,7 @@ umc_8886_init(const device_t *info)
     dev->max_func = (HAS_IDE) ? 1 : 0;
 
     /* Get the Southbridge Revision */
-    SB_ID = info->local;
+    SB_ID = (uint16_t) info->local;
 
     umc_8886_reset(dev);
 
