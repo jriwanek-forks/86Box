@@ -759,7 +759,6 @@ scsi_cdrom_mode_sense_read(scsi_cdrom_t *dev, uint8_t page_control, uint8_t page
 
             default:
                 break;
-
         }
     }
 
