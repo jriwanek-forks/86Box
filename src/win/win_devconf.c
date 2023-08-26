@@ -67,7 +67,7 @@ deviceconfig_dlgproc(HWND hdlg, UINT message, WPARAM wParam, UNUSED(LPARAM lPara
     const char                      *str;
     const char                      *val_str;
     wchar_t                          ws[512];
-    wchar_t                         *wstr;
+    const wchar_t                   *wstr;
     LPTSTR                           lptsTemp;
 
     config = config_device.dev->config;
@@ -218,6 +218,9 @@ deviceconfig_dlgproc(HWND hdlg, UINT message, WPARAM wParam, UNUSED(LPARAM lPara
 
                         id += 2;
                         break;
+
+                    default:
+                        break;
                 }
                 config++;
             }
@@ -352,6 +355,9 @@ deviceconfig_dlgproc(HWND hdlg, UINT message, WPARAM wParam, UNUSED(LPARAM lPara
 
                             id += 2;
                             break;
+
+                        default:
+                            break;
                     }
                     config++;
                 }
@@ -443,6 +449,9 @@ deviceconfig_dlgproc(HWND hdlg, UINT message, WPARAM wParam, UNUSED(LPARAM lPara
 
                             id += 2;
                             break;
+
+                        default:
+                            break;
                     }
                     config++;
                 }
@@ -492,11 +501,17 @@ deviceconfig_dlgproc(HWND hdlg, UINT message, WPARAM wParam, UNUSED(LPARAM lPara
                                     SendMessage(h, WM_SETTEXT, 0, (LPARAM) wopenfilestring);
                             }
                             break;
+
+                        default:
+                            break;
                     }
                     config++;
                 }
             }
             break;
+
+            default:
+                break;
     }
     return FALSE;
 }
@@ -770,6 +785,9 @@ deviceconfig_inst_open(HWND hwnd, const device_t *device, int inst)
                     data++;
 
                 y += 20;
+                break;
+
+            default:
                 break;
         }
 

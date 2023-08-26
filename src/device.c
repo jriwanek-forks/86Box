@@ -91,7 +91,7 @@ void
 device_set_context(device_context_t *c, const device_t *dev, int inst)
 {
     const void *sec;
-    const void *single_sec;
+    void       *single_sec;
 
     memset(c, 0, sizeof(device_context_t));
     c->dev      = dev;

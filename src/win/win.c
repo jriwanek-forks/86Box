@@ -748,9 +748,9 @@ path_slash(char *path)
 
 /* Return a trailing (back)slash if necessary. */
 const char *
-path_get_slash(char *path)
+path_get_slash(const char *path)
 {
-    char *ret = "";
+    const char *ret = "";
 
     if ((path[strlen(path) - 1] != '\\') && (path[strlen(path) - 1] != '/'))
         ret =  "\\";
@@ -760,7 +760,7 @@ path_get_slash(char *path)
 
 /* Check if the given path is absolute or not. */
 int
-path_abs(char *path)
+path_abs(const char *path)
 {
     if ((path[1] == ':') || (path[0] == '\\') || (path[0] == '/'))
         return 1;
@@ -807,7 +807,7 @@ path_get_dirname(char *dest, const char *path)
 }
 
 char *
-path_get_filename(char *s)
+path_get_filename(const char *s)
 {
     int c = strlen(s) - 1;
 
@@ -1010,7 +1010,7 @@ plat_delay_ms(uint32_t count)
 
 /* Return the VIDAPI number for the given name. */
 int
-plat_vidapi(char *name)
+plat_vidapi(const char *name)
 {
     /* Default/System is SDL Hardware. */
     if (!strcasecmp(name, "default") || !strcasecmp(name, "system"))
@@ -1240,7 +1240,7 @@ plat_vidapi_reload(void)
 
 /* Sets up the program language before initialization. */
 uint32_t
-plat_language_code(char *langcode)
+plat_language_code(const char *langcode)
 {
     if (!strcmp(langcode, "system"))
         return 0xFFFF;

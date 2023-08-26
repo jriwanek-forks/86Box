@@ -158,7 +158,7 @@ midi_out_device_get_internal_name(int card)
 }
 
 int
-midi_out_device_get_from_internal_name(char *s)
+midi_out_device_get_from_internal_name(const char *s)
 {
     int c = 0;
 
@@ -276,7 +276,7 @@ midi_in_device_get_internal_name(int card)
 }
 
 int
-midi_in_device_get_from_internal_name(char *s)
+midi_in_device_get_from_internal_name(const char *s)
 {
     int c = 0;
 

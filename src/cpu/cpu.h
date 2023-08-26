@@ -531,8 +531,8 @@ extern fpu_state_t fpu_state;
 
 extern const cpu_family_t         cpu_families[];
 extern const cpu_legacy_machine_t cpu_legacy_table[];
-extern cpu_family_t              *cpu_f;
-extern CPU                       *cpu_s;
+extern const cpu_family_t        *cpu_f;
+extern const CPU                 *cpu_s;
 extern int                        cpu_override;
 
 extern int    cpu_isintel;

@@ -190,7 +190,7 @@ nvr_init(nvr_t *nvr)
 
 /* Get path to the NVR folder. */
 char *
-nvr_path(char *str)
+nvr_path(const char *str)
 {
     static char temp[1024];
 
@@ -365,7 +365,7 @@ nvr_time_set(struct tm *tm)
 
 /* Open or create a file in the NVR area. */
 FILE *
-nvr_fopen(char *str, char *mode)
+nvr_fopen(const char *str, const char *mode)
 {
     return (plat_fopen(nvr_path(str), mode));
 }

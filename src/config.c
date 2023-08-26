@@ -113,7 +113,7 @@ load_general(void)
 {
     ini_section_t cat = ini_find_section(config, "General");
     char          temp[512];
-    char         *p;
+    const char   *p;
 
     vid_resize = ini_section_get_int(cat, "vid_resize", 0);
     if (vid_resize & ~3)
@@ -538,7 +538,7 @@ static void
 load_video(void)
 {
     ini_section_t cat = ini_find_section(config, "Video");
-    char         *p;
+    const char   *p;
     int           free_p = 0;
 
     if (machine_has_flags(machine, MACHINE_VIDEO_ONLY)) {
@@ -549,10 +549,10 @@ load_video(void)
         if (p == NULL) {
             if (machine_has_flags(machine, MACHINE_VIDEO)) {
                 p = (char *) malloc((strlen("internal") + 1) * sizeof(char));
-                strcpy(p, "internal");
+                strcpy((char *) p, "internal");
             } else {
                 p = (char *) malloc((strlen("none") + 1) * sizeof(char));
-                strcpy(p, "none");
+                strcpy((char *) p, "none");
             }
             free_p = 1;
         }
@@ -561,7 +561,7 @@ load_video(void)
         else
             gfxcard[0] = video_get_video_from_internal_name(p);
         if (free_p)
-            free(p);
+            free((void *) p);
     }
 
     if (((gfxcard[0] == VID_INTERNAL) && machine_has_flags(machine, MACHINE_VIDEO_8514A)) || video_card_get_flags(gfxcard[0]) == VIDEO_FLAG_TYPE_8514)
@@ -591,7 +591,7 @@ load_input_devices(void)
     char          temp[512];
     int           c;
     int           d;
-    char         *p;
+    const char   *p;
 
     p = ini_section_get_string(cat, "mouse_type", NULL);
     if (p != NULL)
@@ -682,7 +682,7 @@ load_sound(void)
 {
     ini_section_t cat = ini_find_section(config, "Sound");
     char          temp[512];
-    char         *p;
+    const char   *p;
 
     p = ini_section_get_string(cat, "sndcard", NULL);
     /* FIXME: Hack to not break configs with the Sound Blaster 128 PCI set. */
@@ -776,7 +776,7 @@ static void
 load_network(void)
 {
     ini_section_t cat = ini_find_section(config, "Network");
-    char         *p;
+    const char   *p;
     char          temp[512];
     uint16_t      c = 0;
     uint16_t      min = 0;
@@ -886,12 +886,11 @@ load_ports(void)
     ini_section_t cat = ini_find_section(config, "Ports (COM & LPT)");
     const char   *p;
     char          temp[512];
-    int           c;
     int           d;
 
     memset(temp, 0, sizeof(temp));
 
-    for (c = 0; c < SERIAL_MAX; c++) {
+    for (uint8_t c = 0; c < SERIAL_MAX; c++) {
         sprintf(temp, "serial%d_enabled", c + 1);
         com_ports[c].enabled = !!ini_section_get_int(cat, temp, (c >= 2) ? 0 : 1);
 
@@ -902,7 +901,7 @@ load_ports(void)
             config_log("Serial Port %d: passthrough enabled.\n\n", c + 1);
     }
 
-    for (c = 0; c < PARALLEL_MAX; c++) {
+    for (uint8_t c = 0; c < PARALLEL_MAX; c++) {
         sprintf(temp, "lpt%d_enabled", c + 1);
         lpt_ports[c].enabled = !!ini_section_get_int(cat, temp, (c == 0) ? 1 : 0);
 
@@ -914,7 +913,7 @@ load_ports(void)
     /* Legacy config compatibility. */
     d = ini_section_get_int(cat, "lpt_enabled", 2);
     if (d < 2) {
-        for (c = 0; c < PARALLEL_MAX; c++)
+        for (uint8_t c = 0; c < PARALLEL_MAX; c++)
             lpt_ports[c].enabled = d;
     }
     ini_section_delete_var(cat, "lpt_enabled");
@@ -926,6 +925,7 @@ load_storage_controllers(void)
 {
     ini_section_t cat = ini_find_section(config, "Storage controllers");
     char         *p;
+    const char   *section_string;
     char          temp[512];
     int           c;
     int           min = 0;
@@ -935,9 +935,9 @@ load_storage_controllers(void)
     backwards_compat2 = (cat == NULL);
 
     /* TODO: Backwards compatibility, get rid of this when enough time has passed. */
-    p = ini_section_get_string(cat, "scsicard", NULL);
-    if (p != NULL) {
-        scsi_card_current[0] = scsi_card_get_from_internal_name(p);
+    section_string = ini_section_get_string(cat, "scsicard", NULL);
+    if (section_string != NULL) {
+        scsi_card_current[0] = scsi_card_get_from_internal_name(section_string);
         min++;
     }
     ini_section_delete_var(cat, "scsi_card");
@@ -945,20 +945,20 @@ load_storage_controllers(void)
     for (c = min; c < SCSI_BUS_MAX; c++) {
         sprintf(temp, "scsicard_%d", c + 1);
 
-        p = ini_section_get_string(cat, temp, NULL);
-        if (p != NULL)
-            scsi_card_current[c] = scsi_card_get_from_internal_name(p);
+        section_string = (char*) ini_section_get_string(cat, temp, NULL);
+        if (section_string != NULL)
+            scsi_card_current[c] = scsi_card_get_from_internal_name(section_string);
         else
             scsi_card_current[c] = 0;
     }
 
-    p = ini_section_get_string(cat, "fdc", NULL);
-    if (p != NULL)
-        fdc_type = fdc_card_get_from_internal_name(p);
+    section_string = ini_section_get_string(cat, "fdc", NULL);
+    if (section_string != NULL)
+        fdc_type = fdc_card_get_from_internal_name(section_string);
     else
         fdc_type = FDC_INTERNAL;
 
-    p = ini_section_get_string(cat, "hdc", NULL);
+    p = (char *) ini_section_get_string(cat, "hdc", NULL);
     if (p == NULL) {
         if (machine_has_flags(machine, MACHINE_HDC)) {
             p = (char *) malloc((strlen("internal") + 1) * sizeof(char));
@@ -983,16 +983,16 @@ load_storage_controllers(void)
         hdc_current = hdc_get_from_internal_name(p);
 
     if (free_p) {
-        free(p);
+        free((void *) p);
         p = NULL;
     }
 
-    p = ini_section_get_string(cat, "cdrom_interface", NULL);
-    if (p != NULL)
-        cdrom_interface_current = cdrom_interface_get_from_internal_name(p);
+    section_string = ini_section_get_string(cat, "cdrom_interface", NULL);
+    if (section_string != NULL)
+        cdrom_interface_current = cdrom_interface_get_from_internal_name(section_string);
 
     if (free_p) {
-        free(p);
+        free((void *) p);
         p = NULL;
     }
 
@@ -1003,16 +1003,16 @@ load_storage_controllers(void)
         cassette_enable = !!ini_section_get_int(cat, "cassette_enabled", 0);
     else
         cassette_enable = 0;
-    p = ini_section_get_string(cat, "cassette_file", "");
-    if (strlen(p) > 511)
-        fatal("load_storage_controllers(): strlen(p) > 511\n");
+    section_string = ini_section_get_string(cat, "cassette_file", "");
+    if (strlen(section_string) > 511)
+        fatal("load_storage_controllers(): strlen(section_string) > 511\n");
     else
-        strncpy(cassette_fname, p, 511);
-    p = ini_section_get_string(cat, "cassette_mode", "");
-    if (strlen(p) > 511)
-        fatal("load_storage_controllers(): strlen(p) > 511\n");
+        strncpy(cassette_fname, section_string, 511);
+    section_string = ini_section_get_string(cat, "cassette_mode", "");
+    if (strlen(section_string) > 511)
+        fatal("load_storage_controllers(): strlen(section_string) > 511\n");
     else
-        strncpy(cassette_mode, p, 511);
+        strncpy(cassette_mode, section_string, 511);
     cassette_pos          = ini_section_get_int(cat, "cassette_position", 0);
     cassette_srate        = ini_section_get_int(cat, "cassette_srate", 44100);
     cassette_append       = !!ini_section_get_int(cat, "cassette_append", 0);
@@ -1021,7 +1021,7 @@ load_storage_controllers(void)
 
     for (c = 0; c < 2; c++) {
         sprintf(temp, "cartridge_%02i_fn", c + 1);
-        p = ini_section_get_string(cat, temp, "");
+        p = (char *) ini_section_get_string(cat, temp, "");
 
         if (!strcmp(p, usr_path))
             p[0] = 0x00;
@@ -1245,7 +1245,7 @@ load_floppy_drives(void)
 {
     ini_section_t cat = ini_find_section(config, "Floppy drives");
     char          temp[512];
-    char         *p;
+    char   *p;
 
     if (!backwards_compat)
         return;
@@ -1861,7 +1861,7 @@ static void
 load_other_peripherals(void)
 {
     ini_section_t cat = ini_find_section(config, "Other peripherals");
-    char         *p;
+    const char   *p;
     char          temp[512];
     int           free_p = 0;
 
@@ -1884,10 +1884,10 @@ load_other_peripherals(void)
         if (p == NULL) {
             if (machine_has_flags(machine, MACHINE_HDC)) {
                 p = (char *) malloc((strlen("internal") + 1) * sizeof(char));
-                strcpy(p, "internal");
+                strcpy((char *) p, "internal");
             } else {
                 p = (char *) malloc((strlen("none") + 1) * sizeof(char));
-                strcpy(p, "none");
+                strcpy((char *) p, "none");
             }
             free_p = 1;
         }
@@ -1906,7 +1906,7 @@ load_other_peripherals(void)
         ini_section_delete_var(cat, "hdc");
 
         if (free_p) {
-            free(p);
+            free((char *) p);
             p = NULL;
         }
 
@@ -2765,7 +2765,7 @@ save_hard_disks(void)
     ini_section_t cat = ini_find_or_create_section(config, "Hard disks");
     char          temp[32];
     char          tmp2[512];
-    char         *p;
+    const char   *p;
 
     memset(temp, 0x00, sizeof(temp));
     for (uint8_t c = 0; c < HDD_NUM; c++) {

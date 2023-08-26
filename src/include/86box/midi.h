@@ -23,8 +23,8 @@ extern int         midi_out_device_has_config(int card);
 extern int         midi_in_device_has_config(int card);
 extern const char *midi_out_device_get_internal_name(int card);
 extern const char *midi_in_device_get_internal_name(int card);
-extern int         midi_out_device_get_from_internal_name(char *s);
-extern int         midi_in_device_get_from_internal_name(char *s);
+extern int         midi_out_device_get_from_internal_name(const char *s);
+extern int         midi_in_device_get_from_internal_name(const char *s);
 extern void        midi_out_device_init(void);
 extern void        midi_in_device_init(void);
 

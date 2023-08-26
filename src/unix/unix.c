@@ -1317,7 +1317,7 @@ set_language(uint32_t id)
 
 /* Sets up the program language before initialization. */
 uint32_t
-plat_language_code(char *langcode)
+plat_language_code(UNUSED(const char *langcode))
 {
     /* or maybe not */
     return 0;

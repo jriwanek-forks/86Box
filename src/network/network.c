@@ -652,7 +652,7 @@ network_is_connected(int id)
 }
 
 int
-network_dev_to_id(char *devname)
+network_dev_to_id(const char *devname)
 {
     for (int i = 0; i < network_ndev; i++) {
         if (!strcmp((char *) network_devs[i].device, devname)) {
@@ -725,7 +725,7 @@ network_card_get_internal_name(int card)
 
 /* UI */
 int
-network_card_get_from_internal_name(char *s)
+network_card_get_from_internal_name(const char *s)
 {
     int c = 0;
 
