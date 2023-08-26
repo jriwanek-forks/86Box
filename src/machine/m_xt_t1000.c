@@ -113,22 +113,22 @@
 
 enum TC8521_ADDR {
     /* Page 0 registers */
-    TC8521_SECOND1 = 0,
-    TC8521_SECOND10,
-    TC8521_MINUTE1,
-    TC8521_MINUTE10,
-    TC8521_HOUR1,
-    TC8521_HOUR10,
-    TC8521_WEEKDAY,
-    TC8521_DAY1,
-    TC8521_DAY10,
-    TC8521_MONTH1,
-    TC8521_MONTH10,
-    TC8521_YEAR1,
-    TC8521_YEAR10,
-    TC8521_PAGE,  /* PAGE register */
-    TC8521_TEST,  /* TEST register */
-    TC8521_RESET, /* RESET register */
+    TC8521_SECOND1  = 0,
+    TC8521_SECOND10 = 1,
+    TC8521_MINUTE1  = 2,
+    TC8521_MINUTE10 = 3,
+    TC8521_HOUR1    = 4,
+    TC8521_HOUR10   = 5,
+    TC8521_WEEKDAY  = 6,
+    TC8521_DAY1     = 7,
+    TC8521_DAY10    = 8,
+    TC8521_MONTH1   = 9,
+    TC8521_MONTH10  = 0x0a,
+    TC8521_YEAR1    = 0x0b,
+    TC8521_YEAR10   = 0x0c,
+    TC8521_PAGE     = 0x0d,  /* PAGE register */
+    TC8521_TEST     = 0x0e,  /* TEST register */
+    TC8521_RESET    = 0x0f, /* RESET register */
 
     /* Page 1 registers */
     TC8521_24HR     = 0x1A,

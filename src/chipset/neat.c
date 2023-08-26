@@ -247,11 +247,11 @@ neat_log(const char *fmt, ...)
 static uint8_t
 ems_readb(uint32_t addr, void *priv)
 {
-    neat_t *dev = (neat_t *) priv;
+    const neat_t *dev = (neat_t *) priv;
     uint8_t ret = 0xff;
 
     /* Grab the data. */
-    ret = *(uint8_t *) (dev->ems[(addr & 0xffff) >> 14].addr + (addr & 0x3fff));
+    ret = *(dev->ems[(addr & 0xffff) >> 14].addr + (addr & 0x3fff));
 
     return ret;
 }
@@ -276,7 +276,7 @@ ems_writeb(uint32_t addr, uint8_t val, void *priv)
     neat_t *dev = (neat_t *) priv;
 
     /* Write the data. */
-    *(uint8_t *) (dev->ems[(addr & 0xffff) >> 14].addr + (addr & 0x3fff)) = val;
+    *(dev->ems[(addr & 0xffff) >> 14].addr + (addr & 0x3fff)) = val;
 }
 
 /* Write one word to paged RAM. */

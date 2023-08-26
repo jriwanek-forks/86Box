@@ -151,7 +151,7 @@ onesec_timer(void *priv)
         nvr->onesec_cnt = 0;
     }
 
-    timer_advance_u64(&nvr->onesec_time, (uint64_t) (10000ULL * TIMER_USEC));
+    timer_advance_u64(&nvr->onesec_time, (10000ULL * TIMER_USEC));
 }
 
 /* Initialize the generic NVRAM/RTC device. */
