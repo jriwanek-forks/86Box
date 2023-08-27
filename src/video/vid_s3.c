@@ -80,7 +80,6 @@ enum
 	S3_PHOENIX_VISION868
 };
 
-
 enum
 {
 	S3_86C911 = 0x00,
@@ -97,7 +96,6 @@ enum
 	S3_TRIO64V = 0x38,
 	S3_TRIO64V2 = 0x40
 };
-
 
 static video_timings_t timing_s3_86c911		= {VIDEO_ISA, 4,  4,  5,  20, 20, 35};
 static video_timings_t timing_s3_86c801		= {VIDEO_ISA, 4,  4,  5,  20, 20, 35};
@@ -196,13 +194,16 @@ typedef struct s3_t
 		uint8_t advfunc_cntl;
 		uint16_t cur_y, cur_y2;
 		uint16_t cur_x, cur_x2;
-		uint16_t x2, ropmix;
-		uint16_t pat_x, pat_y;
+		uint16_t x2;
+		uint16_t ropmix;
+		uint16_t pat_x;
+		uint16_t pat_y;
 		 int16_t desty_axstp, desty_axstp2;
 		 int16_t destx_distp;
 		 int16_t err_term, err_term2;
 		 int16_t maj_axis_pcnt, maj_axis_pcnt2;
-		uint16_t cmd, cmd2;
+		uint16_t cmd;
+		uint16_t cmd2;
 		uint16_t short_stroke;
 		uint32_t pat_bg_color, pat_fg_color;
 		uint32_t bkgd_color;
@@ -217,7 +218,8 @@ typedef struct s3_t
 		uint8_t pix_trans[4];
 	
 		int cx, cy;
-		int px, py;
+		int px;
+		int py;
 		int sx, sy;
 		int dx, dy;
 		uint32_t src, dest, pattern;
@@ -231,7 +233,8 @@ typedef struct s3_t
 
 		uint32_t dat_buf;
 		int dat_count;
-		int b2e8_pix, temp_cnt;
+		int b2e8_pix;
+		int temp_cnt;
 	} accel;
 	
 	struct {
@@ -240,60 +243,80 @@ typedef struct s3_t
 		uint32_t stretch_filt_const;
 		uint32_t src_dst_step;
 		uint32_t crop;
-		uint32_t src_base, dest_base;
-		uint32_t src, dest;
-		uint32_t srcbase, dstbase;
+		uint32_t src_base;
+		uint32_t dest_base;
+		uint32_t src;
+		uint32_t dest;
+		uint32_t srcbase;
+		uint32_t dstbase;
 		int32_t dda_init_accumulator;
-		int32_t k1, k2;
+		int32_t k1;
+		int32_t k2;
 		int dm_index;
 		int dither_matrix_idx;
-		int src_step, dst_step;
-		int sx, sx_backup, sy;
-		double cx, dx;
-		double cy, dy;
-		int sx_scale_int, sx_scale_int_backup;
+		int src_step;
+		int dst_step;
+		int sx;
+		int sx_backup;
+		int sy;
+		double cx;
+		double dx;
+		double cy;
+		double dy;
+		int sx_scale_int;
+		int sx_scale_int_backup;
 		double sx_scale;
 		double sx_scale_dec;
 		double sx_scale_inc;
 		double sx_scale_backup;
 		double sx_scale_len;
-		int dither, host_data, scale_down;
+		int dither;
+		int host_data;
+		int scale_down;
 		int input;
-		int len, start;
-		int odf, idf, yuv;
+		int len;
+		int start;
+		int odf;
+		int idf;
+		int yuv;
 		volatile int busy;
 	} videoengine;
 	
-        struct
-        {
-                uint32_t pri_ctrl;
-                uint32_t chroma_ctrl;
-                uint32_t sec_ctrl;
-                uint32_t chroma_upper_bound;
-                uint32_t sec_filter;
-                uint32_t blend_ctrl;
-                uint32_t pri_fb0, pri_fb1;
-                uint32_t pri_stride;
-                uint32_t buffer_ctrl;
-                uint32_t sec_fb0, sec_fb1;
-                uint32_t sec_stride;
-                uint32_t overlay_ctrl;
-                 int32_t k1_vert_scale;
-                 int32_t k2_vert_scale;
-                 int32_t dda_vert_accumulator;
-                 int32_t k1_horiz_scale;
-                 int32_t k2_horiz_scale;
-                 int32_t dda_horiz_accumulator;
-                uint32_t fifo_ctrl;
-                uint32_t pri_start;
-                uint32_t pri_size;
-                uint32_t sec_start;
-                uint32_t sec_size;
+    struct {
+        uint32_t pri_ctrl;
+        uint32_t chroma_ctrl;
+        uint32_t sec_ctrl;
+        uint32_t chroma_upper_bound;
+        uint32_t sec_filter;
+        uint32_t blend_ctrl;
+        uint32_t pri_fb0, pri_fb1;
+        uint32_t pri_stride;
+        uint32_t buffer_ctrl;
+        uint32_t sec_fb0, sec_fb1;
+        uint32_t sec_stride;
+        uint32_t overlay_ctrl;
+        int32_t  k1_vert_scale;
+        int32_t  k2_vert_scale;
+        int32_t  dda_vert_accumulator;
+        int32_t  k1_horiz_scale;
+        int32_t  k2_horiz_scale;
+        int32_t  dda_horiz_accumulator;
+        uint32_t fifo_ctrl;
+        uint32_t pri_start;
+        uint32_t pri_size;
+        uint32_t sec_start;
+        uint32_t sec_size;
                 
-                int sdif;
+        int sdif;
                 
-                int pri_x, pri_y, pri_w, pri_h;
-                int sec_x, sec_y, sec_w, sec_h;
+        int pri_x;
+		int pri_y;
+		int pri_w;
+		int pri_h;
+        int sec_x;
+		int sec_y;
+		int sec_w;
+		int sec_h;
         } streams;	
 
 	fifo_entry_t fifo[FIFO_SIZE];
@@ -314,7 +337,8 @@ typedef struct s3_t
 
 	int translate;
 	int enable_8514;
-	volatile int busy, force_busy;
+	volatile int busy;
+	volatile int force_busy;
 
 	uint8_t serialport;
 } s3_t;

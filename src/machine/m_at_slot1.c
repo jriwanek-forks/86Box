@@ -197,10 +197,10 @@ machine_at_p2bls_init(const machine_t *model)
 {
     int ret;
 
-    if (model->flags & MACHINE_COREBOOT) {
+    if (model->flags & MACHINE_COREBOOT)
     	ret = bios_load_linear(L"roms/machines/p2bls/coreboot.rom",
 			       0x00000000, 1048576, 0);
-    } else
+    else
     	ret = bios_load_linear(L"roms/machines/p2bls/1014ls.003",
 			       0x000c0000, 262144, 0);
 
