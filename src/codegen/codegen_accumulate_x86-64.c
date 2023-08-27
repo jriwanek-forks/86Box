@@ -9,42 +9,61 @@
 
 static struct
 {
-        int count;
-        uintptr_t dest_reg;
-} acc_regs[] =
-{
-        [ACCREG_ins]    = {0, (uintptr_t) &(ins)},
-        [ACCREG_cycles] = {0, (uintptr_t) &(cycles)},
+    int       count;
+    uintptr_t dest_reg;
+} acc_regs[] = {
+    [ACCREG_cycles] = {0, (uintptr_t) & (cycles)},
 };
 
-void codegen_accumulate(int acc_reg, int delta)
+void
+codegen_accumulate(int acc_reg, int delta)
 {
-        acc_regs[acc_reg].count += delta;
-}
+    acc_regs[acc_reg].count += delta;
 
-void codegen_accumulate_flush(void)
-{
-        int c;
-        
-        for (c = 0; c < ACCREG_COUNT; c++)
-        {
-                if (acc_regs[c].count)
-		{
-                        addbyte(0x81); /*ADD $acc_regs[c].count,acc_regs[c].dest*/
-                        addbyte(0x04);
-                        addbyte(0x25);
-                        addlong((uint32_t) acc_regs[c].dest_reg);
-                        addlong(acc_regs[c].count);
-                }
-
-                acc_regs[c].count = 0;
+#ifdef USE_ACYCS
+    if ((acc_reg == ACCREG_cycles) && (delta != 0)) {
+        if (delta == -1) {
+            /* -delta = 1 */
+            addbyte(0xff); /*inc dword ptr[&acycs]*/
+            addbyte(0x04);
+            addbyte(0x25);
+            addlong((uint32_t) (uintptr_t) & (acycs));
+        } else if (delta == 1) {
+            /* -delta = -1 */
+            addbyte(0xff); /*dec dword ptr[&acycs]*/
+            addbyte(0x0c);
+            addbyte(0x25);
+            addlong((uint32_t) (uintptr_t) & (acycs));
+        } else {
+            addbyte(0x81); /*ADD $acc_regs[c].count,acc_regs[c].dest*/
+            addbyte(0x04);
+            addbyte(0x25);
+            addlong((uint32_t) (uintptr_t) & (acycs));
+            addlong(-delta);
         }
+    }
+#endif
 }
 
-void codegen_accumulate_reset()
+void
+codegen_accumulate_flush(void)
 {
-        int c;
+    if (acc_regs[0].count) {
+        /* To reduce the size of the generated code, we take advantage of
+           the fact that the target offset points to _cycles within cpu_state,
+           so we can just use our existing infrastracture for variables
+           relative to cpu_state. */
+        addbyte(0x81); /*ADDL $acc_regs[0].count,(_cycles)*/
+        addbyte(0x45);
+        addbyte((uint8_t) cpu_state_offset(_cycles));
+        addlong(acc_regs[0].count);
+    }
 
-        for (c = 0; c < ACCREG_COUNT; c++)
-                acc_regs[c].count = 0;
+    acc_regs[0].count = 0;
+}
+
+void
+codegen_accumulate_reset(void)
+{
+    acc_regs[0].count = 0;
 }

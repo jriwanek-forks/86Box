@@ -1,5 +1,5 @@
 /* Copyright (C) 2003, 2004, 2005, 2006, 2008, 2009 Dean Beeler, Jerome Fisher
- * Copyright (C) 2011-2020 Dean Beeler, Jerome Fisher, Sergey V. Mikayev
+ * Copyright (C) 2011-2022 Dean Beeler, Jerome Fisher, Sergey V. Mikayev
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License as published by
@@ -28,7 +28,7 @@ namespace MT32Emu {
 #define MT32EMU_MEMADDR(x) ((((x) & 0x7f0000) >> 2) | (((x) & 0x7f00) >> 1) | ((x) & 0x7f))
 #define MT32EMU_SYSEXMEMADDR(x) ((((x) & 0x1FC000) << 2) | (((x) & 0x3F80) << 1) | ((x) & 0x7f))
 
-#ifdef _MSC_VER
+#if defined(_MSC_VER) && !defined(__clang__)
 #define  MT32EMU_ALIGN_PACKED __declspec(align(1))
 #else
 #define MT32EMU_ALIGN_PACKED __attribute__((packed))
@@ -191,6 +191,9 @@ struct ControlROMFeatureSet {
 	unsigned int quirkPanMult : 1;
 	unsigned int quirkKeyShift : 1;
 	unsigned int quirkTVFBaseCutoffLimit : 1;
+	unsigned int quirkFastPitchChanges : 1;
+	unsigned int quirkDisplayCustomMessagePriority : 1;
+	unsigned int oldMT32DisplayFeatures : 1;
 
 	// Features below don't actually depend on control ROM version, which is used to identify hardware model
 	unsigned int defaultReverbMT32Compatible : 1;
@@ -221,6 +224,8 @@ struct ControlROMMap {
 	Bit16u timbreMaxTable; // 72 bytes
 	Bit16u soundGroupsTable; // 14 bytes each entry
 	Bit16u soundGroupsCount;
+	Bit16u startupMessage; // 20 characters + NULL terminator
+	Bit16u sysexErrorMessage; // 20 characters + NULL terminator
 };
 
 struct ControlROMPCMStruct {

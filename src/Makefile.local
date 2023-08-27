@@ -1,37 +1,35 @@
 #
-# 86Box		A hypervisor and IBM PC system emulator that specializes in
-#		running old operating systems and software designed for IBM
-#		PC systems and compatibles from 1981 through fairly recent
-#		system designs based on the PCI bus.
+# 86Box   A hypervisor and IBM PC system emulator that specializes in
+#         running old operating systems and software designed for IBM
+#         PC systems and compatibles from 1981 through fairly recent
+#         system designs based on the PCI bus.
 #
-#		This file is part of the 86Box distribution.
+#         This file is part of the 86Box distribution.
 #
-#		Prefix for localizing the general Makefile.mingw for local
-#		settings, so we can avoid changing the main one for all of
-#		our local setups.
+#         Prefix for localizing the general Makefile.mingw for local
+#         settings, so we can avoid changing the main one for all of
+#         our local setups.
 #
-# Author:	Fred N. van Kempen, <decwiz@yahoo.com>
+# Authors: Fred N. van Kempen, <decwiz@yahoo.com>
 #
 
 #########################################################################
-#	 Anything here will override defaults in Makefile.MinGW.	#
+#         Anything here will override defaults in Makefile.MinGW.       #
 #########################################################################
 
 
 # Name of the executable.
-#PROG	:= yourexe
+#PROG := 86box.exe
 
 
 # Various compile-time options.
 # -DROM_TRACE=0xc800 traces ROM access from segment C800
 # -DIO_TRACE=0x66 traces I/O on port 0x66
 # -DIO_CATCH enables I/O range catch logs
-STUFF	:=
+STUFF :=
 
 # Add feature selections here.
 # -DANSI_CFG forces the config file to ANSI encoding.
-# -DENABLE_VRAM_DUMP enables Video Ram dumping.
-# -DENABLE_LOG_BREAKPOINT enables extra logging.
 # Root logging:
 # -DENABLE_ACPI_LOG=N sets logging level at N.
 # -DENABLE_APM_LOG=N sets logging level at N.
@@ -74,8 +72,11 @@ STUFF	:=
 # chipset/ logging:
 # -DENABLE_I420EX_LOG=N sets logging level at N.
 # -DENABLE_NEAT_LOG=N sets logging level at N.
+# -DENABLE_OPTI495_LOG=N sets logging level at N.
+# -DENABLE_OPTI895_LOG=N sets logging level at N.
 # -DENABLE_PIIX_LOG=N sets logging level at N.
 # -DENABLE_SIO_LOG=N sets logging level at N.
+# -DENABLE_SIS_85C496_LOG=N sets logging level at N.
 # codegen/, codegen_new/, cpu/ logging:
 # -DENABLE_X86SEG_LOG=N sets logging level at N.
 # cpu/ logging:
@@ -122,7 +123,7 @@ STUFF	:=
 # -DENABLE_3COM503_LOG=N sets logging level at N.
 # -DENABLE_DP8390_LOG=N sets logging level at N.
 # -DENABLE_NETWORK_LOG=N sets logging level at N.
-# -DENABLE_NIC_LOG=N sets logging level at N.
+# -DENABLE_NE2K_LOG=N sets logging level at N.
 # -DENABLE_PCAP_LOG=N sets logging level at N.
 # -DENABLE_PCNET_LOG=N sets logging level at N.
 # -DENABLE_SLIRP_LOG=N sets logging level at N.
@@ -165,35 +166,33 @@ STUFF	:=
 # -DENABLE_DISCORD_LOG=N sets logging level at N.
 # -DENABLE_DYNLD_LOG=N sets logging level at N.
 # -DENABLE_JOYSTICK_LOG=N sets logging level at N.
-# -DENABLE_LOG_TOGGLES=N sets logging level at N.
 # -DENABLE_SDL_LOG=N sets logging level at N.
 # -DENABLE_SETTINGS_LOG=N sets logging level at N.
-EXTRAS		:=
+EXTRAS :=
 
 
-AUTODEP		:= n
-CRASHDUMP	:= n
-DEBUG		:= n
-OPTIM		:= n
-X64		:= n
-RELEASE		:= n
-USB		:= n
-VNC		:= n
-RDP		:= n
-DEV_BUILD	:= n
-DEV_BRANCH	:= n
-CIRRUS		:= n
-NE1000		:= n
-NV_RIVA		:= n
-OPENAL		:= y
-FLUIDSYNTH	:= y
-MUNT		:= y
-PAS16		:= n
-DYNAREC		:= y
+AUTODEP    := n
+DEBUG      := n
+OPTIM      := n
+X64        := n
+RELEASE    := n
+USB        := n
+VNC        := n
+RDP        := n
+DEV_BUILD  := n
+DEV_BRANCH := n
+CIRRUS     := n
+NE1000     := n
+NV_RIVA    := n
+OPENAL     := y
+FLUIDSYNTH := y
+MUNT       := y
+PAS16      := n
+DYNAREC    := y
 
 
 #########################################################################
-#	    Include the master Makefile.MinGW for the rest.		#
+#              Include the master Makefile.MinGW for the rest.          #
 #########################################################################
 include win/Makefile.mingw
 
