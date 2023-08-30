@@ -124,7 +124,7 @@ set(CMAKE_FIND_PACKAGE_PREFER_CONFIG ON)
 #
 #      Option       Description                                                     Def.
 #      ------       -----------                                                     ----
-option(RELEASE      "Release build"                                                 OFF)
+option(RELEASE      "Release build"                                                 ON)
 option(DYNAREC      "Dynamic recompiler"                                            ON)
 option(OPENAL       "OpenAL"                                                        ON)
 option(RTMIDI       "RtMidi"                                                        ON)
@@ -177,7 +177,7 @@ if(QT)
 endif()
 
 # Determine the build type
-set(RELEASE_BUILD   OFF)
+set(RELEASE_BUILD   ON)
 set(BETA_BUILD      OFF)
 set(ALPHA_BUILD     OFF)
 
@@ -201,7 +201,7 @@ if(NOT CMAKE_PROJECT_VERSION_PATCH)
     set(CMAKE_PROJECT_VERSION_PATCH 0)
 endif()
 if(NOT EMU_BUILD_NUM)
-    set(EMU_BUILD_NUM 0)
+    set(EMU_BUILD_NUM 6130)
 endif()
 if(NOT EMU_COPYRIGHT_YEAR)
     set(EMU_COPYRIGHT_YEAR 2024)
