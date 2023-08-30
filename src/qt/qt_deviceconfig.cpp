@@ -214,10 +214,9 @@ DeviceConfig::ConfigureDevice(const _device_ *device, int instance, Settings *se
                     auto *cbox = new QComboBox();
                     cbox->setObjectName(config->name);
                     cbox->setMaxVisibleItems(30);
-                    auto *model        = cbox->model();
-                    int   currentIndex = -1;
-                    char *selected;
-                    selected = config_get_string(device_context.name, const_cast<char *>(config->name), const_cast<char *>(config->default_string));
+                    auto       *model        = cbox->model();
+                    int         currentIndex = -1;
+                    const char *selected     = config_get_string(device_context.name, const_cast<char *>(config->name), const_cast<char *>(config->default_string));
 
                     q = 0;
                     for (auto *bios = config->bios; (bios != nullptr) && (bios->name != nullptr) && (strlen(bios->name) > 0); ++bios) {
@@ -274,10 +273,10 @@ DeviceConfig::ConfigureDevice(const _device_ *device, int instance, Settings *se
                     auto *cbox = new QComboBox();
                     cbox->setObjectName(config->name);
                     cbox->setMaxVisibleItems(30);
-                    auto *model         = cbox->model();
-                    int   currentIndex  = 0;
-                    auto  serialDevices = EnumerateSerialDevices();
-                    char *selected      = config_get_string(device_context.name, const_cast<char *>(config->name), const_cast<char *>(config->default_string));
+                    auto       *model         = cbox->model();
+                    int         currentIndex  = 0;
+                    auto        serialDevices = EnumerateSerialDevices();
+                    const char *selected      = config_get_string(device_context.name, const_cast<char *>(config->name), const_cast<char *>(config->default_string));
 
                     Models::AddEntry(model, "None", -1);
                     for (int i = 0; i < serialDevices.size(); i++) {
