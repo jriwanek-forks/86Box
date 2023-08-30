@@ -165,7 +165,7 @@ ifndef OPTIM
  OPTIM := n
 endif
 ifndef RELEASE
- RELEASE := n
+ RELEASE := y
 endif
 ifndef X64
  X64 := n
