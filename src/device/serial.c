@@ -972,7 +972,7 @@ void
 serial_standalone_init(void)
 {
     while (next_inst < SERIAL_MAX)
-        device_add_inst(&ns8250_device, next_inst + 1);
+        device_add_inst(&ns16550_device, next_inst + 1);
 };
 
 const device_t ns8250_device = {
