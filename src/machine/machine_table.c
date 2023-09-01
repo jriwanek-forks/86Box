@@ -76,6 +76,7 @@ const machine_filter_t machine_types[] = {
     { "Slot 1/Socket 370",         MACHINE_TYPE_SLOT1_370  },
     { "Slot 2",                    MACHINE_TYPE_SLOT2      },
     { "Socket 370",                MACHINE_TYPE_SOCKET370  },
+    { "EBGA 368",                  MACHINE_TYPE_EBGA368    },
     { "Miscellaneous",             MACHINE_TYPE_MISC       }
 };
 
@@ -13289,6 +13290,47 @@ const machine_t machines[] = {
         .sio_device = NULL,
         .vid_device = NULL,
         .snd_device = &cmi8738_onboard_device,
+        .net_device = NULL
+    },
+
+    /* EBGA368 machines */
+    /* VIA Apollo Pro */
+    {
+        .name = "[VIA Apollo ProMedia] Acrosser AR-B9673",
+        .internal_name = "arb9673",
+        .type = MACHINE_TYPE_EBGA368,
+        .chipset = MACHINE_CHIPSET_VIA_APOLLO_PRO_133A,
+        .init = machine_at_arb9673_init,
+        .pad = 0,
+        .pad0 = 0,
+        .pad1 = MACHINE_AVAILABLE,
+        .pad2 = 0,
+        .cpu = {
+            .package = CPU_PKG_EBGA368,
+            .block = CPU_BLOCK_NONE,
+            .min_bus = 100000000,
+            .max_bus = 133333333,
+            .min_voltage = 2050,
+            .max_voltage = 2050,
+            .min_multi = MACHINE_MULTIPLIER_FIXED,
+            .max_multi = MACHINE_MULTIPLIER_FIXED
+        },
+        .bus_flags = MACHINE_PS2_PCI,
+        .flags = MACHINE_IDE_DUAL,
+        .ram = {
+            .min = 131072,
+            .max = 131072,
+            .step = 0
+        },
+        .nvrmask = 31,
+        .kbc_device = NULL,
+        .kbc_p1 = 0,
+        .gpio = 0,
+        .device = NULL,
+        .fdc_device = NULL,
+        .sio_device = NULL,
+        .vid_device = NULL,
+        .snd_device = NULL,
         .net_device = NULL
     },
 
