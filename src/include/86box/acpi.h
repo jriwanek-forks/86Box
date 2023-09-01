@@ -142,6 +142,7 @@ extern int        acpi_enabled;
 
 extern const device_t acpi_ali_device;
 extern const device_t acpi_intel_device;
+extern const device_t acpi_sis_device;
 extern const device_t acpi_smc_device;
 extern const device_t acpi_via_device;
 extern const device_t acpi_via_596b_device;
