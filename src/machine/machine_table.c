@@ -103,6 +103,7 @@ const machine_filter_t machine_chipsets[] = {
     { "C&T CS4031",                 MACHINE_CHIPSET_CT_CS4031           },
     { "Contaq 82C596",              MACHINE_CHIPSET_CONTAQ_82C596       },
     { "Contaq 82C597",              MACHINE_CHIPSET_CONTAQ_82C597       },
+    { "ETEQ ET6000",                MACHINE_CHIPSET_ETEQ_ET6000         },
     { "IMS 8848",                   MACHINE_CHIPSET_IMS_8848            },
     { "Intel 82335",                MACHINE_CHIPSET_INTEL_82335         },
     { "Intel 420TX",                MACHINE_CHIPSET_INTEL_420TX         },
