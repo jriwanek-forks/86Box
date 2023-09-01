@@ -245,6 +245,7 @@ enum {
     MACHINE_CHIPSET_SIS_501,
     MACHINE_CHIPSET_SIS_5511,
     MACHINE_CHIPSET_SIS_5571,
+    MACHINE_CHIPSET_SIS_5598,
     MACHINE_CHIPSET_SMSC_VICTORYBX_66,
     MACHINE_CHIPSET_STPC_CLIENT,
     MACHINE_CHIPSET_STPC_CONSUMER_II,
@@ -684,6 +685,9 @@ extern int machine_at_ms5146_init(const machine_t *);
 
 extern int machine_at_m560_init(const machine_t *);
 extern int machine_at_ms5164_init(const machine_t *);
+
+extern int machine_at_sp97xv_init(const machine_t *);
+extern int machine_at_m571_init(const machine_t *);
 
 /* m_at_sockets7.c */
 extern int machine_at_p5a_init(const machine_t *);
