@@ -212,6 +212,9 @@ video_cards[] = {
 #if defined(DEV_BRANCH) && defined(USE_RIVA128)
     { &riva128_pci_device                            },
 #endif
+#if defined(DEV_BRANCH) && defined(USE_RIVATNT)
+    { &rivatnt_pci_device                            },
+#endif
     { &tgui9440_pci_device                           },
     { &tgui9660_pci_device                           },
     { &tgui9680_pci_device                           },

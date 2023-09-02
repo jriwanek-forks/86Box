@@ -82,6 +82,9 @@ ifeq ($(DEV_BUILD), y)
  ifndef RIVA128
   RIVA128 := y
  endif
+ ifndef RIVATNT
+  RIVATNT := y
+ endif
  ifndef SIO_DETECT
   SIO_DETECT := y
  endif
@@ -148,6 +151,9 @@ else
  endif
  ifndef RIVA128
   RIVA128 := n
+ endif
+ ifndef RIVATNT
+  RIVATNT := n
  endif
  ifndef SIO_DETECT
   SIO_DETECT := n
@@ -524,6 +530,11 @@ ifeq ($(DEV_BRANCH), y)
  ifeq ($(RIVA128), y)
   OPTS     += -DUSE_RIVA128
   DEVBROBJ += vid_riva128.o
+ endif
+
+ ifeq ($(RIVATNT), y)
+  OPTS     += -DUSE_RIVATNT
+  DEVBROBJ += vid_rivatnt.o
  endif
 
  ifeq ($(SIO_DETECT), y)
