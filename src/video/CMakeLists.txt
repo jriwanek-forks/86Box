@@ -38,6 +38,11 @@ if(RIVA128)
     target_sources(vid PRIVATE vid_riva128.c)
 endif()
 
+if(RIVATNT)
+    target_compile_definitions(vid PRIVATE USE_RIVATNT)
+    target_sources(vid PRIVATE vid_rivatnt.c)
+endif()
+
 if(VGAWONDER)
     target_compile_definitions(vid PRIVATE USE_VGAWONDER)
 endif()
