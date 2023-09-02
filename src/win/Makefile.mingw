@@ -79,6 +79,9 @@ ifeq ($(DEV_BUILD), y)
  ifndef PCI_DUMMY
   PCI_DUMMY := y
  endif
+ ifndef R100
+  R100 := y
+ endif
  ifndef RIVA128
   RIVA128 := y
  endif
@@ -148,6 +151,9 @@ else
  endif
  ifndef PCI_DUMMY
   PCI_DUMMY := n
+ endif
+ ifndef R100
+  R100 := n
  endif
  ifndef RIVA128
   RIVA128 := n
@@ -525,6 +531,11 @@ ifeq ($(DEV_BRANCH), y)
  ifeq ($(PCI_DUMMY), y)
   OPTS     += -DUSE_PCI_DUMMY
   DEVBROBJ += pci_dummy.o
+ endif
+
+ ifeq ($(R100), y)
+  OPTS     += -DUSE_R100
+  DEVBROBJ += vid_ati_r100.o
  endif
 
  ifeq ($(RIVA128), y)

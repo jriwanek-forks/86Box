@@ -33,6 +33,11 @@ if(MGA)
     target_sources(vid PRIVATE vid_mga.c)
 endif()
 
+if(R100)
+    target_compile_definitions(vid PRIVATE USE_R100)
+    target_sources(vid PRIVATE vid_ati_r100.c)
+endif()
+
 if(RIVA128)
     target_compile_definitions(vid PRIVATE USE_RIVA128)
     target_sources(vid PRIVATE vid_riva128.c)
