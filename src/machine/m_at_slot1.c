@@ -39,6 +39,7 @@
 #include <86box/sound.h>
 #include <86box/clock.h>
 #include <86box/snd_ac97.h>
+#include <86box/cdrom_mitsumi.h>
 
 int
 machine_at_p65up5_cpknd_init(const machine_t *model)
@@ -495,6 +496,8 @@ machine_at_p6sba_init(const machine_t *model)
     hwm_values.temperatures[0] = 0; /* unused */
     hwm_values.temperatures[2] = 0; /* CPU2? */
     /* no CPU2 voltage */
+
+    device_add(&mitsumi_cdrom_device);
 
     return ret;
 }
