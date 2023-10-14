@@ -91,8 +91,12 @@ END
  25                     ICON    DISCARDABLE     ICON_PATH "icons/floppy_35_active.ico"
  32                     ICON    DISCARDABLE     ICON_PATH "icons/cdrom.ico"
  33                     ICON    DISCARDABLE     ICON_PATH "icons/cdrom_active.ico"
+#if 0
  48                     ICON    DISCARDABLE     ICON_PATH "icons/zip.ico"
  49                     ICON    DISCARDABLE     ICON_PATH "icons/zip_active.ico"
+#endif
+ 48                     ICON    DISCARDABLE     ICON_PATH "icons/superdisk.ico"
+ 49                     ICON    DISCARDABLE     ICON_PATH "icons/superdisk_active.ico"
  56                     ICON    DISCARDABLE     ICON_PATH "icons/mo.ico"
  57                     ICON    DISCARDABLE     ICON_PATH "icons/mo_active.ico"
  64                     ICON    DISCARDABLE     ICON_PATH "icons/cassette.ico"
@@ -108,8 +112,12 @@ END
 153                     ICON    DISCARDABLE     ICON_PATH "icons/floppy_35_empty_active.ico"
 160                     ICON    DISCARDABLE     ICON_PATH "icons/cdrom_empty.ico"
 161                     ICON    DISCARDABLE     ICON_PATH "icons/cdrom_empty_active.ico"
+#if 0
 176                     ICON    DISCARDABLE     ICON_PATH "icons/zip_empty.ico"
 177                     ICON    DISCARDABLE     ICON_PATH "icons/zip_empty_active.ico"
+#endif
+176                     ICON    DISCARDABLE     ICON_PATH "icons/superdisk_empty.ico"
+177                     ICON    DISCARDABLE     ICON_PATH "icons/superdisk_empty_active.ico"
 184                     ICON    DISCARDABLE     ICON_PATH "icons/mo_empty.ico"
 185                     ICON    DISCARDABLE     ICON_PATH "icons/mo_empty_active.ico"
 192                     ICON    DISCARDABLE     ICON_PATH "icons/cassette_empty.ico"
@@ -132,7 +140,10 @@ END
 247                     ICON    DISCARDABLE     ICON_PATH "icons/other_removable_devices.ico"
 248                     ICON    DISCARDABLE     ICON_PATH "icons/floppy_disabled.ico"
 249                     ICON    DISCARDABLE     ICON_PATH "icons/cdrom_disabled.ico"
+#if 0
 250                     ICON    DISCARDABLE     ICON_PATH "icons/zip_disabled.ico"
+#endif
+250                     ICON    DISCARDABLE     ICON_PATH "icons/superdisk_disabled.ico"
 251                     ICON    DISCARDABLE     ICON_PATH "icons/mo_disabled.ico"
 252                     ICON    DISCARDABLE     ICON_PATH "icons/storage_controllers.ico"
 

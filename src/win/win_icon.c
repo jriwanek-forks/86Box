@@ -66,9 +66,10 @@ const _ICON_DATA icon_files[] = {
     { 25,  "floppy_35_active.ico"       },
     { 32,  "cdrom.ico"                  },
     { 33,  "cdrom_active.ico"           },
+#if 0
     { 48,  "zip.ico"                    },
     { 49,  "zip_active.ico"             },
-#if 0
+#else
     { 48,  "superdisk.ico"              },
     { 49,  "superdisk_active.ico"       },
 #endif
@@ -88,9 +89,10 @@ const _ICON_DATA icon_files[] = {
     { 153, "floppy_35_empty_active.ico" },
     { 160, "cdrom_empty.ico"            },
     { 161, "cdrom_empty_active.ico"     },
+#if 0
     { 176, "zip_empty.ico"              },
     { 177, "zip_empty_active.ico"       },
-#if 0
+#else
     { 176, "superdisk_empty.ico"        },
     { 177, "superdisk_empty_active.ico" },
 #endif
@@ -116,8 +118,9 @@ const _ICON_DATA icon_files[] = {
     { 247, "other_removable_devices.ico"},
     { 248, "floppy_disabled.ico"        },
     { 249, "cdrom_disabled.ico"         },
-    { 250, "zip_disabled.ico"           },
 #if 0
+    { 250, "zip_disabled.ico"           },
+#else
     { 250, "superdisk_disabled.ico"     },
 #endif
     { 251, "mo_disabled.ico"            },
