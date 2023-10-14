@@ -38,6 +38,11 @@
         <file>win/icons/other_removable_devices.ico</file>
         <file>win/icons/ports.ico</file>
         <file>win/icons/sound.ico</file>
+        <file>win/icons/superdisk.ico</file>
+        <file>win/icons/superdisk_active.ico</file>
+        <file>win/icons/superdisk_disabled.ico</file>
+        <file>win/icons/superdisk_empty.ico</file>
+        <file>win/icons/superdisk_empty_active.ico</file>
         <file>win/icons/storage_controllers.ico</file>
         <file>win/icons/zip.ico</file>
         <file>win/icons/zip_active.ico</file>
