@@ -93,7 +93,7 @@ jobs:
             rtmidi:p
             libvncserver:p
             ${{ matrix.ui.packages }}
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Configure CMake
         run: >-
           cmake -G Ninja -S . -B build --preset ${{ matrix.build.preset }}
@@ -140,7 +140,7 @@ jobs:
         toolset: ['v140', 'v141', 'v142']
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - uses: actions/cache@v2
       with:
         path: build/vcpkg_installed
@@ -194,7 +194,7 @@ jobs:
         toolset: ['v140', 'v141', 'v142']
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - uses: actions/cache@v2
       with:
         path: build/vcpkg_installed
@@ -248,7 +248,7 @@ jobs:
         toolset: ['v140', 'v141', 'v142']
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - uses: actions/cache@v2
       with:
         path: build/vcpkg_installed
@@ -316,7 +316,7 @@ jobs:
         urllib.request.urlretrieve("https://go.microsoft.com/fwlink/p/?LinkId=323507", "sdksetup.exe")
         subprocess.run(["sdksetup.exe", "/q", "/norestart", "/features", "OptionId.WindowsDesktopSoftwareDevelopmentKit", "OptionId.NetFxSoftwareDevelopmentKit"], check=True, capture_output=True)
       shell: python
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - uses: actions/cache@v2
       with:
         path: build/vcpkg_installed
@@ -414,7 +414,7 @@ jobs:
           -password "${{ secrets.GITHUB_TOKEN }}"
       - name: Fix MSVC atomic headers
         run: dir "C:/Program Files/Microsoft Visual Studio/2022/*/VC/Tools/MSVC/*/include" -include stdatomic.h -recurse | del
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Configure CMake
         run: >
           cmake -G Ninja -S . -B build --preset ${{ matrix.build.preset }}
@@ -491,7 +491,7 @@ jobs:
           libopenal-dev
           libvncserver-dev
           ${{ matrix.ui.packages }}
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Configure CMake
         run: >-
           cmake -G Ninja -S . -B build --preset ${{ matrix.build.preset }}
@@ -555,7 +555,7 @@ jobs:
           rtmidi
           openal-soft
           ${{ matrix.ui.packages }}
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Configure CMake
         run: >-
           cmake -G Ninja -S . -B build --preset ${{ matrix.build.preset }}
@@ -620,7 +620,7 @@ jobs:
           rtmidi
           openal-soft
           ${{ matrix.ui.packages }}
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Configure CMake
         run: >-
           cmake -G Ninja -S . -B build --preset ${{ matrix.build.preset }}
@@ -686,7 +686,7 @@ jobs:
           openal-soft
           libvncserver
           ${{ matrix.ui.packages }}
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Configure CMake
         run: >-
           cmake -G Ninja -S . -B build --preset ${{ matrix.build.preset }}
