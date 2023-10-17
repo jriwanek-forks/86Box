@@ -18,7 +18,7 @@ enum
 
 SERIAL serial1, serial2;
 
-void serial_reset()
+void serial_reset(void)
 {
         serial1.iir = serial1.ier = serial1.lcr = serial1.mctrl = 0;
         serial2.iir = serial2.ier = serial2.lcr = serial2.mctrl = 0;
@@ -270,7 +270,7 @@ void serial1_set(uint16_t addr, int irq)
 	serial_addr[0] = addr;
 	serial_irq[0] = irq;
 }
-void serial1_remove()
+void serial1_remove(void)
 {
         io_removehandler(serial_addr[0], 0x0008, serial_read,  NULL, NULL, serial_write,  NULL, NULL, &serial1);
 }
@@ -294,7 +294,7 @@ void serial2_set(uint16_t addr, int irq)
 	serial_addr[1] = addr;
 	serial_irq[1] = irq;
 }
-void serial2_remove()
+void serial2_remove(void)
 {
         io_removehandler(serial_addr[1], 0x0008, serial_read,  NULL, NULL, serial_write,  NULL, NULL, &serial2);
 }

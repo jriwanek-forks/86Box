@@ -268,7 +268,7 @@ void mda_poll(void *p)
         }
 }
 
-void *mda_init()
+void *mda_init(void)
 {
         int c;
         mda_t *mda = malloc(sizeof(mda_t));

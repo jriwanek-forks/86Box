@@ -78,7 +78,7 @@ uint32_t mem_check_write;
 uint32_t mem_check_write_w;
 uint32_t mem_check_write_l;
 
-static uint32_t gen_MEM_LOAD_ADDR_EA_B()
+static uint32_t gen_MEM_LOAD_ADDR_EA_B(void)
 {
         uint32_t addr = &codeblock[block_current].data[block_pos];
 
@@ -128,7 +128,7 @@ static uint32_t gen_MEM_LOAD_ADDR_EA_B()
         return addr;
 }
 
-static uint32_t gen_MEM_LOAD_ADDR_EA_W()
+static uint32_t gen_MEM_LOAD_ADDR_EA_W(void)
 {
         uint32_t addr = &codeblock[block_current].data[block_pos];
 
@@ -185,7 +185,7 @@ static uint32_t gen_MEM_LOAD_ADDR_EA_W()
         return addr;
 }
 
-static uint32_t gen_MEM_LOAD_ADDR_EA_L()
+static uint32_t gen_MEM_LOAD_ADDR_EA_L(void)
 {
         uint32_t addr = &codeblock[block_current].data[block_pos];
 
@@ -238,7 +238,7 @@ static uint32_t gen_MEM_LOAD_ADDR_EA_L()
         return addr;
 }
 
-static uint32_t gen_MEM_LOAD_ADDR_EA_Q()
+static uint32_t gen_MEM_LOAD_ADDR_EA_Q(void)
 {
         uint32_t addr = &codeblock[block_current].data[block_pos];
         
@@ -295,7 +295,7 @@ static uint32_t gen_MEM_LOAD_ADDR_EA_Q()
         return addr;
 }
 
-static uint32_t gen_MEM_STORE_ADDR_EA_B()
+static uint32_t gen_MEM_STORE_ADDR_EA_B(void)
 {
         uint32_t addr = &codeblock[block_current].data[block_pos];
         
@@ -343,7 +343,7 @@ static uint32_t gen_MEM_STORE_ADDR_EA_B()
         return addr;
 }
 
-static uint32_t gen_MEM_STORE_ADDR_EA_W()
+static uint32_t gen_MEM_STORE_ADDR_EA_W(void)
 {
         uint32_t addr = &codeblock[block_current].data[block_pos];
         
@@ -399,7 +399,7 @@ static uint32_t gen_MEM_STORE_ADDR_EA_W()
         return addr;
 }
 
-static uint32_t gen_MEM_STORE_ADDR_EA_L()
+static uint32_t gen_MEM_STORE_ADDR_EA_L(void)
 {
         uint32_t addr = &codeblock[block_current].data[block_pos];
         
@@ -454,7 +454,7 @@ static uint32_t gen_MEM_STORE_ADDR_EA_L()
         return addr;
 }
 
-static uint32_t gen_MEM_STORE_ADDR_EA_Q()
+static uint32_t gen_MEM_STORE_ADDR_EA_Q(void)
 {
         uint32_t addr = &codeblock[block_current].data[block_pos];
         
@@ -515,7 +515,7 @@ static uint32_t gen_MEM_STORE_ADDR_EA_Q()
 }
 
 static char gen_MEM_LOAD_ADDR_EA_B_NO_ABRT_err[] = "gen_MEM_LOAD_ADDR_EA_B_NO_ABRT aborted\n";
-static uint32_t gen_MEM_LOAD_ADDR_EA_B_NO_ABRT()
+static uint32_t gen_MEM_LOAD_ADDR_EA_B_NO_ABRT(void)
 {
         uint32_t addr = &codeblock[block_current].data[block_pos];
 
@@ -577,7 +577,7 @@ static uint32_t gen_MEM_LOAD_ADDR_EA_B_NO_ABRT()
 }
 
 static char gen_MEM_LOAD_ADDR_EA_W_NO_ABRT_err[] = "gen_MEM_LOAD_ADDR_EA_W_NO_ABRT aborted\n";
-static uint32_t gen_MEM_LOAD_ADDR_EA_W_NO_ABRT()
+static uint32_t gen_MEM_LOAD_ADDR_EA_W_NO_ABRT(void)
 {
         uint32_t addr = &codeblock[block_current].data[block_pos];
 
@@ -646,7 +646,7 @@ static uint32_t gen_MEM_LOAD_ADDR_EA_W_NO_ABRT()
 }
 
 static char gen_MEM_LOAD_ADDR_EA_L_NO_ABRT_err[] = "gen_MEM_LOAD_ADDR_EA_L_NO_ABRT aborted\n";
-static uint32_t gen_MEM_LOAD_ADDR_EA_L_NO_ABRT()
+static uint32_t gen_MEM_LOAD_ADDR_EA_L_NO_ABRT(void)
 {
         uint32_t addr = &codeblock[block_current].data[block_pos];
 
@@ -714,7 +714,7 @@ static uint32_t gen_MEM_LOAD_ADDR_EA_L_NO_ABRT()
 }
 
 static char gen_MEM_STORE_ADDR_EA_B_NO_ABRT_err[] = "gen_MEM_STORE_ADDR_EA_B_NO_ABRT aborted\n";
-static uint32_t gen_MEM_STORE_ADDR_EA_B_NO_ABRT()
+static uint32_t gen_MEM_STORE_ADDR_EA_B_NO_ABRT(void)
 {
         uint32_t addr = &codeblock[block_current].data[block_pos];
         
@@ -772,7 +772,7 @@ static uint32_t gen_MEM_STORE_ADDR_EA_B_NO_ABRT()
 }
 
 static char gen_MEM_STORE_ADDR_EA_W_NO_ABRT_err[] = "gen_MEM_STORE_ADDR_EA_W_NO_ABRT aborted\n";
-static uint32_t gen_MEM_STORE_ADDR_EA_W_NO_ABRT()
+static uint32_t gen_MEM_STORE_ADDR_EA_W_NO_ABRT(void)
 {
         uint32_t addr = &codeblock[block_current].data[block_pos];
         
@@ -838,7 +838,7 @@ static uint32_t gen_MEM_STORE_ADDR_EA_W_NO_ABRT()
 }
 
 static char gen_MEM_STORE_ADDR_EA_L_NO_ABRT_err[] = "gen_MEM_STORE_ADDR_EA_L_NO_ABRT aborted\n";
-static uint32_t gen_MEM_STORE_ADDR_EA_L_NO_ABRT()
+static uint32_t gen_MEM_STORE_ADDR_EA_L_NO_ABRT(void)
 {
         uint32_t addr = &codeblock[block_current].data[block_pos];
         
@@ -902,7 +902,7 @@ static uint32_t gen_MEM_STORE_ADDR_EA_L_NO_ABRT()
         return addr;
 }
 
-static uint32_t gen_MEM_CHECK_WRITE()
+static uint32_t gen_MEM_CHECK_WRITE(void)
 {
         uint32_t addr = &codeblock[block_current].data[block_pos];
         
@@ -964,7 +964,7 @@ static uint32_t gen_MEM_CHECK_WRITE()
         pclog("checkdebug %08x\n", a);
 }*/
 
-static uint32_t gen_MEM_CHECK_WRITE_W()
+static uint32_t gen_MEM_CHECK_WRITE_W(void)
 {
         uint32_t addr = &codeblock[block_current].data[block_pos];
         
@@ -1046,7 +1046,7 @@ static uint32_t gen_MEM_CHECK_WRITE_W()
         return addr;
 }
 
-static uint32_t gen_MEM_CHECK_WRITE_L()
+static uint32_t gen_MEM_CHECK_WRITE_L(void)
 {
         uint32_t addr = &codeblock[block_current].data[block_pos];
         
@@ -1128,7 +1128,7 @@ static uint32_t gen_MEM_CHECK_WRITE_L()
         return addr;
 }
 
-void codegen_init()
+void codegen_init(void)
 {
         int c;
 #ifdef __linux__
@@ -1211,14 +1211,14 @@ void codegen_init()
         );
 }
 
-void codegen_reset()
+void codegen_reset(void)
 {
         memset(codeblock, 0, BLOCK_SIZE * sizeof(codeblock_t));
         memset(codeblock_hash, 0, HASH_SIZE * sizeof(codeblock_t *));
         mem_reset_page_blocks();
 }
 
-void dump_block()
+void dump_block(void)
 {
         codeblock_t *block = pages[0x119000 >> 12].block;
 
@@ -1484,7 +1484,7 @@ void codegen_block_start_recompile(codeblock_t *block)
         block->was_recompiled = 1;
 }
 
-void codegen_block_remove()
+void codegen_block_remove(void)
 {
         codeblock_t *block = &codeblock[block_current];
 
@@ -1494,7 +1494,7 @@ void codegen_block_remove()
         recomp_page = -1;
 }
 
-void codegen_block_generate_end_mask()
+void codegen_block_generate_end_mask(void)
 {
         codeblock_t *block = &codeblock[block_current];
         uint32_t start_pc = (block->pc & 0xffc) | (block->phys & ~0xfff);
@@ -1553,7 +1553,7 @@ void codegen_block_generate_end_mask()
         recomp_page = -1;
 }
 
-void codegen_block_end()
+void codegen_block_end(void)
 {
         codeblock_t *block = &codeblock[block_current];
 
@@ -1611,7 +1611,7 @@ void codegen_block_end_recompile(codeblock_t *block)
                 block->flags &= ~CODEBLOCK_STATIC_TOP;
 }
 
-void codegen_flush()
+void codegen_flush(void)
 {
         return;
 }
@@ -1684,7 +1684,7 @@ int opcode_0f_modrm[256] =
         0, 1, 1, 1,  0, 1, 0, 0,  1, 1, 1, 0,  1, 1, 1, 0  /*f0*/
 };
         
-void codegen_debug()
+void codegen_debug(void)
 {
         if (output)
         {

@@ -1,7 +1,7 @@
 /* Copyright holders: Sarah Walker
    see COPYING for more details
 */
-void io_init();
+void io_init(void);
 
 void io_sethandler(uint16_t base, int size, 
                    uint8_t  (*inb)(uint16_t addr, void *priv), 

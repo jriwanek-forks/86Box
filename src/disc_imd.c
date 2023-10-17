@@ -42,7 +42,7 @@ static struct
 	uint8_t track_buffer[2][25000];
 } imd[FDD_NUM];
 
-void imd_init()
+void imd_init(void)
 {
         memset(imd, 0, sizeof(imd));
 }

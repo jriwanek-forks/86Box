@@ -487,7 +487,7 @@ void fdc37c932fr_reset(void)
         fdc37c932fr_locked = 0;
 }
 
-void fdc37c932fr_init()
+void fdc37c932fr_init(void)
 {
 	lpt2_remove();
 

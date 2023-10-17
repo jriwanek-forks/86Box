@@ -12,10 +12,10 @@
 extern "C" void fatal(const char *format, ...);
 extern "C" void pclog(const char *format, ...);
 
-extern "C" void device_force_redraw();
+extern "C" void device_force_redraw(void);
 
 extern "C" void ddraw_init(HWND h);
-extern "C" void ddraw_close();
+extern "C" void ddraw_close(void);
 
 HBITMAP hbitmap;
 

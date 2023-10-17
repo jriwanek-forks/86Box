@@ -24,7 +24,7 @@ static void adlib_get_buffer(int32_t *buffer, int len, void *p)
         adlib->opl.pos = 0;
 }
 
-void *adlib_init()
+void *adlib_init(void)
 {
         adlib_t *adlib = malloc(sizeof(adlib_t));
         memset(adlib, 0, sizeof(adlib_t));

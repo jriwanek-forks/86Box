@@ -47,13 +47,13 @@ struct
         uint8_t ctrl;
 } mmu;
 
-void et4000w32_reset()
+void et4000w32_reset(void)
 {
         acl.status=0;
         acl.cpu_input_num=0;
 }
 
-void et4000w32_blit_start();
+void et4000w32_blit_start(void);
 void et4000w32_blit(int count, uint32_t mix, uint32_t sdat, int cpu_input);
 
 int et4000w32_vbus[4]={1,2,4,4};
@@ -238,7 +238,7 @@ uint8_t et4000w32_mmu_read(uint32_t addr)
 int et4000w32_wrap_x[8]={0,0,3,7,15,31,63,0xFFFFFFFF};
 int et4000w32_wrap_y[8]={1,2,4,8,0xFFFFFFFF,0xFFFFFFFF,0xFFFFFFFF,0xFFFFFFFF};
 
-void et4000w32_blit_start()
+void et4000w32_blit_start(void)
 {
         pclog("Blit - %08X %08X %08X (%i,%i) %i  %i %i  %02X %02X  %02X\n",acl.internal.pattern_addr,acl.internal.source_addr,acl.internal.dest_addr,acl.internal.dest_addr%640,acl.internal.dest_addr/640,acl.internal.xy_dir,acl.internal.count_x,acl.internal.count_y,acl.internal.rop_fg,acl.internal.rop_bg, acl.internal.ctrl_routing);
         acl.pattern_addr=acl.internal.pattern_addr;

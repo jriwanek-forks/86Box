@@ -7,7 +7,7 @@ int intclear;
 int keywaiting=0;
 int pic_intpending;
 
-void pic_updatepending()
+void pic_updatepending(void)
 {
 	uint16_t temp_pending = 0;
 	if (AT)
@@ -32,7 +32,7 @@ void pic_updatepending()
 }
 
 
-void pic_reset()
+void pic_reset(void)
 {
         pic.icw=0;
         pic.mask=0xFF;
@@ -62,7 +62,7 @@ void pic_update_mask(uint8_t *mask, uint8_t ins)
         }
 }
 
-static void pic_autoeoi()
+static void pic_autoeoi(void)
 {
         int c;
         
@@ -190,12 +190,12 @@ uint8_t pic_read(uint16_t addr, void *priv)
         return pic.pend;
 }
 
-void pic_init()
+void pic_init(void)
 {
         io_sethandler(0x0020, 0x0002, pic_read, NULL, NULL, pic_write, NULL, NULL, NULL);
 }
 
-static void pic2_autoeoi()
+static void pic2_autoeoi(void)
 {
         int c;
         
@@ -291,13 +291,13 @@ uint8_t pic2_read(uint16_t addr, void *priv)
         return pic2.pend;
 }
 
-void pic2_init()
+void pic2_init(void)
 {
         io_sethandler(0x00a0, 0x0002, pic2_read, NULL, NULL, pic2_write, NULL, NULL, NULL);
 }
 
 
-void clearpic()
+void clearpic(void)
 {
         pic.pend=pic.ins=0;
         pic_updatepending();
@@ -400,7 +400,7 @@ void picintc(uint16_t num)
         pic_updatepending();
 }
 
-uint8_t picinterrupt()
+uint8_t picinterrupt(void)
 {
         uint8_t temp=pic.pend&~pic.mask;
         int c;
@@ -476,7 +476,7 @@ uint8_t picinterrupt()
         return 0xFF;
 }
 
-void dumppic()
+void dumppic(void)
 {
         pclog("PIC1 : MASK %02X PEND %02X INS %02X VECTOR %02X\n",pic.mask,pic.pend,pic.ins,pic.vector);
 	if (AT)

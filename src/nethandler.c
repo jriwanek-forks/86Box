@@ -78,7 +78,7 @@ int network_card_get_from_internal_name(char *s)
 	return 0;
 }
 
-void network_card_init()
+void network_card_init(void)
 {
         if (network_cards[network_card_current].device)
                 device_add(network_cards[network_card_current].device);
@@ -128,7 +128,7 @@ static void network_thread(void *param)
 	// }
 }
 
-void network_thread_init()
+void network_thread_init(void)
 {
 #if 0
 	pclog("network_thread_init()\n");
@@ -146,7 +146,7 @@ void network_thread_init()
 #endif
 }
 
-void network_thread_reset()
+void network_thread_reset(void)
 {
 #if 0
 	if(!network_thread_initialized)
@@ -188,7 +188,7 @@ void vlan_poller(void *priv)
 	}
 }
 
-void vlan_reset()
+void vlan_reset(void)
 {
 	pclog("vlan_reset()\n");
 

@@ -17,9 +17,9 @@ extern "C" int video_fullscreen;
 extern "C" void fatal(const char *format, ...);
 extern "C" void pclog(const char *format, ...);
 
-extern "C" void joystick_init();
-extern "C" void joystick_close();
-extern "C" void poll_joystick();
+extern "C" void joystick_init(void);
+extern "C" void joystick_close(void);
+extern "C" void poll_joystick(void);
 
 plat_joystick_t plat_joystick_state[MAX_PLAT_JOYSTICKS];
 joystick_t joystick_state[MAX_JOYSTICKS];
@@ -87,7 +87,7 @@ BOOL CALLBACK DIEnumDeviceObjectsCallback(
         return DIENUM_CONTINUE;
 }
 
-void joystick_init()
+void joystick_init(void)
 {
         int c;
 
@@ -166,7 +166,7 @@ void joystick_init()
         }
 }
 
-void joystick_close()
+void joystick_close(void)
 {
         if (lpdi_joystick[1])
         {
@@ -204,7 +204,7 @@ static int joystick_get_axis(int joystick_nr, int mapping)
                 return plat_joystick_state[joystick_nr].a[plat_joystick_state[joystick_nr].axis[mapping].id];
 }
 
-void joystick_poll()
+void joystick_poll(void)
 {
         int c, d;
 

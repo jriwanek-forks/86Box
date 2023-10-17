@@ -118,7 +118,7 @@ void pc1640_poll(void *p)
         }
 }
 
-void *pc1640_init()
+void *pc1640_init(void)
 {
         pc1640_t *pc1640 = malloc(sizeof(pc1640_t));
         cga_t *cga = &pc1640->cga;

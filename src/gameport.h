@@ -7,7 +7,7 @@ extern device_t gameport_201_device;
 typedef struct
 {
         char name[80];
-        void *(*init)();
+        void *(*init)(void);
         void (*close)(void *p);
         uint8_t (*read)(void *p);
         void (*write)(void *p);
@@ -30,6 +30,6 @@ char *joystick_get_axis_name(int joystick, int id);
 char *joystick_get_button_name(int joystick, int id);
 char *joystick_get_pov_name(int joystick, int id);
 
-void gameport_update_joystick_type();
+void gameport_update_joystick_type(void);
 
 #define AXIS_NOT_PRESENT -99999

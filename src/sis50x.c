@@ -161,7 +161,7 @@ uint8_t sis50x_read(uint16_t port, void *priv)
 	}
 }
 
-void *sis501_init()
+void *sis501_init(void)
 {
         sis501_t *sis501 = malloc(sizeof(sis501_t));
         memset(sis501, 0, sizeof(sis501_t));
@@ -195,7 +195,7 @@ void *sis501_init()
 	return sis501;
 }
 
-void *sis503_init()
+void *sis503_init(void)
 {
         sis503_t *sis503 = malloc(sizeof(sis503_t));
         memset(sis503, 0, sizeof(sis503_t));
@@ -225,7 +225,7 @@ void *sis503_init()
 	return sis503;
 }
 
-void *sis50x_init()
+void *sis50x_init(void)
 {
         sis50x_t *sis50x = malloc(sizeof(sis50x_t));
         memset(sis50x, 0, sizeof(sis50x_t));

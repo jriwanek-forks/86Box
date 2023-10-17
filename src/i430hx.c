@@ -130,7 +130,7 @@ void i430hx_pci_reset(void)
 	i430hx_write(0, 0x59, 0xf, NULL);
 }
 
-void i430hx_init()
+void i430hx_init(void)
 {
         pci_add_specific(0, i430hx_read, i430hx_write, NULL);
 

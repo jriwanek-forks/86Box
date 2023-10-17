@@ -147,10 +147,10 @@ uint8_t cyrix_read(uint16_t addr, void *priv);
 
 extern int is8086;
 
-void cpu_CPUID();
+void cpu_CPUID(void);
 
-void cpu_RDMSR();
-void cpu_WRMSR();
+void cpu_RDMSR(void);
+void cpu_WRMSR(void);
 
 extern int cpu_use_dynarec;
 
@@ -160,6 +160,6 @@ extern int xt_cpu_multi;
 extern int isa_cycles;
 #define ISA_CYCLES(x) ((x * isa_cycles) >> ISA_CYCLES_SHIFT)
 
-void cpu_update_waitstates();
+void cpu_update_waitstates(void);
 
 #endif

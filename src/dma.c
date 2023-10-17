@@ -16,7 +16,7 @@ static uint8_t dma16regs[16];
 static int dma16on[4];
 static uint8_t dmapages[16];
 
-void dma_reset()
+void dma_reset(void)
 {
         int c;
         dma.wp = 0;
@@ -308,29 +308,29 @@ uint8_t dma_page_read(uint16_t addr, void *priv)
         return dmapages[addr & 0xf];
 }
 
-void dma_init()
+void dma_init(void)
 {
         io_sethandler(0x0000, 0x0010, dma_read,      NULL, NULL, dma_write,      NULL, NULL,  NULL);
         io_sethandler(0x0080, 0x0008, dma_page_read, NULL, NULL, dma_page_write, NULL, NULL,  NULL);
 }
 
-void dma16_init()
+void dma16_init(void)
 {
         io_sethandler(0x00C0, 0x0020, dma16_read,    NULL, NULL, dma16_write,    NULL, NULL,  NULL);
         io_sethandler(0x0088, 0x0008, dma_page_read, NULL, NULL, dma_page_write, NULL, NULL,  NULL);
 }
 
-void dma_alias_set()
+void dma_alias_set(void)
 {
         io_sethandler(0x0090, 0x0010, dma_page_read, NULL, NULL, dma_page_write, NULL, NULL,  NULL);
 }
 
-void dma_alias_remove()
+void dma_alias_remove(void)
 {
         io_removehandler(0x0090, 0x0010, dma_page_read, NULL, NULL, dma_page_write, NULL, NULL,  NULL);
 }
 
-void dma_alias_remove_piix()
+void dma_alias_remove_piix(void)
 {
         io_removehandler(0x0090, 0x0001, dma_page_read, NULL, NULL, dma_page_write, NULL, NULL,  NULL);
         io_removehandler(0x0094, 0x0003, dma_page_read, NULL, NULL, dma_page_write, NULL, NULL,  NULL);
@@ -654,7 +654,7 @@ int dma_mode(int channel)
 	}
 }
 
-/* void dma_c2_mode()
+/* void dma_c2_mode(void)
 {
 	printf("DMA Channel 2 mode: %02X\n", dma.mode[2]);
 } */

@@ -848,12 +848,12 @@ static inline int COUNT(uint32_t c, int op_32)
         return c;
 }
 
-void codegen_timing_pentium_block_start()
+void codegen_timing_pentium_block_start(void)
 {
         u_pipe_full = decode_delay = 0;
 }
 
-void codegen_timing_pentium_start()
+void codegen_timing_pentium_start(void)
 {
 //        decode_delay = 0;
         last_prefix = 0;
@@ -1041,7 +1041,7 @@ nopair:
 //        pclog("Non-pairable timings : %08x t1=%i opcode=%02x mod3=%i decode_delay=%i %08x:%08x  %08x %p %p\n", timings[opcode], COUNT(timings[opcode], op_32), opcode, mod3, decode_delay, cs, pc,  opcode_timings[0x04], (void *)timings, (void *)opcode_timings);
 }
 
-void codegen_timing_pentium_block_end()
+void codegen_timing_pentium_block_end(void)
 {
         if (u_pipe_full)
         {

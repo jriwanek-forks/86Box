@@ -873,7 +873,7 @@ void wy700_poll(void *p)
         }
 }
 
-void *wy700_init()
+void *wy700_init(void)
 {
         int c;
         wy700_t *wy700 = malloc(sizeof(wy700_t));

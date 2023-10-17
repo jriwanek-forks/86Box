@@ -572,7 +572,7 @@ void BuslogicLog(const char *format, ...)
 #endif
 }
 		
-static int BuslogicIsPCI()
+static int BuslogicIsPCI(void)
 {
 	if (PCI && (scsi_model == 2))
 	{
@@ -651,7 +651,7 @@ static void BuslogicReset(Buslogic_t *Buslogic)
 	BuslogicLocalRam(Buslogic);
 }
 
-void BuslogicSoftReset()
+void BuslogicSoftReset(void)
 {
 	if (BuslogicResetDevice != NULL)
 	{
@@ -2422,7 +2422,7 @@ void BuslogicPCIWrite(int func, int addr, uint8_t val, void *p)
 	}
 }
 
-void *BuslogicInit()
+void *BuslogicInit(void)
 {
 	int i = 0;
 

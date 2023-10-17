@@ -51,7 +51,7 @@ static int rtc_get_days(int org_month, int org_year)
 }
 
 /* Called when the internal clock gets updated */
-static void rtc_recalc()
+static void rtc_recalc(void)
 {
         if (internal_clock.sec == 60)
         {
@@ -81,7 +81,7 @@ static void rtc_recalc()
 }
 
 /* Called when ticking the second */
-void rtc_tick()
+void rtc_tick(void)
 {
         internal_clock.sec++;
         rtc_recalc();
@@ -128,7 +128,7 @@ void time_update(char *nvrram, int reg)
 }
 
 /* Called to obtain the current day of the week based on the internal clock */
-static int time_week_day()
+static int time_week_day(void)
 {
         int day_of_month = internal_clock.mday;
         int month2 = internal_clock.mon;

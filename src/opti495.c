@@ -54,7 +54,7 @@ static uint8_t opti495_read(uint16_t addr, void *p)
         return 0xFF;
 }
 
-void opti495_init()
+void opti495_init(void)
 {
         io_sethandler(0x0022, 0x0001, opti495_read, NULL, NULL, opti495_write, NULL, NULL, NULL);
         io_sethandler(0x0024, 0x0001, opti495_read, NULL, NULL, opti495_write, NULL, NULL, NULL);

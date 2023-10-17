@@ -364,7 +364,7 @@ void colorplus_init(colorplus_t *colorplus)
 	cga_init(&colorplus->cga);
 }
 
-void *colorplus_standalone_init()
+void *colorplus_standalone_init(void)
 {
         int display_type;
 

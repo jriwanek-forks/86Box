@@ -264,11 +264,11 @@ static inline int COUNT(int *c, int op_32)
         return *c;
 }
 
-void codegen_timing_486_block_start()
+void codegen_timing_486_block_start(void)
 {
 }
 
-void codegen_timing_486_start()
+void codegen_timing_486_start(void)
 {
         timing_count = 0;
         last_prefix = 0;
@@ -361,7 +361,7 @@ void codegen_timing_486_opcode(uint8_t opcode, uint32_t fetchdat, int op_32)
         codegen_block_cycles += timing_count;
 }
 
-void codegen_timing_486_block_end()
+void codegen_timing_486_block_end(void)
 {
 }
 

@@ -2209,25 +2209,25 @@ id_not_found:
 	ide_irq_raise(ide);
 }
 
-void ide_callback_pri()
+void ide_callback_pri(void)
 {
 	idecallback[0] = 0;
 	callbackide(0);
 }
 
-void ide_callback_sec()
+void ide_callback_sec(void)
 {
 	idecallback[1] = 0;
 	callbackide(1);
 }
 
-void ide_callback_ter()
+void ide_callback_ter(void)
 {
 	idecallback[2] = 0;
 	callbackide(2);
 }
 
-void ide_callback_qua()
+void ide_callback_qua(void)
 {
 	idecallback[3] = 0;
 	callbackide(3);
@@ -2335,44 +2335,44 @@ uint32_t ide_read_qua_l(uint16_t addr, void *priv)
 }
 /* *** REMOVE FROM CODE SUBMITTED TO MAINLINE - END *** */
 
-void ide_pri_enable()
+void ide_pri_enable(void)
 {
         io_sethandler(0x01f0, 0x0008, ide_read_pri, ide_read_pri_w, ide_read_pri_l, ide_write_pri, ide_write_pri_w, ide_write_pri_l, NULL);
         io_sethandler(0x03f6, 0x0001, ide_read_pri, NULL,           NULL,           ide_write_pri, NULL,            NULL           , NULL);
 }
 
-void ide_pri_disable()
+void ide_pri_disable(void)
 {
         io_removehandler(0x01f0, 0x0008, ide_read_pri, ide_read_pri_w, ide_read_pri_l, ide_write_pri, ide_write_pri_w, ide_write_pri_l, NULL);
         io_removehandler(0x03f6, 0x0001, ide_read_pri, NULL,           NULL,           ide_write_pri, NULL,            NULL           , NULL);
 }
 
-void ide_sec_enable()
+void ide_sec_enable(void)
 {
         io_sethandler(0x0170, 0x0008, ide_read_sec, ide_read_sec_w, ide_read_sec_l, ide_write_sec, ide_write_sec_w, ide_write_sec_l, NULL);
         io_sethandler(0x0376, 0x0001, ide_read_sec, NULL,           NULL,           ide_write_sec, NULL,            NULL           , NULL);
 }
 
-void ide_sec_disable()
+void ide_sec_disable(void)
 {
         io_removehandler(0x0170, 0x0008, ide_read_sec, ide_read_sec_w, ide_read_sec_l, ide_write_sec, ide_write_sec_w, ide_write_sec_l, NULL);
         io_removehandler(0x0376, 0x0001, ide_read_sec, NULL,           NULL,           ide_write_sec, NULL,            NULL           , NULL);
 }
 
 /* *** REMOVE FROM CODE SUBMITTED TO MAINLINE - START *** */
-void ide_ter_enable()
+void ide_ter_enable(void)
 {
         io_sethandler(0x0168, 0x0008, ide_read_ter, ide_read_ter_w, ide_read_ter_l, ide_write_ter, ide_write_ter_w, ide_write_ter_l, NULL);
         io_sethandler(0x036e, 0x0001, ide_read_ter, NULL,           NULL,           ide_write_ter, NULL,            NULL           , NULL);
 }
 
-void ide_ter_disable()
+void ide_ter_disable(void)
 {
         io_removehandler(0x0168, 0x0008, ide_read_ter, ide_read_ter_w, ide_read_ter_l, ide_write_ter, ide_write_ter_w, ide_write_ter_l, NULL);
         io_removehandler(0x036e, 0x0001, ide_read_ter, NULL,           NULL,           ide_write_ter, NULL,            NULL           , NULL);
 }
 
-void ide_ter_disable_cond()
+void ide_ter_disable_cond(void)
 {
 		if ((ide_drives[4].type == IDE_NONE) && (ide_drives[5].type == IDE_NONE))
 		{
@@ -2380,20 +2380,20 @@ void ide_ter_disable_cond()
 		}
 }
 
-void ide_ter_init()
+void ide_ter_init(void)
 {
 		ide_ter_enable();
 
         timer_add(ide_callback_ter, &idecallback[2], &idecallback[2],  NULL);
 }
 
-void ide_qua_enable()
+void ide_qua_enable(void)
 {
         io_sethandler(0x01e8, 0x0008, ide_read_qua, ide_read_qua_w, ide_read_qua_l, ide_write_qua, ide_write_qua_w, ide_write_qua_l, NULL);
         io_sethandler(0x03ee, 0x0001, ide_read_qua, NULL,           NULL,           ide_write_qua, NULL,            NULL           , NULL);
 }
 
-void ide_qua_disable_cond()
+void ide_qua_disable_cond(void)
 {
 		if ((ide_drives[6].type == IDE_NONE) && (ide_drives[7].type == IDE_NONE))
 		{
@@ -2401,13 +2401,13 @@ void ide_qua_disable_cond()
 		}
 }
 
-void ide_qua_disable()
+void ide_qua_disable(void)
 {
         io_removehandler(0x01e8, 0x0008, ide_read_qua, ide_read_qua_w, ide_read_qua_l, ide_write_qua, ide_write_qua_w, ide_write_qua_l, NULL);
         io_removehandler(0x03ee, 0x0001, ide_read_qua, NULL,           NULL,           ide_write_qua, NULL,            NULL           , NULL);
 }
 
-void ide_qua_init()
+void ide_qua_init(void)
 {
 		ide_qua_enable();
 
@@ -2415,7 +2415,7 @@ void ide_qua_init()
 }
 /* *** REMOVE FROM CODE SUBMITTED TO MAINLINE - END *** */
 
-void ide_init()
+void ide_init(void)
 {
         ide_pri_enable();
         ide_sec_enable();

@@ -35,7 +35,7 @@ static int sense_switches = 0xE;
 
 svga_t *svga_pointer;
 
-svga_t *svga_get_pri()
+svga_t *svga_get_pri(void)
 {
         return svga_pri;
 }

@@ -66,7 +66,7 @@ void mousecallback(void *p)
         }
 }
 
-void *mouse_serial_init()
+void *mouse_serial_init(void)
 {
         mouse_serial_t *mouse = (mouse_t *)malloc(sizeof(mouse_serial_t));
         memset(mouse, 0, sizeof(mouse_serial_t));

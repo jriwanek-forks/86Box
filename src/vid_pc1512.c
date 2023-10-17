@@ -455,7 +455,7 @@ static void pc1512_poll(void *p)
         }
 }
 
-static void *pc1512_init()
+static void *pc1512_init(void)
 {
         int c;
         pc1512_t *pc1512 = malloc(sizeof(pc1512_t));

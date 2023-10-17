@@ -177,7 +177,7 @@ LONG CALLBACK MakeCrashDump(PEXCEPTION_POINTERS ExceptionInfo) {
 	return EXCEPTION_CONTINUE_SEARCH;
 }
 
-void InitCrashDump() {
+void InitCrashDump(void) {
 	// An exception handler should not allocate memory, so allocate 10kb for it to use if it gets called, an amount which should be more than enough.
 	ExceptionHandlerBuffer = malloc(ExceptionHandlerBufferSize);
 	// Register the exception handler. Zero first argument means this exception handler gets called last, therefore, crash dump is only made, when a crash is going to happen.

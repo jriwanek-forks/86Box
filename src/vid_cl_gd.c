@@ -875,92 +875,92 @@ void *clgd_common_init(char *romfn, uint8_t id)
         return clgd;
 }
 
-void *gd6235_init()
+void *gd6235_init(void)
 {
 	return clgd_common_init("roms/vga6235.rom", CIRRUS_ID_CLGD6235);
 }
 
-void *gd5422_init()
+void *gd5422_init(void)
 {
 	return clgd_common_init("roms/CL5422.ROM", CIRRUS_ID_CLGD5422);
 }
 
-void *gd5429_init()
+void *gd5429_init(void)
 {
 	return clgd_common_init("roms/5429.vbi", CIRRUS_ID_CLGD5429);
 }
 
-void *gd5430_init()
+void *gd5430_init(void)
 {
 	return clgd_common_init("roms/pci.BIN", CIRRUS_ID_CLGD5430);
 }
 
-void *dia5430_init()
+void *dia5430_init(void)
 {
 	return clgd_common_init("roms/diamondvlbus.BIN", CIRRUS_ID_CLGD5430);
 }
 
-void *gd5434_init()
+void *gd5434_init(void)
 {
 	return clgd_common_init("roms/japan.BIN", CIRRUS_ID_CLGD5434);
 }
 
-void *gd5436_init()
+void *gd5436_init(void)
 {
 	return clgd_common_init("roms/5436.VBI", CIRRUS_ID_CLGD5436);
 }
 
-void *gd5440_init()
+void *gd5440_init(void)
 {
 	return clgd_common_init("roms/5440BIOS.BIN", CIRRUS_ID_CLGD5440);
 }
 
-void *gd5446_init()
+void *gd5446_init(void)
 {
 	return clgd_common_init("roms/5446BV.VBI", CIRRUS_ID_CLGD5446);
 }
 
-static int gd5422_available()
+static int gd5422_available(void)
 {
         return rom_present("roms/CL5422.ROM");
 }
 
-static int gd5429_available()
+static int gd5429_available(void)
 {
         return rom_present("roms/5429.vbi");
 }
 
-static int gd5430_available()
+static int gd5430_available(void)
 {
         return rom_present("roms/pci.BIN");
 }
 
-static int dia5430_available()
+static int dia5430_available(void)
 {
         return rom_present("roms/diamondvlbus.BIN");
 }
 
-static int gd5434_available()
+static int gd5434_available(void)
 {
         return rom_present("roms/japan.BIN");
 }
 
-static int gd5436_available()
+static int gd5436_available(void)
 {
         return rom_present("roms/5436.VBI");
 }
 
-static int gd5440_available()
+static int gd5440_available(void)
 {
         return rom_present("roms/5440BIOS.BIN");
 }
 
-static int gd5446_available()
+static int gd5446_available(void)
 {
         return rom_present("roms/5446BV.VBI");
 }
 
-static int gd6235_available()
+static int gd6235_available(void)
 {
         return rom_present("roms/vga6235.rom");
 }

@@ -192,12 +192,12 @@ void updatewindowsize(int x, int y)
         win_doresize = 1;
 }
 
-void uws_natural()
+void uws_natural(void)
 {
 	updatewindowsize(unscaled_size_x, efwinsizey);
 }
 
-void releasemouse()
+void releasemouse(void)
 {
         if (mousecapture) 
         {
@@ -207,17 +207,17 @@ void releasemouse()
         }
 }
 
-void startblit()
+void startblit(void)
 {
         WaitForSingleObject(ghMutex, INFINITE);
 }
 
-void endblit()
+void endblit(void)
 {
         ReleaseMutex(ghMutex);
 }
 
-void leave_fullscreen()
+void leave_fullscreen(void)
 {
         leave_fullscreen_flag = 1;
 }
@@ -309,7 +309,7 @@ typedef struct win_event_t
         HANDLE handle;
 } win_event_t;
 
-event_t *thread_create_event()
+event_t *thread_create_event(void)
 {
         win_event_t *event = malloc(sizeof(win_event_t));
         
@@ -390,7 +390,7 @@ void set_window_title(char *s)
         SetWindowText(ghwnd, s);
 }
 
-uint64_t timer_read()
+uint64_t timer_read(void)
 {
         LARGE_INTEGER qpc_time;
         QueryPerformanceCounter(&qpc_time);
@@ -437,7 +437,7 @@ UINT16 convert_scan_code(UINT16 scan_code)
 	}
 }
 
-void get_registry_key_map()
+void get_registry_key_map(void)
 {
 	char *keyName = "SYSTEM\\CurrentControlSet\\Control\\Keyboard Layout";
 	char *valueName = "Scancode Map";
@@ -487,7 +487,7 @@ static char **argv;
 static int argc;
 static char *argbuf;
 
-static void process_command_line()
+static void process_command_line(void)
 {
         char *cmdline;
         int argc_max;

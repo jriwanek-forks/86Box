@@ -149,7 +149,7 @@ void et4000_recalctimings(svga_t *svga)
         }
 }
 
-void *et4000_init()
+void *et4000_init(void)
 {
         et4000_t *et4000 = malloc(sizeof(et4000_t));
         memset(et4000, 0, sizeof(et4000_t));
@@ -167,7 +167,7 @@ void *et4000_init()
         return et4000;
 }
 
-static int et4000_available()
+static int et4000_available(void)
 {
         return rom_present("roms/et4000.BIN");
 }

@@ -460,7 +460,7 @@ void cga_init(cga_t *cga)
         cga->composite = 0;
 }
 
-void *cga_standalone_init()
+void *cga_standalone_init(void)
 {
         int display_type;
         cga_t *cga = malloc(sizeof(cga_t));

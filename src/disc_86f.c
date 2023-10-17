@@ -3326,7 +3326,7 @@ void d86f_load(int drive, char *fn)
 	d86f_log("86F: Disk is %scompressed and %s surface description data\n", d86f[drive].is_compressed ? "" : "not ", d86f_has_surface_desc(drive) ? "has" : "does not have");
 }
 
-void d86f_init()
+void d86f_init(void)
 {
 	disc_random_init();
 

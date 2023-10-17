@@ -88,7 +88,7 @@ uint16_t fdi_side_flags(int drive)
 	return temp_side_flags;
 }
 
-int fdi_density()
+int fdi_density(void)
 {
 	if (!fdc_is_mfm())
 	{
@@ -312,7 +312,7 @@ void fdi_seek(int drive, int track)
 	fdi_read_revolution(drive);
 }
 
-void fdi_init()
+void fdi_init(void)
 {
 //        printf("FDI reset\n");
 }

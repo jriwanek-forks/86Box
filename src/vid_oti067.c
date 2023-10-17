@@ -189,25 +189,25 @@ void *oti067_common_init(char *bios_fn, int vram_size, int chip_id)
         return oti067;
 }
 
-/* void *oti037_init()
+/* void *oti037_init(void)
 {
         int vram_size = device_get_config_int("memory");
         return oti067_common_init("roms/hyundai_oti037c.bin", vram_size, 0);
 } */
 
-void *oti067_init()
+void *oti067_init(void)
 {
         int vram_size = device_get_config_int("memory");
         return oti067_common_init("roms/oti067/bios.bin", vram_size, 2);
 }
 
-void *oti077_init()
+void *oti077_init(void)
 {
         int vram_size = device_get_config_int("memory");
         return oti067_common_init("roms/oti077.vbi", vram_size, 5);
 }
 
-void *oti067_acer386_init()
+void *oti067_acer386_init(void)
 {
         oti067_t *oti067 = oti067_common_init("roms/acer386/oti067.bin", 512, 2);
         
@@ -217,17 +217,17 @@ void *oti067_acer386_init()
         return oti067;
 }
 
-/* static int oti037_available()
+/* static int oti037_available(void)
 {
         return rom_present("roms/hyundai_oti037c.bin");
 } */
 
-static int oti067_available()
+static int oti067_available(void)
 {
         return rom_present("roms/oti067/bios.bin");
 }
 
-static int oti077_available()
+static int oti077_available(void)
 {
         return rom_present("roms/oti077.vbi");
 }

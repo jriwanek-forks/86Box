@@ -35,14 +35,14 @@ uint8_t memregs_read(uint16_t port, void *priv)
 	return mem_regs[port & 0xf];
 }
 
-void memregs_init()
+void memregs_init(void)
 {
 	pclog("Memory Registers Init\n");
 
         io_sethandler(0x00e1, 0x0002, memregs_read, NULL, NULL, memregs_write, NULL, NULL,  NULL);
 }
 
-void powermate_memregs_init()
+void powermate_memregs_init(void)
 {
 	pclog("Memory Registers Init\n");
 

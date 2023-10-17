@@ -631,7 +631,7 @@ void tandy_poll(void *p)
         }
 }
 
-void *tandy_init()
+void *tandy_init(void)
 {
         int display_type;
         tandy_t *tandy = malloc(sizeof(tandy_t));

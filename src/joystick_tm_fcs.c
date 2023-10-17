@@ -6,7 +6,7 @@
 #include "joystick_standard.h"
 #include "plat-joystick.h"
 
-static void *tm_fcs_init()
+static void *tm_fcs_init(void)
 {
 }
 

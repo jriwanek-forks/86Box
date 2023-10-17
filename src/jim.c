@@ -65,7 +65,7 @@ uint8_t readjim(uint16_t addr, void *p)
         return 0;
 }
 
-void jim_init()
+void jim_init(void)
 {
         uint8_t viddat;
         memset(europc_rtc.dat,0,16);

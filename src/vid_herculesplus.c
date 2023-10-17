@@ -670,7 +670,7 @@ void herculesplus_poll(void *p)
         }
 }
 
-void *herculesplus_init()
+void *herculesplus_init(void)
 {
         int c;
         herculesplus_t *herculesplus = malloc(sizeof(herculesplus_t));

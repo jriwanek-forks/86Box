@@ -89,7 +89,7 @@ static int opFSTP(uint32_t fetchdat)
 
 
 
-static int FSTOR()
+static int FSTOR(void)
 {
         FP_ENTER();
         switch ((cr0 & 1) | (cpu_state.op32 & 0x100))
@@ -149,7 +149,7 @@ static int opFSTOR_a32(uint32_t fetchdat)
         return cpu_state.abrt;
 }
 
-static int FSAVE()
+static int FSAVE(void)
 {
         FP_ENTER();
         if (fplog) pclog("FSAVE %08X:%08X %i\n", easeg, cpu_state.eaaddr, cpu_state.ismmx);
@@ -678,7 +678,7 @@ static int opFCOS(uint32_t fetchdat)
 }
 
 
-static int FLDENV()
+static int FLDENV(void)
 {
         FP_ENTER();
         if (fplog) pclog("FLDENV %08X:%08X\n", easeg, cpu_state.eaaddr);
@@ -747,7 +747,7 @@ static int opFLDCW_a32(uint32_t fetchdat)
         return 0;
 }
 
-static int FSTENV()
+static int FSTENV(void)
 {
         FP_ENTER();
         if (fplog) pclog("FSTENV %08X:%08X\n", easeg, cpu_state.eaaddr);

@@ -180,7 +180,7 @@ static void pssj_get_buffer(int32_t *buffer, int len, void *p)
         pssj->pos = 0;
 }
 
-void *pssj_init()
+void *pssj_init(void)
 {
         pssj_t *pssj = malloc(sizeof(pssj_t));
         memset(pssj, 0, sizeof(pssj_t));

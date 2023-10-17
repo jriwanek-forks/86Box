@@ -2598,7 +2598,7 @@ void mach64_pci_write(int func, int addr, uint8_t val, void *p)
         }
 }
 
-void *mach64gx_init()
+void *mach64gx_init(void)
 {
         int c;
         mach64_t *mach64 = malloc(sizeof(mach64_t));
@@ -2646,7 +2646,7 @@ void *mach64gx_init()
         return mach64;
 }
 
-int mach64gx_available()
+int mach64gx_available(void)
 {
         return rom_present("roms/mach64gx/bios.bin");
 }

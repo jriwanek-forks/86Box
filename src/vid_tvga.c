@@ -290,7 +290,7 @@ void tvga_recalctimings(svga_t *svga)
         }
 }
 
-void *tvga8900d_init()
+void *tvga8900d_init(void)
 {
         tvga_t *tvga = malloc(sizeof(tvga_t));
         memset(tvga, 0, sizeof(tvga_t));
@@ -311,7 +311,7 @@ void *tvga8900d_init()
         return tvga;
 }
 
-static int tvga8900d_available()
+static int tvga8900d_available(void)
 {
         return rom_present("roms/TRIDENT.BIN");
 }

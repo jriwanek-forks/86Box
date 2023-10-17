@@ -796,7 +796,7 @@ void cirrus_write_bitblt(clgd_t *clgd, svga_t *svga, uint8_t reg_value)
 	}
 }
 
-void init_rops()
+void init_rops(void)
 {
 	int i = 0;
 

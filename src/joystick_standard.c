@@ -6,7 +6,7 @@
 #include "joystick_standard.h"
 #include "plat-joystick.h"
 
-static void *joystick_standard_init()
+static void *joystick_standard_init(void)
 {
 }
 

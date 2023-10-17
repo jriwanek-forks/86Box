@@ -195,7 +195,7 @@ static uint16_t lpt1_valid_ports[3] = {0x3BC, 0x378, 0x278};
 static uint16_t com1_valid_ports[9] = {0x3F8, 0x2F8, 0x3E8, 0x2E8};
 static uint16_t com2_valid_ports[9] = {0x3F8, 0x2F8, 0x3E8, 0x2E8};
 
-static void w83877f_remap()
+static void w83877f_remap(void)
 {
         io_removehandler(0x250, 0x0002, w83877f_read, NULL, NULL, w83877f_write, NULL, NULL,  NULL);
         io_removehandler(0x3f0, 0x0002, w83877f_read, NULL, NULL, w83877f_write, NULL, NULL,  NULL);
@@ -527,7 +527,7 @@ void w83877f_reset(void)
         w83877f_rw_locked = 0;
 }
 
-void w83877f_init()
+void w83877f_init(void)
 {
 	lpt2_remove();
 

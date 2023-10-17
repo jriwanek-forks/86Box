@@ -1012,7 +1012,7 @@ void incolor_poll(void *p)
         }
 }
 
-void *incolor_init()
+void *incolor_init(void)
 {
         int c;
         incolor_t *incolor = malloc(sizeof(incolor_t));

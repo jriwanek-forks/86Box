@@ -94,7 +94,7 @@ void wd76c10_writeb(uint16_t port, uint8_t val, void *priv)
            wd76c10_write(port     , (temp & 0xff00) | val, priv);
 }
 
-void wd76c10_init()
+void wd76c10_init(void)
 {
         io_sethandler(0x0092, 0x0002, wd76c10_readb, wd76c10_read, NULL, wd76c10_writeb, wd76c10_write, NULL,  NULL);
         io_sethandler(0x2072, 0x0002, wd76c10_readb, wd76c10_read, NULL, wd76c10_writeb, wd76c10_write, NULL,  NULL);

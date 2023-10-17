@@ -250,7 +250,7 @@ int video_timing[6][4] =
         {VIDEO_BUS, 3,  3,  4}
 };
 
-void video_updatetiming()
+void video_updatetiming(void)
 {
         if (video_timing[video_speed][0] == VIDEO_ISA)
         {
@@ -275,7 +275,7 @@ int video_res_x, video_res_y, video_bpp;
 void (*video_blit_memtoscreen_func)(int x, int y, int y1, int y2, int w, int h);
 void (*video_blit_memtoscreen_8_func)(int x, int y, int w, int h);
 
-void video_init()
+void video_init(void)
 {
         pclog("Video_init %i %i\n",romset,gfxcard);
 
@@ -500,7 +500,7 @@ int calc_16to32(int c)
 	return (b | g | r);
 }
 
-void initvideo()
+void initvideo(void)
 {
         int c, d, e;
 
@@ -572,7 +572,7 @@ void initvideo()
         blit_data.blit_thread = thread_create(blit_thread, NULL);
 }
 
-void closevideo()
+void closevideo(void)
 {
         thread_kill(blit_data.blit_thread);
         thread_destroy_event(blit_data.buffer_not_in_use);
@@ -604,19 +604,19 @@ static void blit_thread(void *param)
         }
 }
 
-void video_blit_complete()
+void video_blit_complete(void)
 {
         blit_data.buffer_in_use = 0;
         thread_set_event(blit_data.buffer_not_in_use);
 }
 
-void video_wait_for_blit()
+void video_wait_for_blit(void)
 {
         while (blit_data.busy)
                 thread_wait_event(blit_data.blit_complete, -1);
         thread_reset_event(blit_data.blit_complete);
 }
-void video_wait_for_buffer()
+void video_wait_for_buffer(void)
 {
         while (blit_data.buffer_in_use)
                 thread_wait_event(blit_data.buffer_not_in_use, -1);
@@ -667,7 +667,7 @@ void ddraw_take_screenshot(char *fn)
 {
 }
 
-void take_screenshot()
+void take_screenshot(void)
 {
 }
 #else
@@ -676,7 +676,7 @@ struct tm *info;
 char screenshot_fn_partial[2048];
 char screenshot_fn[4096];
 
-void take_screenshot()
+void take_screenshot(void)
 {
 	if ((vid_api < 0) || (vid_api > 1))  return;
 	time(&now);

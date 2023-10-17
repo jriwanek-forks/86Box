@@ -50,7 +50,7 @@ void setpitclock(float clock)
 
 //#define PITCONST (8000000.0/1193000.0)
 //#define PITCONST (cpuclock/1193000.0)
-void pit_reset()
+void pit_reset(void)
 {
         memset(&pit,0,sizeof(PIT));
         pit.l[0]=0xFFFF; pit.c[0]=0xFFFF*PITCONST;
@@ -64,12 +64,12 @@ void pit_reset()
         pit.using_timer[0] = pit.using_timer[1] = pit.using_timer[2] = 1;
 }
 
-void clearpit()
+void clearpit(void)
 {
         pit.c[0]=(pit.l[0]<<2);
 }
 
-float pit_timer0_freq()
+float pit_timer0_freq(void)
 {
         if (pit.l[0])
                 return 1193182.0f/(float)pit.l[0];
@@ -277,7 +277,7 @@ static void pit_over(int t)
         pit.running[t] = pit.enabled[t] && pit.using_timer[t] && !pit.disabled[t];
 }
 
-int pit_get_timer_0()
+int pit_get_timer_0(void)
 {
         int read = (int)((pit.c[0] + ((1 << TIMER_SHIFT) - 1)) / PITCONST) >> TIMER_SHIFT;
 //pclog("pit_get_timer_0: t=%i using_timer=%i m=%i\n", 0, pit.using_timer[0], pit.m[0]);
@@ -508,7 +508,7 @@ uint8_t pit_read(uint16_t addr, void *priv)
         return temp;
 }
 
-void pit_poll()
+void pit_poll(void)
 {
 //                printf("Poll pit %f %f %f\n",pit.c[0],pit.c[1],pit.c[2]);
         if (pit.c[0] < 1 && pit.running[0])
@@ -608,7 +608,7 @@ void pit_speaker_timer(int new_out, int old_out)
 }
 
 
-void pit_init()
+void pit_init(void)
 {
         io_sethandler(0x0040, 0x0004, pit_read, NULL, NULL, pit_write, NULL, NULL, NULL);
         pit.gate[0] = pit.gate[1] = 1;

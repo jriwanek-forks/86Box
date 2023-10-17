@@ -8,7 +8,7 @@
 #define HOST_REG_END 4
 #define HOST_REG_XMM_START 0
 #define HOST_REG_XMM_END 7
-static inline int find_host_reg()
+static inline int find_host_reg(void)
 {
         int c;
         for (c = HOST_REG_START; c < HOST_REG_END; c++)
@@ -21,7 +21,7 @@ static inline int find_host_reg()
                 fatal("Out of host regs!\n");
         return c;
 }
-static inline int find_host_xmm_reg()
+static inline int find_host_xmm_reg(void)
 {
         int c;
         for (c = HOST_REG_XMM_START; c < HOST_REG_XMM_END; c++)
@@ -1556,7 +1556,7 @@ static int BRANCH_COND_LE(int pc_offset, uint32_t op_pc, uint32_t offset, int no
 }
 
 
-static void FP_ENTER()
+static void FP_ENTER(void)
 {
         if (codegen_fpu_entered)
                 return;
@@ -1879,7 +1879,7 @@ static void FP_FXCH(int reg)
 }
 
 
-static void FP_LOAD_S()
+static void FP_LOAD_S(void)
 {
         if (codeblock[block_current].flags & CODEBLOCK_STATIC_TOP)
         {
@@ -1937,7 +1937,7 @@ static void FP_LOAD_S()
                 addbyte(cpu_state_offset(tag[0]));
         }
 }
-static void FP_LOAD_D()
+static void FP_LOAD_D(void)
 {
         if (codeblock[block_current].flags & CODEBLOCK_STATIC_TOP)
         {
@@ -1998,7 +1998,7 @@ static void FP_LOAD_D()
                 addbyte(cpu_state_offset(tag[0]));
         }
 }
-static void FP_LOAD_IW()
+static void FP_LOAD_IW(void)
 {
         if (codeblock[block_current].flags & CODEBLOCK_STATIC_TOP)
         {
@@ -2058,7 +2058,7 @@ static void FP_LOAD_IW()
                 addbyte(cpu_state_offset(tag[0]));
         }
 }
-static void FP_LOAD_IL()
+static void FP_LOAD_IL(void)
 {
         if (codeblock[block_current].flags & CODEBLOCK_STATIC_TOP)
         {
@@ -2116,7 +2116,7 @@ static void FP_LOAD_IL()
                 addbyte(cpu_state_offset(tag[0]));
         }
 }
-static void FP_LOAD_IQ()
+static void FP_LOAD_IQ(void)
 {
         if (codeblock[block_current].flags & CODEBLOCK_STATIC_TOP)
         {
@@ -2471,7 +2471,7 @@ static void FP_LOAD_REG_INT_Q(int reg, int *host_reg1, int *host_reg2)
         *host_reg2 = REG_ECX;
 }
 
-static void FP_POP()
+static void FP_POP(void)
 {
         if (codeblock[block_current].flags & CODEBLOCK_STATIC_TOP)
         {
@@ -2503,7 +2503,7 @@ static void FP_POP()
                 addbyte(cpu_state_offset(TOP));
         }
 }
-static void FP_POP2()
+static void FP_POP2(void)
 {
         if (codeblock[block_current].flags & CODEBLOCK_STATIC_TOP)
         {
@@ -2829,7 +2829,7 @@ static void FP_OP_IQ(int op)
 #define C2 (1<<10)
 #define C3 (1<<14)
 
-static void FP_COMPARE_S()
+static void FP_COMPARE_S(void)
 {
         if (codeblock[block_current].flags & CODEBLOCK_STATIC_TOP)
         {
@@ -2896,7 +2896,7 @@ static void FP_COMPARE_S()
                 addbyte(cpu_state_offset(npxs) + 1);
         }
 }
-static void FP_COMPARE_D()
+static void FP_COMPARE_D(void)
 {
         if (codeblock[block_current].flags & CODEBLOCK_STATIC_TOP)
         {
@@ -2971,7 +2971,7 @@ static void FP_COMPARE_D()
                 addbyte(cpu_state_offset(npxs) + 1);
         }
 }
-static void FP_COMPARE_IW()
+static void FP_COMPARE_IW(void)
 {
         if (codeblock[block_current].flags & CODEBLOCK_STATIC_TOP)
         {
@@ -3039,7 +3039,7 @@ static void FP_COMPARE_IW()
                 addbyte(cpu_state_offset(npxs) + 1);
         }
 }
-static void FP_COMPARE_IL()
+static void FP_COMPARE_IL(void)
 {
         if (codeblock[block_current].flags & CODEBLOCK_STATIC_TOP)
         {
@@ -3276,7 +3276,7 @@ static void FP_COMPARE_REG(int dst, int src)
         }
 }
 
-static void FP_FCHS()
+static void FP_FCHS(void)
 {
         if (codeblock[block_current].flags & CODEBLOCK_STATIC_TOP)
         {
@@ -3430,7 +3430,7 @@ static void CLEAR_BITS(uintptr_t addr, uint32_t val)
 #define LOAD_Q_REG_1 REG_EAX
 #define LOAD_Q_REG_2 REG_EDX
 
-static void MMX_ENTER()
+static void MMX_ENTER(void)
 {
         if (codegen_mmx_entered)
                 return;
@@ -3773,14 +3773,14 @@ static void MMX_PSLLQ_imm(int dst_reg, int amount)
 }
 
 
-static void SAVE_EA()
+static void SAVE_EA(void)
 {
         addbyte(0x89); /*MOV [ESP+12], EAX*/
         addbyte(0x44);
         addbyte(0x24);
         addbyte(12);
 }
-static void LOAD_EA()
+static void LOAD_EA(void)
 {
         addbyte(0x8b); /*MOV EAX, [ESP+12]*/
         addbyte(0x44);

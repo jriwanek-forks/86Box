@@ -5,7 +5,7 @@
 extern "C" {
 #endif
         int ddraw_init(HWND h);
-        void ddraw_close();
+        void ddraw_close(void);
 #ifdef __cplusplus
 }
 #endif

@@ -312,7 +312,7 @@ void hercules_poll(void *p)
         }
 }
 
-void *hercules_init()
+void *hercules_init(void)
 {
         int c;
         hercules_t *hercules = malloc(sizeof(hercules_t));

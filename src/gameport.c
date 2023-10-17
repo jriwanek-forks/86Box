@@ -164,7 +164,7 @@ void gameport_timer_over(void *p)
                 gameport->joystick->a0_over(gameport->joystick_dat);
 }
 
-void *gameport_init_common()
+void *gameport_init_common(void)
 {
         gameport_t *gameport = malloc(sizeof(gameport_t));
         
@@ -193,7 +193,7 @@ void *gameport_init_common()
         return gameport;
 }
 
-void gameport_update_joystick_type()
+void gameport_update_joystick_type(void)
 {
         gameport_t *gameport = gameport_global;
         
@@ -205,7 +205,7 @@ void gameport_update_joystick_type()
 	}
 }
 
-void *gameport_init()
+void *gameport_init(void)
 {
         gameport_t *gameport;
 
@@ -222,7 +222,7 @@ void *gameport_init()
         return gameport;
 }
 
-void *gameport_201_init()
+void *gameport_201_init(void)
 {
         gameport_t *gameport;
 

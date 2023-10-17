@@ -2722,7 +2722,7 @@ static void riva128_recalctimings(svga_t *svga)
 	riva128->nvfreq = freq;
 }
 
-static void *riva128_init()
+static void *riva128_init(void)
 {
 	riva128_t *riva128 = malloc(sizeof(riva128_t));
 	memset(riva128, 0, sizeof(riva128_t));
@@ -2832,7 +2832,7 @@ static void riva128_close(void *p)
 	free(riva128);
 }
 
-static int riva128_available()
+static int riva128_available(void)
 {
 	return rom_present("roms/Diamond_V330_rev-e.vbi");
 }
@@ -3010,7 +3010,7 @@ device_t riva128_device =
 	riva128_config
 };
 
-static void *rivatnt_init()
+static void *rivatnt_init(void)
 {
 	riva128_t *riva128 = malloc(sizeof(riva128_t));
 	memset(riva128, 0, sizeof(riva128_t));
@@ -3106,7 +3106,7 @@ static void rivatnt_close(void *p)
 	free(riva128);
 }
 
-static int rivatnt_available()
+static int rivatnt_available(void)
 {
 	return rom_present("roms/NV4_diamond_revB.rom");
 }
@@ -3228,7 +3228,7 @@ device_t rivatnt_device =
 	rivatnt_config
 };
 
-static void *rivatnt2_init()
+static void *rivatnt2_init(void)
 {
 	riva128_t *riva128 = malloc(sizeof(riva128_t));
 	memset(riva128, 0, sizeof(riva128_t));
@@ -3337,7 +3337,7 @@ static void rivatnt2_close(void *p)
 	free(riva128);
 }
 
-static int rivatnt2_available()
+static int rivatnt2_available(void)
 {
 	return rom_present("roms/NV5diamond.bin") || rom_present("roms/inno3d64bit.BIN") || rom_present("roms/creative.BIN");
 }

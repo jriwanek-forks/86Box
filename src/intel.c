@@ -57,7 +57,7 @@ static uint8_t batman_timer_read(uint16_t addr, void *p)
         return batman_timer_latch & 0xff;
 }
 
-void intel_batman_init()
+void intel_batman_init(void)
 {
         io_sethandler(0x0073, 0x0001, batman_brdconfig, NULL, NULL, NULL, NULL, NULL, NULL);
         io_sethandler(0x0075, 0x0001, batman_brdconfig, NULL, NULL, NULL, NULL, NULL, NULL);
@@ -79,7 +79,7 @@ uint8_t endeavor_brdconfig(uint16_t port, void *p)
         return 0;
 }
 
-void intel_endeavor_init()
+void intel_endeavor_init(void)
 {
         io_sethandler(0x0079, 0x0001, endeavor_brdconfig, NULL, NULL, NULL, NULL, NULL, NULL);
 }

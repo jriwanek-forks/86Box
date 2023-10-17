@@ -1,6 +1,6 @@
 extern double PITCONST;
-void pit_init();
-void pit_reset();
+void pit_init(void);
+void pit_reset(void);
 void pit_set_gate(int channel, int gate);
 void pit_set_using_timer(int t, int using_timer);
 void pit_set_out_func(int t, void (*func)(int new_out, int old_out));

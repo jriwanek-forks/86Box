@@ -42,17 +42,17 @@ int motoron[FDD_NUM];
 
 int fdc_indexcount = 52;
 
-/*void (*fdc_callback)();
+/*void (*fdc_callback)(void);
 void (*fdc_data)(uint8_t dat);
-void (*fdc_spindown)();
-void (*fdc_finishread)();
-void (*fdc_notfound)();
-void (*fdc_datacrcerror)();
-void (*fdc_headercrcerror)();
-void (*fdc_writeprotect)();
+void (*fdc_spindown)(void);
+void (*fdc_finishread)(void);
+void (*fdc_notfound)(void);
+void (*fdc_datacrcerror)(void);
+void (*fdc_headercrcerror)(void);
+void (*fdc_writeprotect)(void);
 int  (*fdc_getdata)(int last);
 void (*fdc_sectorid)(uint8_t track, uint8_t side, uint8_t sector, uint8_t size, uint8_t crc1, uint8_t crc2);
-void (*fdc_indexpulse)();*/
+void (*fdc_indexpulse)(void);*/
 
 static struct
 {
@@ -227,22 +227,22 @@ void disc_poll(int drive)
         }
 }
 
-void disc_poll_0()
+void disc_poll_0(void)
 {
 	disc_poll(0);
 }
 
-void disc_poll_1()
+void disc_poll_1(void)
 {
 	disc_poll(1);
 }
 
-void disc_poll_2()
+void disc_poll_2(void)
 {
 	disc_poll(2);
 }
 
-void disc_poll_3()
+void disc_poll_3(void)
 {
 	disc_poll(3);
 }
@@ -300,7 +300,7 @@ void disc_set_rate(int drive, int drvden, int rate)
         }
 }
 
-void disc_reset()
+void disc_reset(void)
 {
         curdrive = 0;
         disc_period = 32;
@@ -310,7 +310,7 @@ void disc_reset()
 	timer_add(disc_poll_3, &(disc_poll_time[3]), &(motoron[3]), NULL);
 }
 
-void disc_init()
+void disc_init(void)
 {
 //        pclog("disc_init %p\n", drives);
         drives[0].poll = drives[1].poll = drives[2].poll = drives[3].poll = 0;

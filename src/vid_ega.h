@@ -70,7 +70,7 @@ typedef struct ega_t
         int video_res_x, video_res_y, video_bpp;
 } ega_t;
 
-void   *ega_standalone_init();
+void   *ega_standalone_init(void);
 void    ega_out(uint16_t addr, uint8_t val, void *p);
 uint8_t ega_in(uint16_t addr, void *p);
 void    ega_poll(void *p);

@@ -10,7 +10,7 @@ static device_t *devices[256];
 
 static device_t *current_device;
 
-void device_init()
+void device_init(void)
 {
         memset(devices, 0, sizeof(devices));
 }
@@ -39,7 +39,7 @@ void device_add(device_t *d)
         device_priv[c] = priv;        
 }
 
-void device_close_all()
+void device_close_all(void)
 {
         int c;
         
@@ -66,7 +66,7 @@ int device_available(device_t *d)
         return 1;        
 }
 
-void device_speed_changed()
+void device_speed_changed(void)
 {
         int c;
         
@@ -84,7 +84,7 @@ void device_speed_changed()
         sound_speed_changed();
 }
 
-void device_force_redraw()
+void device_force_redraw(void)
 {
         int c;
         

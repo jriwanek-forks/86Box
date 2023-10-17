@@ -18,7 +18,7 @@ static uint32_t scat_xms_bound;
 static mem_mapping_t scat_shadowram_mapping;
 static mem_mapping_t scat_512k_clip_mapping;
 
-void scat_shadow_state_update()
+void scat_shadow_state_update(void)
 {
         int i, val, val2;
 
@@ -468,7 +468,7 @@ void mem_write_scatemsl(uint32_t addr, uint32_t val, void *priv)
                 mem_write_raml(addr, val, priv);
 }
 
-void scat_init()
+void scat_init(void)
 {
         int i;
 

@@ -154,7 +154,7 @@ uint8_t cms_read(uint16_t addr, void *p)
         return cms->regs[chip][cms->addrs[chip] & 31];
 }
 
-void *cms_init()
+void *cms_init(void)
 {
         cms_t *cms = malloc(sizeof(cms_t));
         memset(cms, 0, sizeof(cms_t));

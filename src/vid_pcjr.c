@@ -560,7 +560,7 @@ void pcjr_poll(void *p)
         }
 }
 
-static void *pcjr_video_init()
+static void *pcjr_video_init(void)
 {
         int display_type;
         pcjr_t *pcjr = malloc(sizeof(pcjr_t));

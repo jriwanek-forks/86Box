@@ -14,11 +14,11 @@
 extern "C" void fatal(const char *format, ...);
 extern "C" void pclog(const char *format, ...);
 
-extern "C" void device_force_redraw();
-extern "C" void video_blit_complete();
+extern "C" void device_force_redraw(void);
+extern "C" void video_blit_complete(void);
 
-void d3d_init_objects();
-void d3d_close_objects();
+void d3d_init_objects(void);
+void d3d_close_objects(void);
 void d3d_blit_memtoscreen(int x, int y, int y1, int y2, int w, int h);
 void d3d_blit_memtoscreen_8(int x, int y, int w, int h);
 
@@ -92,7 +92,7 @@ int d3d_init(HWND h)
 	return 1;
 }
 
-void d3d_close_objects()
+void d3d_close_objects(void)
 {
         if (d3dTexture)
         {
@@ -106,7 +106,7 @@ void d3d_close_objects()
         }
 }
 
-void d3d_init_objects()
+void d3d_init_objects(void)
 {
         HRESULT hr;
         D3DLOCKED_RECT dr;
@@ -154,7 +154,7 @@ void d3d_resize(int x, int y)
         d3d_reset();
 }
         
-void d3d_reset()
+void d3d_reset(void)
 {
         HRESULT hr;
         
@@ -189,7 +189,7 @@ void d3d_reset()
         device_force_redraw();
 }
 
-void d3d_close()
+void d3d_close(void)
 {       
         if (d3dTexture)
         {

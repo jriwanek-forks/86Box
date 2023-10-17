@@ -39,7 +39,7 @@ static int key_queue_start = 0, key_queue_end = 0;
 
 static uint8_t mouse_scancodes[7];
 
-void keyboard_olim24_poll()
+void keyboard_olim24_poll(void)
 {
         keybsenddelay += (1000 * TIMER_USEC);
         //pclog("poll %i\n", keyboard_olim24.wantirq);
@@ -197,7 +197,7 @@ uint8_t keyboard_olim24_read(uint16_t port, void *priv)
         return temp;
 }
 
-void keyboard_olim24_reset()
+void keyboard_olim24_reset(void)
 {
         keyboard_olim24.status = STAT_LOCK | STAT_CD;
         keyboard_olim24.wantirq = 0;
@@ -310,7 +310,7 @@ void mouse_olim24_poll(int x, int y, int z, int b, void *p)
         }
 }
 
-static void *mouse_olim24_init()
+static void *mouse_olim24_init(void)
 {
         mouse_olim24_t *mouse = (mouse_olim24_t *)malloc(sizeof(mouse_olim24_t));
         memset(mouse, 0, sizeof(mouse_olim24_t));
@@ -334,7 +334,7 @@ mouse_t mouse_olim24 =
         MOUSE_TYPE_OLIM24
 };
 
-void keyboard_olim24_init()
+void keyboard_olim24_init(void)
 {
         //return;
         io_sethandler(0x0060, 0x0002, keyboard_olim24_read, NULL, NULL, keyboard_olim24_write, NULL, NULL,  NULL);

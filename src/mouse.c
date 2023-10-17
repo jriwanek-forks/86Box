@@ -19,13 +19,13 @@ static mouse_t *cur_mouse;
 static void *mouse_p;
 int mouse_type = 0;
 
-void mouse_emu_init()
+void mouse_emu_init(void)
 {
         cur_mouse = mouse_list[mouse_type];
         mouse_p = cur_mouse->init();
 }
 
-void mouse_emu_close()
+void mouse_emu_close(void)
 {
         if (cur_mouse)
                 cur_mouse->close(mouse_p);

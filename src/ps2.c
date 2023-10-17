@@ -112,7 +112,7 @@ void ps2_write(uint16_t port, uint8_t val, void *p)
         }
 }
 
-void ps2board_init()
+void ps2board_init(void)
 {
         io_sethandler(0x0091, 0x0001, ps2_read, NULL, NULL, ps2_write, NULL, NULL, NULL);
         io_sethandler(0x0092, 0x0001, ps2_read, NULL, NULL, ps2_write, NULL, NULL, NULL);

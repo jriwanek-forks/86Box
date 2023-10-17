@@ -38,7 +38,7 @@ enum
         FLAGS_DEC32,
 };
 
-static inline int ZF_SET()
+static inline int ZF_SET(void)
 {
         switch (cpu_state.flags_op)
         {
@@ -73,7 +73,7 @@ static inline int ZF_SET()
         }
 }
 
-static inline int NF_SET()
+static inline int NF_SET(void)
 {
         switch (cpu_state.flags_op)
         {
@@ -112,7 +112,7 @@ static inline int NF_SET()
         }
 }
 
-static inline int PF_SET()
+static inline int PF_SET(void)
 {
         switch (cpu_state.flags_op)
         {
@@ -147,7 +147,7 @@ static inline int PF_SET()
         }
 }
 
-static inline int VF_SET()
+static inline int VF_SET(void)
 {
         switch (cpu_state.flags_op)
         {
@@ -198,7 +198,7 @@ static inline int VF_SET()
         }
 }
 
-static inline int AF_SET()
+static inline int AF_SET(void)
 {
         switch (cpu_state.flags_op)
         {
@@ -237,7 +237,7 @@ static inline int AF_SET()
         }
 }
 
-static inline int CF_SET()
+static inline int CF_SET(void)
 {
         switch (cpu_state.flags_op)
         {
@@ -295,7 +295,7 @@ static inline int CF_SET()
 //#define CF_SET() (flags & C_FLAG)
 //#define AF_SET() (flags & A_FLAG)
 
-static inline void flags_rebuild()
+static inline void flags_rebuild(void)
 {
         if (cpu_state.flags_op != FLAGS_UNKNOWN)
         {
@@ -311,12 +311,12 @@ static inline void flags_rebuild()
         }
 }
 
-static inline void flags_extract()
+static inline void flags_extract(void)
 {
         cpu_state.flags_op = FLAGS_UNKNOWN;
 }
 
-static inline void flags_rebuild_c()
+static inline void flags_rebuild_c(void)
 {
         if (cpu_state.flags_op != FLAGS_UNKNOWN)
         {

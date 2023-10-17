@@ -161,7 +161,7 @@ void ati18800_recalctimings(svga_t *svga)
         }
 }
 
-void *ati18800_init()
+void *ati18800_init(void)
 {
         ati18800_t *ati18800 = malloc(sizeof(ati18800_t));
         memset(ati18800, 0, sizeof(ati18800_t));
@@ -184,7 +184,7 @@ void *ati18800_init()
         return ati18800;
 }
 
-static int ati18800_available()
+static int ati18800_available(void)
 {
         return rom_present("roms/vga88.BIN");
 }

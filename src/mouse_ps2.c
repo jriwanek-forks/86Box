@@ -202,7 +202,7 @@ void mouse_ps2_poll(int x, int y, int z, int b, void *p)
         }
 }
 
-void *mouse_ps2_init()
+void *mouse_ps2_init(void)
 {
         mouse_ps2_t *mouse = (mouse_ps2_t *)malloc(sizeof(mouse_ps2_t));
         memset(mouse, 0, sizeof(mouse_ps2_t));
@@ -218,7 +218,7 @@ void *mouse_ps2_init()
         return mouse;
 }
 
-void *mouse_intellimouse_init()
+void *mouse_intellimouse_init(void)
 {
         mouse_ps2_t *mouse = mouse_ps2_init();
 

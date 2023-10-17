@@ -241,7 +241,7 @@ int find_cdrom_for_channel(uint8_t channel)
 
 void cdrom_init(int id, int cdb_len_setting, int bus_type);
 
-void build_atapi_cdrom_map()
+void build_atapi_cdrom_map(void)
 {
 	uint8_t i = 0;
 
@@ -271,7 +271,7 @@ int find_cdrom_for_scsi_id(uint8_t scsi_id, uint8_t scsi_lun)
 	return 0xff;
 }
 
-void build_scsi_cdrom_map()
+void build_scsi_cdrom_map(void)
 {
 	uint8_t i = 0;
 	uint8_t j = 0;

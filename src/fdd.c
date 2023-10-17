@@ -271,6 +271,6 @@ int fdd_get_densel(int drive)
 	}
 }
 
-void fdd_init()
+void fdd_init(void)
 {
 }

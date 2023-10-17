@@ -13,12 +13,12 @@
 extern "C" void fatal(const char *format, ...);
 extern "C" void pclog(const char *format, ...);
 
-extern "C" void device_force_redraw();
+extern "C" void device_force_redraw(void);
 
 extern "C" int ddraw_fs_init(HWND h);
-extern "C" void ddraw_fs_close();
+extern "C" void ddraw_fs_close(void);
  
-extern "C" void video_blit_complete();
+extern "C" void video_blit_complete(void);
 
 static void ddraw_fs_blit_memtoscreen(int x, int y, int y1, int y2, int w, int h);
 static void ddraw_fs_blit_memtoscreen_8(int x, int y, int w, int h);
@@ -92,7 +92,7 @@ int ddraw_fs_init(HWND h)
 	return 1;
 }
 
-void ddraw_fs_close()
+void ddraw_fs_close(void)
 {
         if (lpdds_back2)
         {

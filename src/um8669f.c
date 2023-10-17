@@ -131,7 +131,7 @@ uint8_t um8669f_read(uint16_t port, void *priv)
            return um8669f_regs[um8669f_curreg];
 }
 
-void um8669f_init()
+void um8669f_init(void)
 {
         io_sethandler(0x0108, 0x0002, um8669f_read, NULL, NULL, um8669f_write, NULL, NULL,  NULL);
         um8669f_locked = 1;

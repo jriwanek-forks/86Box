@@ -47,7 +47,7 @@ static inline void PUSH_L(uint32_t val)
         }
 }
 
-static inline uint16_t POP_W()
+static inline uint16_t POP_W(void)
 {
         uint16_t ret;
         if (stack32)
@@ -65,7 +65,7 @@ static inline uint16_t POP_W()
         return ret;
 }
 
-static inline uint32_t POP_L()
+static inline uint32_t POP_L(void)
 {
         uint32_t ret;
         if (stack32)

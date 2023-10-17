@@ -19,7 +19,7 @@
 #include "x87.h"
 #include "386_common.h"
 
-uint16_t x87_gettag()
+uint16_t x87_gettag(void)
 {
         uint16_t ret = 0;
         int c;
@@ -47,7 +47,7 @@ void x87_settag(uint16_t new_tag)
         cpu_state.tag[7] = (new_tag >> 14) & 3;
 }
 
-void x87_dumpregs()
+void x87_dumpregs(void)
 {
         if (cpu_state.ismmx)
         {
@@ -62,7 +62,7 @@ void x87_dumpregs()
         pclog("Status = %04X  Control = %04X  Tag = %04X\n", cpu_state.npxs, cpu_state.npxc, x87_gettag());
 }
 
-void x87_print()
+void x87_print(void)
 {
         if (cpu_state.ismmx)
         {
@@ -76,6 +76,6 @@ void x87_print()
         }
 }
 
-void x87_reset()
+void x87_reset(void)
 {
 }

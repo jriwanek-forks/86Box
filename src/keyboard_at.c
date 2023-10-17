@@ -120,7 +120,7 @@ static uint8_t nont_to_t[256] = {	0xFF, 0x43, 0x41, 0x3F, 0x3D, 0x3B, 0x3C, 0x58
 					0xE0, 0xE1, 0xE2, 0xE3, 0xE4, 0xE5, 0xE6, 0xE7, 0xE8, 0xE9, 0xEA, 0xEB, 0xEC, 0xED, 0xEE, 0xEF,
 					0xF0, 0xF1, 0xF2, 0xF3, 0xF4, 0xF5, 0xF6, 0xF7, 0xF8, 0xF9, 0xFA, 0xFB, 0xFC, 0xFD, 0xFE, 0xFF	};
 
-void keyboard_at_poll()
+void keyboard_at_poll(void)
 {
 	keybsenddelay += (1000 * TIMER_USEC);
 
@@ -767,7 +767,7 @@ uint8_t keyboard_at_read(uint16_t port, void *priv)
         return temp;
 }
 
-void keyboard_at_reset()
+void keyboard_at_reset(void)
 {
         keyboard_at.initialised = 0;
         keyboard_at.status = STAT_LOCK | STAT_CD;
@@ -791,7 +791,7 @@ void keyboard_at_reset()
 	memset(set3_flags, 0, 272);
 }
 
-void keyboard_at_init()
+void keyboard_at_init(void)
 {
         //return;
         io_sethandler(0x0060, 0x0005, keyboard_at_read, NULL, NULL, keyboard_at_write, NULL, NULL,  NULL);

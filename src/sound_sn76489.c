@@ -200,7 +200,7 @@ void sn76489_init(sn76489_t *sn76489, uint16_t base, uint16_t size, int type, in
         io_sethandler(base, size, NULL, NULL, NULL, sn76489_write, NULL, NULL, sn76489);
 }
 
-void *sn76489_device_init()
+void *sn76489_device_init(void)
 {
         sn76489_t *sn76489 = malloc(sizeof(sn76489_t));
         memset(sn76489, 0, sizeof(sn76489_t));
@@ -209,7 +209,7 @@ void *sn76489_device_init()
 
         return sn76489;
 }
-void *ncr8496_device_init()
+void *ncr8496_device_init(void)
 {
         sn76489_t *sn76489 = malloc(sizeof(sn76489_t));
         memset(sn76489, 0, sizeof(sn76489_t));

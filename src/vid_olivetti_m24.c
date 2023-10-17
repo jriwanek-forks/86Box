@@ -451,7 +451,7 @@ void m24_poll(void *p)
         }
 }
 
-void *m24_init()
+void *m24_init(void)
 {
         int c;
         m24_t *m24 = malloc(sizeof(m24_t));

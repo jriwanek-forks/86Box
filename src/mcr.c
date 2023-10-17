@@ -6,7 +6,7 @@
 int nextreg6;
 uint8_t mcr22;
 int mcrlock,mcrfirst;
-void resetmcr()
+void resetmcr(void)
 {
         mcrlock=0;
         mcrfirst=1;

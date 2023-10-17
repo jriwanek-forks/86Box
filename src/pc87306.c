@@ -24,8 +24,8 @@ static uint8_t tries;
 static uint16_t lpt_port;
 static int power_down = 0;
 
-void pc87306_gpio_remove();
-void pc87306_gpio_init();
+void pc87306_gpio_remove(void);
+void pc87306_gpio_init(void);
 
 void pc87306_gpio_write(uint16_t port, uint8_t val, void *priv)
 {
@@ -33,19 +33,19 @@ void pc87306_gpio_write(uint16_t port, uint8_t val, void *priv)
 	pc87306_gpio[port & 1] = val;
 }
 
-uint8_t uart_int1()
+uint8_t uart_int1(void)
 {
 	/* 0: IRQ3, 1: IRQ4 */
 	return ((pc87306_regs[0x1C] >> 2) & 1) ? 4 : 3;
 }
 
-uint8_t uart_int2()
+uint8_t uart_int2(void)
 {
 	/* 0: IRQ3, 1: IRQ4 */
 	return ((pc87306_regs[0x1C] >> 6) & 1) ? 4 : 3;
 }
 
-uint8_t uart1_int()
+uint8_t uart1_int(void)
 {
 	uint8_t temp;
 	temp = ((pc87306_regs[1] >> 2) & 1) ? 3 : 4;	/* 0 = COM1 (IRQ 4), 1 = COM2 (IRQ 3), 2 = COM3 (IRQ 4), 3 = COM4 (IRQ 3) */
@@ -53,7 +53,7 @@ uint8_t uart1_int()
 	return (pc87306_regs[0x1C] & 1) ? uart_int1() : temp;
 }
 
-uint8_t uart2_int()
+uint8_t uart2_int(void)
 {
 	uint8_t temp;
 	temp = ((pc87306_regs[1] >> 4) & 1) ? 3 : 4;	/* 0 = COM1 (IRQ 4), 1 = COM2 (IRQ 3), 2 = COM3 (IRQ 4), 3 = COM4 (IRQ 3) */
@@ -61,7 +61,7 @@ uint8_t uart2_int()
 	return (pc87306_regs[0x1C] & 1) ? uart_int2() : temp;
 }
 
-void lpt1_handler()
+void lpt1_handler(void)
 {
         int temp;
 	temp = pc87306_regs[0x01] & 3;
@@ -87,7 +87,7 @@ void lpt1_handler()
 	lpt1_init(lpt_port);
 }
 
-void serial1_handler()
+void serial1_handler(void)
 {
         int temp;
 	temp = (pc87306_regs[1] >> 2) & 3;
@@ -116,7 +116,7 @@ void serial1_handler()
 	}
 }
 
-void serial2_handler()
+void serial2_handler(void)
 {
         int temp;
 	temp = (pc87306_regs[1] >> 4) & 3;
@@ -403,12 +403,12 @@ uint8_t pc87306_read(uint16_t port, void *priv)
 	}
 }
 
-void pc87306_gpio_remove()
+void pc87306_gpio_remove(void)
 {
         io_removehandler(pc87306_regs[0xF] << 2, 0x0002, pc87306_gpio_read, NULL, NULL, pc87306_gpio_write, NULL, NULL,  NULL);
 }
 
-void pc87306_gpio_init()
+void pc87306_gpio_init(void)
 {
 	if ((pc87306_regs[0x12]) & 0x10)
 	{
@@ -453,7 +453,7 @@ void pc87306_reset(void)
 	pc87306_gpio_init();
 }
 
-void pc87306_init()
+void pc87306_init(void)
 {
 	lpt2_remove();
 

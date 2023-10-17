@@ -102,7 +102,7 @@ uint8_t sis85c471_read(uint16_t port, void *priv)
 			return 0xFF;
 }
 
-void sis85c471_init()
+void sis85c471_init(void)
 {
 	int i = 0;
 

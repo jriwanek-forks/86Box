@@ -84,7 +84,7 @@ uint8_t vga_in(uint16_t addr, void *p)
         return temp;
 }
 
-void *vga_init()
+void *vga_init(void)
 {
         vga_t *vga = malloc(sizeof(vga_t));
         memset(vga, 0, sizeof(vga_t));
@@ -106,7 +106,7 @@ void *vga_init()
 }
 
 #if 0
-void *vga_chips_init()
+void *vga_chips_init(void)
 {
         vga_t *vga = malloc(sizeof(vga_t));
         memset(vga, 0, sizeof(vga_t));
@@ -128,7 +128,7 @@ void *vga_chips_init()
 }
 #endif
 
-void *trigem_unk_init()
+void *trigem_unk_init(void)
 {
         vga_t *vga = malloc(sizeof(vga_t));
         memset(vga, 0, sizeof(vga_t));
@@ -154,7 +154,7 @@ void *trigem_unk_init()
 }
 
 /*PS/1 uses a standard VGA controller, but with no option ROM*/
-void *ps1vga_init()
+void *ps1vga_init(void)
 {
         vga_t *vga = malloc(sizeof(vga_t));
         memset(vga, 0, sizeof(vga_t));
@@ -173,12 +173,12 @@ void *ps1vga_init()
         return vga;
 }
 
-static int vga_available()
+static int vga_available(void)
 {
         return rom_present("roms/ibm_vga.bin");
 }
 
-static int vga_chips_available()
+static int vga_chips_available(void)
 {
         return rom_present("roms/SD620.04M");
 }

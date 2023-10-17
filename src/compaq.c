@@ -45,7 +45,7 @@ void compaq_write_raml(uint32_t addr, uint32_t val, void *priv)
         mem_write_raml_page(addr, val, &pages[addr >> 12]);
 }
 
-void compaq_init()
+void compaq_init(void)
 {
         mem_mapping_add(&compaq_ram_mapping, 0xfa0000, 0x60000,
                         compaq_read_ram,  compaq_read_ramw,  compaq_read_raml,

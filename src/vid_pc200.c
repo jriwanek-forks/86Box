@@ -105,7 +105,7 @@ uint8_t pc200_in(uint16_t addr, void *p)
         return cga_in(addr, cga);
 }
 
-void *pc200_init()
+void *pc200_init(void)
 {
         pc200_t *pc200 = malloc(sizeof(pc200_t));
         cga_t *cga = &pc200->cga;

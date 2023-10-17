@@ -51,7 +51,7 @@ void tandy_rom_bank_write(uint16_t port, uint8_t val, void *p)
 //                pclog("Bad tandy write port=%04x val=%02x\n", port, val);
 }
 
-void *tandy_rom_init()
+void *tandy_rom_init(void)
 {
         FILE *f, *ff;
         int c;

@@ -1,1 +1,1 @@
-void opti495_init();
+void opti495_init(void);

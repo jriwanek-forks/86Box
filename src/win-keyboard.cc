@@ -17,13 +17,13 @@ extern "C" int recv_key[272];
 extern "C" void fatal(const char *format, ...);
 extern "C" void pclog(const char *format, ...);
 
-extern "C" void keyboard_init();
-extern "C" void keyboard_close();
-extern "C" void keyboard_poll();
+extern "C" void keyboard_init(void);
+extern "C" void keyboard_close(void);
+extern "C" void keyboard_poll(void);
 
 int recv_key[272];
 
-void keyboard_init()
+void keyboard_init(void)
 {
         atexit(keyboard_close);
         
@@ -31,11 +31,11 @@ void keyboard_init()
 	pclog("Keyboard initialized!\n");
 }
 
-void keyboard_close()
+void keyboard_close(void)
 {
 }
 
-void keyboard_poll_host()
+void keyboard_poll_host(void)
 {
 #if 0
         int c;

@@ -54,7 +54,7 @@ uint8_t xtide_read(uint16_t port, void *priv)
         }
 }
 
-void xtide_init()
+void xtide_init(void)
 {
         ide_init();
         io_sethandler(0x0300, 0x0010, xtide_read, NULL, NULL, xtide_write, NULL, NULL, NULL);

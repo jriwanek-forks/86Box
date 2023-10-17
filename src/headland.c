@@ -43,7 +43,7 @@ uint8_t headland_read(uint16_t addr, void *priv)
         return headland_index;
 }
 
-void headland_init()
+void headland_init(void)
 {
         io_sethandler(0x0022, 0x0002, headland_read, NULL, NULL, headland_write, NULL, NULL, NULL);
 }

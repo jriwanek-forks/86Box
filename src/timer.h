@@ -40,9 +40,9 @@ extern int timer_start;
         	timer_update_outstanding();	                        \
 	} while (0)
 
-void timer_process();
-void timer_update_outstanding();
-void timer_reset();
+void timer_process(void);
+void timer_update_outstanding(void);
+void timer_reset(void);
 int timer_add(void (*callback)(void *priv), int *count, int *enable, void *priv);
 void timer_set_callback(int timer, void (*callback)(void *priv));
 

@@ -111,13 +111,13 @@ void tandy_eeprom_write(uint16_t addr, uint8_t val, void *p)
         eeprom->clock = val & 4;
 }
 
-int tandy_eeprom_read()
+int tandy_eeprom_read(void)
 {
 //        pclog("tandy_eeprom_read: data_out=%x\n", eeprom_data_out);
         return eeprom_data_out;
 }
 
-void *tandy_eeprom_init()
+void *tandy_eeprom_init(void)
 {
         tandy_eeprom_t *eeprom = malloc(sizeof(tandy_eeprom_t));
         FILE *f;

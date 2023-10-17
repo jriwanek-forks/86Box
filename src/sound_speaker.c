@@ -11,7 +11,7 @@ static int speaker_pos = 0;
 int speaker_gated = 0;
 int speaker_enable = 0, was_speaker_enable = 0;
 
-void speaker_update()
+void speaker_update(void)
 {
         int16_t val;
         
@@ -52,7 +52,7 @@ static void speaker_get_buffer(int32_t *buffer, int len, void *p)
         speaker_pos = 0;
 }
 
-void speaker_init()
+void speaker_init(void)
 {
         sound_add_handler(speaker_get_buffer, NULL);
         speaker_mute = 0;

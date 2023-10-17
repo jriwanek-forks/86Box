@@ -30,7 +30,7 @@ uint8_t acer386sx_read(uint16_t addr, void *priv)
            return acer_index;
 }
 
-void acer386sx_init()
+void acer386sx_init(void)
 {
         io_sethandler(0x0022, 0x0002, acer386sx_read, NULL, NULL, acer386sx_write, NULL, NULL,  NULL);
 }

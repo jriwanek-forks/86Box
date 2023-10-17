@@ -488,7 +488,7 @@ int td0_initialize(int drive);
 
 void td0_seek(int drive, int track);
 
-void td0_init()
+void td0_init(void)
 {
         memset(td0, 0, sizeof(td0));
 }

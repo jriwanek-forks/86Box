@@ -35,7 +35,7 @@ int is8086=0;
 int memcycs;
 int nopageerrors=0;
 
-void FETCHCOMPLETE();
+void FETCHCOMPLETE(void);
 
 uint8_t readmembl(uint32_t addr);
 void writemembl(uint32_t addr, uint8_t val);
@@ -66,7 +66,7 @@ uint16_t readmemw(uint32_t s, uint16_t a)
         else return *(uint16_t *)(readlookup2[(s + a) >> 12] + s + a);
 }
 
-void refreshread() { /*pclog("Refreshread\n"); */FETCHCOMPLETE(); memcycs+=4; }
+void refreshread(void) { /*pclog("Refreshread\n"); */FETCHCOMPLETE(); memcycs+=4; }
 
 #undef fetchea
 #define fetchea()   { rmdat=FETCH();  \
@@ -97,7 +97,7 @@ void writememl(uint32_t s, uint32_t a, uint32_t v)
 }
 
 
-void dumpregs();
+void dumpregs(void);
 uint16_t oldcs;
 int oldcpl;
 
@@ -202,7 +202,7 @@ inline void FETCHADD(int c)
 //        if (fetchcycles>24) fetchcycles=24;
 }
 
-void FETCHCOMPLETE()
+void FETCHCOMPLETE(void)
 {
 //        pclog("Fetchcomplete %i %i %i\n",fetchcycles&3,fetchcycles,prefetchw);
         if (!(fetchcycles&3)) return;
@@ -227,7 +227,7 @@ void FETCHCOMPLETE()
                 fetchcycles+=(4-(fetchcycles&3));
 }
 
-inline void FETCHCLEAR()
+inline void FETCHCLEAR(void)
 {
 /*        int c;
         fetchcycles=0;
@@ -256,7 +256,7 @@ inline void FETCHCLEAR()
         }*/
 }
 
-static uint16_t getword()
+static uint16_t getword(void)
 {
         uint8_t temp=FETCH();
         return temp|(FETCH()<<8);
@@ -351,7 +351,7 @@ uint32_t *mod1seg[8];
 
 int slowrm[8];
 
-void makemod1table()
+void makemod1table(void)
 {
         mod1add[0][0]=&BX; mod1add[0][1]=&BX; mod1add[0][2]=&BP; mod1add[0][3]=&BP;
         mod1add[0][4]=&SI; mod1add[0][5]=&DI; mod1add[0][6]=&BP; mod1add[0][7]=&BX;
@@ -362,7 +362,7 @@ void makemod1table()
         mod1seg[4]=&ds; mod1seg[5]=&ds; mod1seg[6]=&ss; mod1seg[7]=&ds;
 }
 
-static void fetcheal()
+static void fetcheal(void)
 {
         if (!cpu_mod && cpu_rm==6) { cpu_state.eaaddr=getword(); easeg=ds; FETCHADD(6); }
         else
@@ -393,14 +393,14 @@ static void fetcheal()
 	cpu_state.last_ea = cpu_state.eaaddr;
 }
 
-static inline uint8_t geteab()
+static inline uint8_t geteab(void)
 {
         if (cpu_mod == 3)
                 return (cpu_rm & 4) ? cpu_state.regs[cpu_rm & 3].b.h : cpu_state.regs[cpu_rm & 3].b.l;
         return readmemb(easeg+cpu_state.eaaddr);
 }
 
-static inline uint16_t geteaw()
+static inline uint16_t geteaw(void)
 {
         if (cpu_mod == 3)
                 return cpu_state.regs[cpu_rm].w;
@@ -408,7 +408,7 @@ static inline uint16_t geteaw()
         return readmemw(easeg,cpu_state.eaaddr);
 }
 
-static inline uint16_t geteaw2()
+static inline uint16_t geteaw2(void)
 {
         if (cpu_mod == 3)
                 return cpu_state.regs[cpu_rm].w;
@@ -453,7 +453,7 @@ static inline void seteaw(uint16_t val)
 uint8_t znptable8[256];
 uint16_t znptable16[65536];
 
-void makeznptable()
+void makeznptable(void)
 {
         int c,d;
         for (c=0;c<256;c++)
@@ -505,7 +505,7 @@ extern uint32_t oldpc2;
 
 int indump = 0;
 
-void dumpregs()
+void dumpregs(void)
 {
         int c,d=0,e=0;
 #ifndef RELEASE_BUILD
@@ -627,7 +627,7 @@ chdir(pcempath);
 
 int resets = 0;
 int x86_was_reset = 0;
-void resetx86()
+void resetx86(void)
 {
         pclog("x86 reset\n");
         resets++;
@@ -668,7 +668,7 @@ void resetx86()
 	BuslogicSoftReset();
 }
 
-void softresetx86()
+void softresetx86(void)
 {
 //      dumpregs();
 //        exit(-1);
@@ -814,7 +814,7 @@ static void setsbc16(uint16_t a, uint16_t b)
 }
 
 int current_diff = 0;
-void clockhardware()
+void clockhardware(void)
 {
         int diff = cycdiff - cycles - current_diff;
         

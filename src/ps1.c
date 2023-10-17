@@ -118,7 +118,7 @@ void ps1_write(uint16_t port, uint8_t val, void *p)
         }
 }
 
-void ps1mb_init()
+void ps1mb_init(void)
 {
         io_sethandler(0x0091, 0x0001, ps1_read, NULL, NULL, ps1_write, NULL, NULL, NULL);
         io_sethandler(0x0092, 0x0001, ps1_read, NULL, NULL, ps1_write, NULL, NULL, NULL);
@@ -205,7 +205,7 @@ static uint8_t ps1_m2121_read(uint16_t port, void *p)
         return temp;
 }
 
-static void ps1_m2121_recalc_memory()
+static void ps1_m2121_recalc_memory(void)
 {
         /*Enable first 512kb*/
         mem_set_mem_state(0x00000, 0x80000, (ps1_e0_regs[0] & 0x01) ? (MEM_READ_INTERNAL | MEM_WRITE_INTERNAL) : (MEM_READ_EXTERNAL | MEM_WRITE_EXTERNAL));
@@ -275,7 +275,7 @@ void ps1_m2121_write(uint16_t port, uint8_t val, void *p)
         }
 }
 
-void ps1mb_m2121_init()
+void ps1mb_m2121_init(void)
 {
         io_sethandler(0x0091, 0x0001, ps1_m2121_read, NULL, NULL, ps1_m2121_write, NULL, NULL, NULL);
         io_sethandler(0x0092, 0x0001, ps1_m2121_read, NULL, NULL, ps1_m2121_write, NULL, NULL, NULL);

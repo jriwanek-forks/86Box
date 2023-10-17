@@ -356,7 +356,7 @@ void ati28800_recalctimings(svga_t *svga)
         }
 }               
 
-void *ati28800_init()
+void *ati28800_init(void)
 {
 	uint32_t memory = 512;
         ati28800_t *ati28800;
@@ -398,17 +398,17 @@ void *ati28800_init()
         return ati28800;
 }
 
-static int ati28800_available()
+static int ati28800_available(void)
 {
         return rom_present("roms/bios.bin");
 }
 
-static int compaq_ati28800_available()
+static int compaq_ati28800_available(void)
 {
         return (rom_present("roms/XLEVEN.bin") && rom_present("roms/XLODD.bin"));
 }
 
-static int ati28800_wonderxl24_available()
+static int ati28800_wonderxl24_available(void)
 {
         return (rom_present("roms/112-14318-102.bin") && rom_present("roms/112-14319-102.bin"));
 }

@@ -32,7 +32,7 @@ void thread_kill(thread_t *handle)
 	free(thread);
 }
 
-event_t *thread_create_event()
+event_t *thread_create_event(void)
 {
 	event_pthread_t *event = malloc(sizeof(event_pthread_t));
 

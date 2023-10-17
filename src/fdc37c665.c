@@ -158,7 +158,7 @@ void fdc37c665_reset(void)
 	fdd_swap = 0;
 }
 
-void fdc37c665_init()
+void fdc37c665_init(void)
 {
         io_sethandler(0x03f0, 0x0002, fdc37c665_read, NULL, NULL, fdc37c665_write, NULL, NULL,  NULL);
 

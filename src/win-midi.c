@@ -9,9 +9,9 @@
 static int midi_id;
 static HMIDIOUT midi_out_device = NULL;
 
-void midi_close();
+void midi_close(void);
 
-void midi_init()
+void midi_init(void)
 {
         int c;
         int n;
@@ -36,7 +36,7 @@ void midi_init()
         midiOutReset(midi_out_device);
 }
 
-void midi_close()
+void midi_close(void)
 {
         if (midi_out_device != NULL)
         {
@@ -46,7 +46,7 @@ void midi_close()
         }
 }
 
-int midi_get_num_devs()
+int midi_get_num_devs(void)
 {
         return midiOutGetNumDevs();
 }
@@ -64,7 +64,7 @@ static int midi_lengths[8] = {3, 3, 3, 3, 2, 2, 3, 1};
 static int midi_insysex;
 static uint8_t midi_sysex_data[1024+2];
 
-static void midi_send_sysex()
+static void midi_send_sysex(void)
 {
         MIDIHDR hdr;
         int c;

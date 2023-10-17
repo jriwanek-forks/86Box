@@ -54,7 +54,7 @@ queueADT        slirpq;
 int net_slirp_inited=0;
 int net_is_pcap=0;      //and pretend pcap is dead.
 int fizz=0;
-void slirp_tic();
+void slirp_tic(void);
 
 #define BX_RESET_HARDWARE 0
 #define BX_RESET_SOFTWARE 1
@@ -1937,7 +1937,7 @@ void ne2000_rom_init(ne2000_t *ne2000, char *s)
 
 static char errbuf[32768];
 
-void *ne2000_init()
+void *ne2000_init(void)
 {
     int rc;
 	int config_net_type;
@@ -2437,7 +2437,7 @@ void slirp_output (const unsigned char *pkt, int pkt_len)
 // Instead of calling this and crashing some times
 // or experencing jitter, this is called by the 
 // 60Hz clock which seems to do the job.
-void slirp_tic()
+void slirp_tic(void)
 {
 	int ret2,nfds;
 	struct timeval tv;

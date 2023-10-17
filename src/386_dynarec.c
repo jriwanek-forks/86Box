@@ -262,7 +262,7 @@ void x86_int_sw(int num)
         CPU_BLOCK_END();
 }
 
-void x86illegal()
+void x86illegal(void)
 {
         uint16_t addr;
 //        pclog("x86 illegal %04X %08X %04X:%08X %02X\n",msw,cr0,CS,pc,opcode);
@@ -347,7 +347,7 @@ static void prefetch_run(int instr_cycles, int bytes, int modrm, int reads, int 
         prefetch_prefixes = 0;
 }
 
-static void prefetch_flush()
+static void prefetch_flush(void)
 {
         prefetch_bytes = 0;
 }
@@ -1316,11 +1316,11 @@ int idivl(int32_t val)
 }
 
 
-void cpu_386_flags_extract()
+void cpu_386_flags_extract(void)
 {
         flags_extract();
 }
-void cpu_386_flags_rebuild()
+void cpu_386_flags_rebuild(void)
 {
         flags_rebuild();
 }

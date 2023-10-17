@@ -17,12 +17,12 @@ static int nvr_onesec_time = 0, nvr_onesec_cnt = 0;
 
 static int rtctime;
 
-void getnvrtime()
+void getnvrtime(void)
 {
 	time_get(nvrram);
 }
 
-void nvr_recalc()
+void nvr_recalc(void)
 {
         int c;
         int newrtctime;
@@ -192,7 +192,7 @@ uint8_t readnvr(uint16_t addr, void *priv)
         return nvraddr;
 }
 
-void loadnvr()
+void loadnvr(void)
 {
         FILE *f;
         int c;
@@ -281,7 +281,7 @@ void loadnvr()
         c = 1 << ((nvrram[RTC_REGA] & RTC_RS) - 1);
         rtctime += (int)(RTCCONST * c * (1 << TIMER_SHIFT));
 }
-void savenvr()
+void savenvr(void)
 {
         FILE *f;
         switch (oldromset)
@@ -347,7 +347,7 @@ void savenvr()
         fclose(f);
 }
 
-void nvr_init()
+void nvr_init(void)
 {
         io_sethandler(0x0070, 0x0002, readnvr, NULL, NULL, writenvr, NULL, NULL,  NULL);
         timer_add(nvr_rtc, &rtctime, TIMER_ALWAYS_ENABLED, NULL);

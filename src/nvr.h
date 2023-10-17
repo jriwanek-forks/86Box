@@ -1,7 +1,7 @@
 /* Copyright holders: Mahod, Tenshi
    see COPYING for more details
 */
-void nvr_init();
+void nvr_init(void);
 
 extern int enable_sync;
 

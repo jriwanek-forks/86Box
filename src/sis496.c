@@ -81,7 +81,7 @@ uint8_t sis496_read(int func, int addr, void *p)
         return sis496->pci_conf[addr];
 }
  
-void *sis496_init()
+void *sis496_init(void)
 {
         sis496_t *sis496 = malloc(sizeof(sis496_t));
         memset(sis496, 0, sizeof(sis496_t));

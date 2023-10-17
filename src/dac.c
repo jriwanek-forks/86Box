@@ -29,13 +29,13 @@ void writedacctrl(uint16_t addr, uint8_t val)
         dacctrl=val;
 }
 
-uint8_t readdacfifo()
+uint8_t readdacfifo(void)
 {
         if (lptfifo==16) return 0x40;
         return 0;
 }
 
-void pollss()
+void pollss(void)
 {
         if (lptfifo)
         {
@@ -47,7 +47,7 @@ void pollss()
 
 int16_t dacbuffer[SOUNDBUFLEN+20];
 int dacbufferpos=0;
-void getdacsamp()
+void getdacsamp(void)
 {
         if (dacbufferpos<SOUNDBUFLEN+20) dacbuffer[dacbufferpos++]=(((int)(unsigned int)dac)-0x80)*0x20;
 }

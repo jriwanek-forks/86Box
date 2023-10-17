@@ -378,7 +378,7 @@ void sb_mixer_init(sb_mixer_t *mixer)
 		((uint32_t)mixer->master_r * (uint32_t)mixer->cd_r) / 65535);
 }
         
-void *sb_1_init()
+void *sb_1_init(void)
 {
         sb_t *sb = malloc(sizeof(sb_t));
         uint16_t addr = device_get_config_int("addr");        
@@ -395,7 +395,7 @@ void *sb_1_init()
         sound_add_handler(sb_get_buffer_opl2, sb);
         return sb;
 }
-void *sb_15_init()
+void *sb_15_init(void)
 {
         sb_t *sb = malloc(sizeof(sb_t));
         uint16_t addr = device_get_config_int("addr");
@@ -412,7 +412,7 @@ void *sb_15_init()
         sound_add_handler(sb_get_buffer_opl2, sb);
         return sb;
 }
-void *sb_2_init()
+void *sb_2_init(void)
 {
         sb_t *sb = malloc(sizeof(sb_t));
         uint16_t addr = device_get_config_int("addr");
@@ -430,7 +430,7 @@ void *sb_2_init()
         return sb;
 }
 
-void *sb_pro_v1_init()
+void *sb_pro_v1_init(void)
 {
         sb_t *sb = malloc(sizeof(sb_t));
         uint16_t addr = device_get_config_int("addr");
@@ -458,7 +458,7 @@ void *sb_pro_v1_init()
         return sb;
 }
 
-void *sb_pro_v2_init()
+void *sb_pro_v2_init(void)
 {
         sb_t *sb = malloc(sizeof(sb_t));
         uint16_t addr = device_get_config_int("addr");
@@ -485,7 +485,7 @@ void *sb_pro_v2_init()
         return sb;
 }
 
-void *sb_16_init()
+void *sb_16_init(void)
 {
         sb_t *sb = malloc(sizeof(sb_t));
         uint16_t addr = device_get_config_int("addr");        
@@ -525,12 +525,12 @@ void *sb_16_init()
         return sb;
 }
 
-int sb_awe32_available()
+int sb_awe32_available(void)
 {
         return rom_present("roms/awe32.raw");
 }
 
-void *sb_awe32_init()
+void *sb_awe32_init(void)
 {
         sb_t *sb = malloc(sizeof(sb_t));
         uint16_t addr = device_get_config_int("addr");        

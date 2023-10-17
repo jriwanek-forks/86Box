@@ -1,18 +1,18 @@
 /* Copyright holders: Sarah Walker, SA1988
    see COPYING for more details
 */
-void dma_init();
-void dma16_init();
-void dma_reset();
+void dma_init(void);
+void dma16_init(void);
+void dma_reset(void);
 
 #define DMA_NODATA -1
 #define DMA_OVER 0x10000
 #define DMA_VERIFY 0x20000
 
-void readdma0();
-int readdma1();
-uint8_t readdma2();
-int readdma3();
+void readdma0(void);
+int readdma1(void);
+uint8_t readdma2(void);
+int readdma3(void);
 
 void writedma2(uint8_t temp);
 

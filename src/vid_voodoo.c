@@ -7006,7 +7006,7 @@ static void voodoo_speed_changed(void *p)
 //        pclog("Voodoo read_time=%i write_time=%i burst_time=%i %08x %08x\n", voodoo->read_time, voodoo->write_time, voodoo->burst_time, voodoo->fbiInit1, voodoo->fbiInit4);
 }
 
-void *voodoo_init()
+void *voodoo_init(void)
 {
         int c;
         voodoo_t *voodoo = malloc(sizeof(voodoo_t));

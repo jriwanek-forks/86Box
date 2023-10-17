@@ -726,7 +726,7 @@ void pas16_get_buffer(int32_t *buffer, int len, void *p)
         pas16->dsp.pos = 0;
 }
 
-void *pas16_init()
+void *pas16_init(void)
 {
         pas16_t *pas16 = malloc(sizeof(pas16_t));
         memset(pas16, 0, sizeof(pas16_t));

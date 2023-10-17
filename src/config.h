@@ -13,7 +13,7 @@ char *get_extension(char *s);
 
 void config_load(char *fn);
 void config_save(char *fn);
-void config_dump();
-void config_free();
+void config_dump(void);
+void config_free(void);
 
 extern char config_file_default[256];

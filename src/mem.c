@@ -64,7 +64,7 @@ uint8_t romext[32768];
 
 uint32_t ram_mapped_addr[64];
 
-static void mem_load_xtide_bios()
+static void mem_load_xtide_bios(void)
 {
         FILE *f;
         f=romfopen("roms/ide_xt.bin","rb");
@@ -78,7 +78,7 @@ static void mem_load_xtide_bios()
         }
 }
         
-static void mem_load_atide_bios()
+static void mem_load_atide_bios(void)
 {
         FILE *f;
         f=romfopen("roms/ide_at.bin","rb");
@@ -92,7 +92,7 @@ static void mem_load_atide_bios()
         }
 }
 
-static void mem_load_atide115_bios()
+static void mem_load_atide115_bios(void)
 {
         FILE *f;
         f=romfopen("roms/ide_at_1_1_5.bin","rb");
@@ -106,7 +106,7 @@ static void mem_load_atide115_bios()
         }
 }
         
-int loadbios()
+int loadbios(void)
 {
         FILE *f=NULL,*ff=NULL;
         int c;
@@ -927,7 +927,7 @@ int loadbios()
 
 
 
-void resetreadlookup()
+void resetreadlookup(void)
 {
         int c;
 //        /*if (output) */pclog("resetreadlookup\n");
@@ -946,7 +946,7 @@ void resetreadlookup()
 int mmuflush=0;
 int mmu_perm=4;
 
-void flushmmucache()
+void flushmmucache(void)
 {
         int c;
 //        /*if (output) */pclog("flushmmucache\n");
@@ -998,7 +998,7 @@ void flushmmucache()
         codegen_flush();
 }
 
-void flushmmucache_nopc()
+void flushmmucache_nopc(void)
 {
         int c;
         for (c=0;c<256;c++)
@@ -1017,7 +1017,7 @@ void flushmmucache_nopc()
         }
 }
 
-void flushmmucache_cr3()
+void flushmmucache_cr3(void)
 {
         int c;
 //        /*if (output) */pclog("flushmmucache_cr3\n");
@@ -1086,7 +1086,7 @@ int pctrans=0;
 
 extern uint32_t testr[9];
 
-int mem_cpl3_check()
+int mem_cpl3_check(void)
 {
 	if ((CPL == 3) && !cpl_override)
 	{
@@ -2152,7 +2152,7 @@ void mem_set_mem_state(uint32_t base, uint32_t size, int state)
         mem_mapping_recalc(base, size);
 }
 
-void mem_add_bios()
+void mem_add_bios(void)
 {
         if (AT)
         {
@@ -2179,7 +2179,7 @@ void mem_add_bios()
 int mem_a20_key = 0, mem_a20_alt = 0;
 int mem_a20_state = 1;
 
-void mem_init()
+void mem_init(void)
 {
         int c;
 
@@ -2245,7 +2245,7 @@ void mem_init()
 //        pclog("Mem resize %i %i\n",mem_size,c);
 }
 
-void mem_remap_top_384k()
+void mem_remap_top_384k(void)
 {
         int c;
         
@@ -2268,7 +2268,7 @@ void mem_remap_top_384k()
         mem_mapping_add(&ram_remapped_mapping, mem_size * 1024, 384 * 1024, mem_read_ram,    mem_read_ramw,    mem_read_raml,    mem_write_ram, mem_write_ramw, mem_write_raml,   ram + (mem_size * 1024),  MEM_MAPPING_INTERNAL, NULL);
 }
 
-void mem_resize()
+void mem_resize(void)
 {
         int c;
         
@@ -2327,7 +2327,7 @@ void mem_resize()
         mem_a20_recalc();
 }
 
-void mem_reset_page_blocks()
+void mem_reset_page_blocks(void)
 {
         int c;
         
@@ -2341,7 +2341,7 @@ void mem_reset_page_blocks()
         }
 }
 
-/* void mem_reset()
+/* void mem_reset(void)
 {
         int c;
 
@@ -2365,7 +2365,7 @@ void mem_reset_page_blocks()
 
 static int port_92_reg = 0;
 
-void mem_a20_recalc()
+void mem_a20_recalc(void)
 {
         int state = mem_a20_key | mem_a20_alt;
 //        pclog("A20 recalc %i %i\n", state, mem_a20_state);
@@ -2402,22 +2402,22 @@ static void port_92_write(uint16_t port, uint8_t val, void *priv)
 	mem_a20_recalc();
 }
 
-void port_92_clear_reset()
+void port_92_clear_reset(void)
 {
 	port_92_reg &= 2;
 }
 
-void port_92_add()
+void port_92_add(void)
 {
 	io_sethandler(0x0092, 0x0001, port_92_read, NULL, NULL, port_92_write, NULL, NULL, NULL);
 }
 
-void port_92_remove()
+void port_92_remove(void)
 {
 	io_removehandler(0x0092, 0x0001, port_92_read, NULL, NULL, port_92_write, NULL, NULL, NULL);
 }
 
-void port_92_reset()
+void port_92_reset(void)
 {
 	port_92_reg = 0;
 	mem_a20_alt = 0;

@@ -41,7 +41,7 @@ struct
 static uint8_t key_queue[16];
 static int key_queue_start = 0, key_queue_end = 0;
 
-void keyboard_pcjr_poll()
+void keyboard_pcjr_poll(void)
 {
         keybsenddelay += (220 * TIMER_USEC);
 
@@ -196,11 +196,11 @@ uint8_t keyboard_pcjr_read(uint16_t port, void *priv)
         return temp;
 }
 
-void keyboard_pcjr_reset()
+void keyboard_pcjr_reset(void)
 {
 }
 
-void keyboard_pcjr_init()
+void keyboard_pcjr_init(void)
 {
         //return;
         io_sethandler(0x0060, 0x0004, keyboard_pcjr_read, NULL, NULL, keyboard_pcjr_write, NULL, NULL,  NULL);

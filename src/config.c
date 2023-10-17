@@ -45,7 +45,7 @@ typedef struct entry_t
                 (new)->next = NULL;                     \
         }
 
-void config_dump()
+void config_dump(void)
 {
         section_t *current_section;
         
@@ -72,7 +72,7 @@ void config_dump()
         }
 }
 
-void config_free()
+void config_free(void)
 {
         section_t *current_section;
         current_section = (section_t *)config_head.next;
@@ -194,7 +194,7 @@ void config_load(char *fn)
 
 
 
-void config_new()
+void config_new(void)
 {
         FILE *f = fopen(config_file, "wt");
         fclose(f);

@@ -192,7 +192,7 @@ static int img_sector_size_code(int drive)
 	return sector_size_code(img[drive].sector_size);
 }
 
-void img_init()
+void img_init(void)
 {
         memset(img, 0, sizeof(img));
 //        adl[0] = adl[1] = 0;

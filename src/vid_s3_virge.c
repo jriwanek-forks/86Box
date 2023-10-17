@@ -3754,7 +3754,7 @@ static void s3_virge_pci_write(int func, int addr, uint8_t val, void *p)
         }
 }
 
-static void *s3_virge_init()
+static void *s3_virge_init(void)
 {
         virge_t *virge = malloc(sizeof(virge_t));
         memset(virge, 0, sizeof(virge_t));
@@ -3849,7 +3849,7 @@ static void *s3_virge_init()
         return virge;
 }
 
-static void *s3_virge_375_init()
+static void *s3_virge_375_init(void)
 {
         virge_t *virge = malloc(sizeof(virge_t));
         memset(virge, 0, sizeof(virge_t));
@@ -3965,12 +3965,12 @@ static void s3_virge_close(void *p)
         free(virge);
 }
 
-static int s3_virge_available()
+static int s3_virge_available(void)
 {
         return rom_present("roms/s3virge.bin");
 }
 
-static int s3_virge_375_available()
+static int s3_virge_375_available(void)
 {
         return rom_present("roms/86c375_1.bin");
 }

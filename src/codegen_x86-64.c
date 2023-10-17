@@ -59,7 +59,7 @@ static uint32_t last_op32;
 static x86seg *last_ea_seg;
 static int last_ssegs;
 
-void codegen_init()
+void codegen_init(void)
 {
         int c;
 #ifdef __linux__
@@ -91,14 +91,14 @@ void codegen_init()
 //        pclog("Codegen is %p\n", (void *)pages[0xfab12 >> 12].block);
 }
 
-void codegen_reset()
+void codegen_reset(void)
 {
         memset(codeblock, 0, BLOCK_SIZE * sizeof(codeblock_t));
         memset(codeblock_hash, 0, HASH_SIZE * sizeof(codeblock_t *));
         mem_reset_page_blocks();
 }
 
-void dump_block()
+void dump_block(void)
 {
         codeblock_t *block = pages[0x119000 >> 12].block;
 
@@ -390,7 +390,7 @@ void codegen_block_start_recompile(codeblock_t *block)
         block->was_recompiled = 1;
 }
 
-void codegen_block_remove()
+void codegen_block_remove(void)
 {
         codeblock_t *block = &codeblock[block_current];
 
@@ -400,7 +400,7 @@ void codegen_block_remove()
         recomp_page = -1;
 }
 
-void codegen_block_generate_end_mask()
+void codegen_block_generate_end_mask(void)
 {
         codeblock_t *block = &codeblock[block_current];
         uint32_t start_pc = (block->pc & 0xffc) | (block->phys & ~0xfff);
@@ -459,7 +459,7 @@ void codegen_block_generate_end_mask()
         recomp_page = -1;
 }
 
-void codegen_block_end()
+void codegen_block_end(void)
 {
         codeblock_t *block = &codeblock[block_current];
 
@@ -524,7 +524,7 @@ void codegen_block_end_recompile(codeblock_t *block)
 //        pclog("End block %i\n", block_num);
 }
 
-void codegen_flush()
+void codegen_flush(void)
 {
         return;
 }
@@ -597,7 +597,7 @@ int opcode_0f_modrm[256] =
         0, 1, 1, 1,  0, 1, 0, 0,  1, 1, 1, 0,  1, 1, 1, 0  /*f0*/
 };
         
-void codegen_debug()
+void codegen_debug(void)
 {
         if (output)
         {

@@ -17,14 +17,14 @@
 extern "C" void fatal(const char *format, ...);
 extern "C" void pclog(const char *format, ...);
 
-extern "C" void device_force_redraw();
+extern "C" void device_force_redraw(void);
 
-static void d3d_fs_init_objects();
-static void d3d_fs_close_objects();
+static void d3d_fs_init_objects(void);
+static void d3d_fs_close_objects(void);
 static void d3d_fs_blit_memtoscreen(int x, int y, int y1, int y2, int w, int h);
 static void d3d_fs_blit_memtoscreen_8(int x, int y, int w, int h);
 
-extern "C" void video_blit_complete();
+extern "C" void video_blit_complete(void);
 
 static LPDIRECT3D9             d3d        = NULL;
 static LPDIRECT3DDEVICE9       d3ddev     = NULL; 
@@ -107,7 +107,7 @@ static CUSTOMVERTEX d3d_verts[] =
      {2048.0f, 2048.0f, 1.0f, 1.0f, 1.0f, 1.0f},
 };
 
-void cgapal_rebuild()
+void cgapal_rebuild(void)
 {
         int c;
         for (c = 0; c < 256; c++)
@@ -194,7 +194,7 @@ int d3d_fs_init(HWND h)
 	return 1;
 }
 
-static void d3d_fs_close_objects()
+static void d3d_fs_close_objects(void)
 {
         if (d3dTexture)
         {
@@ -208,7 +208,7 @@ static void d3d_fs_close_objects()
         }
 }
 
-static void d3d_fs_init_objects()
+static void d3d_fs_init_objects(void)
 {
         HRESULT hr;
         D3DLOCKED_RECT dr;
@@ -257,7 +257,7 @@ static void d3d_fs_init_objects()
         d3d_reset();
 }*/
         
-void d3d_fs_reset()
+void d3d_fs_reset(void)
 {
         HRESULT hr;
 
@@ -292,7 +292,7 @@ void d3d_fs_reset()
         device_force_redraw();
 }
 
-void d3d_fs_close()
+void d3d_fs_close(void)
 {       
         if (d3dTexture)
         {

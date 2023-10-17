@@ -7,7 +7,7 @@
 
 #define IS_32_ADDR(x) !(((uintptr_t)x) & 0xffffffff00000000)
 
-static inline int find_host_xmm_reg()
+static inline int find_host_xmm_reg(void)
 {
         int c;
         for (c = HOST_REG_XMM_START; c < HOST_REG_XMM_END; c++)
@@ -3684,7 +3684,7 @@ static void NEG_HOST_REG_L(int reg)
 }
         
 
-static void FP_ENTER()
+static void FP_ENTER(void)
 {
         if (codegen_fpu_entered)
                 return;
@@ -3895,7 +3895,7 @@ static void FP_FST(int reg)
         addbyte(cpu_state_offset(tag));
 }
 
-static void FP_POP()
+static void FP_POP(void)
 {
         addbyte(0x8b); /*MOV EAX, [TOP]*/
         addbyte(0x45);
@@ -3915,7 +3915,7 @@ static void FP_POP()
         addbyte(0x45);
         addbyte(cpu_state_offset(TOP));
 }
-static void FP_POP2()
+static void FP_POP2(void)
 {
         addbyte(0x8b); /*MOV EAX, [TOP]*/
         addbyte(0x45);
@@ -3936,7 +3936,7 @@ static void FP_POP2()
         addbyte(cpu_state_offset(TOP));
 }
 
-static void FP_LOAD_S()
+static void FP_LOAD_S(void)
 {
         addbyte(0x8b); /*MOV EBX, TOP*/
         addbyte(0x5d);
@@ -3972,7 +3972,7 @@ static void FP_LOAD_S()
         addbyte(0x1d);
         addbyte(cpu_state_offset(tag));
 }
-static void FP_LOAD_D()
+static void FP_LOAD_D(void)
 {
         addbyte(0x8b); /*MOV EBX, TOP*/
         addbyte(0x5d);
@@ -4001,7 +4001,7 @@ static void FP_LOAD_D()
         addbyte(cpu_state_offset(tag));
 }
 
-static void FP_LOAD_IW()
+static void FP_LOAD_IW(void)
 {
         addbyte(0x8b); /*MOV EBX, TOP*/
         addbyte(0x5d);
@@ -4036,7 +4036,7 @@ static void FP_LOAD_IW()
         addbyte(0x1d);
         addbyte(cpu_state_offset(tag));
 }
-static void FP_LOAD_IL()
+static void FP_LOAD_IL(void)
 {
         addbyte(0x8b); /*MOV EBX, TOP*/
         addbyte(0x5d);
@@ -4068,7 +4068,7 @@ static void FP_LOAD_IL()
         addbyte(0x1d);
         addbyte(cpu_state_offset(tag));
 }
-static void FP_LOAD_IQ()
+static void FP_LOAD_IQ(void)
 {
         addbyte(0x8b); /*MOV EBX, TOP*/
         addbyte(0x5d);
@@ -4143,7 +4143,7 @@ static void FP_LOAD_IMM_Q(uint64_t v)
         addbyte(v ? 0 : 1);
 }
 
-static void FP_FCHS()
+static void FP_FCHS(void)
 {
         addbyte(0x8b); /*MOV EAX, TOP*/
         addbyte(0x45);
@@ -4714,7 +4714,7 @@ static void FP_COMPARE_REG(int dst, int src)
         addbyte(cpu_state_offset(npxs) + 1);
 }
 
-static void FP_COMPARE_MEM()
+static void FP_COMPARE_MEM(void)
 {
         addbyte(0x8b); /*MOV EAX, [TOP]*/
         addbyte(0x45);
@@ -4748,7 +4748,7 @@ static void FP_COMPARE_MEM()
         addbyte(0x4d);
         addbyte(cpu_state_offset(npxs) + 1);
 }
-static void FP_COMPARE_S()
+static void FP_COMPARE_S(void)
 {
         addbyte(0x66); /*MOVD XMM1, EAX*/
         addbyte(0x0f);
@@ -4760,7 +4760,7 @@ static void FP_COMPARE_S()
         addbyte(0xc9);
         FP_COMPARE_MEM();
 }
-static void FP_COMPARE_D()
+static void FP_COMPARE_D(void)
 {
         addbyte(0x66); /*MOVQ XMM1, RAX*/
         addbyte(0x48);
@@ -4769,7 +4769,7 @@ static void FP_COMPARE_D()
         addbyte(0xc8);
         FP_COMPARE_MEM();
 }
-static void FP_COMPARE_IW()
+static void FP_COMPARE_IW(void)
 {
         addbyte(0x0f); /*MOVSX EAX, AX*/
         addbyte(0xbf);
@@ -4780,7 +4780,7 @@ static void FP_COMPARE_IW()
         addbyte(0xc8);
         FP_COMPARE_MEM();
 }
-static void FP_COMPARE_IL()
+static void FP_COMPARE_IL(void)
 {
         addbyte(0xf2); /*CVTSI2SD XMM1, EAX*/
         addbyte(0x0f);
@@ -4878,7 +4878,7 @@ static void CLEAR_BITS(uintptr_t addr, uint32_t val)
 #define LOAD_Q_REG_1 REG_EAX
 #define LOAD_Q_REG_2 REG_EDX
 
-static void MMX_ENTER()
+static void MMX_ENTER(void)
 {
         if (codegen_mmx_entered)
                 return;
@@ -5229,14 +5229,14 @@ static void MMX_PSLLQ_imm(int dst_reg, int amount)
 }
 
 
-static void SAVE_EA()
+static void SAVE_EA(void)
 {
         addbyte(0x89); /*MOV [ESP+0x24], EAX*/
         addbyte(0x44);
         addbyte(0x24);
         addbyte(0x24);
 }
-static void LOAD_EA()
+static void LOAD_EA(void)
 {
         addbyte(0x8b); /*MOV EAX, [ESP+0x24]*/
         addbyte(0x44);

@@ -19,7 +19,7 @@ static ALuint source[2];     // audio source
 #define FREQ 48000
 #define BUFLEN SOUNDBUFLEN
 
-void closeal();
+void closeal(void);
 ALvoid  alutInit(ALint *argc,ALbyte **argv) 
 {
 	ALCcontext *Context;
@@ -62,14 +62,14 @@ void initalmain(int argc, char *argv[])
 #endif
 }
 
-void closeal()
+void closeal(void)
 {
 #ifdef USE_OPENAL
         alutExit();
 #endif
 }
 
-void check()
+void check(void)
 {
 #ifdef USE_OPENAL
         ALenum error;
@@ -81,7 +81,7 @@ void check()
 #endif
 }
 
-void inital()
+void inital(void)
 {
 #ifdef USE_OPENAL
         int c;

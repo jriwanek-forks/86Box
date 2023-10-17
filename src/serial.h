@@ -5,9 +5,9 @@ void serial1_init(uint16_t addr, int irq);
 void serial2_init(uint16_t addr, int irq);
 void serial1_set(uint16_t addr, int irq);
 void serial2_set(uint16_t addr, int irq);
-void serial1_remove();
-void serial2_remove();
-void serial_reset();
+void serial1_remove(void);
+void serial2_remove(void);
+void serial_reset(void);
 
 struct SERIAL;
 

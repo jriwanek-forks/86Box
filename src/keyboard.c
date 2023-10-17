@@ -411,10 +411,10 @@ uint8_t set3_all_repeat = 0;
 uint8_t set3_all_break = 0;
 
 void (*keyboard_send)(uint8_t val);
-void (*keyboard_poll)();
+void (*keyboard_poll)(void);
 int keyboard_scan = 1;
 
-void keyboard_process()
+void keyboard_process(void)
 {
         int c;
         int d;

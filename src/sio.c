@@ -134,7 +134,7 @@ void trc_write(uint16_t port, uint8_t val, void *priv)
 	trc_reg = val & 0xfd;
 }
 
-void trc_init()
+void trc_init(void)
 {
 	trc_reg = 0;
 

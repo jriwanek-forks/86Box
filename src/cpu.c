@@ -569,14 +569,14 @@ CPU cpus_PentiumPro[] =
         {"",             -1,        0, 0, 0}
 };
 
-void cpu_set_edx()
+void cpu_set_edx(void)
 {
         EDX = models[model].cpu[cpu_manufacturer].cpus[cpu].edx_reset;
 }
 
 int enable_external_fpu = 0;
 
-void cpu_set()
+void cpu_set(void)
 {
         CPU *cpu_s;
         
@@ -1497,7 +1497,7 @@ void cpu_set()
         }
 }
 
-void cpu_CPUID()
+void cpu_CPUID(void)
 {
         switch (models[model].cpu[cpu_manufacturer].cpus[cpu].cpu_type)
         {
@@ -1904,7 +1904,7 @@ void cpu_CPUID()
         }
 }
 
-void cpu_RDMSR()
+void cpu_RDMSR(void)
 {
         switch (models[model].cpu[cpu_manufacturer].cpus[cpu].cpu_type)
         {
@@ -2126,7 +2126,7 @@ i686_invalid_rdmsr:
         }
 }
 
-void cpu_WRMSR()
+void cpu_WRMSR(void)
 {
         switch (models[model].cpu[cpu_manufacturer].cpus[cpu].cpu_type)
         {
@@ -2380,7 +2380,7 @@ void x86_setopcodes(OpFn *opcodes, OpFn *opcodes_0f, OpFn *dynarec_opcodes, OpFn
         x86_dynarec_opcodes_0f = dynarec_opcodes_0f;
 }
 
-void cpu_update_waitstates()
+void cpu_update_waitstates(void)
 {
         cpu_s = &models[model].cpu[cpu_manufacturer].cpus[cpu];
         

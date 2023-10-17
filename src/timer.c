@@ -27,7 +27,7 @@ int timer_one = 1;
 int timer_count = 0, timer_latch = 0;
 int timer_start = 0;
 
-void timer_process()
+void timer_process(void)
 {
 	int c;
 	int retry;
@@ -76,7 +76,7 @@ void timer_process()
         }              
 }
 
-void timer_update_outstanding()
+void timer_update_outstanding(void)
 {
 	int c;
 	timer_latch = 0x7fffffff;
@@ -88,7 +88,7 @@ void timer_update_outstanding()
 	timer_count = timer_latch = (timer_latch + ((1 << TIMER_SHIFT) - 1)) >> TIMER_SHIFT;
 }
 
-void timer_reset()
+void timer_reset(void)
 {
 	pclog("timer_reset\n");
 	timers_present = 0;
@@ -109,7 +109,7 @@ int timer_add(void (*callback)(void *priv), int *count, int *enable, void *priv)
 			{
 				if (timers[i].present && (timers[i].callback == callback) && (timers[i].priv == priv) && (timers[i].count == count) && (timers[i].enable == enable))
 				{
-					return;
+					return 0;
 				}
 			}
 		}

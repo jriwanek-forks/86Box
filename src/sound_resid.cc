@@ -14,7 +14,7 @@ typedef struct psid_t
 
 psid_t *psid;
 
-void *sid_init()
+void *sid_init(void)
 {
 //        psid_t *psid;
         int c;

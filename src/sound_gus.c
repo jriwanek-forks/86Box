@@ -1067,7 +1067,7 @@ static void gus_get_buffer(int32_t *buffer, int len, void *p)
 }
 
 
-void *gus_init()
+void *gus_init(void)
 {
         int c;
 	double out = 1.0;

@@ -61,7 +61,7 @@ static void seg_reset(x86seg *s)
         s->limit_high = 0xffff;
 }
 
-void x86seg_reset()
+void x86seg_reset(void)
 {
         seg_reset(&_cs);
         seg_reset(&_ds);
@@ -813,7 +813,7 @@ void PUSHL(uint32_t v)
                 SP-=4;
         }
 }
-uint16_t POPW()
+uint16_t POPW(void)
 {
         uint16_t tempw;
         if (stack32)
@@ -830,7 +830,7 @@ uint16_t POPW()
         }
         return tempw;
 }
-uint32_t POPL()
+uint32_t POPL(void)
 {
         uint32_t templ;
         if (stack32)
@@ -1590,7 +1590,7 @@ void pmoderetf(int is32, uint16_t off)
         }
 }
 
-void restore_stack()
+void restore_stack(void)
 {
         ss=oldss; _ss.limit=oldsslimit;
 }

@@ -139,7 +139,7 @@ typedef struct s3_t
         uint64_t status_time;
 } s3_t;
 
-void s3_updatemapping();
+void s3_updatemapping(s3_t *s3);
 
 void s3_accel_write(uint32_t addr, uint8_t val, void *p);
 void s3_accel_write_w(uint32_t addr, uint16_t val, void *p);
@@ -2312,7 +2312,7 @@ static void *s3_init(char *bios_fn, int chip)
         return s3;
 }
 
-void *s3_bahamas64_init()
+void *s3_bahamas64_init(void)
 {
         s3_t *s3 = s3_init("roms/bahamas64.BIN", S3_VISION864);
 
@@ -2326,12 +2326,12 @@ void *s3_bahamas64_init()
         return s3;
 }
 
-int s3_bahamas64_available()
+int s3_bahamas64_available(void)
 {
         return rom_present("roms/bahamas64.BIN");
 }
 
-void *s3_9fx_init()
+void *s3_9fx_init(void)
 {
         s3_t *s3 = s3_init("roms/s3_764.bin", S3_TRIO64);
 
@@ -2345,12 +2345,12 @@ void *s3_9fx_init()
         return s3;
 }
 
-int s3_9fx_available()
+int s3_9fx_available(void)
 {
         return rom_present("roms/s3_764.bin");
 }
 
-void *s3_phoenix_trio32_init()
+void *s3_phoenix_trio32_init(void)
 {
         s3_t *s3 = s3_init("roms/86C732P.bin", S3_TRIO32);
         svga_t *svga = &s3->svga;
@@ -2366,12 +2366,12 @@ void *s3_phoenix_trio32_init()
         return s3;
 }
 
-int s3_phoenix_trio32_available()
+int s3_phoenix_trio32_available(void)
 {
         return rom_present("roms/86C732P.bin");
 }
 
-void *s3_phoenix_trio64_init()
+void *s3_phoenix_trio64_init(void)
 {
         s3_t *s3 = s3_init("roms/86c764x1.bin", S3_TRIO64);
         svga_t *svga = &s3->svga;
@@ -2386,12 +2386,12 @@ void *s3_phoenix_trio64_init()
         return s3;
 }
 
-int s3_phoenix_trio64_available()
+int s3_phoenix_trio64_available(void)
 {
         return rom_present("roms/86c764x1.bin");
 }
 
-void *s3_phoenix_vision864_init()
+void *s3_phoenix_vision864_init(void)
 {
         s3_t *s3 = s3_init("roms/86c864p.bin", S3_VISION864);
 
@@ -2405,12 +2405,12 @@ void *s3_phoenix_vision864_init()
         return s3;
 }
 
-int s3_phoenix_vision864_available()
+int s3_phoenix_vision864_available(void)
 {
         return rom_present("roms/86c864p.BIN");
 }
 
-/* void *s3_diamond_stealth64_init()
+/* void *s3_diamond_stealth64_init(void)
 {
         s3_t *s3 = s3_init("roms/STEALT64.BIN", S3_VISION864);
         svga_t *svga = &s3->svga;
@@ -2425,12 +2425,12 @@ int s3_phoenix_vision864_available()
         return s3;
 }
 
-int s3_diamond_stealth64_available()
+int s3_diamond_stealth64_available(void)
 {
         return rom_present("roms/STEALT64.BIN");
 }
 
-void *s3_miro_vision964_init()
+void *s3_miro_vision964_init(void)
 {
         s3_t *s3 = s3_init("roms/mirocrystal.VBI", S3_VISION964);
 
@@ -2444,7 +2444,7 @@ void *s3_miro_vision964_init()
         return s3;
 }
 
-int s3_miro_vision964_available()
+int s3_miro_vision964_available(void)
 {
         return rom_present("roms/mirocrystal.VBI");
 } */

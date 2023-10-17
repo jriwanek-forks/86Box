@@ -61,7 +61,7 @@ uint8_t neat_readems(uint32_t addr)
         return ram[(neat_emspage[(addr >> 14) & 3] << 14) + (addr & 0x3FFF)];
 }
 
-void neat_init()
+void neat_init(void)
 {
         io_sethandler(0x0022, 0x0002, neat_read, NULL, NULL, neat_write, NULL, NULL,  NULL);
         io_sethandler(0x0208, 0x0002, neat_read, NULL, NULL, neat_write, NULL, NULL,  NULL);

@@ -1192,7 +1192,7 @@ void et4000w32p_pci_write(int func, int addr, uint8_t val, void *p)
         }
 }
 
-void *et4000w32p_init()
+void *et4000w32p_init(void)
 {
         int vram_size;
         et4000w32p_t *et4000 = malloc(sizeof(et4000w32p_t));
@@ -1241,7 +1241,7 @@ void *et4000w32p_init()
         return et4000;
 }
 
-int et4000w32p_available()
+int et4000w32p_available(void)
 {
         return rom_present("roms/et4000w32.bin");
 }

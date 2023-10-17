@@ -261,7 +261,7 @@ uint8_t paradise_read(uint32_t addr, void *p)
         return svga_read_linear(addr, &paradise->svga);
 }
 
-void *paradise_pvga1a_init()
+void *paradise_pvga1a_init(void)
 {
         paradise_t *paradise = malloc(sizeof(paradise_t));
         svga_t *svga = &paradise->svga;
@@ -294,7 +294,7 @@ void *paradise_pvga1a_init()
         return paradise;
 }
 
-void *paradise_wd90c11_init()
+void *paradise_wd90c11_init(void)
 {
         paradise_t *paradise = malloc(sizeof(paradise_t));
         svga_t *svga = &paradise->svga;
@@ -329,7 +329,7 @@ void *paradise_wd90c11_init()
         return paradise;
 }
 
-static void *paradise_pvga1a_pc2086_init()
+static void *paradise_pvga1a_pc2086_init(void)
 {
         paradise_t *paradise = paradise_pvga1a_init();
         
@@ -338,7 +338,7 @@ static void *paradise_pvga1a_pc2086_init()
                 
         return paradise;
 }
-static void *paradise_pvga1a_pc3086_init()
+static void *paradise_pvga1a_pc3086_init(void)
 {
         paradise_t *paradise = paradise_pvga1a_init();
 
@@ -348,7 +348,7 @@ static void *paradise_pvga1a_pc3086_init()
         return paradise;
 }
 
-static void *paradise_wd90c11_megapc_init()
+static void *paradise_wd90c11_megapc_init(void)
 {
         paradise_t *paradise = paradise_wd90c11_init();
         
@@ -361,12 +361,12 @@ static void *paradise_wd90c11_megapc_init()
         return paradise;
 }
 
-static int paradise_wd90c11_standalone_available()
+static int paradise_wd90c11_standalone_available(void)
 {
         return rom_present("roms/megapc/41651-bios lo.u18") && rom_present("roms/megapc/211253-bios hi.u19");
 }
 
-/* static void *cpqvga_init()
+/* static void *cpqvga_init(void)
 {
         paradise_t *paradise = paradise_pvga1a_init();
         
@@ -376,7 +376,7 @@ static int paradise_wd90c11_standalone_available()
         return paradise;
 }
 
-static int cpqvga_standalone_available()
+static int cpqvga_standalone_available(void)
 {
         return rom_present("roms/1988-05-18.rom");
 } */

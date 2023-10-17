@@ -12,7 +12,7 @@
 #include "slirp_config.h"
 
 #ifdef _WIN32
-#ifdef __GNUC__		//MINGW?
+#ifdef __GNUC__		/* MINGW? */
 # include <inttypes.h>	
 typedef uint8_t u_int8_t;
 typedef uint16_t u_int16_t;
@@ -39,19 +39,31 @@ typedef unsigned long 	ioctlsockopt_t;
 
 #endif
 
-# include <winsock2.h>	//needs to be on top otherwise, it'll pull in winsock1
+# include <winsock2.h>	/* needs to be on top otherwise, it'll pull in winsock1 */
 # include <windows.h>
 
 # include <sys/timeb.h>
 # include <iphlpapi.h>
 
 # define USE_FIONBIO 1
+#ifndef EWOULDBLOCK
 # define EWOULDBLOCK WSAEWOULDBLOCK
+#endif
+#ifndef EINPROGRESS
 # define EINPROGRESS WSAEINPROGRESS
+#endif
+#ifndef ENOTCONN
 # define ENOTCONN WSAENOTCONN
+#endif
+#ifndef EHOSTUNREACH
 # define EHOSTUNREACH WSAEHOSTUNREACH
+#endif
+#ifndef ENETUNREACH
 # define ENETUNREACH WSAENETUNREACH
+#endif
+#ifndef ECONNREFUSED
 # define ECONNREFUSED WSAECONNREFUSED
+#endif
 
 /* Basilisk II Router defines those */
 # define udp_read_completion slirp_udp_read_completion
@@ -59,6 +71,17 @@ typedef unsigned long 	ioctlsockopt_t;
 # define init_udp slirp_init_udp
 # define final_udp slirp_final_udp
 #else
+# include <inttypes.h>	
+# define HAVE_STDINT_H
+# define HAVE_STDLIB_H
+# define HAVE_STRING_H
+# define HAVE_UNISTD_H
+# define HAVE_INET_ATON
+typedef uint8_t u_int8_t;
+typedef uint16_t u_int16_t;
+typedef uint32_t u_int32_t;
+typedef uint64_t u_int64_t;
+typedef char *SLIRPcaddr_t;
 typedef int ioctlsockopt_t;
 # define ioctlsocket ioctl
 # define closesocket(s) close(s)

@@ -50,7 +50,7 @@ static void disc_random_twist(uint32_t *val)
 	*val ^= 0x4ED32706;
 }
 
-uint8_t disc_random_generate()
+uint8_t disc_random_generate(void)
 {
 	uint16_t r = 0;
 	r = (rand() ^ ROTATE_LEFT(preconst, rand() % 32)) % 256;
@@ -58,7 +58,7 @@ uint8_t disc_random_generate()
 	return (r & 0xff);
 }
 
-void disc_random_init()
+void disc_random_init(void)
 {
 	uint32_t seed = RDTSC();
 	srand(seed);

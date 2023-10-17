@@ -903,7 +903,7 @@ void ega_common_defaults(ega_t *ega)
 	ega->extvram = 1;
 }
 
-void *ega_standalone_init()
+void *ega_standalone_init(void)
 {
         int c, d, e;
         ega_t *ega = malloc(sizeof(ega_t));
@@ -942,7 +942,7 @@ void *ega_standalone_init()
         return ega;
 }
 
-void *cpqega_standalone_init()
+void *cpqega_standalone_init(void)
 {
         int c, d, e;
         ega_t *ega = malloc(sizeof(ega_t));
@@ -983,7 +983,7 @@ void *cpqega_standalone_init()
         return ega;
 }
 
-void *sega_standalone_init()
+void *sega_standalone_init(void)
 {
         int c, d, e;
         ega_t *ega = malloc(sizeof(ega_t));
@@ -1024,17 +1024,17 @@ void *sega_standalone_init()
         return ega;
 }
 
-static int ega_standalone_available()
+static int ega_standalone_available(void)
 {
         return rom_present("roms/ibm_6277356_ega_card_u44_27128.bin");
 }
 
-static int cpqega_standalone_available()
+static int cpqega_standalone_available(void)
 {
         return rom_present("roms/108281-001.bin");
 }
 
-static int sega_standalone_available()
+static int sega_standalone_available(void)
 {
         return rom_present("roms/lega.vbi");
 }

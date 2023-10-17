@@ -139,7 +139,7 @@ static void ps1_audio_get_buffer(int32_t *buffer, int len, void *p)
         ps1->pos = 0;
 }
 
-static void *ps1_audio_init()
+static void *ps1_audio_init(void)
 {
         ps1_audio_t *ps1 = malloc(sizeof(ps1_audio_t));
         memset(ps1, 0, sizeof(ps1_audio_t));

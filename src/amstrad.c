@@ -77,7 +77,7 @@ static void mouse_amstrad_poll(int x, int y, int z, int b, void *p)
         mouse->oldb = b;
 }
 
-static void *mouse_amstrad_init()
+static void *mouse_amstrad_init(void)
 {
         mouse_amstrad_t *mouse = (mouse_amstrad_t *)malloc(sizeof(mouse_amstrad_t));
         memset(mouse, 0, sizeof(mouse_amstrad_t));
@@ -101,7 +101,7 @@ mouse_t mouse_amstrad =
         MOUSE_TYPE_AMSTRAD
 };
 
-void amstrad_init()
+void amstrad_init(void)
 {
         lpt2_remove_ams();
         

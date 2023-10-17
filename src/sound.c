@@ -93,7 +93,7 @@ int sound_card_get_from_internal_name(char *s)
 	return 0;
 }
 
-void sound_card_init()
+void sound_card_init(void)
 {
         if (sound_cards[sound_card_current].device)
                 device_add(sound_cards[sound_card_current].device);
@@ -230,7 +230,7 @@ static float *outbuffer_ex;
 
 static int cd_thread_enable = 0;
 
-void sound_init()
+void sound_init(void)
 {
 	int i = 0;
 	int available_cdrom_drives = 0;
@@ -317,12 +317,12 @@ void sound_poll(void *priv)
         }
 }
 
-void sound_speed_changed()
+void sound_speed_changed(void)
 {
         sound_poll_latch = (int)((double)TIMER_USEC * (1000000.0 / 48000.0));
 }
 
-void sound_reset()
+void sound_reset(void)
 {
 	int i = 0;
 	int available_cdrom_drives = 0;
@@ -342,7 +342,7 @@ void sound_reset()
 	}
 }
 
-void sound_cd_thread_reset()
+void sound_cd_thread_reset(void)
 {
 	int i = 0;
 	int available_cdrom_drives = 0;

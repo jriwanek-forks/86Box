@@ -36,7 +36,7 @@ struct
 static uint8_t key_queue[16];
 static int key_queue_start = 0, key_queue_end = 0;
 
-void keyboard_xt_poll()
+void keyboard_xt_poll(void)
 {
         keybsenddelay += (1000 * TIMER_USEC);
         if (key_queue_start != key_queue_end && !keyboard_xt.blocked)
@@ -157,14 +157,14 @@ uint8_t keyboard_xt_read(uint16_t port, void *priv)
         return temp;
 }
 
-void keyboard_xt_reset()
+void keyboard_xt_reset(void)
 {
         keyboard_xt.blocked = 0;
         
         keyboard_scan = 1;
 }
 
-void keyboard_xt_init()
+void keyboard_xt_init(void)
 {
         //return;
         io_sethandler(0x0060, 0x0004, keyboard_xt_read, NULL, NULL, keyboard_xt_write, NULL, NULL,  NULL);
@@ -176,7 +176,7 @@ void keyboard_xt_init()
         timer_add(keyboard_xt_poll, &keybsenddelay, TIMER_ALWAYS_ENABLED,  NULL);
 }
 
-void keyboard_tandy_init()
+void keyboard_tandy_init(void)
 {
         //return;
         io_sethandler(0x0060, 0x0004, keyboard_xt_read, NULL, NULL, keyboard_xt_write, NULL, NULL,  NULL);

@@ -79,14 +79,14 @@ int insc=0;
 float mips,flops;
 extern int mmuflush;
 extern int readlnum,writelnum;
-void fullspeed();
+void fullspeed(void);
 
 int framecount,fps;
 
 int output;
 int atfullspeed;
 
-void saveconfig();
+void saveconfig(void);
 int infocus;
 int mousecapture;
 // FILE *pclogf;
@@ -163,7 +163,7 @@ void fatal(const char *format, ...)
 uint8_t cgastat;
 
 int pollmouse_delay = 2;
-void pollmouse()
+void pollmouse(void)
 {
         int x, y, z;
 //        return;
@@ -226,14 +226,14 @@ int updatestatus;
 int win_title_update=0;
 
 
-void onesec()
+void onesec(void)
 {
         fps=framecount;
         framecount=0;
         win_title_update=1;
 }
 
-void pc_reset()
+void pc_reset(void)
 {
         cpu_set();
         resetx86();
@@ -373,7 +373,7 @@ void initpc(int argc, char *argv[])
 	{
 		vlan_reset();	//NETWORK
 	}
-	network_card_init(network_card_current);
+	network_card_init();
 	network_thread_init();
 #endif
 
@@ -419,7 +419,7 @@ void initpc(int argc, char *argv[])
 	}
 }
 
-void resetpc()
+void resetpc(void)
 {
         pc_reset();
 //        cpuspeed2=(AT)?2:1;
@@ -440,7 +440,7 @@ void pc_keyboard_send(uint8_t val)
 	}
 }
 
-void resetpc_cad()
+void resetpc_cad(void)
 {
 	pc_keyboard_send(29);	/* Ctrl key pressed */
 	pc_keyboard_send(56);	/* Alt key pressed */
@@ -452,7 +452,7 @@ void resetpc_cad()
 
 int suppress_overscan = 0;
 
-void resetpchard()
+void resetpchard(void)
 {
 	int i = 0;
 
@@ -497,7 +497,7 @@ void resetpchard()
 	{
 		vlan_reset();	//NETWORK
 	}
-	network_card_init(network_card_current);      
+	network_card_init();
 	network_thread_reset();
         
 	for (i = 0; i < CDROM_NUM; i++)
@@ -514,7 +514,7 @@ void resetpchard()
 		device_add(&BuslogicDevice);
 	}
 
-        sound_card_init(sound_card_current);
+        sound_card_init();
         if (GUS)
                 device_add(&gus_device);
         if (GAMEBLASTER)
@@ -579,7 +579,7 @@ int serial_fifo_read, serial_fifo_write;
 
 int emu_fps = 0;
 
-void runpc()
+void runpc(void)
 {
         char s[200];
         int done=0;
@@ -661,7 +661,7 @@ void runpc()
                 done++;
 }
 
-void fullspeed()
+void fullspeed(void)
 {
         cpuspeed2=cpuspeed;
         if (!atfullspeed)
@@ -678,7 +678,7 @@ void fullspeed()
         nvr_recalc();
 }
 
-void speedchanged()
+void speedchanged(void)
 {
         if (AT)
                 setpitclock(models[model].cpu[cpu_manufacturer].cpus[cpu].rspeed);
@@ -687,7 +687,7 @@ void speedchanged()
         nvr_recalc();
 }
 
-void closepc()
+void closepc(void)
 {
 	int i = 0;
 	for (i = 0; i < CDROM_NUM; i++)
@@ -709,7 +709,7 @@ void closepc()
         midi_close();
 }
 
-/*int main()
+/*int main(void)
 {
         initpc();
         while (!key[KEY_F11])
@@ -994,7 +994,7 @@ char *nvr_concat(char *to_concat)
 	return nvr_path;
 }
 
-void saveconfig()
+void saveconfig(void)
 {
         int c, d;
 

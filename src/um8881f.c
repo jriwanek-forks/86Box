@@ -61,7 +61,7 @@ uint8_t um8886f_read(int func, int addr, void *priv)
         return card_18[addr];
 }
 
-void um8881f_init()
+void um8881f_init(void)
 {
         pci_add_specific(16, um8881f_read, um8881f_write, NULL);
         pci_add_specific(18, um8886f_read, um8886f_write, NULL);
