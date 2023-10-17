@@ -3,6 +3,11 @@ CPP  = g++.exe
 CC   = gcc.exe
 WINDRES = windres.exe
 CFLAGS = -O3 -march=native -mtune=native -fbranch-probabilities -fvpt -fpeel-loops -ftracer -fcommon -fomit-frame-pointer -ffast-math -msse -msse2 -msse3 -mssse3 -mfpmath=sse -mstackrealign -DRELEASE_BUILD
+CXXFLAGS = -O3 -march=native -mtune=native -fbranch-probabilities -fvpt -fpeel-loops -ftracer -fcommon -fomit-frame-pointer -ffast-math -msse -msse2 -msse3 -mssse3 -mfpmath=sse -mstackrealign -DRELEASE_BUILD  -Wno-missing-profile -Wno-multichar  -Wno-pointer-arith
+CFLAGS += -Wno-error=implicit-int -Wno-error=implicit-function-declaration \
+          -Wno-error=int-conversion -Wno-error=strict-prototypes -Werror=old-style-definition \
+          -Wno-overflow -Wno-implicit-function-declaration -Wno-missing-profile -Wno-int-conversion -Wno-pointer-arith -Wno-address-of-packed-member \
+          -Wno-incompatible-pointer-types -Wshift-count-overflow -Wno-discarded-qualifiers -Wno-shift-count-overflow
 DFLAGS = -O3 -march=i686 -fomit-frame-pointer -msse2 -mstackrealign -DRELEASE_BUILD
 RFLAGS = -DRELEASE_BUILD
 OBJ = 386.o 386_dynarec.o 386_dynarec_ops.o 808x.o acer386sx.o acerm3a.o ali1429.o amstrad.o buslogic.o cdrom.o cdrom-ioctl.o cdrom-iso.o \
@@ -48,10 +53,10 @@ clean :
 	$(CC) $(CFLAGS) -c $<
 
 %.o : %.cc
-	$(CPP) $(CFLAGS) -c $<
+	$(CPP) $(CXXFLAGS) -c $<
 
 %.o : %.cpp
-	$(CPP) $(CFLAGS) -c $<
+	$(CPP) $(CXXFLAGS) -c $<
 
 pc.res: pc.rc
 	$(WINDRES) $(RFLAGS) -i pc.rc --input-format=rc -o pc.res -O coff 
