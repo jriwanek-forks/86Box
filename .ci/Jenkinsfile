@@ -29,9 +29,9 @@ def osArchs = [
 ]
 
 def osFlags = [
-	'Windows': '-D QT=ON',
-	'Linux': '-D QT=ON',
-	'macOS': '-D QT=ON'
+	'Windows': '-D QT=OFF',
+	'Linux': '-D QT=OFF',
+	'macOS': '-D QT=OFF'
 ]
 
 def archNames = [
