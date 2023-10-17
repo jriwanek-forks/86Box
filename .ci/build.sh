@@ -511,7 +511,7 @@ then
 	macports="/opt/local"
 	[ -e "/opt/$arch/bin/port" ] && macports="/opt/$arch"
 	[ "$arch" = "x86_64" -a -e "/opt/intel/bin/port" ] && macports="/opt/intel"
-	export PATH="$macports/bin:$macports/sbin:$macports/libexec/qt5/bin:$PATH"
+	export PATH="$macports/bin:$macports/sbin:$PATH"
 
 	# Enable MoltenVK on x86_64h and arm64, but not on x86_64.
 	# The rationale behind that is explained on the big comment up top.
@@ -528,13 +528,6 @@ then
 		# Install dependencies.
 		echo [-] Installing dependencies through MacPorts
 		sudo "$macports/bin/port" selfupdate
-		if [ $moltenvk -ne 0 ]
-		then
-			# Patch Qt to enable Vulkan support where supported.
-			qt5_portfile="$macports/var/macports/sources/rsync.macports.org/macports/release/tarballs/ports/aqua/qt5/Portfile"
-			sudo sed -i -e 's/-no-feature-vulkan/-feature-vulkan/g' "$qt5_portfile"
-			sudo sed -i -e 's/configure.env-append MAKE=/configure.env-append VULKAN_SDK=${prefix} MAKE=/g' "$qt5_portfile"
-		fi
 		while :
 		do
 			# Attempt to install dependencies.
@@ -600,15 +593,15 @@ else
 	fi
 
 	# Establish architecture-specific dependencies we don't want listed on the readme...
-	pkgs="$pkgs linux-libc-dev:$arch_deb qttools5-dev:$arch_deb qtbase5-private-dev:$arch_deb"
+	pkgs="$pkgs linux-libc-dev:$arch_deb"
 
 	# ...and the ones we do want listed. Non-dev packages fill missing spots on the list.
 	libpkgs=""
 	longest_libpkg=0
-	for pkg in libc6-dev libstdc++6 libopenal-dev libfreetype6-dev libx11-dev libsdl2-dev libpng-dev librtmidi-dev qtdeclarative5-dev libwayland-dev libevdev-dev libxkbcommon-x11-dev libglib2.0-dev libslirp-dev libfaudio-dev libaudio-dev libjack-jackd2-dev libpipewire-0.3-dev libsamplerate0-dev libsndio-dev libvdeplug-dev libfluidsynth-dev
+	for pkg in libc6-dev libstdc++6 libopenal-dev libfreetype6-dev libx11-dev libsdl2-dev libpng-dev librtmidi-dev libwayland-dev libevdev-dev libxkbcommon-x11-dev libglib2.0-dev libslirp-dev libfaudio-dev libaudio-dev libjack-jackd2-dev libpipewire-0.3-dev libsamplerate0-dev libsndio-dev libvdeplug-dev libfluidsynth-dev
 	do
 		libpkgs="$libpkgs $pkg:$arch_deb"
-		length=$(echo -n $pkg | sed 's/-dev$//' | sed "s/qtdeclarative/qt/" | wc -c)
+		length=$(echo -n $pkg | sed 's/-dev$//' | wc -c)
 		[ $length -gt $longest_libpkg ] && longest_libpkg=$length
 	done
 
@@ -935,8 +928,7 @@ else
 	fi
 
 	# Build SDL2 with video systems (and dependencies) only if the SDL interface is used.
-	sdl_ui=OFF
-	grep -qiE "^QT:BOOL=ON" build/CMakeCache.txt || sdl_ui=ON
+	sdl_ui=ON
 
 	# Build rtmidi without JACK support to remove the dependency on libjack, as
 	# the Debian libjack is very likely to be incompatible with the system jackd.
@@ -1017,7 +1009,7 @@ else
 
 	# Archive readme with library package versions.
 	echo Libraries used to compile this $arch build of $project: > archive_tmp/README
-	dpkg-query -f '${Package} ${Version}\n' -W $libpkgs | sed "s/-dev / /" | sed "s/qtdeclarative/qt/" | while IFS=" " read pkg version
+	dpkg-query -f '${Package} ${Version}\n' -W $libpkgs | sed "s/-dev / /" | while IFS=" " read pkg version
 	do
 		for i in $(seq $(expr $longest_libpkg - $(echo -n $pkg | wc -c)))
 		do

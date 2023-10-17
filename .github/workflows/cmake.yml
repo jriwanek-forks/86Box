@@ -60,12 +60,12 @@ jobs:
           - name: Win32 GUI
             qt: off
             static: on
-          - name: Qt GUI
-            qt: on
-            static: on
-            slug: -Qt
-            packages: >-
-              qt5-static:p
+#          - name: Qt GUI
+#            qt: on
+#            static: on
+#            slug: -Qt
+#            packages: >-
+#              qt5-static:p
 #              qt5-base:p
 #              qt5-tools:p
         environment:
@@ -180,9 +180,9 @@ jobs:
         ui:
           - name: Win32 GUI
             qt: off
-          - name: Qt GUI
-            qt: on
-            slug: -Qt
+#          - name: Qt GUI
+#            qt: on
+#            slug: -Qt
         target:
           - name: x86
             triplet: x86-windows-static
