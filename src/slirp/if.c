@@ -70,10 +70,7 @@ if_init()
  * we don't expect any signals, but what the hell..
  */
 inline int
-writen(fd, bptr, n)
-	int fd;
-	char *bptr;
-	int n;
+writen(int fd, char *bptr, int n)
 {
 	int ret;
 	int total;
@@ -157,9 +154,7 @@ if_input(ttyp)
  * it'll temporarily get downgraded to the batchq)
  */
 void
-if_output(so, ifm)
-	struct SLIRPsocket *so;
-	struct SLIRPmbuf *ifm;
+if_output(struct SLIRPsocket *so, struct SLIRPmbuf *ifm)
 {
 	struct SLIRPmbuf *ifq;
 	int on_fastq = 1;

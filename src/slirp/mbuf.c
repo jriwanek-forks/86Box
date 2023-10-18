@@ -27,14 +27,14 @@ int mbuf_max = 0;
 size_t msize;
 
 void
-m_init()
+m_init(void)
 {
 	m_freelist.m_next = m_freelist.m_prev = &m_freelist;
 	m_usedlist.m_next = m_usedlist.m_prev = &m_usedlist;
 	msize_init();
 }
 
-void msize_init()
+void msize_init(void)
 {
 	/*
 	 * Find a nice value for msize
@@ -52,7 +52,7 @@ void msize_init()
  * free old mbufs, we mark all mbufs above mbuf_thresh as M_DOFREE,
  * which tells m_free to actually free() it
  */
-struct SLIRPmbuf * m_get()
+struct SLIRPmbuf * m_get(void)
 {
 	struct SLIRPmbuf *m;
 	int flags = 0;
