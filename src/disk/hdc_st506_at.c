@@ -746,6 +746,82 @@ loadhd(mfm_t *mfm, int c, int d, UNUSED(const char *fn))
     drive->present = 1;
 }
 
+static void
+mfm_board_init(int board, int irq, int base_main, int side_main, int type)
+{
+    st506_at_log("mfm_board_init(%i, %i, %04X, %04X, %i)\n", board, irq, base_main, side_main, type);
+
+    if ((mfm_boards[board] != NULL) && mfm_boards[board]->inited)
+        return;
+
+    st506_at_log("WD1003: Initializing board %i...\n", board);
+
+    if (mfm_boards[board] == NULL)
+        mfm_boards[board] = (mfm_board_t *) malloc(sizeof(mfm_board_t));
+
+    memset(mfm_boards[board], 0, sizeof(mfm_board_t));
+    mfm_boards[board]->irq     = irq;
+    mfm_boards[board]->cur_dev = board << 1;
+    mfm_boards[board]->base_main = base_main;
+    mfm_boards[board]->side_main = side_main;
+    mfm_set_handlers(board);
+
+    timer_add(&mfm_boards[board]->timer, mfm_board_callback, mfm_boards[board], 0);
+
+    mfm_board_setup(board);
+
+    mfm_boards[board]->inited = 1;
+}
+
+static void
+mfm_board_close(int board)
+{
+    mfm_t *dev;
+    int    c;
+
+    st506_at_log("mfm_board_close(%i)\n", board);
+
+    if ((mfm_boards[board] == NULL) || !mfm_boards[board]->inited)
+        return;
+
+    st506_at_log("WD1003: Closing board %i...\n", board);
+
+    timer_stop(&mfm_boards[board]->timer);
+
+    /* Close hard disk image files (if previously open) */
+    for (uint8_t d = 0; d < 2; d++) {
+        c = (board << 1) + d;
+
+        mfm_boards[board]->mfm[d] = NULL;
+
+        dev = mfm_drives[c];
+
+        if (dev == NULL)
+            continue;
+
+        if ((dev->type == MFM_HDD) && (dev->hdd_num != -1))
+            hdd_image_close(dev->hdd_num);
+
+        if (dev->buffer) {
+            free(dev->buffer);
+            dev->buffer = NULL;
+        }
+
+        if (dev->sector_buffer) {
+            free(dev->sector_buffer);
+            dev->buffer = NULL;
+        }
+
+        if (dev) {
+            free(dev);
+            mfm_drives[c] = NULL;
+        }
+    }
+
+    free(mfm_boards[board]);
+    mfm_boards[board] = NULL;
+}
+
 static void *
 mfm_init(UNUSED(const device_t *info))
 {
