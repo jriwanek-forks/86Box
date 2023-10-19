@@ -106,12 +106,28 @@ typedef struct mfm_t {
     int8_t pad;
 
     int        pos;            /* offset within data buffer */
-    pc_timer_t callback_timer; /* callback delay timer */
+    pc_timer_t callback_timer; /* callback delay timer */ /* Move this */
 
     uint16_t buffer[256]; /* data buffer (16b wide) */
 
-    drive_t drives[MFM_NUM]; /* attached drives */
+    drive_t drives[MFM_NUM]; /* attached drives */ /* Move this */
 } mfm_t;
+
+typedef struct mfm_board_t {
+    int        cur_dev;
+    int        irq;
+    int        inited;
+    /* TEMP */
+//  int        diag;
+//  int        force_ata3;
+    uint16_t   base_main;  /*  */
+    uint16_t   side_main;  /*  */
+    pc_timer_t timer; /* callback delay timer */
+    mfm_t      mfm[MFM_NUM];
+} mfm_board_t;
+
+#define MFM_BUS_MAX 1
+static mfm_board_t *mfm_boards[MFM_BUS_MAX] = { NULL };
 
 static uint8_t mfm_read(uint16_t port, void *priv);
 static void    mfm_write(uint16_t port, uint8_t val, void *priv);
@@ -354,9 +370,9 @@ mfm_writew(uint16_t port, uint16_t val, void *priv)
 {
     mfm_t *mfm = (mfm_t *) priv;
 
-    if (port > 0x01f0) {
+    if (port > mfm_boards[0]->base_main) {
         mfm_write(port, val & 0xff, priv);
-        if (port != 0x01f7)
+        if (port != mfm_boards[0]->base_main + 7)
             mfm_write(port + 1, (val >> 8) & 0xff, priv);
     } else {
         mfm->buffer[mfm->pos >> 1] = val;
@@ -444,7 +460,7 @@ mfm_readw(uint16_t port, void *priv)
     mfm_t   *mfm = (mfm_t *) priv;
     uint16_t ret;
 
-    if (port > 0x01f0) {
+    if (port > mfm_boards[0]->base_main) {
         ret = mfm_read(port, priv);
         if (port == 0x01f7)
             ret |= 0xff00;
@@ -738,6 +754,88 @@ loadhd(mfm_t *mfm, int c, int d, UNUSED(const char *fn))
     drive->present = 1;
 }
 
+static void
+mfm_board_init(int board, int irq, int base_main, int side_main, int type)
+{
+    st506_at_log("mfm_board_init(%i, %i, %04X, %04X, %i)\n", board, irq, base_main, side_main, type);
+
+    if ((mfm_boards[board] != NULL) && mfm_boards[board]->inited)
+        return;
+
+    st506_at_log("WD1003: Initializing board %i...\n", board);
+
+    if (mfm_boards[board] == NULL)
+        mfm_boards[board] = (mfm_board_t *) malloc(sizeof(mfm_board_t));
+
+    memset(mfm_boards[board], 0, sizeof(mfm_board_t));
+    mfm_boards[board]->irq     = irq;
+    mfm_boards[board]->cur_dev = board << 1;
+    mfm_boards[board]->base_main = base_main;
+    mfm_boards[board]->side_main = side_main;
+#if 0
+    // TODO
+    mfm_set_handlers(board);
+
+    timer_add(&mfm_boards[board]->timer, mfm_board_callback, mfm_boards[board], 0);
+
+    mfm_board_setup(board);
+#endif
+
+    mfm_boards[board]->inited = 1;
+}
+
+static void
+mfm_board_close(int board)
+{
+//    mfm_t *dev;
+//    int    c;
+
+    st506_at_log("mfm_board_close(%i)\n", board);
+
+    if ((mfm_boards[board] == NULL) || !mfm_boards[board]->inited)
+        return;
+
+    st506_at_log("WD1003: Closing board %i...\n", board);
+
+    timer_stop(&mfm_boards[board]->timer);
+
+#if 0
+    // TODO
+    /* Close hard disk image files (if previously open) */
+    for (uint8_t d = 0; d < 2; d++) {
+        c = (board << 1) + d;
+
+        mfm_boards[board]->mfm[d] = NULL;
+
+        dev = mfm_drives[c];
+
+        if (dev == NULL)
+            continue;
+
+        if ((dev->type == MFM_HDD) && (dev->hdd_num != -1))
+            hdd_image_close(dev->hdd_num);
+
+        if (dev->buffer) {
+            free(dev->buffer);
+            dev->buffer = NULL;
+        }
+
+        if (dev->sector_buffer) {
+            free(dev->sector_buffer);
+            dev->buffer = NULL;
+        }
+
+        if (dev) {
+            free(dev);
+            mfm_drives[c] = NULL;
+        }
+    }
+
+    free(mfm_boards[board]);
+    mfm_boards[board] = NULL;
+#endif
+}
+
 static void *
 mfm_init(UNUSED(const device_t *info))
 {
@@ -763,12 +861,21 @@ mfm_init(UNUSED(const device_t *info))
     mfm->status = STAT_READY | STAT_DSC; /* drive is ready */
     mfm->error  = 1;                     /* no errors */
 
-    io_sethandler(0x01f0, 1,
-                  mfm_read, mfm_readw, NULL, mfm_write, mfm_writew, NULL, mfm);
-    io_sethandler(0x01f1, 7,
-                  mfm_read, mfm_readw, NULL, mfm_write, mfm_writew, NULL, mfm);
-    io_sethandler(0x03f6, 1,
-                  NULL, NULL, NULL, mfm_write, NULL, NULL, mfm);
+    mfm_boards[0]->base_main = 0x1f0;
+    mfm_boards[0]->side_main = 0x3f6;
+
+    io_sethandler(mfm_boards[0]->base_main, 1,
+                  mfm_read, mfm_readw, NULL,
+                  mfm_write, mfm_writew, NULL,
+                  mfm);
+    io_sethandler(mfm_boards[0]->base_main + 1, 7,
+                  mfm_read, mfm_readw, NULL,
+                  mfm_write, mfm_writew, NULL,
+                  mfm);
+    io_sethandler(mfm_boards[0]->side_main, 1,
+                  NULL, NULL, NULL,
+                  mfm_write, NULL, NULL,
+                  mfm);
 
     timer_add(&mfm->callback_timer, do_callback, mfm, 0);
 
@@ -795,11 +902,39 @@ mfm_close(void *priv)
     ui_sb_update_icon_write(SB_HDD | HDD_BUS_MFM, 0);
 }
 
-const device_t st506_at_wd1003_device = {
+const device_t st506_at_wd1003_pri_device = {
     .name          = "WD1003 AT MFM/RLL Controller",
     .internal_name = "st506_at",
     .flags         = DEVICE_ISA16,
     .local         = 0,
+    .init          = mfm_init,
+    .close         = mfm_close,
+    .reset         = NULL,
+    .available     = NULL,
+    .speed_changed = NULL,
+    .force_redraw  = NULL,
+    .config        = NULL
+};
+
+const device_t st506_at_wd1003_sec_device = {
+    .name          = "WD1003 AT MFM/RLL Controller (Secondary)",
+    .internal_name = "st506_at_sec",
+    .flags         = DEVICE_ISA16,
+    .local         = 1,
+    .init          = mfm_init,
+    .close         = mfm_close,
+    .reset         = NULL,
+    .available     = NULL,
+    .speed_changed = NULL,
+    .force_redraw  = NULL,
+    .config        = NULL
+};
+
+const device_t st506_at_wd1003_dual_device = {
+    .name          = "WD1003 AT MFM/RLL Controller (Dual)",
+    .internal_name = "st506_at_dual",
+    .flags         = DEVICE_ISA16,
+    .local         = 2,
     .init          = mfm_init,
     .close         = mfm_close,
     .reset         = NULL,

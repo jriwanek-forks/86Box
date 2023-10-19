@@ -39,7 +39,9 @@ extern const device_t st506_xt_st11_r_device;             /* st506_xt_st11_m */
 extern const device_t st506_xt_wd1002a_wx1_device;        /* st506_xt_wd1002a_wx1 */
 extern const device_t st506_xt_wd1002a_wx1_nobios_device; /* st506_xt_wd1002a_wx1 */
 extern const device_t st506_xt_wd1002a_27x_device;        /* st506_xt_wd1002a_27x */
-extern const device_t st506_at_wd1003_device;             /* st506_at_wd1003 */
+extern const device_t st506_at_wd1003_pri_device;         /* st506_at_wd1003 (Primary) */
+extern const device_t st506_at_wd1003_sec_device;         /* st506_at_wd1003 (Secondary) */
+extern const device_t st506_at_wd1003_dual_device;        /* st506_at_wd1003 (Dual) */
 extern const device_t st506_xt_wd1004a_wx1_device;        /* st506_xt_wd1004a_wx1 */
 extern const device_t st506_xt_wd1004_27x_device;         /* st506_xt_wd1004_27x */
 extern const device_t st506_xt_wd1004a_27x_device;        /* st506_xt_wd1004a_27x */

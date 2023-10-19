@@ -81,7 +81,9 @@ static const struct {
     { &xtide_at_ps2_2ch_device     },
     { &ide_ter_device              },
     { &ide_qua_device              },
-    { &st506_at_wd1003_device      },
+    { &st506_at_wd1003_pri_device  },
+    { &st506_at_wd1003_sec_device  },
+    { &st506_at_wd1003_dual_device },
     { &esdi_at_wd1007vse1_device   },
     /* MCA */
     { &esdi_ps2_device             },
