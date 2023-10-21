@@ -230,7 +230,7 @@ draw_char_rom(herculesplus_t *dev, int x, uint8_t chr, uint8_t attr)
     const uint8_t *fnt;
     int            elg;
     int            blk;
-    int            cw = HERCULESPLUS_CW;
+    int            cw    = HERCULESPLUS_CW;
     int            blink = dev->ctrl & HERCULESPLUS_CTRL_BLINK;
 
     blk = 0;

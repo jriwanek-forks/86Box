@@ -24,7 +24,7 @@ enum wacom_handshake_modes {
     WACOM_HANDSHAKE_NONE = 0,
     WACOM_HANDSHAKE_CTS  = 1,
     WACOM_HANDSHAKE_DTS  = 2,
-    WACOM_HANDSHAKE_BOTH = 3, 
+    WACOM_HANDSHAKE_BOTH = 3,
 };
 
 enum wacom_cmd_set {
@@ -46,16 +46,16 @@ enum {
 
 typedef struct wacom_tablet_id {
     char id[64];
-    int type;
+    int  type;
 } wacom_tablet_id;
 
 static const wacom_tablet_id sd510_id = {
-    .id = "~#SD51C V3.2.1.01\r",
+    .id   = "~#SD51C V3.2.1.01\r",
     .type = WACOM_TYPE_IISONLY
 };
 
 static const wacom_tablet_id artpad_id = {
-    .id = "~#KT-0405-R00 V1.1-0\r",
+    .id   = "~#KT-0405-R00 V1.1-0\r",
     .type = WACOM_TYPE_IV
 };
 
@@ -97,7 +97,7 @@ typedef struct mouse_wacom_t {
     int suppressed;
     int measurement;
     int remote_req;
-    
+
     uint32_t               x_res;
     uint32_t               y_res;
     const wacom_tablet_id *tablet_type;
@@ -186,15 +186,15 @@ wacom_process_settings_dword(mouse_wacom_t *wacom, uint32_t dword)
 
     wacom->mode = wacom->settings_bits.transfer_mode;
 
-    wacom->bits  = 1 + 7 + wacom->settings_bits.data_bits_conf;
+    wacom->bits = 1 + 7 + wacom->settings_bits.data_bits_conf;
     wacom->bits += 1 + wacom->settings_bits.stop_bits_conf;
     if (wacom->settings_bits.parity == 2 && !(wacom->bits % 2)) {
         wacom->bits++;
     } else if (wacom->settings_bits.parity == 3 && (wacom->bits % 2)) {
         wacom->bits++;
     }
-    
-    switch(wacom->settings_bits.baud_rate) {
+
+    switch (wacom->settings_bits.baud_rate) {
         case 0:
             wacom->transmit_period = wacom_transmit_period(wacom, 2400, -1);
             break;
@@ -202,11 +202,11 @@ wacom_process_settings_dword(mouse_wacom_t *wacom, uint32_t dword)
         case 1:
             wacom->transmit_period = wacom_transmit_period(wacom, 4800, -1);
             break;
-        
+
         case 2:
             wacom->transmit_period = wacom_transmit_period(wacom, 9600, -1);
             break;
-        
+
         case 3:
             wacom->transmit_period = wacom_transmit_period(wacom, 19200, -1);
             break;
@@ -216,7 +216,7 @@ wacom_process_settings_dword(mouse_wacom_t *wacom, uint32_t dword)
     }
 
     mouse_input_mode = !wacom->settings_bits.coord_sys;
-    wacom->x_res = wacom->y_res = wacom_resolution_values[wacom->settings_bits.resolution];
+    wacom->x_res     = wacom->y_res = wacom_resolution_values[wacom->settings_bits.resolution];
 }
 
 static void
@@ -249,7 +249,7 @@ wacom_reset_artpad(mouse_wacom_t *wacom)
     wacom->transmit_id                     = 0;
     wacom->settings_bits.output_format     = 0; /* Binary */
     wacom->measurement                     = 1;
-    wacom->increment                       = 0; 
+    wacom->increment                       = 0;
     wacom->suppressed_increment            = 1;
     wacom->reset_tsc                       = tsc;
     wacom->settings_bits.remote_mode       = 0;
@@ -265,7 +265,7 @@ wacom_callback(UNUSED(struct serial_s *serial), void *priv)
 {
     mouse_wacom_t *wacom = (mouse_wacom_t *) priv;
 
-    switch(wacom->settings_bits.baud_rate) {
+    switch (wacom->settings_bits.baud_rate) {
         case 0:
             wacom->transmit_period = wacom_transmit_period(wacom, 2400, -1);
             break;
@@ -273,11 +273,11 @@ wacom_callback(UNUSED(struct serial_s *serial), void *priv)
         case 1:
             wacom->transmit_period = wacom_transmit_period(wacom, 4800, -1);
             break;
-        
+
         case 2:
             wacom->transmit_period = wacom_transmit_period(wacom, 9600, -1);
             break;
-        
+
         case 3:
             wacom->transmit_period = wacom_transmit_period(wacom, 19200, -1);
             break;
@@ -322,7 +322,7 @@ wacom_write(UNUSED(struct serial_s *serial), void *priv, uint8_t data)
     }
 
     if (data == '@') {
-        wacom->remote_req  = 1;
+        wacom->remote_req                = 1;
         wacom->settings_bits.remote_mode = 1;
         return;
     }
@@ -339,7 +339,7 @@ wacom_write(UNUSED(struct serial_s *serial), void *priv, uint8_t data)
         return;
     }
     if (data == 0x11) {
-        wacom->transmission_stopped = 0;
+        wacom->transmission_stopped      = 0;
         wacom->settings_bits.remote_mode = wacom->remote_req = 0;
         return;
     }
@@ -355,12 +355,14 @@ wacom_write(UNUSED(struct serial_s *serial), void *priv, uint8_t data)
         if (!memcmp(wacom->data_rec, "AS", 2) && wacom->settings_bits.cmd_set == WACOM_CMDSET_IIS) {
             wacom->settings_bits.output_format = !(wacom->data_rec[2] == '1');
         } else if (!memcmp(wacom->data_rec, "SR", 2)) {
-            wacom->mode                 = WACOM_MODE_STREAM;
+            wacom->mode = WACOM_MODE_STREAM;
         } else if (!memcmp(wacom->data_rec, "IN", 2)) {
             sscanf((const char *) wacom->data_rec, "IN%d", &wacom->increment);
         } else if (!memcmp(wacom->data_rec, "RE", 2)) {
-            if (wacom->tablet_type->type == WACOM_TYPE_IV) wacom_reset_artpad(wacom);
-            else wacom_reset(wacom);
+            if (wacom->tablet_type->type == WACOM_TYPE_IV)
+                wacom_reset_artpad(wacom);
+            else
+                wacom_reset(wacom);
         } else if (!memcmp(wacom->data_rec, "IT", 2)) {
             sscanf((const char *) wacom->data_rec, "IT%d", &wacom->interval);
         } else if (!memcmp(wacom->data_rec, "DE", 2) && wacom->settings_bits.cmd_set == WACOM_CMDSET_IIS) {
@@ -377,7 +379,7 @@ wacom_write(UNUSED(struct serial_s *serial), void *priv, uint8_t data)
         } else if (!memcmp(wacom->data_rec, "SW", 2)) {
             wacom->mode = WACOM_MODE_SWITCH;
         } else if (!memcmp(wacom->data_rec, "AL", 2)) {
-            uint8_t out_of_range_data = wacom->settings_bits.out_of_range_data;
+            uint8_t out_of_range_data              = wacom->settings_bits.out_of_range_data;
             wacom->settings_bits.out_of_range_data = !!out_of_range_data;
         } else if (!memcmp(wacom->data_rec, "RQ", 2)) {
             int remote_mode = 0;
@@ -388,8 +390,8 @@ wacom_write(UNUSED(struct serial_s *serial), void *priv, uint8_t data)
         } else if (!memcmp(wacom->data_rec, "SP", 2)) {
             wacom->transmission_stopped = 1;
         } else if (!memcmp(wacom->data_rec, "ST", 2)) {
-            wacom->transmission_stopped = 0;
-            wacom->settings_bits.remote_mode = wacom->remote_req = 0; 
+            wacom->transmission_stopped      = 0;
+            wacom->settings_bits.remote_mode = wacom->remote_req = 0;
         } else if (!memcmp(wacom->data_rec, "NR", 2)) {
             sscanf((const char *) wacom->data_rec, "NR%d", &wacom->x_res);
             wacom->y_res = wacom->x_res;
@@ -397,17 +399,17 @@ wacom_write(UNUSED(struct serial_s *serial), void *priv, uint8_t data)
             if (!memcmp(wacom->data_rec, "~*", 2)) {
                 uint32_t settings_dword = wacom->settings;
                 if (strstr((const char *) wacom->data_rec, ",")) {
-                    uint32_t x_res = wacom->x_res;
-                    uint32_t y_res = wacom->y_res;
+                    uint32_t x_res     = wacom->x_res;
+                    uint32_t y_res     = wacom->y_res;
                     uint32_t increment = wacom->increment;
-                    uint32_t interval = wacom->interval;
+                    uint32_t interval  = wacom->interval;
 
                     sscanf((const char *) wacom->data_rec, "~*%08X,%d,%d,%d,%d", &settings_dword, &increment, &interval, &x_res, &y_res);
-                    
-                    wacom->interval = interval;
+
+                    wacom->interval  = interval;
                     wacom->increment = increment;
-                    wacom->x_res = x_res;
-                    wacom->y_res = y_res;
+                    wacom->x_res     = x_res;
+                    wacom->y_res     = y_res;
                 } else {
                     sscanf((const char *) wacom->data_rec, "~*%X", &settings_dword);
                 }
@@ -416,7 +418,7 @@ wacom_write(UNUSED(struct serial_s *serial), void *priv, uint8_t data)
                 fifo8_push_all(&wacom->data, (const uint8_t *) "~C5039,3779\r", sizeof("~C5039,3779\r") - 1);
             } else if (!memcmp(wacom->data_rec, "~R", 2)) {
                 uint8_t data[256] = { 0 };
-                snprintf((char *)data, sizeof(data), (const char *) "~*%08X,%d,%d,%d,%d\r", wacom->settings, wacom->increment, wacom->interval, wacom->x_res, wacom->y_res);
+                snprintf((char *) data, sizeof(data), (const char *) "~*%08X,%d,%d,%d,%d\r", wacom->settings, wacom->increment, wacom->interval, wacom->x_res, wacom->y_res);
                 fifo8_push_all(&wacom->data, data, strlen((const char *) data));
             }
         }
@@ -427,11 +429,11 @@ static int
 wacom_poll(void *priv)
 {
     mouse_wacom_t *wacom = (mouse_wacom_t *) priv;
-    int delta_x;
-    int delta_y;
-    int b = mouse_get_buttons_ex();
-    double abs_x;
-    double abs_y;
+    int            delta_x;
+    int            delta_y;
+    int            b = mouse_get_buttons_ex();
+    double         abs_x;
+    double         abs_y;
 
     mouse_subtract_coords(&delta_x, &delta_y, NULL, NULL, -32768, 32767, 0, 0);
     mouse_get_abs_coords(&abs_x, &abs_y);
@@ -440,8 +442,8 @@ wacom_poll(void *priv)
         wacom->abs_x = abs_x * 5039. * (wacom->x_res / 1000.);
         wacom->abs_y = abs_y * 3779. * (wacom->y_res / 1000.);
     } else {
-        wacom->abs_x         = abs_x * (wacom->measurement ? 4566. : 5800.);
-        wacom->abs_y         = abs_y * (wacom->measurement ? 2972. : 3774.);
+        wacom->abs_x = abs_x * (wacom->measurement ? 4566. : 5800.);
+        wacom->abs_y = abs_y * (wacom->measurement ? 2972. : 3774.);
         if (wacom->abs_x > (wacom->measurement ? 4566 : 5800))
             wacom->abs_x = (wacom->measurement ? 4566 : 5800);
         if (wacom->abs_y > (wacom->measurement ? 2972 : 3774))
@@ -491,13 +493,13 @@ wacom_transmit_prepare(mouse_wacom_t *wacom, int x, int y)
     if (wacom->transmit_id) {
         uint8_t data[128] = { 0 };
         snprintf((char *) data, sizeof(data), "%s", wacom->tablet_type->id);
-        fifo8_push_all(&wacom->data, data, strlen((char *)data));
+        fifo8_push_all(&wacom->data, data, strlen((char *) data));
         wacom->transmit_id = 0;
         return;
     }
-    wacom->last_abs_x          = wacom->abs_x;
-    wacom->last_abs_y          = wacom->abs_y;
-    wacom->remote_req          = 0;
+    wacom->last_abs_x = wacom->abs_x;
+    wacom->last_abs_y = wacom->abs_y;
+    wacom->remote_req = 0;
 
     wacom->oldb = wacom->b;
     if (wacom->settings_bits.output_format == 0) {
@@ -508,8 +510,7 @@ wacom_transmit_prepare(mouse_wacom_t *wacom, int x, int y)
                 data[6] = ((wacom->b & 0x1) ? (uint8_t) 31 : (uint8_t) -1);
             else
                 data[6] = ((wacom->b & 0x1) ? (uint8_t) 63 : (uint8_t) -63);
-        }
-        else
+        } else
             data[6] = (wacom->pressure_mode || wacom->settings_bits.cmd_set == WACOM_CMDSET_IV) ? ((wacom->b & 0x1) ? (uint8_t) 31 : (uint8_t) -31) : wacom_get_switch(wacom->b);
 
         data[5] = (y & 0x7F);
@@ -553,7 +554,7 @@ wacom_transmit_prepare(mouse_wacom_t *wacom, int x, int y)
         snprintf((char *) data, sizeof(data), "*,%05d,%05d,%d\r\n",
                  wacom->abs_x, wacom->abs_y,
                  wacom->pressure_mode ? ((wacom->b & 0x1) ? (uint8_t) -31 : (uint8_t) 15) : ((wacom->b & 0x1) ? 21 : 00));
-        fifo8_push_all(&wacom->data, data, strlen((char *)data));
+        fifo8_push_all(&wacom->data, data, strlen((char *) data));
     }
 }
 
@@ -632,7 +633,7 @@ transmit_prepare:
 transmit:
     serial_write_fifo(wacom->serial, fifo8_pop(&wacom->data));
     if (fifo8_num_used(&wacom->data) == 0) {
-        wacom->old_tsc              = tsc;
+        wacom->old_tsc = tsc;
     }
     return;
 }
@@ -649,7 +650,7 @@ wacom_init(const device_t *info)
     if (info->local == 0) {
         dev->tablet_type = &sd510_id;
     } else
-        dev->tablet_type = (wacom_tablet_id*)info->local;
+        dev->tablet_type = (wacom_tablet_id *) info->local;
 
     fifo8_create(&dev->data, 512);
 

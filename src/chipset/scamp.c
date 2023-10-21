@@ -409,8 +409,8 @@ ram_mirrored_write(uint32_t addr, uint8_t val, void *priv)
 static void
 recalc_mappings(void *priv)
 {
-    scamp_t *dev = (scamp_t *) priv;
-    uint32_t virt_base  = 0;
+    scamp_t *dev       = (scamp_t *) priv;
+    uint32_t virt_base = 0;
     uint32_t old_virt_base;
     uint8_t  cur_rammap = dev->cfg_regs[CFG_RAMMAP] & 0xf;
     int      bank_nr    = 0;

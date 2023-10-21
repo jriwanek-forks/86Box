@@ -154,11 +154,11 @@ voodoo_v2_blit_start(voodoo_t *voodoo)
     uint64_t dat64;
     int      size_x = ABS(voodoo->bltSizeX);
     int      size_y = ABS(voodoo->bltSizeY);
-    int      x_dir = (voodoo->bltSizeX > 0) ? 1 : -1;
-    int      y_dir = (voodoo->bltSizeY > 0) ? 1 : -1;
+    int      x_dir  = (voodoo->bltSizeX > 0) ? 1 : -1;
+    int      y_dir  = (voodoo->bltSizeY > 0) ? 1 : -1;
     int      dst_x;
-    int      src_y = voodoo->bltSrcY & 0x7ff;
-    int      dst_y = voodoo->bltDstY & 0x7ff;
+    int      src_y         = voodoo->bltSrcY & 0x7ff;
+    int      dst_y         = voodoo->bltDstY & 0x7ff;
     int      src_stride    = (voodoo->bltCommand & BLTCMD_SRC_TILED) ? ((voodoo->bltSrcXYStride & 0x3f) * 32 * 2) : (voodoo->bltSrcXYStride & 0xff8);
     int      dst_stride    = (voodoo->bltCommand & BLTCMD_DST_TILED) ? ((voodoo->bltDstXYStride & 0x3f) * 32 * 2) : (voodoo->bltDstXYStride & 0xff8);
     uint32_t src_base_addr = (voodoo->bltCommand & BLTCMD_SRC_TILED) ? ((voodoo->bltSrcBaseAddr & 0x3ff) << 12) : (voodoo->bltSrcBaseAddr & 0x3ffff8);
@@ -325,8 +325,8 @@ voodoo_v2_blit_data(voodoo_t *voodoo, uint32_t data)
         int      b       = 0;
         uint16_t src_dat = 0;
         uint16_t dst_dat;
-        int      x       = (voodoo->blt.x_dir > 0) ? (voodoo->blt.dst_x + voodoo->blt.cur_x) : (voodoo->blt.dst_x - voodoo->blt.cur_x);
-        int      rop     = 0;
+        int      x   = (voodoo->blt.x_dir > 0) ? (voodoo->blt.dst_x + voodoo->blt.cur_x) : (voodoo->blt.dst_x - voodoo->blt.cur_x);
+        int      rop = 0;
 
         switch (voodoo->bltCommand & BLIT_SRC_FORMAT) {
             case BLIT_SRC_1BPP:

@@ -275,11 +275,11 @@ et4000w32p_out(uint16_t addr, uint8_t val, void *priv)
         case 0x216b:
         case 0x217b:
             et4000->regs[et4000->index] = val;
-            svga->hwcursor.x                                    = et4000->regs[0xE0] | ((et4000->regs[0xE1] & 7) << 8);
-            svga->hwcursor.y                                    = et4000->regs[0xE4] | ((et4000->regs[0xE5] & 7) << 8);
-            svga->hwcursor.ena                                  = !!(et4000->regs[0xF7] & 0x80);
-            svga->hwcursor.xoff                                 = et4000->regs[0xE2];
-            svga->hwcursor.yoff                                 = et4000->regs[0xE6];
+            svga->hwcursor.x            = et4000->regs[0xE0] | ((et4000->regs[0xE1] & 7) << 8);
+            svga->hwcursor.y            = et4000->regs[0xE4] | ((et4000->regs[0xE5] & 7) << 8);
+            svga->hwcursor.ena          = !!(et4000->regs[0xF7] & 0x80);
+            svga->hwcursor.xoff         = et4000->regs[0xE2];
+            svga->hwcursor.yoff         = et4000->regs[0xE6];
             svga->hwcursor.cur_xsize = svga->hwcursor.cur_ysize = ((et4000->regs[0xEF] & 4) || ((et4000->type == ET4000W32) && (et4000->regs[0xe2] >= 0x1f) && (et4000->regs[0xe6] >= 0x1f))) ? 128 : 64;
 
             if (et4000->type == ET4000W32) {
@@ -784,7 +784,7 @@ et4000w32p_accel_write_fifo(et4000w32p_t *et4000, uint32_t addr, uint8_t val)
             break;
         case 0xa3:
             et4000->acl.queued.dest_addr = (et4000->acl.queued.dest_addr & 0x00ffffff) | (val << 24);
-            et4000->acl.internal = et4000->acl.queued;
+            et4000->acl.internal         = et4000->acl.queued;
             if (et4000->type >= ET4000W32P_REVC) {
                 et4000w32p_blit_start(et4000);
                 et4000w32_log("Destination Address write and start XY Block, xcnt = %i, ycnt = %i\n", et4000->acl.x_count + 1, et4000->acl.y_count + 1);
@@ -892,12 +892,12 @@ et4000w32p_accel_write_mmu(et4000w32p_t *et4000, uint32_t addr, uint8_t val, uin
             }
 
             if (et4000w32_vbus[et4000->acl.internal.vbus] == 1) {
-                if ((et4000->acl.internal.ctrl_routing  & 7) == 4) { /*CPU data is X Count*/
+                if ((et4000->acl.internal.ctrl_routing & 7) == 4) { /*CPU data is X Count*/
                     et4000w32_log("ET4000W32 Accelerated MMU aperture routing = %02x: val = %02x, cx = %02x.\n", et4000->acl.internal.ctrl_routing, val, et4000->acl.internal.count_x);
                     et4000->acl.cpu_x_cnt = val + 1;
                     et4000->acl.cpu_x_cnt |= ((et4000->acl.queued.count_x >> 8) << 8);
                     et4000w32_blit(et4000->acl.cpu_x_cnt, 3, 0, 0xffffffff, et4000);
-                } else if ((et4000->acl.internal.ctrl_routing  & 7) == 5) { /*CPU data is Y Count*/
+                } else if ((et4000->acl.internal.ctrl_routing & 7) == 5) { /*CPU data is Y Count*/
                     et4000w32_log("ET4000W32 Accelerated MMU aperture routing = %02x: val = %02x, cy = %02x.\n", et4000->acl.internal.ctrl_routing, val, et4000->acl.internal.count_y);
                     et4000->acl.cpu_y_cnt = val + 1;
                     et4000->acl.cpu_y_cnt |= ((et4000->acl.queued.count_y >> 8) << 8);
@@ -2115,7 +2115,7 @@ et4000w32_blit(int count, int cpu_input, uint32_t src_dat, uint32_t mix_dat, et4
     if (cpu_input == 3) {
         while (1) {
             pattern = svga->vram[(et4000->acl.pattern_addr + et4000->acl.pattern_x) & et4000->vram_mask];
-            source = svga->vram[(et4000->acl.source_addr + et4000->acl.source_x) & et4000->vram_mask];
+            source  = svga->vram[(et4000->acl.source_addr + et4000->acl.source_x) & et4000->vram_mask];
 
             dest   = svga->vram[et4000->acl.dest_addr & et4000->vram_mask];
             mixmap = mix_dat & 1;
@@ -2164,7 +2164,7 @@ et4000w32_blit(int count, int cpu_input, uint32_t src_dat, uint32_t mix_dat, et4
     } else if (cpu_input == 4) {
         while (1) {
             pattern = svga->vram[(et4000->acl.pattern_addr + et4000->acl.pattern_x) & et4000->vram_mask];
-            source = svga->vram[(et4000->acl.source_addr + et4000->acl.source_x) & et4000->vram_mask];
+            source  = svga->vram[(et4000->acl.source_addr + et4000->acl.source_x) & et4000->vram_mask];
 
             dest   = svga->vram[et4000->acl.dest_addr & et4000->vram_mask];
             mixmap = mix_dat & 1;

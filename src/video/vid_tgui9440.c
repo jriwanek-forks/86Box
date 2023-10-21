@@ -2257,7 +2257,7 @@ tgui_accel_command(int count, uint32_t cpu_dat, tgui_t *tgui)
     int             x;
     int             y;
     uint32_t        out;
-    uint32_t        src_dat   = 0;
+    uint32_t        src_dat = 0;
     uint32_t        dst_dat;
     uint32_t        pat_dat;
     int             xdir      = (tgui->accel.flags & 0x200) ? -1 : 1;

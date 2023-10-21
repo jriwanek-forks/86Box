@@ -42,7 +42,7 @@ typedef struct mouse_t {
 
 int mouse_type = 0;
 int mouse_input_mode;
-int mouse_timed = 1;
+int mouse_timed               = 1;
 int mouse_tablet_in_proximity = 0;
 int tablet_tool_type          = 1; /* 0 = Puck/Cursor, 1 = Pen */
 
@@ -103,13 +103,13 @@ static mouse_t mouse_devices[] = {
     // clang-format on
 };
 
-static _Atomic double  mouse_x;
-static _Atomic double  mouse_y;
-static atomic_int      mouse_z;
-static atomic_int      mouse_buttons;
+static _Atomic double mouse_x;
+static _Atomic double mouse_y;
+static atomic_int     mouse_z;
+static atomic_int     mouse_buttons;
 
-static int             mouse_delta_b;
-static int             mouse_old_b;
+static int mouse_delta_b;
+static int mouse_old_b;
 
 static void           *mouse_priv;
 static int             mouse_nbut;
@@ -117,7 +117,7 @@ static int             mouse_raw;
 static int (*mouse_dev_poll)(void *priv);
 static void (*mouse_poll_ex)(void) = NULL;
 
-static double          sample_rate = 200.0;
+static double sample_rate = 200.0;
 
 #ifdef ENABLE_MOUSE_LOG
 int mouse_do_log = ENABLE_MOUSE_LOG;
@@ -161,10 +161,10 @@ mouse_clear_coords(void)
 void
 mouse_clear_buttons(void)
 {
-    mouse_buttons  = 0x00;
-    mouse_old_b    = 0x00;
+    mouse_buttons = 0x00;
+    mouse_old_b   = 0x00;
 
-    mouse_delta_b  = 0x00;
+    mouse_delta_b = 0x00;
 }
 
 static double
@@ -172,7 +172,7 @@ mouse_scale_coord_x(double x, int mul)
 {
     double ratio = 1.0;
 
-    if (!mouse_raw)        
+    if (!mouse_raw)
         ratio = ((double) monitors[0].mon_unscaled_size_x) / monitors[0].mon_res_x;
 
     if (mul)
@@ -188,7 +188,7 @@ mouse_scale_coord_y(double y, int mul)
 {
     double ratio = 1.0;
 
-    if (!mouse_raw)        
+    if (!mouse_raw)
         ratio = ((double) monitors[0].mon_efscrnsz_y) / monitors[0].mon_res_y;
 
     if (mul)
@@ -241,7 +241,7 @@ mouse_subtract_x(int *delta_x, int *o_x, int min, int max, int abs)
         } else {
             *delta_x = max;
             real_x -= smax_x;
-       }
+        }
     } else if (real_x < smin_x) {
         if (abs) {
             *delta_x = scaled_x;
@@ -311,7 +311,7 @@ mouse_subtract_y(int *delta_y, int *o_y, int min, int max, int invert, int abs)
         } else {
             *delta_y = max;
             real_y -= smax_y;
-       }
+        }
     } else if (real_y < smin_y) {
         if (abs) {
             *delta_y = scaled_y;
@@ -371,11 +371,11 @@ int
 mouse_state_changed(void)
 {
     int b;
-    int b_mask    = (1 << mouse_nbut) - 1;
-    int wheel     = (mouse_nbut >= 4);
+    int b_mask = (1 << mouse_nbut) - 1;
+    int wheel  = (mouse_nbut >= 4);
     int ret;
 
-    b = atomic_load(&mouse_buttons);
+    b             = atomic_load(&mouse_buttons);
     mouse_delta_b = (b ^ mouse_old_b);
     mouse_old_b   = b;
 
@@ -478,7 +478,7 @@ mouse_clear_z(void)
 void
 mouse_subtract_z(int *delta_z, int min, int max, int invert)
 {
-    int z = atomic_load(&mouse_z);
+    int z      = atomic_load(&mouse_z);
     int real_z = invert ? -z : z;
 
     if (real_z > max) {
@@ -489,7 +489,7 @@ mouse_subtract_z(int *delta_z, int min, int max, int invert)
         real_z += ABS(min);
     } else {
         *delta_z = real_z;
-        real_z = 0;
+        real_z   = 0;
     }
 
     atomic_store(&mouse_z, invert ? -real_z : real_z);
@@ -627,8 +627,8 @@ mouse_reset(void)
     /* Clear local data. */
     mouse_clear_coords();
     mouse_clear_buttons();
-    mouse_input_mode                  = 0;
-    mouse_timed                 = 1;
+    mouse_input_mode = 0;
+    mouse_timed      = 1;
 
     /* If no mouse configured, we're done. */
     if (mouse_type == 0)

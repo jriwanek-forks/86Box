@@ -123,9 +123,9 @@ netcard_conf_t net_cards_conf[NET_CARD_MAX];
 uint16_t       net_card_current = 0;
 
 /* Global variables. */
-network_devmap_t network_devmap = {0};
-int  network_ndev;
-netdev_t network_devs[NET_HOST_INTF_MAX];
+network_devmap_t network_devmap = { 0 };
+int              network_ndev;
+netdev_t         network_devs[NET_HOST_INTF_MAX];
 
 /* Local variables. */
 #ifdef ENABLE_NETWORK_LOG
@@ -223,12 +223,12 @@ network_init(void)
     /* Initialize the Pcap system module, if present. */
 
     network_devmap.has_slirp = 1;
-    i = net_pcap_prepare(&network_devs[network_ndev]);
+    i                        = net_pcap_prepare(&network_devs[network_ndev]);
     if (i > 0) {
         network_devmap.has_pcap = 1;
         network_ndev += i;
     }
-    
+
 #ifdef HAS_VDE
     // Try to load the VDE plug library
     if (!net_vde_prepare())
@@ -460,7 +460,7 @@ network_attach(void *card_drv, uint8_t *mac, NETRXCB rx, NETSETLINKSTATE set_lin
     card->card_num        = net_card_current;
     card->byte_period     = NET_PERIOD_10M;
 
-    char net_drv_error[NET_DRV_ERRBUF_SIZE];
+    char    net_drv_error[NET_DRV_ERRBUF_SIZE];
     wchar_t tempmsg[NET_DRV_ERRBUF_SIZE * 2];
 
     for (int i = 0; i < NET_QUEUE_COUNT; i++) {
@@ -499,7 +499,7 @@ network_attach(void *card_drv, uint8_t *mac, NETRXCB rx, NETSETLINKSTATE set_lin
     // * Failure to init a specific driver (in which case card->host_drv.priv is null)
     if (!card->host_drv.priv) {
 
-        if(net_cards_conf[net_card_current].net_type != NET_TYPE_NONE) {
+        if (net_cards_conf[net_card_current].net_type != NET_TYPE_NONE) {
             // We're here because of a failure
             swprintf(tempmsg, sizeof_w(tempmsg), L"%ls:<br /><br />%s<br /><br />%ls", plat_get_string(STRING_NET_ERROR), net_drv_error, plat_get_string(STRING_NET_ERROR_DESC));
             ui_msgbox(MBX_ERROR, tempmsg);
@@ -515,7 +515,7 @@ network_attach(void *card_drv, uint8_t *mac, NETRXCB rx, NETSETLINKSTATE set_lin
 
         // If null fails, something is very wrong
         // Clean up and fatal
-        if(!card->host_drv.priv) {
+        if (!card->host_drv.priv) {
             thread_close_mutex(card->tx_mutex);
             thread_close_mutex(card->rx_mutex);
             for (int i = 0; i < NET_QUEUE_COUNT; i++) {
@@ -528,7 +528,6 @@ network_attach(void *card_drv, uint8_t *mac, NETRXCB rx, NETSETLINKSTATE set_lin
             fatal("Error initializing the network device: Null driver initialization failed\n");
             return NULL;
         }
-
     }
 
     timer_add(&card->timer, network_rx_queue, card, 0);

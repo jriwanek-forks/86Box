@@ -103,7 +103,7 @@ static uint8_t
 olivetti_eva_read(uint16_t addr, void *priv)
 {
     const olivetti_eva_t *dev = (olivetti_eva_t *) priv;
-    uint8_t         ret = 0xff;
+    uint8_t               ret = 0xff;
 
     switch (addr) {
         case 0x065:

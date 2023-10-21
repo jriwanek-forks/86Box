@@ -1019,18 +1019,18 @@ ncr53c8xx_process_script(ncr53c8xx_t *dev)
     int      opcode;
     int      insn_processed = 0;
     int      reg;
-    int      operator;
-    int      cond;
-    int      jmp;
-    int      n;
-    int      i;
-    int      c;
-    int32_t  offset;
-    uint8_t  op0;
-    uint8_t  op1;
-    uint8_t  data8;
-    uint8_t  mask;
-    uint8_t  data[7];
+    int operator;
+    int     cond;
+    int     jmp;
+    int     n;
+    int     i;
+    int     c;
+    int32_t offset;
+    uint8_t op0;
+    uint8_t op1;
+    uint8_t data8;
+    uint8_t mask;
+    uint8_t data[7];
 
     dev->sstop = 0;
 again:

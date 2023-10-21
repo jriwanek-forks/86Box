@@ -65,7 +65,7 @@ typedef struct headland_mr_t {
 typedef struct headland_t {
     uint8_t revision;
     uint8_t has_cri;
-    uint8_t  has_sleep;
+    uint8_t has_sleep;
 
     uint8_t cri;
     uint8_t cr[7];

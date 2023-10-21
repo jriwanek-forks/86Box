@@ -38,8 +38,8 @@ midi_t *midi_out = NULL;
 midi_t *midi_in  = NULL;
 
 midi_in_handler_t *mih_first = NULL;
-midi_in_handler_t *mih_last = NULL;
-midi_in_handler_t *mih_cur = NULL;
+midi_in_handler_t *mih_last  = NULL;
+midi_in_handler_t *mih_cur   = NULL;
 
 uint8_t MIDI_InSysexBuf[SYSEX_SIZE];
 

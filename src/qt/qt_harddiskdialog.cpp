@@ -88,11 +88,11 @@ HarddiskDialog::HarddiskDialog(bool existing, QWidget *parent)
     ui->buttonBox->button(QDialogButtonBox::Ok)->setEnabled(false);
 
     filters = QStringList({ tr("Raw image") % util::DlgFilter({ "img" }, true),
-                          tr("HDI image") % util::DlgFilter({ "hdi" }, true),
-                          tr("HDX image") % util::DlgFilter({ "hdx" }, true),
-                          tr("Fixed-size VHD") % util::DlgFilter({ "vhd" }, true),
-                          tr("Dynamic-size VHD") % util::DlgFilter({ "vhd" }, true),
-                          tr("Differencing VHD") % util::DlgFilter({ "vhd" }, true) });
+                            tr("HDI image") % util::DlgFilter({ "hdi" }, true),
+                            tr("HDX image") % util::DlgFilter({ "hdx" }, true),
+                            tr("Fixed-size VHD") % util::DlgFilter({ "vhd" }, true),
+                            tr("Dynamic-size VHD") % util::DlgFilter({ "vhd" }, true),
+                            tr("Differencing VHD") % util::DlgFilter({ "vhd" }, true) });
 
     if (existing) {
         ui->fileField->setFilter(tr("Hard disk images") % util::DlgFilter({ "hd?", "im?", "vhd" }) % tr("All files") % util::DlgFilter({ "*" }, true));
@@ -561,7 +561,7 @@ HarddiskDialog::onExistingFileSelected(const QString &fileName, bool precheck)
     if (!file.open(QIODevice::ReadOnly)) {
         // No message box during precheck (performed when the file input loses focus and this function is called)
         // If precheck is false, the file has been chosen from a file dialog and the alert should display.
-        if(!precheck) {
+        if (!precheck) {
             QMessageBox::critical(this, tr("Unable to read file"), tr("Make sure the file exists and is readable."));
         }
         return;

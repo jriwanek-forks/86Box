@@ -154,7 +154,8 @@ xga_updatemapping(svga_t *svga)
     xga_t *xga = (xga_t *) svga->xga;
 
     xga_log("OpMode = %x, linear base = %08x, aperture cntl = %d, access mode = %x, map = %x, "
-            "endian reverse = %d, a5test = %d, XGA on = %d.\n", xga->op_mode, xga->linear_base,
+            "endian reverse = %d, a5test = %d, XGA on = %d.\n",
+            xga->op_mode, xga->linear_base,
             xga->aperture_cntl, xga->access_mode, svga->gdcreg[6] & 0x0c,
             xga->linear_endian_reverse, xga->a5_test, xga->on);
 
@@ -527,7 +528,7 @@ xga_ext_out_reg(xga_t *xga, svga_t *svga, uint8_t idx, uint8_t val)
                     break;
                 case 2:
                     xga->pal_b            = val;
-                    index                 = xga->dac_addr & 0xff;
+                    index                = xga->dac_addr & 0xff;
                     xga->xgapal[index].r = xga->dac_r;
                     xga->xgapal[index].g = xga->dac_g;
                     xga->xgapal[index].b = xga->pal_b;
@@ -1498,7 +1499,7 @@ xga_line_draw_write(svga_t *svga)
 static void
 xga_bitblt(svga_t *svga)
 {
-    xga_t   *xga = (xga_t *) svga->xga;
+    xga_t   *xga        = (xga_t *) svga->xga;
     uint32_t src_dat;
     uint32_t dest_dat;
     uint32_t old_dest_dat;
@@ -1565,7 +1566,8 @@ xga_bitblt(svga_t *svga)
 
         xga_log("PAT8: PatFormat=%x, SrcFormat=%x, DstFormat=%x.\n", xga->accel.px_map_format[xga->accel.pat_src] & 8, (xga->accel.px_map_format[xga->accel.src_map]), (xga->accel.px_map_format[xga->accel.dst_map]));
         xga_log("Pattern Map = 8: CMD = %08x: SRCBase = %08x, DSTBase = %08x, from/to vram dir = %d, "
-                "cmd dir = %06x\n", xga->accel.command, srcbase, dstbase, xga->from_to_vram,
+                "cmd dir = %06x\n",
+                xga->accel.command, srcbase, dstbase, xga->from_to_vram,
                 xga->accel.dir_cmd);
         xga_log("CMD = %08x: Y = %d, X = %d, patsrc = %02x, srcmap = %d, dstmap = %d, py = %d, "
                 "sy = %d, dy = %d, width0 = %d, width1 = %d, width2 = %d, width3 = %d\n",
@@ -1662,7 +1664,8 @@ xga_bitblt(svga_t *svga)
         xga_log("PAT%d: PatFormat=%x, SrcFormat=%x, DstFormat=%x.\n", xga->accel.pat_src, xga->accel.px_map_format[xga->accel.pat_src] & 8, (xga->accel.px_map_format[xga->accel.src_map]), (xga->accel.px_map_format[xga->accel.dst_map]));
         xga_log("XGA bitblt linear endian reverse=%d, octanty=%d, src command = %08x, pxsrcmap=%x, "
                 "pxdstmap=%x, srcmap=%d, patmap=%d, dstmap=%d, dstwidth=%d, dstheight=%d, srcwidth=%d, "
-                "srcheight=%d, dstbase=%08x, srcbase=%08x.\n", xga->linear_endian_reverse, ydir,
+                "srcheight=%d, dstbase=%08x, srcbase=%08x.\n",
+                xga->linear_endian_reverse, ydir,
                 xga->accel.command, xga->accel.px_map_format[xga->accel.src_map] & 0x0f,
                 xga->accel.px_map_format[xga->accel.dst_map] & 0x0f, xga->accel.src_map,
                 xga->accel.pat_src, xga->accel.dst_map, dstwidth, dstheight, srcwidth, srcheight,
@@ -2619,7 +2622,7 @@ xga_render_overscan_right(xga_t *xga, svga_t *svga)
 static void
 xga_render_4bpp(svga_t *svga)
 {
-    xga_t *xga = (xga_t *) svga->xga;
+    xga_t    *xga = (xga_t *) svga->xga;
     uint32_t *p;
     uint32_t  dat;
 
@@ -2657,7 +2660,7 @@ xga_render_4bpp(svga_t *svga)
 static void
 xga_render_8bpp(svga_t *svga)
 {
-    xga_t *xga = (xga_t *) svga->xga;
+    xga_t    *xga = (xga_t *) svga->xga;
     uint32_t *p;
     uint32_t  dat;
 
@@ -2694,7 +2697,7 @@ xga_render_8bpp(svga_t *svga)
 static void
 xga_render_16bpp(svga_t *svga)
 {
-    xga_t *xga = (xga_t *) svga->xga;
+    xga_t    *xga = (xga_t *) svga->xga;
     int       x;
     uint32_t *p;
     uint32_t  dat;
@@ -2878,9 +2881,9 @@ xga_read_test(uint32_t addr, void *priv)
 static uint8_t
 xga_read_banked(uint32_t addr, void *priv)
 {
-    svga_t      *svga = (svga_t *) priv;
-    xga_t *xga  = (xga_t *) svga->xga;
-    uint8_t      ret  = 0xff;
+    svga_t *svga = (svga_t *) priv;
+    xga_t  *xga  = (xga_t *) svga->xga;
+    uint8_t ret  = 0xff;
 
     if (xga->access_mode & 0x08) {
         if ((xga->access_mode & 0x07) == 0x04)
@@ -2916,9 +2919,9 @@ xga_read(uint32_t addr, void *priv)
 static uint16_t
 xga_readw(uint32_t addr, void *priv)
 {
-    svga_t      *svga = (svga_t *) priv;
-    xga_t *xga  = (xga_t *) svga->xga;
-    uint16_t     ret  = 0xffff;
+    svga_t  *svga = (svga_t *) priv;
+    xga_t   *xga  = (xga_t *) svga->xga;
+    uint16_t ret  = 0xffff;
 
     addr &= xga->banked_mask;
     addr += xga->read_bank;
@@ -2938,9 +2941,9 @@ xga_readw(uint32_t addr, void *priv)
 static uint32_t
 xga_readl(uint32_t addr, void *priv)
 {
-    svga_t      *svga = (svga_t *) priv;
-    xga_t *xga  = (xga_t *) svga->xga;
-    uint32_t     ret  = 0xffffffff;
+    svga_t  *svga = (svga_t *) priv;
+    xga_t   *xga  = (xga_t *) svga->xga;
+    uint32_t ret  = 0xffffffff;
 
     addr &= xga->banked_mask;
     addr += xga->read_bank;
@@ -3083,8 +3086,8 @@ xga_set_poll(svga_t *svga)
 void
 xga_poll(void *priv)
 {
-    svga_t *svga = (svga_t *) priv;
-    xga_t *xga   = (xga_t *) svga->xga;
+    svga_t  *svga = (svga_t *) priv;
+    xga_t   *xga  = (xga_t *) svga->xga;
     uint32_t x;
     int      wx;
     int      wy;
@@ -3291,7 +3294,8 @@ xga_mca_write(int port, uint8_t val, void *priv)
     }
 
     xga_log("[%04X:%08X]: POS Write Port = %x, val = %02x, linear base = %08x, instance = %d, "
-            "rom addr = %05x\n", CS, cpu_state.pc, port & 7, val, xga->linear_base,
+            "rom addr = %05x\n",
+            CS, cpu_state.pc, port & 7, val, xga->linear_base,
             xga->instance, xga->rom_addr);
 }
 
@@ -3510,10 +3514,10 @@ xga_init(const device_t *info)
     if (svga_get_pri() == NULL)
         return NULL;
 
-    svga_t  *svga     = svga_get_pri();
-    xga_t   *xga      = (xga_t *) calloc(1, sizeof(xga_t));
+    svga_t  *svga = svga_get_pri();
+    xga_t   *xga  = (xga_t *) calloc(1, sizeof(xga_t));
 
-    svga->xga         = xga;
+    svga->xga = xga;
 
     xga->ext_mem_addr = device_get_config_hex16("ext_mem_addr");
     xga->instance_isa = device_get_config_int("instance");

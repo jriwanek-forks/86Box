@@ -457,7 +457,7 @@ banshee_updatemapping(banshee_t *banshee)
 
     banshee_log("Update mapping - bank %02X ", svga->gdcreg[6] & 0xc);
     switch (svga->gdcreg[6] & 0xc) { /*Banked framebuffer*/
-        case 0x0: /*128k at A0000*/
+        case 0x0:                    /*128k at A0000*/
             mem_mapping_set_addr(&svga->mapping, 0xa0000, 0x20000);
             svga->banked_mask = 0xffff;
             break;
@@ -515,7 +515,7 @@ static void
 banshee_render_16bpp_tiled(svga_t *svga)
 {
     banshee_t *banshee = (banshee_t *) svga->priv;
-    uint32_t  *p = &(svga->monitor->target_buffer->line[svga->displine + svga->y_add])[svga->x_add];
+    uint32_t  *p       = &(svga->monitor->target_buffer->line[svga->displine + svga->y_add])[svga->x_add];
     uint32_t   addr;
     int        drawn = 0;
 
@@ -2503,7 +2503,7 @@ voodoo_generate_vb_filters(voodoo_t *voodoo, int fcr, int fcg)
     float thiscol;
     float thiscolg;
     float clr;
-    float clg = 0;
+    float clg  = 0;
     float hack = 1.0f;
     // pre-clamping
 
@@ -2511,7 +2511,7 @@ voodoo_generate_vb_filters(voodoo_t *voodoo, int fcr, int fcg)
     fcg *= hack;
 
     /* box prefilter */
-    for (uint16_t g = 0; g < 256; g++) { // pixel 1 - our target pixel we want to bleed into
+    for (uint16_t g = 0; g < 256; g++) {     // pixel 1 - our target pixel we want to bleed into
         for (uint16_t h = 0; h < 256; h++) { // pixel 2 - our main pixel
             float avg;
             float avgdiff;
@@ -2594,7 +2594,7 @@ voodoo_generate_vb_filters(voodoo_t *voodoo, int fcr, int fcg)
     fcg *= 6;
 #endif
 
-    for (uint16_t g = 0; g < 256; g++) { // pixel 1
+    for (uint16_t g = 0; g < 256; g++) {     // pixel 1
         for (uint16_t h = 0; h < 256; h++) { // pixel 2
             difference = (float) (h - g);
             diffg      = difference;
@@ -2762,7 +2762,7 @@ banshee_overlay_draw(svga_t *svga, int displine)
                         fil[x * 3]     = vb_filter_v1_rb[fil[x * 3]][fil3[(x + 1) * 3]];
                         fil[x * 3 + 1] = vb_filter_v1_g[fil[x * 3 + 1]][fil3[(x + 1) * 3 + 1]];
                         fil[x * 3 + 2] = vb_filter_v1_rb[fil[x * 3 + 2]][fil3[(x + 1) * 3 + 2]];
-                        p[x]            = (fil[x * 3 + 2] << 16) | (fil[x * 3 + 1] << 8) | fil[x * 3];
+                        p[x]           = (fil[x * 3 + 2] << 16) | (fil[x * 3 + 1] << 8) | fil[x * 3];
                     }
                 } else /* filter disabled by emulator option */
                 {

@@ -44,12 +44,12 @@
 #define VIA_8601 0x86010500
 
 typedef struct via_apollo_t {
-    uint8_t  drb_unit;
-    uint8_t  pci_slot;
-    uint8_t  pad;
-    uint8_t  pad0;
+    uint8_t drb_unit;
+    uint8_t pci_slot;
+    uint8_t pad;
+    uint8_t pad0;
 
-    uint8_t  pci_conf[256];
+    uint8_t pci_conf[256];
 
     uint32_t id;
 

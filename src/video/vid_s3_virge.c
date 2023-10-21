@@ -3309,9 +3309,9 @@ skip_line:
             virge->s3d.h = virge->s3d.pycnt & 0x7ff;
             virge->s3d.rop = (virge->s3d.cmd_set >> 17) & 0xff;
             while (virge->s3d.h) {
-               int x = virge->s3d.dest_l >> 20;
+               int x    = virge->s3d.dest_l >> 20;
                int xend = virge->s3d.dest_r >> 20;
-               int y = virge->s3d.pystart & 0x7ff;
+               int y    = virge->s3d.pystart & 0x7ff;
                int xdir = (x < xend) ? 1 : -1;
                do {
                    uint32_t dest_addr = virge->s3d.dest_base + (x * x_mul) + (y * virge->s3d.dest_str);
@@ -5233,7 +5233,7 @@ s3_virge_init(const device_t *info)
             break;
         case S3_DIAMOND_STEALTH3D_3000:
         case S3_STB_VELOCITY_3D:
-            virge->fifo_slots_num = 8;
+            virge->fifo_slots_num   = 8;
             virge->svga.decode_mask = (8 << 20) - 1;
             virge->virge_id_high    = 0x88;
             virge->virge_id_low     = 0x3d;
@@ -5243,7 +5243,7 @@ s3_virge_init(const device_t *info)
             break;
         case S3_VIRGE_GX2:
         case S3_DIAMOND_STEALTH3D_4000:
-            virge->fifo_slots_num = 16;
+            virge->fifo_slots_num    = 16;
             virge->svga.decode_mask  = (4 << 20) - 1;
             virge->virge_id_high     = 0x8a;
             virge->virge_id_low      = 0x10;
@@ -5255,7 +5255,7 @@ s3_virge_init(const device_t *info)
             break;
 
         case S3_TRIO_3D2X:
-            virge->fifo_slots_num = 16;
+            virge->fifo_slots_num    = 16;
             virge->svga.decode_mask  = (8 << 20) - 1;
             virge->virge_id_high     = 0x8a;
             virge->virge_id_low      = 0x13;
@@ -5272,7 +5272,7 @@ s3_virge_init(const device_t *info)
             fallthrough;
 
         default:
-            virge->fifo_slots_num = 8;
+            virge->fifo_slots_num    = 8;
             virge->svga.decode_mask  = (4 << 20) - 1;
             virge->virge_id_high     = 0x8a;
             virge->virge_id_low      = 0x01;

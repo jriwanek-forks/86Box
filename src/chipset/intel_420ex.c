@@ -43,7 +43,7 @@
 #include <86box/chipset.h>
 #include <86box/spd.h>
 #ifndef USE_DRB_HACK
-#include <86box/row.h>
+#    include <86box/row.h>
 #endif
 
 #define MEM_STATE_SHADOW_R 0x01
@@ -182,7 +182,6 @@ i420ex_drb_recalc(i420ex_t *dev)
     flushmmucache();
 }
 #endif
-
 
 static void
 i420ex_write(int func, int addr, uint8_t val, void *priv)
@@ -428,7 +427,7 @@ i420ex_reset_hard(void *priv)
 
     dev->regs[0x4c] = 0x4d;
     dev->regs[0x4e] = 0x03;
-   /* Bits 2:1 of register 50h are 00 is 25 MHz, and 01 if 33 MHz, 10 and 11 are reserved. */
+    /* Bits 2:1 of register 50h are 00 is 25 MHz, and 01 if 33 MHz, 10 and 11 are reserved. */
     if (cpu_busspeed >= 33333333)
         dev->regs[0x50] |= 0x02;
     dev->regs[0x51] = 0x80;

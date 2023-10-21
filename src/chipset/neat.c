@@ -227,15 +227,15 @@ typedef struct neat_t {
 
     char          pad;
 
-    uint16_t      ems_base;            /* configured base address */
-    uint32_t      ems_frame;           /* configured frame address */
-    uint16_t      ems_size;            /* EMS size in KB */
-    uint16_t      ems_pages;           /* EMS size in pages */
+    uint16_t   ems_base;         /* configured base address */
+    uint32_t   ems_frame;        /* configured frame address */
+    uint16_t   ems_size;         /* EMS size in KB */
+    uint16_t   ems_pages;        /* EMS size in pages */
 
-    uint32_t      remap_base;
+    uint32_t   remap_base;
 
-    ram_page_t    ems[EMS_MAXPAGE];    /* EMS page registers */
-    ram_page_t    shadow[32];          /* Shadow RAM pages */
+    ram_page_t ems[EMS_MAXPAGE]; /* EMS page registers */
+    ram_page_t shadow[32];       /* Shadow RAM pages */
 } neat_t;
 
 static uint8_t defaults[16] = { 0x0a, 0x45, 0xfc, 0x00, 0x00, 0xfe, 0x00, 0x00,

@@ -251,8 +251,8 @@ ad1848_read(uint16_t addr, void *priv)
 void
 ad1848_write(uint16_t addr, uint8_t val, void *priv)
 {
-    ad1848_t *ad1848 = (ad1848_t *) priv;
-    uint8_t   temp = 0;
+    ad1848_t *ad1848     = (ad1848_t *) priv;
+    uint8_t   temp       = 0;
     uint8_t   updatefreq = 0;
 
     switch (addr & 3) {

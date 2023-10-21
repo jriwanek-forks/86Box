@@ -324,7 +324,7 @@ read_command(pgc_t *dev)
 static int
 parse_command(pgc_t *dev, const pgc_cmd_t **pcmd)
 {
-    char             match[7];
+    char match[7];
 
     *pcmd            = NULL;
     dev->hex_command = 0;
@@ -463,7 +463,7 @@ hndl_cloop(pgc_t *dev)
 static void
 hndl_clread(pgc_t *dev)
 {
-    uint8_t  param = 0;
+    uint8_t param = 0;
 
     if (!pgc_param_byte(dev, &param))
         return;
@@ -490,7 +490,7 @@ hndl_cldel(pgc_t *dev)
 static void
 hndl_clears(pgc_t *dev)
 {
-    uint8_t  param = 0;
+    uint8_t param = 0;
 
     if (!pgc_param_byte(dev, &param))
         return;
@@ -2147,14 +2147,14 @@ void
 pgc_recalctimings(pgc_t *dev)
 {
     double  disptime;
-    double _dispontime;
-    double _dispofftime;
+    double  _dispontime;
+    double  _dispofftime;
     double  pixel_clock = (cpuclock / (dev->cga_selected ? 25175000.0 : dev->native_pixel_clock) * (double) (1ULL << 32));
-    uint8_t crtc0 = 97; /* Value from MDA, taken from there due to the 25 MHz refresh rate. */
-    uint8_t crtc1 = 80; /* Value from MDA, taken from there due to the 25 MHz refresh rate. */
+    uint8_t crtc0       = 97; /* Value from MDA, taken from there due to the 25 MHz refresh rate. */
+    uint8_t crtc1       = 80; /* Value from MDA, taken from there due to the 25 MHz refresh rate. */
 
     /* Multiply pixel clock by 8. */
-    pixel_clock     *= 8.0;
+    pixel_clock *= 8.0;
     /* Use a fixed 640x400 display. */
     disptime         = crtc0 + 1;
     _dispontime      = crtc1;

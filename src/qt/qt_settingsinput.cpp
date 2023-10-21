@@ -90,8 +90,8 @@ SettingsInput::onCurrentMachineChanged(int machineId)
     int         i             = 0;
     const char *joyName       = joystick_get_name(i);
     auto       *joystickModel = ui->comboBoxJoystick->model();
-    removeRows          = joystickModel->rowCount();
-    selectedRow         = 0;
+    removeRows                = joystickModel->rowCount();
+    selectedRow               = 0;
     while (joyName) {
         int row = Models::AddEntry(joystickModel, tr(joyName).toUtf8().data(), i);
         if (i == joystick_type) {

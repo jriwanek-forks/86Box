@@ -840,8 +840,8 @@ ht216_dm_write(ht216_t *ht216, uint32_t addr, uint8_t cpu_dat, uint8_t cpu_dat_u
     int     reset_wm   = 0;
     latch_t vall;
     uint8_t i;
-    uint8_t wm = svga->writemask;
-    uint8_t count = 4;
+    uint8_t wm         = svga->writemask;
+    uint8_t count      = 4;
     uint8_t fg_data[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 
     if (ht216->ht_regs[0xcd] & HT_REG_CD_P8PCEXP)
@@ -1083,7 +1083,7 @@ ht216_dm_masked_write(ht216_t *ht216, uint32_t addr, uint8_t val, uint8_t bit_ma
     int     writemask2 = svga->writemask;
     uint8_t count      = 4;
     uint8_t i;
-    uint8_t full_mask  = 0x0f;
+    uint8_t full_mask = 0x0f;
 
     if (ht216->ht_regs[0xcd] & HT_REG_CD_P8PCEXP)
         writemask2 = svga->seqregs[2];
@@ -1154,7 +1154,7 @@ ht216_write_common(ht216_t *ht216, uint32_t addr, uint8_t val)
             01 = Bit mask (3CF:8)
             1x = (3C4:F5)
     */
-    const svga_t *svga       = &ht216->svga;
+    const svga_t *svga = &ht216->svga;
     int           i;
     uint8_t       bit_mask   = 0;
     uint8_t       rop_select = 0;
@@ -1364,10 +1364,10 @@ ht216_read_common(ht216_t *ht216, uint32_t addr)
     uint32_t latch_addr = 0;
     int      offset;
     int      readplane = svga->readplane;
-    uint8_t  or;
-    uint8_t  count = 2;
-    uint8_t  temp;
-    uint8_t  ret;
+    uint8_t or;
+    uint8_t count = 2;
+    uint8_t temp;
+    uint8_t ret;
 
     if (ht216->ht_regs[0xc8] & HT_REG_C8_MOVSB)
         addr <<= 3;
@@ -1423,7 +1423,7 @@ ht216_read_common(ht216_t *ht216, uint32_t addr)
         temp = 0xff;
 
         for (uint8_t pixel = 0; pixel < 8; pixel++) {
-            for (uint8_t plane = 0; plane < (uint8_t)(1 << count); plane++) {
+            for (uint8_t plane = 0; plane < (uint8_t) (1 << count); plane++) {
                 if (svga->colournocare & (1 << plane)) {
                     /* If we care about a plane, and the pixel has a mismatch on it, clear its bit. */
                     if (((svga->latch.b[plane] >> pixel) & 1) != ((svga->colourcompare >> plane) & 1))

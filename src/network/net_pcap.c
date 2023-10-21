@@ -125,7 +125,7 @@ struct pcap_send_queue {
     unsigned int maxlen; /* Maximum size of the queue, in bytes. This
              variable contains the size of the buffer field. */
     unsigned int len;    /* Current size of the queue, in bytes. */
-    char *buffer; /* Buffer containing the packets to be sent. */
+    char        *buffer; /* Buffer containing the packets to be sent. */
 };
 
 typedef struct pcap_send_queue pcap_send_queue;
@@ -421,7 +421,9 @@ net_pcap_prepare(netdev_t *list)
  * Copy error message to the error buffer
  * and log if enabled.
  */
-void net_pcap_error(char *errbuf, const char *message) {
+void
+net_pcap_error(char *errbuf, const char *message)
+{
     strncpy(errbuf, message, NET_DRV_ERRBUF_SIZE);
     pcap_log("PCAP: %s\n", message);
 }
@@ -440,7 +442,7 @@ net_pcap_init(const netcard_t *card, const uint8_t *mac_addr, void *priv, char *
     char              *str;
     char               filter_exp[255];
     struct bpf_program fp;
-    char errbuf_prep[NET_DRV_ERRBUF_SIZE];
+    char               errbuf_prep[NET_DRV_ERRBUF_SIZE];
 
     char *intf_name = (char *) priv;
 
@@ -489,7 +491,7 @@ net_pcap_init(const netcard_t *card, const uint8_t *mac_addr, void *priv, char *
         pcap_log("PCAP: error setting snaplen\n");
 
     if (f_pcap_activate(pcap->pcap) != 0) {
-        snprintf(errbuf_prep, NET_DRV_ERRBUF_SIZE, "%s", (char *)f_pcap_geterr(pcap->pcap));
+        snprintf(errbuf_prep, NET_DRV_ERRBUF_SIZE, "%s", (char *) f_pcap_geterr(pcap->pcap));
         net_pcap_error(netdrv_errbuf, errbuf_prep);
         f_pcap_close(pcap->pcap);
         free(pcap);
@@ -512,7 +514,7 @@ net_pcap_init(const netcard_t *card, const uint8_t *mac_addr, void *priv, char *
             return NULL;
         }
     } else {
-        snprintf(errbuf_prep, NET_DRV_ERRBUF_SIZE, "Could not compile filter (%s) : %s!\n", filter_exp, (char *)f_pcap_geterr(pcap->pcap));
+        snprintf(errbuf_prep, NET_DRV_ERRBUF_SIZE, "Could not compile filter (%s) : %s!\n", filter_exp, (char *) f_pcap_geterr(pcap->pcap));
         net_pcap_error(netdrv_errbuf, errbuf_prep);
         f_pcap_close(pcap->pcap);
         free(pcap);

@@ -153,8 +153,8 @@ typedef struct ReplyInquireExtendedSetupInformation_t {
     uint8_t  uReserved2               : 3;
     uint8_t  fLevelSensitiveInterrupt : 1;
     uint8_t  uReserved3               : 1;
-    uint8_t aFirmwareRevision[3];
-    uint8_t fHostWideSCSI          : 1;
+    uint8_t  aFirmwareRevision[3];
+    uint8_t  fHostWideSCSI         : 1;
     uint8_t  fHostDifferentialSCSI : 1;
     uint8_t  fHostSupportsSCAM     : 1;
     uint8_t  fHostUltraSCSI        : 1;
@@ -175,7 +175,7 @@ typedef struct BuslogicPCIInformation_t {
     uint8_t JP2                : 1; /* Whatever that means. */
     uint8_t JP3                : 1; /* Whatever that means. */
     uint8_t InformationIsValid : 1;
-    uint8_t uReserved2;             /* Reserved. */
+    uint8_t uReserved2; /* Reserved. */
 } BuslogicPCIInformation_t;
 #pragma pack(pop)
 
@@ -590,9 +590,9 @@ BuslogicSCSIBIOSDMATransfer(x54x_t *dev, ESCMD *ESCSICmd, uint8_t TargetID, int 
 static void
 BuslogicSCSIBIOSRequestSetup(x54x_t *dev, uint8_t *CmdBuf, uint8_t *DataInBuf, uint8_t DataReply)
 {
-    ESCMD   *ESCSICmd = (ESCMD *) CmdBuf;
-    uint8_t  temp_cdb[12];
-    int      target_cdb_len = 12;
+    ESCMD  *ESCSICmd = (ESCMD *) CmdBuf;
+    uint8_t temp_cdb[12];
+    int     target_cdb_len = 12;
 #ifdef ENABLE_BUSLOGIC_LOG
     uint8_t target_id = 0;
 #endif

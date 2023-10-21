@@ -379,7 +379,7 @@ t1000_cgaline6(t1000_t *t1000)
             if (!(t1000->cga.cgamode & 8))
                 ink = grey;
             (buffer32->line[t1000->displine])[x * 8 + c] = ink;
-            dat                                                       = dat << 1;
+            dat                                          = dat << 1;
         }
     }
 }

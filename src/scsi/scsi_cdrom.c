@@ -336,7 +336,7 @@ static uint32_t
 scsi_cdrom_get_channel(void *priv, const int channel)
 {
     const scsi_cdrom_t *dev = (scsi_cdrom_t *) priv;
-    uint32_t ret = channel + 1;
+    uint32_t            ret = channel + 1;
 
     if (dev != NULL)
         ret = dev->ms_pages_saved.pages[GPMODE_CDROM_AUDIO_PAGE][channel ? 10 : 8];
@@ -348,7 +348,7 @@ static uint32_t
 scsi_cdrom_get_volume(void *priv, const int channel)
 {
     const scsi_cdrom_t *dev = (scsi_cdrom_t *) priv;
-    uint32_t ret = 255;
+    uint32_t            ret = 255;
 
     if (dev != NULL)
         ret = dev->ms_pages_saved.pages[GPMODE_CDROM_AUDIO_PAGE][channel ? 11 : 9];
@@ -415,7 +415,7 @@ scsi_cdrom_drive_status_read(const scsi_cdrom_t *dev, const uint8_t page,
 static uint32_t
 scsi_cdrom_drive_status(const scsi_cdrom_t *dev, uint8_t *buf, uint8_t page)
 {
-    uint32_t      pos   = 0;
+    uint32_t pos = 0;
 
     page &= 0x3f;
 

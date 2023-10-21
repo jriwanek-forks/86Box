@@ -221,17 +221,17 @@ net_slirp_add_poll(int fd, int events, void *opaque)
     net_slirp_t *slirp = (net_slirp_t *) opaque;
 
     if (slirp->pfd_len >= slirp->pfd_size) {
-        int newsize = slirp->pfd_size + 16;
+        int newsize        = slirp->pfd_size + 16;
         struct pollfd *new = realloc(slirp->pfd, newsize * sizeof(struct pollfd));
         if (new) {
-            slirp->pfd = new;
+            slirp->pfd      = new;
             slirp->pfd_size = newsize;
         }
     }
     if ((slirp->pfd_len < slirp->pfd_size)) {
-        int idx = slirp->pfd_len++;
+        int idx            = slirp->pfd_len++;
         slirp->pfd[idx].fd = fd;
-        int pevents = 0;
+        int pevents        = 0;
         if (events & SLIRP_POLL_IN)
             pevents |= POLLIN;
         if (events & SLIRP_POLL_OUT)
@@ -283,9 +283,9 @@ net_slirp_get_revents(int idx, void *opaque)
 static int
 net_slirp_get_revents(int idx, void *opaque)
 {
-    net_slirp_t *slirp = (net_slirp_t *) opaque;
-    int ret = 0;
-    int events = slirp->pfd[idx].revents;
+    net_slirp_t *slirp  = (net_slirp_t *) opaque;
+    int          ret    = 0;
+    int          events = slirp->pfd[idx].revents;
     if (events & POLLIN)
         ret |= SLIRP_POLL_IN;
     if (events & POLLOUT)

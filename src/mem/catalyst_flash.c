@@ -55,10 +55,10 @@ enum {
 };
 
 typedef struct flash_t {
-    uint8_t command;
-    uint8_t pad;
-    uint8_t pad0;
-    uint8_t pad1;
+    uint8_t  command;
+    uint8_t  pad;
+    uint8_t  pad0;
+    uint8_t  pad1;
     uint8_t *array;
 
     mem_mapping_t mapping;

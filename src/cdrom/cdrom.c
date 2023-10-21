@@ -1764,14 +1764,14 @@ cdrom_get_current_subchannel_sony(cdrom_t *dev, uint8_t *b, const int msf)
         b[7] = subc.abs_s;
         b[8] = subc.abs_f;
     } else {
-        uint32_t dat      = MSFtoLBA(subc.rel_m, subc.rel_s, subc.rel_f);
-        b[3] = (dat >> 16) & 0xff;
-        b[4] = (dat >> 8) & 0xff;
-        b[5] = dat & 0xff;
-        dat      = MSFtoLBA(subc.abs_m, subc.abs_s, subc.abs_f) - 150;
-        b[6] = (dat >> 16) & 0xff;
-        b[7] = (dat >> 8) & 0xff;
-        b[8] = dat & 0xff;
+        uint32_t dat = MSFtoLBA(subc.rel_m, subc.rel_s, subc.rel_f);
+        b[3]         = (dat >> 16) & 0xff;
+        b[4]         = (dat >> 8) & 0xff;
+        b[5]         = dat & 0xff;
+        dat          = MSFtoLBA(subc.abs_m, subc.abs_s, subc.abs_f) - 150;
+        b[6]         = (dat >> 16) & 0xff;
+        b[7]         = (dat >> 8) & 0xff;
+        b[8]         = dat & 0xff;
     }
 }
 
@@ -1826,10 +1826,10 @@ cdrom_get_audio_status_sony(cdrom_t *dev, uint8_t *b, const int msf)
         b[3] = subc.abs_f;
     } else {
         const uint32_t dat = MSFtoLBA(subc.abs_m, subc.abs_s, subc.abs_f) - 150;
-        b[0] = (dat >> 24) & 0xff;
-        b[1] = (dat >> 16) & 0xff;
-        b[2] = (dat >> 8) & 0xff;
-        b[3] = dat & 0xff;
+        b[0]               = (dat >> 24) & 0xff;
+        b[1]               = (dat >> 16) & 0xff;
+        b[2]               = (dat >> 8) & 0xff;
+        b[3]               = dat & 0xff;
     }
 
     return ret;
@@ -2751,8 +2751,8 @@ cdrom_load(cdrom_t *dev, const char *fn, const int skip_insert)
         ret = 1;
     } else {
         /* All good, reset state. */
-        dev->seek_pos       = 0;
-        dev->cd_buflen      = 0;
+        dev->seek_pos  = 0;
+        dev->cd_buflen = 0;
 
         if ((dev->ops->is_empty != NULL) && dev->ops->is_empty(dev->local))
             dev->cd_status      = CD_STATUS_EMPTY;

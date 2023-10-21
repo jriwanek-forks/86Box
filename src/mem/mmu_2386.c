@@ -94,8 +94,8 @@ mem_readb_map(uint32_t addr)
 uint16_t
 mem_readw_map(uint32_t addr)
 {
-    mem_mapping_t  *map = read_mapping[addr >> MEM_GRANULARITY_BITS];
-    uint16_t        ret;
+    mem_mapping_t *map = read_mapping[addr >> MEM_GRANULARITY_BITS];
+    uint16_t       ret;
 
     mem_logical_addr = 0xffffffff;
 
@@ -112,8 +112,8 @@ mem_readw_map(uint32_t addr)
 uint32_t
 mem_readl_map(uint32_t addr)
 {
-    mem_mapping_t  *map = read_mapping[addr >> MEM_GRANULARITY_BITS];
-    uint32_t        ret;
+    mem_mapping_t *map = read_mapping[addr >> MEM_GRANULARITY_BITS];
+    uint32_t       ret;
 
     mem_logical_addr = 0xffffffff;
 
@@ -141,7 +141,7 @@ mem_writeb_map(uint32_t addr, uint8_t val)
 void
 mem_writew_map(uint32_t addr, uint16_t val)
 {
-    mem_mapping_t  *map = read_mapping[addr >> MEM_GRANULARITY_BITS];
+    mem_mapping_t *map = read_mapping[addr >> MEM_GRANULARITY_BITS];
 
     mem_logical_addr = 0xffffffff;
 
@@ -156,20 +156,20 @@ mem_writew_map(uint32_t addr, uint16_t val)
 void
 mem_writel_map(uint32_t addr, uint32_t val)
 {
-    mem_mapping_t  *map = read_mapping[addr >> MEM_GRANULARITY_BITS];
+    mem_mapping_t *map = read_mapping[addr >> MEM_GRANULARITY_BITS];
 
     mem_logical_addr = 0xffffffff;
 
     if (!cpu_16bitbus && ((addr & MEM_GRANULARITY_MASK) <= MEM_GRANULARITY_QBOUND) && (map && map->write_l))
-         map->write_l(addr, val, map->priv);
+        map->write_l(addr, val, map->priv);
     else {
         mem_writew_phys(addr, val & 0xffff);
         mem_writew_phys(addr + 2, val >> 16);
     }
 }
 
-#define mmutranslate_read_2386(addr) mmutranslatereal_2386(addr,0)
-#define mmutranslate_write_2386(addr) mmutranslatereal_2386(addr,1)
+#define mmutranslate_read_2386(addr)  mmutranslatereal_2386(addr, 0)
+#define mmutranslate_write_2386(addr) mmutranslatereal_2386(addr, 1)
 
 uint64_t
 mmutranslatereal_2386(uint32_t addr, int rw)
@@ -217,7 +217,7 @@ mmutranslatereal_2386(uint32_t addr, int rw)
         return (temp & ~0x3fffff) + (addr & 0x3fffff);
     }
 
-    temp = mem_readl_map((temp & ~0xfff) + ((addr >> 10) & 0xffc));
+    temp  = mem_readl_map((temp & ~0xfff) + ((addr >> 10) & 0xffc));
     temp3 = temp & temp2;
     if (!(temp & 1) || ((CPL == 3) && !(temp3 & 4) && !cpl_override) || (rw && !cpl_override && !(temp3 & 2) && (((CPL == 3) && !cpl_override) || ((is486 || isibm486) && (cr0 & WP_FLAG))))) {
         cr2 = addr;
@@ -1024,15 +1024,15 @@ writememql_2386(uint32_t addr, uint64_t val)
 void
 do_mmutranslate_2386(uint32_t addr, uint32_t *a64, int num, int write)
 {
-    int i;
+    int      i;
     uint32_t last_addr = addr + (num - 1);
-    uint64_t a = 0x0000000000000000ULL;
-    uint32_t temp_cr0 = cpu_old_paging ? (cr0 ^ 0x80000000) : cr0;
+    uint64_t a         = 0x0000000000000000ULL;
+    uint32_t temp_cr0  = cpu_old_paging ? (cr0 ^ 0x80000000) : cr0;
 
     mem_debug_check_addr(addr, write ? 2 : read_type);
 
     for (i = 0; i < num; i++)
-	a64[i] = (uint64_t) addr;
+        a64[i] = (uint64_t) addr;
 
     if (!(temp_cr0 >> 31))
         return;

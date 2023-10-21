@@ -2034,7 +2034,7 @@ static int
 ms_poll(void *priv)
 {
     amstrad_t *ams = (amstrad_t *) priv;
-    int b = mouse_get_buttons_ex();
+    int        b   = mouse_get_buttons_ex();
 
     if ((b & 1) && !(ams->oldb & 1))
         keyboard_send(0x7e);
