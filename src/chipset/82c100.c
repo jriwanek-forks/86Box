@@ -110,7 +110,7 @@ static uint8_t
 ct_82c100_ems_in(uint16_t port, void *priv)
 {
     const ct_82c100_t *dev = (ct_82c100_t *) priv;
-    uint8_t      ret = 0xff;
+    uint8_t            ret = 0xff;
 
     ret = dev->ems_page_regs[port >> 14];
 
@@ -298,7 +298,7 @@ static uint16_t
 mem_read_emsw(uint32_t addr, void *priv)
 {
     const ems_page_t *page = (ems_page_t *) priv;
-    uint16_t    ret  = 0xffff;
+    uint16_t          ret  = 0xffff;
 #ifdef ENABLE_CT_82C100_LOG
     uint32_t old_addr = addr;
 #endif

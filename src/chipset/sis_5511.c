@@ -90,7 +90,7 @@ static uint8_t
 sis_5511_read(int func, int addr, void *priv)
 {
     const sis_5511_t *dev = (sis_5511_t *) priv;
-    uint8_t ret = 0xff;
+    uint8_t           ret = 0xff;
 
     if (func == 0x00)
         ret = sis_5511_host_to_pci_read(addr, dev->h2p);
@@ -117,7 +117,7 @@ static uint8_t
 sis_5513_read(int func, int addr, void *priv)
 {
     const sis_5511_t *dev = (sis_5511_t *) priv;
-    uint8_t ret = 0xff;
+    uint8_t           ret = 0xff;
 
     if (func == 0x00)
         ret = sis_5513_pci_to_isa_read(addr, dev->p2i);

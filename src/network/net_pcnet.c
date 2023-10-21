@@ -678,8 +678,8 @@ lnc_mchash(const uint8_t *ether_addr)
  *   x^32 + x^26 + x^23 + x^22 + x^16 +
  *   x^12 + x^11 + x^10 + x^8 + x^7 + x^5 + x^4 + x^2 + x^1 + 1
  */
-static const uint32_t crctab[256] =
-{
+static const uint32_t crctab[256] = {
+// clang-format off
     0x00000000, 0x77073096, 0xee0e612c, 0x990951ba,
     0x076dc419, 0x706af48f, 0xe963a535, 0x9e6495a3,
     0x0edb8832, 0x79dcb8a4, 0xe0d5e91e, 0x97d2d988,
@@ -744,6 +744,7 @@ static const uint32_t crctab[256] =
     0xbad03605, 0xcdd70693, 0x54de5729, 0x23d967bf,
     0xb3667a2e, 0xc4614ab8, 0x5d681b02, 0x2a6f2b94,
     0xb40bbe37, 0xc30c8ea1, 0x5a05df1b, 0x2d02ef8d,
+// clang-format on
 };
 
 static __inline int
@@ -1219,7 +1220,7 @@ pcnetReceiveNoSync(void *priv, uint8_t *buf, int size)
     uint32_t iRxDesc;
     int      cbPacket;
     uint8_t  buf1[60];
-    RMD      rmd      = { 0 };
+    RMD      rmd = { 0 };
 
     if (CSR_DRX(dev) || CSR_STOP(dev) || CSR_SPND(dev) || !size)
         return 0;
@@ -1489,7 +1490,7 @@ pcnetAsyncTransmit(nic_t *dev)
 
         /* Don't continue sending packets when the link is down. */
         if (!pcnetIsLinkUp(dev)
-             && dev->cLinkDownReported > PCNET_MAX_LINKDOWN_REPORTED)
+            && dev->cLinkDownReported > PCNET_MAX_LINKDOWN_REPORTED)
             break;
 
         pcnet_log(3, "%s: TMDLOAD %#010x\n", dev->name, PHYSADDR(dev, CSR_CXDA(dev)));

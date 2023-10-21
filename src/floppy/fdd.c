@@ -87,7 +87,7 @@ int writeprot[FDD_NUM];
 int fwriteprot[FDD_NUM];
 int fdd_changed[FDD_NUM];
 int ui_writeprot[FDD_NUM] = { 0, 0, 0, 0 };
-int drive_empty[FDD_NUM] = { 1, 1, 1, 1 };
+int drive_empty[FDD_NUM]  = { 1, 1, 1, 1 };
 
 DRIVE drives[FDD_NUM];
 
@@ -147,51 +147,97 @@ static const struct
     const char *internal_name;
 } drive_types[] =
 {
-    {       /*None*/
-        0, 0, "None", "none"
+// clang-format off
+    { /* None */
+        .max_track = 0,
+        .flags = 0,
+        .name = "None",
+        .internal_name = "none"
     },
-    {       /*5.25" 1DD*/
-        43, FLAG_RPM_300 | FLAG_525 | FLAG_HOLE0, "5.25\" 180k", "525_1dd"
+    { /* 5.25" 1DD */
+        .max_track = 43,
+        .flags = FLAG_RPM_300 | FLAG_525 | FLAG_HOLE0,
+        .name = "5.25\" 180k",
+        .internal_name = "525_1dd"
     },
-    {       /*5.25" DD*/
-        43, FLAG_RPM_300 | FLAG_525 | FLAG_DS | FLAG_HOLE0, "5.25\" 360k", "525_2dd"
+    { /* 5.25" DD */
+        .max_track = 43,
+        .flags = FLAG_RPM_300 | FLAG_525 | FLAG_DS | FLAG_HOLE0,
+        .name = "5.25\" 360k",
+        .internal_name = "525_2dd"
     },
-    {       /*5.25" QD*/
-        86, FLAG_RPM_300 | FLAG_525 | FLAG_DS | FLAG_HOLE0 | FLAG_DOUBLE_STEP, "5.25\" 720k", "525_2qd"
+    { /* 5.25" QD */
+        .max_track = 86,
+        .flags = FLAG_RPM_300 | FLAG_525 | FLAG_DS | FLAG_HOLE0 | FLAG_DOUBLE_STEP,
+        .name = "5.25\" 720k",
+        .internal_name = "525_2qd"
     },
-    {       /*5.25" HD PS/2*/
-        86, FLAG_RPM_360 | FLAG_525 | FLAG_DS | FLAG_HOLE0 | FLAG_HOLE1 | FLAG_DOUBLE_STEP | FLAG_INVERT_DENSEL | FLAG_PS2, "5.25\" 1.2M PS/2", "525_2hd_ps2"
+    { /* 5.25" HD PS/2 */
+        .max_track = 86,
+        .flags = FLAG_RPM_360 | FLAG_525 | FLAG_DS | FLAG_HOLE0 | FLAG_HOLE1 | FLAG_DOUBLE_STEP | FLAG_INVERT_DENSEL | FLAG_PS2,
+        .name = "5.25\" 1.2M PS/2",
+        .internal_name = "525_2hd_ps2"
     },
-    {       /*5.25" HD*/
-        86, FLAG_RPM_360 | FLAG_525 | FLAG_DS | FLAG_HOLE0 | FLAG_HOLE1 | FLAG_DOUBLE_STEP, "5.25\" 1.2M", "525_2hd"
+    { /* 5.25" HD */
+        .max_track = 86,
+        .flags = FLAG_RPM_360 | FLAG_525 | FLAG_DS | FLAG_HOLE0 | FLAG_HOLE1 | FLAG_DOUBLE_STEP,
+        ".name = 5.25\" 1.2M",
+        .internal_name = "525_2hd"
     },
-    {       /*5.25" HD Dual RPM*/
-        86, FLAG_RPM_300 | FLAG_RPM_360 | FLAG_525 | FLAG_DS | FLAG_HOLE0 | FLAG_HOLE1 | FLAG_DOUBLE_STEP, "5.25\" 1.2M 300/360 RPM", "525_2hd_dualrpm"
+    { /* 5.25" HD Dual RPM */
+        .max_track = 86,
+        .flags = FLAG_RPM_300 | FLAG_RPM_360 | FLAG_525 | FLAG_DS | FLAG_HOLE0 | FLAG_HOLE1 | FLAG_DOUBLE_STEP,
+        ".name = 5.25\" 1.2M 300/360 RPM",
+        .internal_name = "525_2hd_dualrpm"
     },
-    {       /*3.5" 1DD*/
-        86, FLAG_RPM_300 | FLAG_HOLE0 | FLAG_DOUBLE_STEP, "3.5\" 360k", "35_1dd"
+    { /* 3.5" 1DD */
+        .max_track = 86,
+        .flags = FLAG_RPM_300 | FLAG_HOLE0 | FLAG_DOUBLE_STEP,
+        .name = "3.5\" 360k",
+        .internal_name = "35_1dd"
     },
-    {       /*3.5" DD*/
-        86, FLAG_RPM_300 | FLAG_DS | FLAG_HOLE0 | FLAG_DOUBLE_STEP, "3.5\" 720k", "35_2dd"
+    { /* 3.5" DD */
+        .max_track = 86,
+        .flags = FLAG_RPM_300 | FLAG_DS | FLAG_HOLE0 | FLAG_DOUBLE_STEP,
+        .name = "3.5\" 720k",
+        .internal_name = "35_2dd"
     },
-    {       /*3.5" HD PS/2*/
-        86, FLAG_RPM_300 | FLAG_DS | FLAG_HOLE0 | FLAG_HOLE1 | FLAG_DOUBLE_STEP | FLAG_INVERT_DENSEL | FLAG_PS2, "3.5\" 1.44M PS/2", "35_2hd_ps2"
+    { /* 3.5" HD PS/2 */
+        .max_track = 86,
+        .flags = FLAG_RPM_300 | FLAG_DS | FLAG_HOLE0 | FLAG_HOLE1 | FLAG_DOUBLE_STEP | FLAG_INVERT_DENSEL | FLAG_PS2,
+        .name = "3.5\" 1.44M PS/2",
+        .internal_name = "35_2hd_ps2"
     },
-    {       /*3.5" HD*/
-        86, FLAG_RPM_300 | FLAG_DS | FLAG_HOLE0 | FLAG_HOLE1 | FLAG_DOUBLE_STEP, "3.5\" 1.44M", "35_2hd"
+    { /* 3.5" HD */
+        .max_track = 86,
+        .flags = FLAG_RPM_300 | FLAG_DS | FLAG_HOLE0 | FLAG_HOLE1 | FLAG_DOUBLE_STEP,
+        .name = "3.5\" 1.44M",
+        .internal_name = "35_2hd"
     },
-    {       /*3.5" HD PC-98*/
-        86, FLAG_RPM_300 | FLAG_RPM_360 | FLAG_DS | FLAG_HOLE0 | FLAG_HOLE1 | FLAG_DOUBLE_STEP | FLAG_INVERT_DENSEL, "3.5\" 1.25M PC-98", "35_2hd_nec"
+    { /*3.5" HD PC-98 */
+        .max_track = 86, .flags = FLAG_RPM_300 | FLAG_RPM_360 | FLAG_DS | FLAG_HOLE0 | FLAG_HOLE1 | FLAG_DOUBLE_STEP | FLAG_INVERT_DENSEL,
+        .name = "3.5\" 1.25M PC-98",
+        .internal_name = "35_2hd_nec"
     },
-    {       /*3.5" HD 3-Mode*/
-        86, FLAG_RPM_300 | FLAG_RPM_360 | FLAG_DS | FLAG_HOLE0 | FLAG_HOLE1 | FLAG_DOUBLE_STEP, "3.5\" 1.44M 300/360 RPM", "35_2hd_3mode"
+    { /* 3.5" HD 3-Mode */
+        .max_track = 86,
+        .flags = FLAG_RPM_300 | FLAG_RPM_360 | FLAG_DS | FLAG_HOLE0 | FLAG_HOLE1 | FLAG_DOUBLE_STEP,
+        .name = "3.5\" 1.44M 300/360 RPM",
+        .internal_name = "35_2hd_3mode"
     },
-    {       /*3.5" ED*/
-        86, FLAG_RPM_300 | FLAG_DS | FLAG_HOLE0 | FLAG_HOLE1 | FLAG_HOLE2 | FLAG_DOUBLE_STEP, "3.5\" 2.88M", "35_2ed"
+    { /* 3.5" ED */
+        .max_track = 86,
+        .flags = FLAG_RPM_300 | FLAG_DS | FLAG_HOLE0 | FLAG_HOLE1 | FLAG_HOLE2 | FLAG_DOUBLE_STEP,
+        .name = "3.5\" 2.88M",
+        .internal_name = "35_2ed"
     },
-    {       /*End of list*/
-        -1, -1, "", ""
+    { /* End of list */
+        .max_track = -1,
+        .flags = -1,
+        .name = "",
+        .internal_name = ""
     }
+// clang-format on
 };
 
 #ifdef ENABLE_FDD_LOG
@@ -454,7 +500,7 @@ fdd_load(int drive, char *fn)
     int         c = 0;
     int         size;
     const char *p;
-    FILE *      fp;
+    FILE       *fp;
 
     fdd_log("FDD: loading drive %d with '%s'\n", drive, fn);
 

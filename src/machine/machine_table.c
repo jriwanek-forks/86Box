@@ -57,6 +57,7 @@ extern const device_t compaq_plasma_device;
 extern const device_t ps1_2011_device;
 
 const machine_filter_t machine_types[] = {
+// clang-format off
     { "None",                      MACHINE_TYPE_NONE       },
     { "8088",                      MACHINE_TYPE_8088       },
     { "8086",                      MACHINE_TYPE_8086       },
@@ -81,9 +82,11 @@ const machine_filter_t machine_types[] = {
     { "Slot 2",                    MACHINE_TYPE_SLOT2      },
     { "Socket 370",                MACHINE_TYPE_SOCKET370  },
     { "Miscellaneous",             MACHINE_TYPE_MISC       }
+// clang-format on
 };
 
 const machine_filter_t machine_chipsets[] = {
+// clang-format off
     { "None",                       MACHINE_CHIPSET_NONE                },
     { "Discrete",                   MACHINE_CHIPSET_DISCRETE            },
     { "Proprietary",                MACHINE_CHIPSET_PROPRIETARY         },
@@ -168,6 +171,7 @@ const machine_filter_t machine_chipsets[] = {
     { "VLSI VL82C481",              MACHINE_CHIPSET_VLSI_VL82C481       },
     { "VLSI VL82C486",              MACHINE_CHIPSET_VLSI_VL82C486       },
     { "WD76C10",                    MACHINE_CHIPSET_WD76C10             }
+// clang-format on
 };
 
 /* Machines to add before machine freeze:

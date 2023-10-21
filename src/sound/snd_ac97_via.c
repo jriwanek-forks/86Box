@@ -65,7 +65,7 @@ typedef struct _ac97_via_ {
     uint16_t modem_codec_base;
     uint8_t  sgd_regs[256];
     uint8_t  pcm_enabled : 1;
-    uint8_t  fm_enabled : 1;
+    uint8_t  fm_enabled  : 1;
     uint8_t  vsr_enabled : 1;
     struct {
         union {
@@ -75,7 +75,7 @@ typedef struct _ac97_via_ {
     } codec_shadow[2];
     uint8_t pci_slot;
     uint8_t irq_state;
-    int irq_pin;
+    int     irq_pin;
 
     ac97_codec_t  *codec[2][2];
     ac97_via_sgd_t sgd[6];
@@ -116,8 +116,8 @@ ac97_via_set_slot(void *priv, int slot, int irq_pin)
 
     ac97_via_log("AC97 VIA: set_slot(%d, %d)\n", slot, irq_pin);
 
-    dev->pci_slot    = slot;
-    dev->irq_pin     = irq_pin;
+    dev->pci_slot = slot;
+    dev->irq_pin  = irq_pin;
 }
 
 uint8_t
@@ -342,8 +342,8 @@ ac97_via_sgd_write(uint16_t addr, uint8_t val, void *priv)
                         dev->sgd_regs[addr & 0xf0] = (dev->sgd_regs[addr & 0xf0] & ~0x47) | 0x80;
 
                         /* Start at the specified entry pointer. */
-                        dev->sgd[addr >> 4].entry_ptr  = *((uint32_t *) &dev->sgd_regs[(addr & 0xf0) | 0x4]) & 0xfffffffe;
-                        dev->sgd[addr >> 4].restart    = 2;
+                        dev->sgd[addr >> 4].entry_ptr = *((uint32_t *) &dev->sgd_regs[(addr & 0xf0) | 0x4]) & 0xfffffffe;
+                        dev->sgd[addr >> 4].restart   = 2;
 
                         /* Start the actual SGD process. */
                         ac97_via_sgd_process(&dev->sgd[addr >> 4]);
@@ -471,7 +471,7 @@ ac97_via_codec_read(uint16_t addr, void *priv)
 {
     const ac97_via_t *dev   = (ac97_via_t *) priv;
     uint8_t           modem = (addr & 0xff00) == dev->modem_codec_base;
-    uint8_t           ret = 0xff;
+    uint8_t           ret   = 0xff;
 
     addr &= 0xff;
 

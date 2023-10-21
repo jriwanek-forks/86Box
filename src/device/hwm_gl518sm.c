@@ -29,7 +29,6 @@
 #include <86box/hwm.h>
 #include <86box/plat_unused.h>
 
-
 #define CLAMP(a, min, max) (((a) < (min)) ? (min) : (((a) > (max)) ? (max) : (a)))
 /* Formulas and factors derived from Linux's gl518sm.c and gl520sm.c drivers. */
 #define GL518SM_RPM_TO_REG(r, d)  ((r) ? (480000 / (CLAMP((r), (480000 >> (d)) / 255, (480000 >> (d))) << (d))) : 0)
@@ -45,9 +44,9 @@ typedef struct gl518sm_t {
     uint16_t regs[32];
     uint8_t  addr_register : 5;
 
-    uint8_t i2c_addr : 7;
-    uint8_t i2c_state : 2;
-    uint8_t i2c_enabled : 1;
+    uint8_t i2c_addr       : 7;
+    uint8_t i2c_state      : 2;
+    uint8_t i2c_enabled    : 1;
 } gl518sm_t;
 
 static uint8_t  gl518sm_i2c_start(void *bus, uint8_t addr, uint8_t read, void *priv);

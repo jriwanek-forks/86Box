@@ -53,11 +53,11 @@ void
 RendererCommon::onResize(int width, int height)
 {
     /* This is needed so that the if below does not take like, 5 lines. */
-    bool is_fs = (video_fullscreen == 0);
-    bool parent_max = (parentWidget->isMaximized() == false);
+    bool is_fs            = (video_fullscreen == 0);
+    bool parent_max       = (parentWidget->isMaximized() == false);
     bool main_is_ancestor = main_window->isAncestorOf(parentWidget);
-    bool main_max = main_window->isMaximized();
-    bool main_is_max = (main_is_ancestor && main_max == false);
+    bool main_max         = main_window->isMaximized();
+    bool main_is_max      = (main_is_ancestor && main_max == false);
 
     if (is_fs && (video_fullscreen_scale_maximized ? (parent_max && main_is_max) : 1))
         destination.setRect(0, 0, width, height);

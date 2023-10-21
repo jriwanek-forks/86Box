@@ -275,7 +275,7 @@ paradise_out(uint16_t addr, uint8_t val, void *priv)
 void
 paradise_remap(paradise_t *paradise)
 {
-    svga_t *svga    = &paradise->svga;
+    const svga_t *svga = &paradise->svga;
 
     paradise->check = 0;
 

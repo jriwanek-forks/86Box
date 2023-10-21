@@ -754,7 +754,7 @@ path_get_slash(char *path)
     char *ret = "";
 
     if ((path[strlen(path) - 1] != '\\') && (path[strlen(path) - 1] != '/'))
-        ret =  "\\";
+        ret = "\\";
 
     return ret;
 }
@@ -1272,7 +1272,8 @@ plat_language_code_r(uint32_t lcid, char *outbuf, int len)
 }
 
 void
-plat_get_cpu_string(char *outbuf, uint8_t len) {
+plat_get_cpu_string(char *outbuf, uint8_t len)
+{
     char cpu_string[] = "Unknown";
     strncpy(outbuf, cpu_string, len);
 }

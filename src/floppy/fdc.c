@@ -132,7 +132,7 @@ typedef const struct {
 } fdc_cards_t;
 
 static fdc_cards_t fdc_cards[] = {
-    // clang-format off
+// clang-format off
 #if 0
     { &fdc_none_device     },
 #endif

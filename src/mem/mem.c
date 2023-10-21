@@ -139,7 +139,7 @@ static mem_state_t    _mem_state[MEM_MAPPINGS_NO];
 static uint32_t       remap_start_addr;
 static uint32_t       remap_start_addr2;
 #if (!(defined __amd64__ || defined _M_X64 || defined __aarch64__ || defined _M_ARM64))
-static size_t ram_size = 0;
+static size_t ram_size  = 0;
 static size_t ram2_size = 0;
 #else
 static size_t ram_size = 0;
@@ -1580,7 +1580,7 @@ void
 do_mmutranslate(uint32_t addr, uint32_t *a64, int num, int write)
 {
     int      i;
-    int      cond = 1;
+    int      cond      = 1;
     uint32_t last_addr = addr + (num - 1);
     uint64_t a         = 0x0000000000000000ULL;
 
@@ -2353,23 +2353,23 @@ mem_mapping_recalc(uint64_t base, uint64_t size)
     for (c = 0; c < (sizeof(write_mapping) / sizeof(write_mapping[0])); c++) {
         if ((write_mapping[c] == write) && (read_mapping[c] == read) && (write_mapping_bus[c] == write_bus) && (read_mapping_bus[c] == read_bus))
             continue;
-        write = write_mapping[c];
-        read = read_mapping[c];
+        write     = write_mapping[c];
+        read      = read_mapping[c];
         write_bus = write_mapping_bus[c];
-        read_bus = read_mapping_bus[c];
+        read_bus  = read_mapping_bus[c];
 
         pclog("%08X | ", c << MEM_GRANULARITY_BITS);
         if (read) {
             pclog("R%c%c%c %08X+% 8X",
-                read->read_b ? 'b' : ' ', read->read_w ? 'w' : ' ', read->read_l ? 'l' : ' ',
-                read->base, read->size);
+                  read->read_b ? 'b' : ' ', read->read_w ? 'w' : ' ', read->read_l ? 'l' : ' ',
+                  read->base, read->size);
         } else {
             pclog("                      ");
         }
         if (write) {
             pclog(" | W%c%c%c %08X+% 8X",
-                write->write_b ? 'b' : ' ', write->write_w ? 'w' : ' ', write->write_l ? 'l' : ' ',
-                write->base, write->size);
+                  write->write_b ? 'b' : ' ', write->write_w ? 'w' : ' ', write->write_l ? 'l' : ' ',
+                  write->base, write->size);
         } else {
             pclog(" |                       ");
         }
@@ -2379,15 +2379,15 @@ mem_mapping_recalc(uint64_t base, uint64_t size)
             pclog("   ^ bus | ");
             if (read_bus) {
                 pclog("R%c%c%c %08X+% 8X",
-                    read_bus->read_b ? 'b' : ' ', read_bus->read_w ? 'w' : ' ', read_bus->read_l ? 'l' : ' ',
-                    read_bus->base, read_bus->size);
+                      read_bus->read_b ? 'b' : ' ', read_bus->read_w ? 'w' : ' ', read_bus->read_l ? 'l' : ' ',
+                      read_bus->base, read_bus->size);
             } else {
                 pclog("                      ");
             }
             if (write_bus) {
                 pclog(" | W%c%c%c %08X+% 8X",
-                    write_bus->write_b ? 'b' : ' ', write_bus->write_w ? 'w' : ' ', write_bus->write_l ? 'l' : ' ',
-                    write_bus->base, write_bus->size);
+                      write_bus->write_b ? 'b' : ' ', write_bus->write_w ? 'w' : ' ', write_bus->write_l ? 'l' : ' ',
+                      write_bus->base, write_bus->size);
             } else {
                 pclog(" |                       ");
             }
@@ -2580,7 +2580,7 @@ void
 mem_set_access(uint8_t bitmap, int mode, uint32_t base, uint32_t size, uint16_t access)
 {
     uint16_t       mask;
-    uint16_t       smstate = 0x0000;
+    uint16_t       smstate     = 0x0000;
     const uint16_t smstates[4] = { 0x0000, (MEM_READ_SMRAM | MEM_WRITE_SMRAM),
                                    MEM_READ_SMRAM_EX, (MEM_READ_DISABLED_EX | MEM_WRITE_DISABLED_EX) };
 
@@ -2628,7 +2628,7 @@ mem_a20_init(void)
 {
     if (is286) {
         mem_a20_key = mem_a20_alt = mem_a20_state = 0;
-        rammask = cpu_16bitbus ? 0xffffff : 0xffffffff;
+        rammask                                   = cpu_16bitbus ? 0xffffff : 0xffffffff;
         if (is6117)
             rammask |= 0x03000000;
         flushmmucache();
@@ -2729,7 +2729,7 @@ mem_reset(void)
         memset(ram, 0x00, ram_size);
         ram2_size = m - (1 << 30);
         /* Allocate 16 extra bytes of RAM to mitigate some dynarec recompiler memory access quirks. */
-        ram2      = (uint8_t *) plat_mmap(ram2_size + 16, 0); /* allocate and clear the RAM block above 1 GB */
+        ram2 = (uint8_t *) plat_mmap(ram2_size + 16, 0); /* allocate and clear the RAM block above 1 GB */
         if (ram2 == NULL) {
             if (config_changed == 2)
                 fatal(EMU_NAME " must be restarted for the memory amount change to be applied.\n");
@@ -2743,7 +2743,7 @@ mem_reset(void)
     {
         ram_size = m;
         /* Allocate 16 extra bytes of RAM to mitigate some dynarec recompiler memory access quirks. */
-        ram      = (uint8_t *) plat_mmap(ram_size + 16, 0); /* allocate and clear the RAM block */
+        ram = (uint8_t *) plat_mmap(ram_size + 16, 0); /* allocate and clear the RAM block */
         if (ram == NULL) {
             fatal("Failed to allocate RAM block. Make sure you have enough RAM available.\n");
             return;
@@ -2940,12 +2940,12 @@ mem_remap_top(int kb)
     uint32_t   c;
     uint32_t   start = (mem_size >= 1024) ? mem_size : 1024;
     int        offset;
-    int        size = mem_size - 640;
+    int        size       = mem_size - 640;
     int        set        = 1;
     static int old_kb     = 0;
     int        sis_mode   = 0;
     uint32_t   start_addr = 0;
-    uint32_t   addr = 0;
+    uint32_t   addr       = 0;
 
     mem_log("MEM: remapping top %iKB (mem=%i)\n", kb, mem_size);
     if (mem_size <= 640)

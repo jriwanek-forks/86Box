@@ -439,8 +439,10 @@ int
 sb_16_read_dma(void *priv)
 {
     const sb_dsp_t *dsp = (sb_dsp_t *) priv;
-    int temp, ret = 0;
-    int dma_flags, dma_ch = dsp->sb_16_dmanum;
+    int             temp;
+    int             ret = 0;
+    int             dma_flags;
+    int             dma_ch = dsp->sb_16_dmanum;
 
     if (dsp->sb_16_dma_enabled && dsp->sb_16_dma_supported && !dsp->sb_16_dma_translate)
         ret = dma_channel_read(dma_ch);
@@ -454,7 +456,7 @@ sb_16_read_dma(void *priv)
             /* High DMA channel disabled, always use the first 8-bit channel. */
             dma_ch = dsp->sb_8_dmanum;
         temp = dma_channel_read(dma_ch);
-        ret = temp;
+        ret  = temp;
         if ((temp != DMA_NODATA) && !(temp & DMA_OVER)) {
             temp = dma_channel_read(dma_ch);
             if (temp == DMA_NODATA)
@@ -463,7 +465,7 @@ sb_16_read_dma(void *priv)
                 dma_flags = temp & DMA_OVER;
                 temp &= ~DMA_OVER;
                 ret |= (temp << 8) | dma_flags;
-           }
+            }
         }
     }
 
@@ -489,10 +491,10 @@ sb_16_write_dma(void *priv, uint16_t val)
             /* High DMA channel disabled, always use the first 8-bit channel. */
             dma_ch = dsp->sb_8_dmanum;
         temp = dma_channel_write(dma_ch, val & 0xff);
-        ret = temp;
+        ret  = temp;
         if ((temp != DMA_NODATA) && (temp != DMA_OVER)) {
             temp = dma_channel_write(dma_ch, val >> 8);
-            ret = temp;
+            ret  = temp;
         }
     }
 

@@ -422,7 +422,7 @@ f82c425_cgaline6(f82c425_t *f82c425)
 
     addr = ((f82c425->displine) & 1) * 0x2000 + (f82c425->displine >> 1) * 80 + ((ma & ~1) << 1);
 
-    for (uint8_t x  = 0; x < 80; x++) {
+    for (uint8_t x = 0; x < 80; x++) {
         dat = f82c425->vram[addr & 0x3FFF];
         addr++;
 

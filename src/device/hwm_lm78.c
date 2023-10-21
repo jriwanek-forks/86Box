@@ -74,8 +74,8 @@ typedef struct lm78_t {
     uint8_t addr_register;
     uint8_t data_register;
 
-    uint8_t i2c_addr : 7;
-    uint8_t i2c_state : 1;
+    uint8_t i2c_addr    : 7;
+    uint8_t i2c_state   : 1;
     uint8_t i2c_enabled : 1;
 } lm78_t;
 
@@ -335,8 +335,8 @@ lm78_i2c_start(UNUSED(void *bus), UNUSED(uint8_t addr), UNUSED(uint8_t read), vo
 static uint8_t
 lm78_read(lm78_t *dev, uint8_t reg, uint8_t bank)
 {
-    uint8_t ret = 0;
-    uint8_t masked_reg = reg;
+    uint8_t ret          = 0;
+    uint8_t masked_reg   = reg;
     uint8_t bankswitched = ((reg & 0xf8) == 0x50);
     lm75_t *lm75;
 

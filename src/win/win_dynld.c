@@ -47,8 +47,8 @@ dynld_log(const char *fmt, ...)
 void *
 dynld_module(const char *name, dllimp_t *table)
 {
-    HMODULE   h;
-    void     *func;
+    HMODULE h;
+    void   *func;
 
     /* See if we can load the desired module. */
     if ((h = LoadLibrary(name)) == NULL) {

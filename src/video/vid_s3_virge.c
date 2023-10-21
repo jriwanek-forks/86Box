@@ -276,11 +276,11 @@ typedef struct virge_t {
         int sec_x, sec_y, sec_w, sec_h;
     } streams;
 
-    uint8_t      cmd_dma;
-    uint32_t     cmd_dma_base;
-    uint32_t     dma_ptr;
-    uint64_t     blitter_time;
-    int          fifo_slots_num;
+    uint8_t  cmd_dma;
+    uint32_t cmd_dma_base;
+    uint32_t dma_ptr;
+    uint64_t blitter_time;
+    int      fifo_slots_num;
 
     pc_timer_t tri_timer;
 
@@ -2196,7 +2196,7 @@ s3_virge_bitblt(virge_t *virge, int count, uint32_t cpu_dat)
     uint32_t        src_addr;
     uint32_t        dest_addr;
     uint32_t        source = 0;
-    uint32_t        dest = 0;
+    uint32_t        dest   = 0;
     uint32_t        pattern;
     uint32_t        out = 0;
     int             update;
@@ -2465,8 +2465,8 @@ s3_virge_bitblt(virge_t *virge, int count, uint32_t cpu_dat)
 
                 do {
                     uint32_t dest_addr = virge->s3d.dest_base + (x * x_mul) + (virge->s3d.dest_y * virge->s3d.dest_str);
-                    uint32_t source = 0;
-                    uint32_t dest = 0;
+                    uint32_t source    = 0;
+                    uint32_t dest      = 0;
                     uint32_t pattern;
                     uint32_t out    = 0;
                     int      update = 1;
@@ -2517,8 +2517,8 @@ skip_line:
                 int xdir = (x < xend) ? 1 : -1;
                 do {
                     uint32_t dest_addr = virge->s3d.dest_base + (x * x_mul) + (y * virge->s3d.dest_str);
-                    uint32_t source = 0;
-                    uint32_t dest = 0;
+                    uint32_t source    = 0;
+                    uint32_t dest      = 0;
                     uint32_t pattern;
                     uint32_t out    = 0;
                     int      update = 1;
@@ -3211,7 +3211,7 @@ tri(virge_t *virge, s3d_t *s3d_tri, s3d_state_t *state, int yc, int32_t dx1, int
     int bpp = (s3d_tri->cmd_set >> 2) & 7;
 
     uint32_t dest_offset = 0;
-    uint32_t z_offset = 0;
+    uint32_t z_offset    = 0;
 
     uint32_t src_col;
     int      src_r = 0;
@@ -3960,7 +3960,7 @@ s3_virge_overlay_draw(svga_t *svga, int displine)
     int            g[8];
     int            b[8];
     int            x_size;
-    int            x_read = 4;
+    int            x_read  = 4;
     int            x_write = 4;
     uint32_t      *p;
     uint8_t       *src = &svga->vram[svga->overlay_latch.addr];
@@ -4274,29 +4274,29 @@ s3_virge_reset(void *priv)
     switch (virge->local) {
         case S3_VIRGE_325:
         case S3_DIAMOND_STEALTH3D_2000:
-            virge->fifo_slots_num = 8;
+            virge->fifo_slots_num  = 8;
             virge->svga.crtc[0x59] = 0x70;
             break;
         case S3_DIAMOND_STEALTH3D_3000:
         case S3_STB_VELOCITY_3D:
-            virge->fifo_slots_num = 8;
+            virge->fifo_slots_num  = 8;
             virge->svga.crtc[0x59] = 0x70;
             break;
         case S3_VIRGE_GX2:
         case S3_DIAMOND_STEALTH3D_4000:
-            virge->fifo_slots_num = 16;
+            virge->fifo_slots_num  = 16;
             virge->svga.crtc[0x6c] = 1;
             virge->svga.crtc[0x59] = 0x70;
             break;
 
         case S3_TRIO_3D2X:
-            virge->fifo_slots_num = 16;
+            virge->fifo_slots_num  = 16;
             virge->svga.crtc[0x6c] = 1;
             virge->svga.crtc[0x59] = 0x70;
             break;
 
         default:
-            virge->fifo_slots_num = 8;
+            virge->fifo_slots_num  = 8;
             virge->svga.crtc[0x6c] = 1;
             virge->svga.crtc[0x59] = 0x70;
             break;
@@ -4458,7 +4458,7 @@ s3_virge_init(const device_t *info)
     switch (info->local) {
         case S3_VIRGE_325:
         case S3_DIAMOND_STEALTH3D_2000:
-            virge->fifo_slots_num = 8;
+            virge->fifo_slots_num   = 8;
             virge->svga.decode_mask = (4 << 20) - 1;
             virge->virge_id_high    = 0x56;
             virge->virge_id_low     = 0x31;
@@ -4468,7 +4468,7 @@ s3_virge_init(const device_t *info)
             break;
         case S3_DIAMOND_STEALTH3D_3000:
         case S3_STB_VELOCITY_3D:
-            virge->fifo_slots_num = 8;
+            virge->fifo_slots_num   = 8;
             virge->svga.decode_mask = (8 << 20) - 1;
             virge->virge_id_high    = 0x88;
             virge->virge_id_low     = 0x3d;
@@ -4478,7 +4478,7 @@ s3_virge_init(const device_t *info)
             break;
         case S3_VIRGE_GX2:
         case S3_DIAMOND_STEALTH3D_4000:
-            virge->fifo_slots_num = 16;
+            virge->fifo_slots_num    = 16;
             virge->svga.decode_mask  = (4 << 20) - 1;
             virge->virge_id_high     = 0x8a;
             virge->virge_id_low      = 0x10;
@@ -4490,7 +4490,7 @@ s3_virge_init(const device_t *info)
             break;
 
         case S3_TRIO_3D2X:
-            virge->fifo_slots_num = 16;
+            virge->fifo_slots_num    = 16;
             virge->svga.decode_mask  = (8 << 20) - 1;
             virge->virge_id_high     = 0x8a;
             virge->virge_id_low      = 0x13;
@@ -4507,7 +4507,7 @@ s3_virge_init(const device_t *info)
             fallthrough;
 
         default:
-            virge->fifo_slots_num = 8;
+            virge->fifo_slots_num    = 8;
             virge->svga.decode_mask  = (4 << 20) - 1;
             virge->virge_id_high     = 0x8a;
             virge->virge_id_low      = 0x01;

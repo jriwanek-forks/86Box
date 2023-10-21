@@ -491,8 +491,8 @@ create_mo_sector_image(char *file_name, int8_t disk_size, uint8_t is_mdi, HWND h
     FILE            *fp;
     const mo_type_t *dp = &mo_types[disk_size];
     uint8_t         *empty;
-    uint8_t         *empty2 = NULL;
-    uint32_t         total_size    = 0;
+    uint8_t         *empty2     = NULL;
+    uint32_t         total_size = 0;
     uint32_t         total_size2;
     uint32_t         total_sectors = 0;
     uint32_t         sector_bytes  = 0;
@@ -762,7 +762,7 @@ NewFloppyDialogProcedure(HWND hdlg, UINT message, WPARAM wParam, UNUSED(LPARAM l
                                 }
                             }
                         }
-                        h = GetDlgItem(hdlg, IDC_EDIT_FILE_NAME);
+                        h  = GetDlgItem(hdlg, IDC_EDIT_FILE_NAME);
                         fp = _wfopen(wopenfilestring, L"rb");
                         if (fp != NULL) {
                             fclose(fp);

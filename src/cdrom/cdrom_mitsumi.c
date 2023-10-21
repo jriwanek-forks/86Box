@@ -122,7 +122,7 @@ typedef struct mcd_t {
    there is a seeming 2 seconds in which audio plays but counter does not move, while a data track before audio jumps to 2 seconds before the actual start
    of the audio while audio still plays. With an absolute conversion, the counter is fine. */
 #ifdef MSFtoLBA
-#undef MSFtoLBA
+#    undef MSFtoLBA
 #endif
 #define MSFtoLBA(m, s, f) ((((m * 60) + s) * 75) + f)
 
@@ -151,7 +151,7 @@ static void
 mitsumi_cdrom_reset(mcd_t *dev)
 {
     cdrom_t cdrom;
-    
+
     cdrom.host_drive = 0;
 
     dev->stat          = cdrom.host_drive ? (STAT_READY | STAT_CHANGE) : 0;
@@ -172,9 +172,9 @@ mitsumi_cdrom_reset(mcd_t *dev)
 static int
 mitsumi_cdrom_read_sector(mcd_t *dev, int first)
 {
-    cdrom_t  cdrom;
-    uint8_t  status;
-    int      ret;
+    cdrom_t cdrom;
+    uint8_t status;
+    int     ret;
 
     if (dev->drvmode == DRV_MODE_CDDA) {
         status = cdrom_mitsumi_audio_play(&cdrom, dev->readmsf, dev->readcount);
@@ -261,7 +261,7 @@ mitsumi_cdrom_in(uint16_t port, void *priv)
 static void
 mitsumi_cdrom_out(uint16_t port, uint8_t val, void *priv)
 {
-    mcd_t   *dev   = (mcd_t *) priv;
+    mcd_t  *dev = (mcd_t *) priv;
     cdrom_t cdrom;
 
     pclog("Mitsumi CD-ROM OUT=%03x, val=%02x\n", port, val);

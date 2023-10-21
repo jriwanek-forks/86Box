@@ -57,9 +57,9 @@
 #define TIMER_1SEC 1 /* ID of the one-second timer */
 
 /* Platform Public data, specific. */
-HWND  hwndMain        = NULL; /* application main window */
-HWND  hwndRender      = NULL; /* machine render window */
-HWND  hwndRender2     = NULL; /* machine second screen render window */
+HWND  hwndMain    = NULL;   /* application main window */
+HWND  hwndRender  = NULL;   /* machine render window */
+HWND  hwndRender2 = NULL;   /* machine second screen render window */
 HMENU menuMain;             /* application main menu */
 RECT  oldclip;              /* mouse rect */
 int   sbar_height     = 23; /* statusbar height */
@@ -1213,7 +1213,7 @@ ui_init(int nCmdShow)
     TASKDIALOG_BUTTON tdbuttons[] = {
         {IDCANCEL, MAKEINTRESOURCE(IDS_2120)}
     };
-    uint32_t helper_lang;
+    uint32_t   helper_lang;
     static int fs_on_signal  = 0;
     static int fs_off_signal = 0;
 

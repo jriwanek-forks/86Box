@@ -104,23 +104,24 @@ static uint8_t um8669f_pnp_rom[] = {
     0x79, 0x00 /* end tag, dummy checksum (filled in by isapnp_add_card) */
 };
 static const isapnp_device_config_t um8669f_pnp_defaults[] = {
+// clang-format off
     {
         .activate = 1,
-        .io = { { .base = FDC_PRIMARY_ADDR }, },
-        .irq = { { .irq = FDC_PRIMARY_IRQ }, },
-        .dma = { { .dma = FDC_PRIMARY_DMA }, }
+        .io  = { { .base = FDC_PRIMARY_ADDR }, },
+        .irq = { { .irq  = FDC_PRIMARY_IRQ  }, },
+        .dma = { { .dma  = FDC_PRIMARY_DMA  }, }
     }, {
         .activate = 1,
-        .io = { { .base = COM1_ADDR }, },
-        .irq = { { .irq = COM1_IRQ }, }
+        .io =  { { .base = COM1_ADDR }, },
+        .irq = { { .irq  = COM1_IRQ  }, }
     }, {
         .activate = 1,
-        .io = { { .base = COM2_ADDR }, },
-        .irq = { { .irq = COM2_IRQ }, }
+        .io  = { { .base = COM2_ADDR }, },
+        .irq = { { .irq  = COM2_IRQ  }, }
     }, {
         .activate = 1,
-        .io = { { .base = LPT1_ADDR }, },
-        .irq = { { .irq = LPT1_IRQ }, }
+        .io  = { { .base = LPT1_ADDR }, },
+        .irq = { { .irq  = LPT1_IRQ  }, }
     }, {
         .activate = 0,
         .io = { { .base = 0x1f0 }, },
@@ -129,6 +130,7 @@ static const isapnp_device_config_t um8669f_pnp_defaults[] = {
         .activate = 0,
         .io = { { .base = 0x200 }, }
     }
+// clang-format on
 };
 
 #ifdef ENABLE_UM8669F_LOG

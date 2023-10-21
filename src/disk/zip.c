@@ -474,7 +474,7 @@ zip_load_abort(zip_t *dev)
 {
     if (dev->drv->fp)
         fclose(dev->drv->fp);
-    dev->drv->fp           = NULL;
+    dev->drv->fp          = NULL;
     dev->drv->medium_size = 0;
     zip_eject(dev->id); /* Make sure the host OS knows we've rejected (and ejected) the image. */
     return 0;
@@ -1338,8 +1338,8 @@ zip_set_buf_len(zip_t *dev, int32_t *BufLen, int32_t *src_len)
 static void
 zip_command(scsi_common_t *sc, uint8_t *cdb)
 {
-    zip_t   *dev = (zip_t *) sc;
-    int      pos = 0;
+    zip_t   *dev        = (zip_t *) sc;
+    int      pos        = 0;
     int      block_desc = 0;
     int      ret;
     int32_t  len;

@@ -133,9 +133,9 @@ SettingsStorageControllers::onCurrentMachineChanged(int machineId)
     ui->comboBoxFD->setCurrentIndex(selectedRow);
 
     /*CD interface controller config*/
-    model      = ui->comboBoxCDInterface->model();
-    removeRows = model->rowCount();
-    c          = 0;
+    model       = ui->comboBoxCDInterface->model();
+    removeRows  = model->rowCount();
+    c           = 0;
     selectedRow = 0;
     while (true) {
         /* Skip "internal" if machine doesn't have it. */
@@ -229,7 +229,8 @@ SettingsStorageControllers::on_comboBoxFD_currentIndexChanged(int index)
     ui->pushButtonFD->setEnabled(hdc_has_config(ui->comboBoxFD->currentData().toInt()) > 0);
 }
 
-void SettingsStorageControllers::on_comboBoxCDInterface_currentIndexChanged(int index)
+void
+SettingsStorageControllers::on_comboBoxCDInterface_currentIndexChanged(int index)
 {
     if (index < 0) {
         return;

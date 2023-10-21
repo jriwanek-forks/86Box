@@ -532,7 +532,7 @@ hndl_poly(pgc_t *pgc)
     int16_t  mask;
     unsigned realcount = 0;
     unsigned n;
-    unsigned as = 256;
+    unsigned as      = 256;
     int      parsing = 1;
     uint8_t  count;
 

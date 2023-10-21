@@ -355,7 +355,7 @@ static uint8_t
 spock_read(uint16_t port, void *priv)
 {
     const spock_t *scsi = (spock_t *) priv;
-    uint8_t  temp = 0xff;
+    uint8_t        temp = 0xff;
 
     switch (port & 7) {
         case 0:
@@ -1091,7 +1091,7 @@ spock_mca_read(int port, void *priv)
     const spock_t *scsi = (spock_t *) priv;
 
     spock_log("[%04X:%08X]: POS Read Port = %x, val = %02x\n", CS, cpu_state.pc,
-            port & 7, scsi->pos_regs[port & 7]);
+              port & 7, scsi->pos_regs[port & 7]);
     return scsi->pos_regs[port & 7];
 }
 
@@ -1138,7 +1138,7 @@ spock_init(const device_t *info)
 
     scsi->irq = 14;
 
-    scsi->bios_ver = device_get_config_int("bios_ver");
+    scsi->bios_ver    = device_get_config_int("bios_ver");
     scsi->spock_16bit = info->local & 0xff;
 
     switch (scsi->bios_ver) {

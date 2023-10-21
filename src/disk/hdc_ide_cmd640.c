@@ -478,7 +478,7 @@ cmd640_reset(void *priv)
         dev->irq_pin                        = PCI_INTA;
         dev->irq_line                       = 14;
     } else {
-        dev->regs[0x04] = 0x01;       /* To make sure the two channels get enabled. */
+        dev->regs[0x04] = 0x01; /* To make sure the two channels get enabled. */
 
         if ((dev->local & 0xffff) == 0x0078)
             dev->regs[0x50] |= 0x20; /* 0 = 178h, 17Ch; 1 = 078h, 07Ch */

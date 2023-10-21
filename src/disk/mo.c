@@ -320,7 +320,7 @@ mo_load_abort(mo_t *dev)
 {
     if (dev->drv->fp)
         fclose(dev->drv->fp);
-    dev->drv->fp           = NULL;
+    dev->drv->fp          = NULL;
     dev->drv->medium_size = 0;
     dev->drv->sector_size = 0;
     mo_eject(dev->id); /* Make sure the host OS knows we've rejected (and ejected) the image. */
@@ -1266,8 +1266,8 @@ mo_set_buf_len(mo_t *dev, int32_t *BufLen, int32_t *src_len)
 static void
 mo_command(scsi_common_t *sc, uint8_t *cdb)
 {
-    mo_t    *dev = (mo_t *) sc;
-    int      pos = 0;
+    mo_t    *dev        = (mo_t *) sc;
+    int      pos        = 0;
     int      block_desc = 0;
     int      ret;
     int32_t  len;

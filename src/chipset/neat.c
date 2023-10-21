@@ -216,12 +216,12 @@ typedef struct neat_t {
 
     char pad;
 
-    uint16_t ems_base;          /* configured base address */
-    uint16_t ems_oldbase;
-    uint32_t ems_frame;         /* configured frame address */
-    uint32_t ems_oldframe;
-    uint16_t ems_size;          /* EMS size in KB */
-    uint16_t ems_pages;         /* EMS size in pages */
+    uint16_t  ems_base;         /* configured base address */
+    uint16_t  ems_oldbase;
+    uint32_t  ems_frame;        /* configured frame address */
+    uint32_t  ems_oldframe;
+    uint16_t  ems_size;         /* EMS size in KB */
+    uint16_t  ems_pages;        /* EMS size in pages */
     emspage_t ems[EMS_MAXPAGE]; /* EMS page registers */
 } neat_t;
 

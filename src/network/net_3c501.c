@@ -474,10 +474,10 @@ elnkSoftReset(threec501_t *dev)
 static int
 elnkReceiveLocked(void *priv, uint8_t *src, int size)
 {
-    threec501_t *dev     = (threec501_t *) priv;
-    int          is_padr = 0;
-    int          is_bcast = 0;
-    int          is_mcast = 0;
+    threec501_t *dev       = (threec501_t *) priv;
+    int          is_padr   = 0;
+    int          is_bcast  = 0;
+    int          is_mcast  = 0;
     bool         fLoopback = dev->RcvCmd.adr_match == EL_BCTL_LOOPBACK;
 
     union {
@@ -661,7 +661,7 @@ elnkAsyncTransmit(threec501_t *dev)
     do {
         /* Don't send anything when the link is down. */
         if (!elnkIsLinkUp(dev)
-             && dev->cLinkDownReported > ELNK_MAX_LINKDOWN_REPORTED)
+            && dev->cLinkDownReported > ELNK_MAX_LINKDOWN_REPORTED)
             break;
 
         bool const fLoopback = dev->AuxCmd.buf_ctl == EL_BCTL_LOOPBACK;
@@ -1155,6 +1155,7 @@ threec501_nic_close(void *priv)
 }
 
 static const device_config_t threec501_config[] = {
+// clang-format off
     {
         .name = "base",
         .description = "Address",
@@ -1212,6 +1213,7 @@ static const device_config_t threec501_config[] = {
         .default_int = -1
     },
     { .name = "", .description = "", .type = CONFIG_END }
+// clang-format on
 };
 
 const device_t threec501_device = {

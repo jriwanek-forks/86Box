@@ -171,8 +171,8 @@ static int settings_list_to_midi[20];
 static int settings_list_to_midi_in[20];
 static int settings_list_to_hdc[20];
 
-static int      max_spt = 63;
-static int      max_hpc = 255;
+static int      max_spt    = 63;
+static int      max_hpc    = 255;
 static int      max_tracks = 266305;
 static uint64_t mfm_tracking;
 static uint64_t esdi_tracking;
@@ -182,14 +182,14 @@ static uint64_t scsi_tracking[8];
 static uint64_t size;
 static int      hd_listview_items;
 static int      hdc_id_to_listview_index[HDD_NUM];
-static int      no_update = 0;
-static int      existing = 0;
+static int      no_update   = 0;
+static int      existing    = 0;
 static int      chs_enabled = 0;
 static int      lv1_current_sel;
 static int      lv2_current_sel;
 static int      hard_disk_added = 0;
-static int      next_free_id = 0;
-static int      selection = 127;
+static int      next_free_id    = 0;
+static int      selection       = 127;
 static int      spt;
 static int      hpc;
 static int      tracks;
@@ -364,8 +364,8 @@ win_settings_init(void)
     temp_dynarec = cpu_use_dynarec;
 #endif
     temp_fpu_softfloat = fpu_softfloat;
-    temp_fpu  = fpu_type;
-    temp_sync = time_sync;
+    temp_fpu           = fpu_type;
+    temp_sync          = time_sync;
 
     /* Video category */
     temp_gfxcard[0] = gfxcard[0];
@@ -587,9 +587,9 @@ win_settings_save(void)
 #ifdef USE_DYNAREC
     cpu_use_dynarec = temp_dynarec;
 #endif
-    fpu_softfloat  = temp_fpu_softfloat;
-    fpu_type  = temp_fpu;
-    time_sync = temp_sync;
+    fpu_softfloat = temp_fpu_softfloat;
+    fpu_type      = temp_fpu;
+    time_sync     = temp_sync;
 
     /* Video category */
     gfxcard[0]                 = temp_gfxcard[0];
@@ -767,13 +767,13 @@ win_settings_machine_recalc_cpu(HWND hdlg)
 static void
 win_settings_machine_recalc_cpu_m(HWND hdlg)
 {
-    int          c;
-    int          i;
-    int          first_eligible = -1;
-    int          current_eligible = 0;
-    int          last_eligible = 0;
-    LPTSTR       lptsTemp;
-    const char  *stransi;
+    int         c;
+    int         i;
+    int         first_eligible   = -1;
+    int         current_eligible = 0;
+    int         last_eligible    = 0;
+    LPTSTR      lptsTemp;
+    const char *stransi;
 
     lptsTemp = (LPTSTR) malloc(512 * sizeof(WCHAR));
 
@@ -2326,7 +2326,7 @@ static int
 get_selected_hard_disk(HWND hdlg)
 {
     int  hard_disk = -1;
-    int  j = 0;
+    int  j         = 0;
     HWND h;
 
     if (hd_listview_items == 0)
@@ -3046,12 +3046,12 @@ win_settings_hard_disks_add_proc(HWND hdlg, UINT message, WPARAM wParam, UNUSED(
     HWND     h;
     FILE    *fp;
     uint32_t temp;
-    uint32_t i         = 0;
+    uint32_t i           = 0;
     uint32_t sector_size = 512;
-    uint32_t zero      = 0;
-    uint32_t base      = 0x1000;
-    uint64_t signature = 0xD778A82044445459LL;
-    uint64_t r         = 0;
+    uint32_t zero        = 0;
+    uint32_t base        = 0x1000;
+    uint64_t signature   = 0xD778A82044445459LL;
+    uint64_t r           = 0;
     char    *big_buf;
     char     hd_file_name_multibyte[1200];
     int      b         = 0;
@@ -3234,14 +3234,14 @@ win_settings_hard_disks_add_proc(HWND hdlg, UINT message, WPARAM wParam, UNUSED(
                             for (i = 0; i < 0x3f8; i++)
                                 fwrite(&zero, 1, 4, fp);
                         } else if (img_format == IMG_FMT_HDX) {       /* HDX file */
-                            fwrite(&signature, 1, 8, fp);              /* 00000000: Signature */
-                            fwrite(&size, 1, 8, fp);                   /* 00000008: Full size of the data (64-bit) */
-                            fwrite(&sector_size, 1, 4, fp);            /* 00000010: Sector size in bytes */
-                            fwrite(&spt, 1, 4, fp);                    /* 00000014: Sectors per cylinder */
-                            fwrite(&hpc, 1, 4, fp);                    /* 00000018: Heads per cylinder */
-                            fwrite(&tracks, 1, 4, fp);                 /* 0000001C: Cylinders */
-                            fwrite(&zero, 1, 4, fp);                   /* 00000020: [Translation] Sectors per cylinder */
-                            fwrite(&zero, 1, 4, fp);                   /* 00000004: [Translation] Heads per cylinder */
+                            fwrite(&signature, 1, 8, fp);             /* 00000000: Signature */
+                            fwrite(&size, 1, 8, fp);                  /* 00000008: Full size of the data (64-bit) */
+                            fwrite(&sector_size, 1, 4, fp);           /* 00000010: Sector size in bytes */
+                            fwrite(&spt, 1, 4, fp);                   /* 00000014: Sectors per cylinder */
+                            fwrite(&hpc, 1, 4, fp);                   /* 00000018: Heads per cylinder */
+                            fwrite(&tracks, 1, 4, fp);                /* 0000001C: Cylinders */
+                            fwrite(&zero, 1, 4, fp);                  /* 00000020: [Translation] Sectors per cylinder */
+                            fwrite(&zero, 1, 4, fp);                  /* 00000004: [Translation] Heads per cylinder */
                         } else if (img_format >= IMG_FMT_VHD_FIXED) { /* VHD file */
                             MVHDGeom _86box_geometry;
                             block_size = settings_get_cur_sel(hdlg, IDC_COMBO_HD_BLOCK_SIZE) == 0 ? MVHD_BLOCK_LARGE : MVHD_BLOCK_SMALL;
@@ -4446,7 +4446,7 @@ static int
 get_selected_drive(HWND hdlg, int id, int max)
 {
     int  drive = -1;
-    int  j = 0;
+    int  j     = 0;
     HWND h;
 
     for (int i = 0; i < max; i++) {
@@ -4946,9 +4946,9 @@ static BOOL CALLBACK
 win_settings_floppy_and_cdrom_drives_proc(HWND hdlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
     int           old_sel = 0;
-    int           b = 0;
-    int           assign = 0;
-    uint32_t      b2 = 0;
+    int           b       = 0;
+    int           assign  = 0;
+    uint32_t      b2      = 0;
     WCHAR         szText[256];
     const uint8_t fd_icons[15] = { 248, 16, 16, 16, 16, 16, 16, 24, 24, 24, 24, 24, 24, 24, 0 };
     const uint8_t cd_icons[3]  = { 249, 32, 0 };
@@ -5138,9 +5138,9 @@ static BOOL CALLBACK
 #endif
 win_settings_other_removable_devices_proc(HWND hdlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
-    int           old_sel = 0;
-    int           b = 0;
-    int           assign = 0;
+    int           old_sel      = 0;
+    int           b            = 0;
+    int           assign       = 0;
     uint32_t      b2           = 0;
     const uint8_t mo_icons[3]  = { 251, 56, 0 };
     const uint8_t zip_icons[3] = { 250, 48, 0 };
@@ -5633,7 +5633,7 @@ win_settings_main_proc(HWND hdlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
     HWND          h = NULL;
     int           category;
-    int           j = 0;
+    int           j             = 0;
     const uint8_t cat_icons[12] = { 240, 241, 242, 243, 96, 244, 252, 80, 246, 247, 245, 0 };
 
     hwndParentDialog = hdlg;

@@ -78,7 +78,7 @@ static void
 MPU401_ReCalcClock(mpu_t *mpu)
 {
     int32_t mintempo = 16;
-    int32_t maxtempo = 240; 
+    int32_t maxtempo = 240;
     int32_t freq;
 
     if (mpu->clock.timebase < 72) {
@@ -704,11 +704,11 @@ MPU401_WriteCommand(mpu_t *mpu, uint8_t val)
                     return;
                 break;
 
-                default:
+            default:
 #if 0
                     mpu401_log("MPU-401:Unhandled command %X",val);
 #endif
-                    break;
+                break;
         }
 
     MPU401_QueueByte(mpu, MSG_MPU_ACK);
@@ -1308,8 +1308,8 @@ mpu401_read(uint16_t addr, void *priv)
 static void
 MPU401_Event(void *priv)
 {
-    mpu_t  *mpu = (mpu_t *) priv;
-    int     max_meascnt;
+    mpu_t *mpu = (mpu_t *) priv;
+    int    max_meascnt;
 
     mpu401_log("MPU-401 event callback\n");
 
@@ -1476,8 +1476,8 @@ MPU401_InputMsg(void *priv, uint8_t *msg, uint32_t len)
     uint8_t        key;
     uint8_t        recdata[2];
     uint8_t        recmsg[4];
-    int            send = 1;
-    int            send_thru = 0;
+    int            send           = 1;
+    int            send_thru      = 0;
     int            retrigger_thru = 0;
     int            chan;
     int            chrefnum;

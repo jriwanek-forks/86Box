@@ -1042,13 +1042,13 @@ aha_init(const device_t *info)
 
         case AHA_154xC:
             strcpy(dev->name, "AHA-154xC");
-            dev->bios_path       = "roms/scsi/adaptec/aha1542c102.bin";
-            dev->nvr_path        = "aha1542c.nvr";
-            dev->fw_rev          = "D001";
-            dev->rom_shram       = 0x3F80;          /* shadow RAM address base */
-            dev->rom_shramsz     = 128;             /* size of shadow RAM */
-            dev->rom_ioaddr      = 0x3F7E;          /* [2:0] idx into addr table */
-            dev->rom_fwhigh      = 0x0022;          /* firmware version (hi/lo) */
+            dev->bios_path   = "roms/scsi/adaptec/aha1542c102.bin";
+            dev->nvr_path    = "aha1542c.nvr";
+            dev->fw_rev      = "D001";
+            dev->rom_shram   = 0x3F80; /* shadow RAM address base */
+            dev->rom_shramsz = 128;    /* size of shadow RAM */
+            dev->rom_ioaddr  = 0x3F7E; /* [2:0] idx into addr table */
+            dev->rom_fwhigh  = 0x0022; /* firmware version (hi/lo) */
             dev->flags |= X54X_HAS_SIGNATURE;
             dev->ven_get_host_id = aha_get_host_id; /* function to return host ID from EEPROM */
             dev->ven_get_irq     = aha_get_irq;     /* function to return IRQ from EEPROM */

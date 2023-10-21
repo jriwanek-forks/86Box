@@ -312,7 +312,7 @@ scsi_disk_mode_sense(scsi_disk_t *dev, uint8_t *buf, uint32_t pos, uint8_t page,
 {
     uint8_t msplen;
     uint8_t page_control = (page >> 6) & 3;
-    int     size = 0;
+    int     size         = 0;
 
     page &= 0x3f;
 

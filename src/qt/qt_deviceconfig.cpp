@@ -48,7 +48,7 @@ extern "C" {
 #    include <sys/sysmacros.h>
 #endif
 #ifdef Q_OS_WINDOWS
-#include <windows.h>
+#    include <windows.h>
 #endif
 
 DeviceConfig::DeviceConfig(QWidget *parent)
@@ -85,10 +85,11 @@ EnumerateSerialDevices()
     for (int i = 1; i < 256; i++) {
         devstr[0] = 0;
         snprintf(devstr.data(), 1024, "\\\\.\\COM%d", i);
-        auto handle = CreateFileA(devstr.data(), GENERIC_READ | GENERIC_WRITE, 0, nullptr, OPEN_EXISTING, 0, 0);
+        auto handle  = CreateFileA(devstr.data(), GENERIC_READ | GENERIC_WRITE, 0, nullptr, OPEN_EXISTING, 0, 0);
         auto dwError = GetLastError();
         if (handle != INVALID_HANDLE_VALUE || (handle == INVALID_HANDLE_VALUE && ((dwError == ERROR_ACCESS_DENIED) || (dwError == ERROR_GEN_FAILURE) || (dwError == ERROR_SHARING_VIOLATION) || (dwError == ERROR_SEM_TIMEOUT)))) {
-            if (handle != INVALID_HANDLE_VALUE) CloseHandle(handle);
+            if (handle != INVALID_HANDLE_VALUE)
+                CloseHandle(handle);
             serialDevices.push_back(QString(devstr));
         }
     }
