@@ -77,7 +77,7 @@ vt82c686_lpt_handler(vt82c686_t *dev)
 {
     uint16_t io_mask;
     uint16_t io_base = dev->regs[0x06] << 2;
-    int      io_len = get_lpt_length(dev);
+    int      io_len  = get_lpt_length(dev);
     io_base &= (0xff8 | io_len);
     io_mask = 0x3fc; /* non-EPP */
     if (io_len == 8)

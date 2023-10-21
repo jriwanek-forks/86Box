@@ -32,17 +32,17 @@
 #include <86box/plat_unused.h>
 
 typedef struct opti602_t {
-    uint8_t    idx;
+    uint8_t idx;
 
-    uint8_t    regs[256];
-    uint8_t    gpio[32];
+    uint8_t regs[256];
+    uint8_t gpio[32];
 
-    uint16_t   gpio_base;
+    uint16_t gpio_base;
 
-    uint16_t   gpio_mask;
-    uint16_t   gpio_size;
+    uint16_t gpio_mask;
+    uint16_t gpio_size;
 
-    nvr_t     *nvr;
+    nvr_t *nvr;
 } opti602_t;
 
 #ifdef ENABLE_OPTI602_LOG
@@ -75,7 +75,7 @@ static uint8_t
 opti602_gpio_read(uint16_t addr, void *priv)
 {
     const opti602_t *dev = (opti602_t *) priv;
-    uint8_t ret = 0xff;
+    uint8_t          ret = 0xff;
 
     ret = dev->gpio[addr - dev->gpio_base];
 
@@ -112,7 +112,7 @@ opti602_write(uint16_t addr, uint8_t val, void *priv)
             dev->idx = val;
             break;
         case 0x24:
-           if ((dev->idx == 0xea) || ((dev->idx >= 0xf7) && (dev->idx <= 0xfa))) { 
+            if ((dev->idx == 0xea) || ((dev->idx >= 0xf7) && (dev->idx <= 0xfa))) {
                 dev->regs[dev->idx] = val;
                 opti602_log("dev->regs[%04x] = %08x\n", dev->idx, val);
 
@@ -157,7 +157,7 @@ opti602_read(uint16_t addr, void *priv)
 
     switch (addr) {
         case 0x24:
-           if ((dev->idx == 0xea) || ((dev->idx >= 0xf7) && (dev->idx <= 0xfa))) { 
+            if ((dev->idx == 0xea) || ((dev->idx >= 0xf7) && (dev->idx <= 0xfa))) {
                 ret = dev->regs[dev->idx];
                 if ((dev->idx == 0xfa) && (dev->regs[0xf9] & 0x40))
                     ret |= dev->regs[0xea];
@@ -203,7 +203,7 @@ opti602_init(UNUSED(const device_t *info))
     io_sethandler(0x0022, 0x0001, opti602_read, NULL, NULL, opti602_write, NULL, NULL, dev);
     io_sethandler(0x0024, 0x0001, opti602_read, NULL, NULL, opti602_write, NULL, NULL, dev);
 
-    dev->nvr   = device_add(&at_mb_nvr_device);
+    dev->nvr = device_add(&at_mb_nvr_device);
 
     opti602_reset(dev);
 

@@ -51,8 +51,8 @@ typedef struct pc87306_t {
 static void
 pc87306_gpio_write(uint16_t port, uint8_t val, void *priv)
 {
-    pc87306_t *dev = (pc87306_t *) priv;
-    uint32_t gpio = 0xffff0000;
+    pc87306_t *dev  = (pc87306_t *) priv;
+    uint32_t   gpio = 0xffff0000;
 
     dev->gpio[port & 0x0001] = val;
 
@@ -120,7 +120,7 @@ lpt1_handler(pc87306_t *dev)
     int      temp;
     uint16_t lptba;
     uint16_t lpt_port = LPT1_ADDR;
-    uint8_t  lpt_irq = LPT2_IRQ;
+    uint8_t  lpt_irq  = LPT2_IRQ;
 
     temp  = dev->regs[0x01] & 3;
     lptba = ((uint16_t) dev->regs[0x19]) << 2;

@@ -185,9 +185,9 @@ enum {
 typedef struct dcb_t {
     uint8_t cmd; /* [7:5] class, [4:0] opcode    */
 
-    uint8_t head   : 5; /* [4:0] head number        */
-    uint8_t drvsel : 1; /* [5] drive select        */
-    uint8_t mbz    : 2; /* [7:6] 00            */
+    uint8_t head     : 5; /* [4:0] head number        */
+    uint8_t drvsel   : 1; /* [5] drive select        */
+    uint8_t mbz      : 2; /* [7:6] 00            */
 
     uint8_t sector   : 6; /* [5:0] sector number 0-63    */
     uint8_t cyl_high : 2; /* [7:6] cylinder [9:8] bits    */
@@ -216,7 +216,7 @@ typedef struct dprm_t {
 
 /* Define an attached drive. */
 typedef struct drive_t {
-    int8_t id;   /* drive ID on bus */
+    int8_t id;      /* drive ID on bus */
     int8_t present; /* drive is present */
     int8_t hdd_num; /* index to global disk table */
     int8_t type;    /* drive type ID */
@@ -261,7 +261,7 @@ typedef struct hdc_t {
     uint8_t  head;   /* requested head# */
     uint8_t  sector; /* requested sector# */
     uint8_t  comp;   /* operation completion byte */
-    int count;       /* requested sector count */
+    int      count;  /* requested sector count */
 
     drive_t drives[XTA_NUM]; /* the attached drive(s) */
 

@@ -74,10 +74,10 @@
 #define CTRL_RESET 0xff /* this resets the board */
 #define BUG_DATA   1
 
-static uint8_t bug_ctrl;  /* control register */
-static uint8_t bug_data;  /* data register */
-static uint8_t bug_ledr;  /* RED LEDs */
-static uint8_t bug_ledg;  /* GREEN LEDs */
+static uint8_t bug_ctrl; /* control register */
+static uint8_t bug_data; /* data register */
+static uint8_t bug_ledr; /* RED LEDs */
+static uint8_t bug_ledg; /* GREEN LEDs */
 static uint8_t bug_seg1;
 static uint8_t bug_seg2;  /* LEFT and RIGHT 7SEG displays */
 static uint8_t bug_spcfg; /* serial port configuration */

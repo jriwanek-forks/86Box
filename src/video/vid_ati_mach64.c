@@ -1575,29 +1575,29 @@ mach64_start_line(mach64_t *mach64)
             break;                                               \
     }
 
-#define WRITE(addr, width)                                                                  \
-    if (width == 0) {                                                                       \
-        svga->vram[(addr) &mach64->vram_mask]                = dest_dat;                    \
-        svga->changedvram[((addr) &mach64->vram_mask) >> 12] = svga->monitor->mon_changeframecount;            \
-    } else if (width == 1) {                                                                \
-        *(uint16_t *) &svga->vram[((addr) << 1) & mach64->vram_mask] = dest_dat;            \
-        svga->changedvram[(((addr) << 1) & mach64->vram_mask) >> 12] = svga->monitor->mon_changeframecount;    \
-    } else if (width == 2) {                                                                \
-        *(uint32_t *) &svga->vram[((addr) << 2) & mach64->vram_mask] = dest_dat;            \
-        svga->changedvram[(((addr) << 2) & mach64->vram_mask) >> 12] = svga->monitor->mon_changeframecount;    \
-    } else {                                                                                \
-        if (dest_dat & 1) {                                                                 \
-            if (mach64->dp_pix_width & DP_BYTE_PIX_ORDER)                                   \
-                svga->vram[((addr) >> 3) & mach64->vram_mask] |= 1 << ((addr) &7);          \
-            else                                                                            \
-                svga->vram[((addr) >> 3) & mach64->vram_mask] |= 1 << (7 - ((addr) &7));    \
-        } else {                                                                            \
-            if (mach64->dp_pix_width & DP_BYTE_PIX_ORDER)                                   \
-                svga->vram[((addr) >> 3) & mach64->vram_mask] &= ~(1 << ((addr) &7));       \
-            else                                                                            \
-                svga->vram[((addr) >> 3) & mach64->vram_mask] &= ~(1 << (7 - ((addr) &7))); \
-        }                                                                                   \
-        svga->changedvram[(((addr) >> 3) & mach64->vram_mask) >> 12] = svga->monitor->mon_changeframecount;    \
+#define WRITE(addr, width)                                                                                  \
+    if (width == 0) {                                                                                       \
+        svga->vram[(addr) &mach64->vram_mask]                = dest_dat;                                    \
+        svga->changedvram[((addr) &mach64->vram_mask) >> 12] = svga->monitor->mon_changeframecount;         \
+    } else if (width == 1) {                                                                                \
+        *(uint16_t *) &svga->vram[((addr) << 1) & mach64->vram_mask] = dest_dat;                            \
+        svga->changedvram[(((addr) << 1) & mach64->vram_mask) >> 12] = svga->monitor->mon_changeframecount; \
+    } else if (width == 2) {                                                                                \
+        *(uint32_t *) &svga->vram[((addr) << 2) & mach64->vram_mask] = dest_dat;                            \
+        svga->changedvram[(((addr) << 2) & mach64->vram_mask) >> 12] = svga->monitor->mon_changeframecount; \
+    } else {                                                                                                \
+        if (dest_dat & 1) {                                                                                 \
+            if (mach64->dp_pix_width & DP_BYTE_PIX_ORDER)                                                   \
+                svga->vram[((addr) >> 3) & mach64->vram_mask] |= 1 << ((addr) &7);                          \
+            else                                                                                            \
+                svga->vram[((addr) >> 3) & mach64->vram_mask] |= 1 << (7 - ((addr) &7));                    \
+        } else {                                                                                            \
+            if (mach64->dp_pix_width & DP_BYTE_PIX_ORDER)                                                   \
+                svga->vram[((addr) >> 3) & mach64->vram_mask] &= ~(1 << ((addr) &7));                       \
+            else                                                                                            \
+                svga->vram[((addr) >> 3) & mach64->vram_mask] &= ~(1 << (7 - ((addr) &7)));                 \
+        }                                                                                                   \
+        svga->changedvram[(((addr) >> 3) & mach64->vram_mask) >> 12] = svga->monitor->mon_changeframecount; \
     }
 
 void
@@ -1605,7 +1605,7 @@ mach64_blit(uint32_t cpu_dat, int count, mach64_t *mach64)
 {
     svga_t *svga    = &mach64->svga;
     int     cmp_clr = 0;
-    int     mix = 0;
+    int     mix     = 0;
 
     if (!mach64->accel.busy) {
         mach64_log("mach64_blit : return as not busy\n");
@@ -1616,7 +1616,7 @@ mach64_blit(uint32_t cpu_dat, int count, mach64_t *mach64)
         case OP_RECT:
             while (count) {
                 uint8_t  write_mask = 0;
-                uint32_t src_dat = 0;
+                uint32_t src_dat    = 0;
                 uint32_t dest_dat;
                 uint32_t host_dat = 0;
                 uint32_t old_dest_dat;
@@ -1799,7 +1799,7 @@ mach64_blit(uint32_t cpu_dat, int count, mach64_t *mach64)
                                 dest_dat = (dest_dat & mach64->accel.write_mask) | (old_dest_dat & ~mach64->accel.write_mask);
                         }
 
-                        WRITE(mach64->accel.dst_offset + ((dst_y) * mach64->accel.dst_pitch) + (dst_x), mach64->accel.dst_size);
+                        WRITE(mach64->accel.dst_offset + ((dst_y) *mach64->accel.dst_pitch) + (dst_x), mach64->accel.dst_size);
                     }
                 }
 
@@ -2929,7 +2929,7 @@ uint16_t
 mach64_ext_readw(uint32_t addr, void *priv)
 {
     const mach64_t *mach64 = (mach64_t *) priv;
-    uint16_t  ret;
+    uint16_t        ret;
 
     if (!(addr & 0x400)) {
         mach64_log("mach64_ext_readw: addr=%04x\n", addr);

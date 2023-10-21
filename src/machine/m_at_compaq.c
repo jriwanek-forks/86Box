@@ -44,7 +44,6 @@
 #include <86box/vid_cga_comp.h>
 #include <86box/plat_unused.h>
 
-
 static video_timings_t timing_compaq_plasma = { .type = VIDEO_ISA, .write_b = 8, .write_w = 16, .write_l = 32, .read_b = 8, .read_w = 16, .read_l = 32 };
 
 enum {
@@ -96,10 +95,10 @@ compaq_plasma_display_get(void)
 }
 
 typedef struct compaq_plasma_t {
-    cga_t         cga;
-    uint8_t       port_23c6;
-    uint8_t       internal_monitor;
-    uint8_t       attrmap;
+    cga_t   cga;
+    uint8_t port_23c6;
+    uint8_t internal_monitor;
+    uint8_t attrmap;
 } compaq_plasma_t;
 
 static int compaq_machine_type = 0;
@@ -121,9 +120,9 @@ compaq_plasma_recalctimings(compaq_plasma_t *self)
         return;
     }
 
-    disptime          = 651;
-    _dispontime       = 640;
-    _dispofftime      = disptime - _dispontime;
+    disptime              = 651;
+    _dispontime           = 640;
+    _dispofftime          = disptime - _dispontime;
     self->cga.dispontime  = (uint64_t) (_dispontime * (cpuclock / VID_CLOCK) * (double) (1ULL << 32));
     self->cga.dispofftime = (uint64_t) (_dispofftime * (cpuclock / VID_CLOCK) * (double) (1ULL << 32));
 }
@@ -266,24 +265,24 @@ static void
 compaq_plasma_poll(void *priv)
 {
     compaq_plasma_t *self = (compaq_plasma_t *) priv;
-    uint8_t  chr;
-    uint8_t  attr;
-    uint8_t  sc;
-    uint16_t ma  = (self->cga.crtc[13] | (self->cga.crtc[12] << 8)) & 0x7fff;
-    uint16_t ca  = (self->cga.crtc[15] | (self->cga.crtc[14] << 8)) & 0x7fff;
-    uint16_t addr;
-    int      drawcursor;
-    int      cursorline;
-    int      blink     = 0;
-    int      underline = 0;
-    uint32_t ink = 0;
-    uint32_t fg = (self->cga.cgacol & 0x0f) ? amber : black;
-    uint32_t bg = black;
-    uint32_t cols[2];
-    uint8_t  dat;
-    uint8_t  pattern;
-    uint32_t ink0 = 0;
-    uint32_t ink1 = 0;
+    uint8_t          chr;
+    uint8_t          attr;
+    uint8_t          sc;
+    uint16_t         ma = (self->cga.crtc[13] | (self->cga.crtc[12] << 8)) & 0x7fff;
+    uint16_t         ca = (self->cga.crtc[15] | (self->cga.crtc[14] << 8)) & 0x7fff;
+    uint16_t         addr;
+    int              drawcursor;
+    int              cursorline;
+    int              blink     = 0;
+    int              underline = 0;
+    uint32_t         ink       = 0;
+    uint32_t         fg        = (self->cga.cgacol & 0x0f) ? amber : black;
+    uint32_t         bg        = black;
+    uint32_t         cols[2];
+    uint8_t          dat;
+    uint8_t          pattern;
+    uint32_t         ink0 = 0;
+    uint32_t         ink1 = 0;
 
     /* Switch between internal plasma and external CRT display. */
     if ((cpq_st_display_internal != -1) && (cpq_st_display_internal != self->internal_monitor)) {
@@ -374,7 +373,7 @@ compaq_plasma_poll(void *priv)
                 }
             } else if (self->cga.cgamode & 1) {
                 /* 80-col */
-                sc = self->cga.displine & 0x0f;
+                sc   = self->cga.displine & 0x0f;
                 addr = ((ma & ~1) + (self->cga.displine >> 4) * 80) * 2;
                 ma += (self->cga.displine >> 4) * 80;
 
@@ -390,7 +389,7 @@ compaq_plasma_poll(void *priv)
                     attr       = self->cga.vram[(addr + 2 * x + 1) & 0x7FFF];
                     drawcursor = ((ma == ca) && cursorline && (self->cga.cgamode & 8) && (self->cga.cgablink & 16));
 
-                    blink = ((self->cga.cgablink & 16) && (self->cga.cgamode & 0x20) && (attr & 0x80) && !drawcursor);
+                    blink     = ((self->cga.cgablink & 16) && (self->cga.cgamode & 0x20) && (attr & 0x80) && !drawcursor);
                     underline = ((self->port_23c6 & 0x40) && (attr & 0x1) && !(attr & 0x6));
                     /* blink active */
                     if (self->cga.cgamode & 0x20) {
@@ -422,7 +421,7 @@ compaq_plasma_poll(void *priv)
                     ++ma;
                 }
             } else { /* 40-col */
-                sc = self->cga.displine & 0x0f;
+                sc   = self->cga.displine & 0x0f;
                 addr = ((ma & ~1) + (self->cga.displine >> 4) * 40) * 2;
                 ma += (self->cga.displine >> 4) * 40;
 
@@ -436,7 +435,7 @@ compaq_plasma_poll(void *priv)
                     attr       = self->cga.vram[(addr + 2 * x + 1) & 0x7FFF];
                     drawcursor = ((ma == ca) && cursorline && (self->cga.cgamode & 8) && (self->cga.cgablink & 16));
 
-                    blink = ((self->cga.cgablink & 16) && (self->cga.cgamode & 0x20) && (attr & 0x80) && !drawcursor);
+                    blink     = ((self->cga.cgablink & 16) && (self->cga.cgamode & 0x20) && (attr & 0x80) && !drawcursor);
                     underline = ((self->port_23c6 & 0x40) && (attr & 0x1) && !(attr & 0x6));
                     /* blink active */
                     if (self->cga.cgamode & 0x20) {
@@ -640,7 +639,7 @@ compaq_plasma_init(UNUSED(const device_t *info))
     self->cga.composite = 0;
     self->cga.revision  = 0;
 
-    self->cga.vram             = malloc(0x8000);
+    self->cga.vram         = malloc(0x8000);
     self->internal_monitor = 1;
 
     cga_comp_init(self->cga.revision);
@@ -849,8 +848,7 @@ machine_at_portableiii_init(const machine_t *model)
     int ret;
 
     ret = bios_load_linearr("roms/machines/portableiii/K Combined.bin",
-                                0x000f8000, 65536, 0);
-
+                            0x000f8000, 65536, 0);
 
     if (bios_only || !ret)
         return ret;

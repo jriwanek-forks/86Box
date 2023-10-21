@@ -425,7 +425,7 @@ ega_in(uint16_t addr, void *priv)
             }
             break;
         case 0x7c6:
-            ret = 0xfd;        /* EGA mode supported. */
+            ret = 0xfd; /* EGA mode supported. */
             break;
         case 0xbc6:
             /* 0000 = None;
@@ -648,9 +648,9 @@ ega_dot_poll(void *priv)
     const int  charwidth     = dotwidth * (seq9dot ? 9 : 8);
     const int  cursoron      = (ega->sc == (ega->crtc[10] & 31));
     const int  cursoraddr    = (ega->crtc[0xe] << 8) | ega->crtc[0xf];
-    uint32_t addr;
-    int drawcursor;
-    uint32_t charaddr;
+    uint32_t   addr;
+    int        drawcursor;
+    uint32_t   charaddr;
     static int fg            = 0;
     static int bg            = 0;
     static uint32_t dat      = 0x00000000;
@@ -807,7 +807,7 @@ ega_poll(void *priv)
             if (ega->linedbl && !ega->linecountff) {
                 ega->linecountff = 1;
                 ega->ma          = ega->maback;
-                ega->cca          = ega->maback;
+                ega->cca         = ega->maback;
             }
             if (ega->sc == (ega->crtc[9] & 31)) {
                 ega->linecountff = 0;
@@ -817,13 +817,13 @@ ega_poll(void *priv)
                 if (ega->interlace)
                     ega->maback += (ega->rowoffset << 3);
                 ega->maback &= ega->vrammask;
-                ega->ma = ega->maback;
+                ega->ma  = ega->maback;
                 ega->cca = ega->maback;
             } else {
                 ega->linecountff = 0;
                 ega->sc++;
                 ega->sc &= 31;
-                ega->ma = ega->maback;
+                ega->ma  = ega->maback;
                 ega->cca = ega->maback;
             }
         }

@@ -88,7 +88,7 @@ typedef struct scat_t {
 } scat_t;
 
 static const uint8_t max_map[32] = {
-// clang-format off
+    // clang-format off
     0, 1,  1,  1,  2,  3,  4,  8,
     4, 8, 12, 16, 20, 24, 28, 32,
     0, 5,  9, 13,  6, 10,  0,  0,

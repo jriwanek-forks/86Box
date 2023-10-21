@@ -137,9 +137,9 @@ typedef struct prnt_t {
 static void
 dump_page(prnt_t *dev)
 {
-    char     path[1024];
-    uint8_t  ch;
-    FILE    *fp;
+    char    path[1024];
+    uint8_t ch;
+    FILE   *fp;
 
     /* Create the full path for this file. */
     memset(path, 0x00, sizeof(path));

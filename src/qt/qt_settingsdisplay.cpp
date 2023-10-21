@@ -64,7 +64,7 @@ void
 SettingsDisplay::onCurrentMachineChanged(int machineId)
 {
     // win_settings_video_proc, WM_INITDIALOG
-    this->machineId = machineId;
+    this->machineId   = machineId;
     auto curVideoCard = videoCard[0];
 
     auto *model      = ui->comboBoxVideo->model();
@@ -116,8 +116,8 @@ SettingsDisplay::onCurrentMachineChanged(int machineId)
 void
 SettingsDisplay::on_pushButtonConfigure_clicked()
 {
-    int videoCard = ui->comboBoxVideo->currentData().toInt();
-    auto *device = video_card_getdevice(videoCard);
+    int   videoCard = ui->comboBoxVideo->currentData().toInt();
+    auto *device    = video_card_getdevice(videoCard);
     if (videoCard == VID_INTERNAL)
         device = machine_get_vid_device(machineId);
     DeviceConfig::ConfigureDevice(device, 0, qobject_cast<Settings *>(Settings::settings));
@@ -157,7 +157,7 @@ SettingsDisplay::on_comboBoxVideo_currentIndexChanged(int index)
     }
     static QRegularExpression voodooRegex("3dfx|voodoo|banshee", QRegularExpression::CaseInsensitiveOption);
     auto curVideoCard_2 = videoCard[1];
-    videoCard[0] = ui->comboBoxVideo->currentData().toInt();
+    videoCard[0]        = ui->comboBoxVideo->currentData().toInt();
     if (videoCard[0] == VID_INTERNAL)
         ui->pushButtonConfigure->setEnabled(machine_has_flags(machineId, MACHINE_VIDEO) &&
                                             device_has_config(machine_get_vid_device(machineId)));

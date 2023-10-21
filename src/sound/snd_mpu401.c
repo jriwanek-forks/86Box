@@ -1426,8 +1426,8 @@ MPU401_InputMsg(void *priv, uint8_t *msg, uint32_t len)
     uint8_t        key;
     uint8_t        recdata[2];
     uint8_t        recmsg[4];
-    int            send = 1;
-    int            send_thru = 0;
+    int            send           = 1;
+    int            send_thru      = 0;
     int            retrigger_thru = 0;
     int            chan;
     int            chrefnum;

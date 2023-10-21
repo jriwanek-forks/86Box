@@ -34,10 +34,10 @@ uint16_t     scancode_map[768] = { 0 };
 int          keyboard_scan;
 
 /* F8+F12 */
-uint16_t key_prefix_1_1 = 0x042;     /* F8 */
-uint16_t key_prefix_1_2 = 0x000;     /* Invalid */
-uint16_t key_prefix_2_1 = 0x000;     /* Invalid */
-uint16_t key_prefix_2_2 = 0x000;     /* Invalid */
+uint16_t key_prefix_1_1  = 0x042;     /* F8 */
+uint16_t key_prefix_1_2  = 0x000;     /* Invalid */
+uint16_t key_prefix_2_1  = 0x000;     /* Invalid */
+uint16_t key_prefix_2_2  = 0x000;     /* Invalid */
 uint16_t key_uncapture_1 = 0x058;    /* F12 */
 uint16_t key_uncapture_2 = 0x000;    /* Invalid */
 
@@ -79,7 +79,7 @@ static uint8_t
 fake_shift_needed(uint16_t scan)
 {
     switch (scan) {
-        case 0x137:    /* Yes, Print Screen requires the fake shifts. */
+        case 0x137: /* Yes, Print Screen requires the fake shifts. */
         case 0x147:
         case 0x148:
         case 0x149:
@@ -147,8 +147,8 @@ keyboard_input(int down, uint16_t scan)
     if ((scan >> 8) == 0xe1) {
         if ((scan & 0xff) == 0x1d)
             scan = 0x0100;
-    /* Translate E0 xx scan codes to 01xx because we use 512-byte arrays for states
-       and scan code sets. */
+        /* Translate E0 xx scan codes to 01xx because we use 512-byte arrays for states
+           and scan code sets. */
     } else if ((scan >> 8) == 0xe0) {
         scan &= 0x00ff;
         scan |= 0x0100; /* extended key code */

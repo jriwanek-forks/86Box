@@ -118,7 +118,7 @@ i2c_sethandler(void *bus_handle, uint8_t base, int size,
                void *priv)
 {
     i2c_t     *p;
-    i2c_t     *q = NULL;
+    i2c_t     *q   = NULL;
     i2c_bus_t *bus = (i2c_bus_t *) bus_handle;
 
     if (!bus_handle || ((base + size) > NADDRS))

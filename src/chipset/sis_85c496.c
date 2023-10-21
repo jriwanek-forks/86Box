@@ -40,19 +40,19 @@
 #include <86box/chipset.h>
 #include <86box/spd.h>
 #ifndef USE_DRB_HACK
-#include <86box/row.h>
+#    include <86box/row.h>
 #endif
 
 typedef struct sis_85c496_t {
-    uint8_t    cur_reg;
-    uint8_t    rmsmiblk_count;
-    uint8_t    pci_slot;
-    uint8_t    pad;
+    uint8_t cur_reg;
+    uint8_t rmsmiblk_count;
+    uint8_t pci_slot;
+    uint8_t pad;
 #ifndef USE_DRB_HACK
-    uint8_t    drb_default;
-    uint8_t    drb_bits;
-    uint8_t    pad0;
-    uint8_t    pad1;
+    uint8_t drb_default;
+    uint8_t drb_bits;
+    uint8_t pad0;
+    uint8_t pad1;
 #endif
     uint8_t    regs[127];
     uint8_t    pci_conf[256];
@@ -200,7 +200,7 @@ sis_85c496_ide_handler(sis_85c496_t *dev)
 static void
 sis_85c496_drb_recalc(sis_85c496_t *dev)
 {
-    int i;
+    int      i;
     uint32_t boundary;
 
     for (i = 7; i >= 0; i--)
@@ -214,7 +214,6 @@ sis_85c496_drb_recalc(sis_85c496_t *dev)
     flushmmucache();
 }
 #endif
-
 
 /* 00 - 3F = PCI Configuration, 40 - 7F = 85C496, 80 - FF = 85C497 */
 static void
@@ -633,9 +632,8 @@ sis_85c496_close(void *priv)
     free(dev);
 }
 
-static void
-    *
-    sis_85c496_init(const device_t *info)
+static void *
+sis_85c496_init(const device_t *info)
 {
     sis_85c496_t *dev = calloc(1, sizeof(sis_85c496_t));
 

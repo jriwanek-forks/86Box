@@ -328,8 +328,8 @@ sio_write(int func, int addr, uint8_t val, void *priv)
 static uint8_t
 sio_read(int func, int addr, void *priv)
 {
-    const sio_t  *dev = (sio_t *) priv;
-    uint8_t       ret;
+    const sio_t *dev = (sio_t *) priv;
+    uint8_t      ret;
 
     ret = 0xff;
 

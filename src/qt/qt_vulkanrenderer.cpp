@@ -49,11 +49,14 @@ extern "C" {
 // of -1/1. These will be corrected for by an extra transformation when
 // calculating the modelview-projection matrix.
 static float vertexData[] = { // Y up, front = CW
+// clang-format off
     // x, y, z, u, v
     -1, -1, 0, 0, 1,
     -1,  1, 0, 0, 0,
      1, -1, 0, 1, 1,
      1,  1, 0, 1, 0
+// clang-format on
+
 };
 
 static const int UNIFORM_DATA_SIZE = 16 * sizeof(float);
@@ -658,8 +661,8 @@ VulkanRenderer2::initResources()
     }
 
     // Shaders
-#if 0
-    #version 440
+#    if 0
+#        version 440
 
     layout(location = 0) in vec4 position;
     layout(location = 1) in vec2 texcoord;
@@ -679,8 +682,8 @@ VulkanRenderer2::initResources()
     }
 #endif /* 0 */
     VkShaderModule vertShaderModule = createShader(QStringLiteral(":/texture_vert.spv"));
-#if 0
-    #version 440
+#    if 0
+#        version 440
 
     layout(location = 0) in vec2 v_texcoord;
 
@@ -701,6 +704,7 @@ VulkanRenderer2::initResources()
     pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
 
     VkPipelineShaderStageCreateInfo shaderStages[2] = {
+// clang-format off
         {
             VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
             nullptr,
@@ -719,6 +723,7 @@ VulkanRenderer2::initResources()
             "main",
             nullptr
         }
+// clang-format on
     };
     pipelineInfo.stageCount = 2;
     pipelineInfo.pStages    = shaderStages;

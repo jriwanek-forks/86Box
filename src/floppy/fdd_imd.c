@@ -224,10 +224,10 @@ track_is_xdf(int drive, int side, int track)
 static int
 track_is_interleave(int drive, int side, int track)
 {
-    imd_t       *dev = imd[drive];
-    int          effective_sectors;
-    const char  *r_map;
-    int          track_spt;
+    imd_t      *dev = imd[drive];
+    int         effective_sectors;
+    const char *r_map;
+    int         track_spt;
 
     effective_sectors = 0;
 
@@ -263,9 +263,9 @@ track_is_interleave(int drive, int side, int track)
 static void
 sector_to_buffer(int drive, int track, int side, uint8_t *buffer, int sector, int len)
 {
-    const imd_t  *dev  = imd[drive];
-    int           type = dev->buffer[dev->tracks[track][side].sector_data_offs[sector]];
-    uint8_t       fill_char;
+    const imd_t *dev  = imd[drive];
+    int          type = dev->buffer[dev->tracks[track][side].sector_data_offs[sector]];
+    uint8_t      fill_char;
 
     if (type == 0)
         memset(buffer, 0x00, len);
@@ -460,9 +460,9 @@ disk_flags(int drive)
 static uint16_t
 side_flags(int drive)
 {
-    const imd_t   *dev    = imd[drive];
-    int            side   = 0;
-    uint16_t       sflags = 0;
+    const imd_t *dev    = imd[drive];
+    int          side   = 0;
+    uint16_t     sflags = 0;
 
     side   = fdd_get_head(drive);
     sflags = dev->current_side_flags[side];
@@ -513,7 +513,7 @@ set_sector(int drive, int side, uint8_t c, uint8_t h, uint8_t r, uint8_t n)
 static void
 imd_writeback(int drive)
 {
-    imd_t      *dev = imd[drive];
+    imd_t      *dev   = imd[drive];
     int         track = dev->track;
     const char *n_map = 0;
     uint8_t     h;

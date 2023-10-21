@@ -264,7 +264,7 @@ paradise_out(uint16_t addr, uint8_t val, void *priv)
 void
 paradise_remap(paradise_t *paradise)
 {
-    svga_t *svga    = &paradise->svga;
+    const svga_t *svga = &paradise->svga;
 
     if (svga->seqregs[0x11] & 0x80) {
         paradise->read_bank[0] = paradise->read_bank[2] = svga->gdcreg[9] << 12;

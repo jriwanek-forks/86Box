@@ -105,7 +105,7 @@ piix_log(const char *fmt, ...)
 static void
 smsc_ide_irqs(piix_t *dev)
 {
-    int irq_line = 3;
+    int     irq_line    = 3;
     uint8_t irq_mode[2] = { IRQ_MODE_LEGACY, IRQ_MODE_LEGACY };
 
     if (dev->regs[1][0x09] & 0x01)
@@ -1568,7 +1568,7 @@ piix_init(const device_t *info)
         sff_set_irq_mode(dev->bm[1], IRQ_MODE_MIRQ_0);
 
     if (dev->type >= 3)
-        dev->usb   = device_add(&usb_device);
+        dev->usb = device_add(&usb_device);
 
     if (dev->type > 3) {
         dev->nvr   = device_add(&piix4_nvr_device);

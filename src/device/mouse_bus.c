@@ -478,10 +478,10 @@ static int
 bm_poll(void *priv)
 {
     mouse_t *dev = (mouse_t *) priv;
-    int delta_x;
-    int delta_y;
-    int xor;
-    int b = mouse_get_buttons_ex();
+    int      delta_x;
+    int      delta_y;
+    int      xor;
+    int      b = mouse_get_buttons_ex();
 
     if (!mouse_capture && !video_fullscreen)
         return 1;

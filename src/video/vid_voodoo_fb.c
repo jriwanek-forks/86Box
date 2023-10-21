@@ -327,7 +327,7 @@ voodoo_fb_writel(uint32_t addr, uint32_t val, void *priv)
     uint16_t               depth_data[2];
     uint8_t                alpha_data[2];
     int                    write_mask = 0;
-    int                    count = 1;
+    int                    count      = 1;
 
     depth_data[0] = depth_data[1] = voodoo->params.zaColor & 0xffff;
     alpha_data[0] = alpha_data[1] = voodoo->params.zaColor >> 24;

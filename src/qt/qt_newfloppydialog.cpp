@@ -60,7 +60,7 @@ struct disk_size_t {
 };
 
 static const disk_size_t disk_sizes[14] = {
-// clang-format off
+  // clang-format off
 #if 0
     { 1,  1, 2, 1, 1,  77, 26, 0, 0,    4, 2, 6,  68 }, /* 250k 8" */
     { 1,  2, 2, 1, 1,  77, 26, 0, 0,    4, 2, 6,  68 }, /* 500k 8" */
@@ -85,7 +85,7 @@ static const disk_size_t disk_sizes[14] = {
     { 0,  8, 0, 0, 0, 963, 32, 2,    0, 0, 0, 0,   0 }, /* LS-120 */
     { 0, 32, 0, 0, 0, 262, 56, 2,    0, 0, 0, 0,   0 }  /* LS-240 */
 #endif
-// clang-format on
+  // clang-format on
 };
 
 static const QStringList rpmModes = {
@@ -200,7 +200,7 @@ NewFloppyDialog::onCreate()
     QFileInfo fi(filename);
     filename = (fi.isRelative() && !fi.filePath().isEmpty()) ? (usr_path + fi.filePath()) : fi.filePath();
     ui->fileField->setFileName(filename);
-    FileType  fileType;
+    FileType fileType;
 
     QProgressDialog progress("Creating floppy image", QString(), 0, 100, this);
     connect(this, &NewFloppyDialog::fileProgress, &progress, &QProgressDialog::setValue);
@@ -648,8 +648,8 @@ NewFloppyDialog::createZipSectorImage(const QString &filename, const disk_size_t
 bool
 NewFloppyDialog::createMoSectorImage(const QString &filename, int8_t disk_size, FileType type, QProgressDialog &pbar)
 {
-    const mo_type_t *dp            = &mo_types[disk_size];
-    uint32_t         total_size    = 0;
+    const mo_type_t *dp         = &mo_types[disk_size];
+    uint32_t         total_size = 0;
     uint32_t         total_size2;
     uint32_t         total_sectors = 0;
     uint32_t         sector_bytes  = 0;

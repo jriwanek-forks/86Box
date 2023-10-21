@@ -116,7 +116,7 @@ extern "C" {
 #include <86box/config.h>
 #include <86box/ui.h>
 #ifdef DISCORD
-#   include <86box/discord.h>
+#    include <86box/discord.h>
 #endif
 
 #include "../cpu/cpu.h"
@@ -641,51 +641,6 @@ ProgSettings::reloadStrings()
     translatedstrings[STRING_NET_ERROR_DESC]            = QCoreApplication::translate("", "The network configuration will be switched to the null driver").toStdWString();
 }
 
-wchar_t *
-plat_get_string(int i)
-{
-    if (ProgSettings::translatedstrings.empty())
-        ProgSettings::reloadStrings();
-    return ProgSettings::translatedstrings[i].data();
-}
-
-int
-plat_chdir(char *path)
-{
-    return QDir::setCurrent(QString(path)) ? 0 : -1;
-}
-
-void
-plat_get_global_config_dir(char *outbuf, const uint8_t len)
-{
-    const auto dir = QDir(QStandardPaths::standardLocations(QStandardPaths::AppConfigLocation)[0]);
-    if (!dir.exists()) {
-        if (!dir.mkpath(".")) {
-            qWarning("Failed to create global configuration directory %s", dir.absolutePath().toUtf8().constData());
-        }
-    }
-    strncpy(outbuf, dir.canonicalPath().toUtf8().constData(), len);
-}
-
-void
-plat_get_global_data_dir(char *outbuf, const uint8_t len)
-{
-    const auto dir = QDir(QStandardPaths::standardLocations(QStandardPaths::AppDataLocation)[0]);
-    if (!dir.exists()) {
-        if (!dir.mkpath(".")) {
-            qWarning("Failed to create global data directory %s", dir.absolutePath().toUtf8().constData());
-        }
-    }
-    strncpy(outbuf, dir.canonicalPath().toUtf8().constData(), len);
-}
-
-void
-plat_get_temp_dir(char *outbuf, const uint8_t len)
-{
-    const auto dir = QDir(QStandardPaths::standardLocations(QStandardPaths::TempLocation)[0]);
-    strncpy(outbuf, dir.canonicalPath().toUtf8().constData(), len);
-}
-
 void
 plat_init_rom_paths(void)
 {
@@ -711,15 +666,16 @@ plat_init_rom_paths(void)
 }
 
 void
-plat_get_cpu_string(char *outbuf, uint8_t len) {
+plat_get_cpu_string(char *outbuf, uint8_t len)
+{
     auto cpu_string = QString("Unknown");
     /* Write the default string now in case we have to exit early from an error */
     qstrncpy(outbuf, cpu_string.toUtf8().constData(), len);
 
 #if defined(Q_OS_MACOS)
-    auto *process = new QProcess(nullptr);
+    auto       *process = new QProcess(nullptr);
     QStringList arguments;
-    QString program = "/usr/sbin/sysctl";
+    QString     program = "/usr/sbin/sysctl";
     arguments << "machdep.cpu.brand_string";
     process->start(program, arguments);
     if (!process->waitForStarted()) {
@@ -728,7 +684,7 @@ plat_get_cpu_string(char *outbuf, uint8_t len) {
     if (!process->waitForFinished()) {
         return;
     }
-    QByteArray result = process->readAll();
+    QByteArray result   = process->readAll();
     auto command_result = QString(result).split(": ").last().trimmed();
     if(!command_result.isEmpty()) {
         cpu_string = command_result;
@@ -742,38 +698,36 @@ plat_get_cpu_string(char *outbuf, uint8_t len) {
     bufSize = 32768;
     if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, keyName, 0, 1, &hKey) == ERROR_SUCCESS) {
         if (RegQueryValueExA(hKey, valueName, NULL, NULL, buf, &bufSize) == ERROR_SUCCESS) {
-            cpu_string = reinterpret_cast<const char*>(buf);
+            cpu_string = reinterpret_cast<const char *>(buf);
         }
         RegCloseKey(hKey);
     }
 #elif defined(Q_OS_LINUX)
-    auto cpuinfo = QString("/proc/cpuinfo");
+    auto cpuinfo    = QString("/proc/cpuinfo");
     auto cpuinfo_fi = QFileInfo(cpuinfo);
-    if(!cpuinfo_fi.isReadable()) {
+    if (!cpuinfo_fi.isReadable()) {
         return;
     }
     QFile file(cpuinfo);
     if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
         QTextStream textStream(&file);
-        while(true) {
+        while (true) {
             QString line = textStream.readLine();
             if (line.isNull()) {
                 break;
             }
-            if(QRegularExpression("model name.*:").match(line).hasMatch()) {
+            if (QRegularExpression("model name.*:").match(line).hasMatch()) {
                 auto list = line.split(": ");
-                if(!list.last().isEmpty()) {
+                if (!list.last().isEmpty()) {
                     cpu_string = list.last();
                     break;
                 }
             }
-
         }
     }
 #endif
 
     qstrncpy(outbuf, cpu_string.toUtf8().constData(), len);
-
 }
 
 void

@@ -29,7 +29,7 @@
 #include <86box/postcard.h>
 #include "cpu.h"
 
-uint8_t         postcard_codes[POSTCARDS_NUM];
+uint8_t postcard_codes[POSTCARDS_NUM];
 
 static uint16_t postcard_port;
 static uint8_t  postcard_written[POSTCARDS_NUM];
@@ -64,9 +64,12 @@ static void
 postcard_setui(void)
 {
     if (postcard_ports_num > 1) {
-        char ps[2][POSTCARDS_NUM][3] = { { { 0 },
-                                           { 0 },
-                                        } };
+        char ps[2][POSTCARDS_NUM][3] = {
+            {
+                 { 0 },
+                 { 0 },
+            }
+        };
 
         for (uint8_t i = 0; i < POSTCARDS_NUM; i++) {
             if (!postcard_written[i]) {
@@ -80,21 +83,21 @@ postcard_setui(void)
                 snprintf(ps[1][i], sizeof(ps[1][i]), "%02X", postcard_prev_codes[i]);
             }
         }
- 
+
         switch (postcard_ports_num) {
             default:
             case 2:
                 snprintf(postcard_str, sizeof(postcard_str), "POST: %s%s %s%s",
-                        ps[0][0], ps[0][1], ps[1][0], ps[1][1]);
+                         ps[0][0], ps[0][1], ps[1][0], ps[1][1]);
                 break;
             case 3:
                 snprintf(postcard_str, sizeof(postcard_str), "POST: %s/%s%s %s/%s%s",
-                        ps[0][0], ps[0][1], ps[0][2], ps[1][0], ps[1][1], ps[1][2]);
+                         ps[0][0], ps[0][1], ps[0][2], ps[1][0], ps[1][1], ps[1][2]);
                 break;
             case 4:
                 snprintf(postcard_str, sizeof(postcard_str), "POST: %s%s/%s%s %s%s/%s%s",
-                        ps[0][0], ps[0][1], ps[0][2], ps[0][3],
-                        ps[1][0], ps[1][1], ps[1][2], ps[1][3]);
+                         ps[0][0], ps[0][1], ps[0][2], ps[0][3],
+                         ps[1][0], ps[1][1], ps[1][2], ps[1][3]);
                 break;
         }
     } else {
@@ -152,8 +155,8 @@ postcard_init(UNUSED(const device_t *info))
     else if (strstr(machines[machine].name, " IBM XT "))
         postcard_port = 0x60; /* IBM XT */
     else if (strstr(machines[machine].name, " IBM PCjr")) {
-        postcard_port = 0x10; /* IBM PCjr */
-        postcard_ports_num = 3; /* IBM PCjr error ports 11h and 12h */
+        postcard_port      = 0x10; /* IBM PCjr */
+        postcard_ports_num = 3;    /* IBM PCjr error ports 11h and 12h */
     } else if (strstr(machines[machine].name, " Compaq ") && !machine_has_bus(machine, MACHINE_BUS_PCI))
         postcard_port = 0x84; /* ISA Compaq machines */
     else if (strstr(machines[machine].name, "Olivetti"))

@@ -256,8 +256,8 @@ ims8848_write(uint16_t addr, uint8_t val, void *priv)
             }
             break;
 
-            default:
-                break;
+        default:
+            break;
     }
 }
 

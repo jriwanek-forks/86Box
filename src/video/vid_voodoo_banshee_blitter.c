@@ -127,13 +127,13 @@ colorkey(voodoo_t *voodoo, uint32_t src, int src_notdst, int color_format)
 
         case COLORKEY_16:
             {
-                int r = (src >> 11) & 0x1f;
+                int r     = (src >> 11) & 0x1f;
                 int r_min = (min >> 11) & 0x1f;
                 int r_max = (max >> 11) & 0x1f;
-                int g = (src >> 5) & 0x3f;
+                int g     = (src >> 5) & 0x3f;
                 int g_min = (min >> 5) & 0x3f;
                 int g_max = (max >> 5) & 0x3f;
-                int b = src & 0x1f;
+                int b     = src & 0x1f;
                 int b_min = min & 0x1f;
                 int b_max = max & 0x1f;
 
@@ -142,13 +142,13 @@ colorkey(voodoo_t *voodoo, uint32_t src, int src_notdst, int color_format)
 
         case COLORKEY_32:
             {
-                int r = (src >> 16) & 0xff;
+                int r     = (src >> 16) & 0xff;
                 int r_min = (min >> 16) & 0xff;
                 int r_max = (max >> 16) & 0xff;
-                int g = (src >> 8) & 0xff;
+                int g     = (src >> 8) & 0xff;
                 int g_min = (min >> 8) & 0xff;
                 int g_max = (max >> 8) & 0xff;
-                int b = src & 0xff;
+                int b     = src & 0xff;
                 int b_min = min & 0xff;
                 int b_max = max & 0xff;
 
@@ -1036,7 +1036,6 @@ do_screen_to_screen_stretch_line(voodoo_t *voodoo, uint8_t *src_p, int src_x, in
 #if 0
     pat_y += (voodoo->banshee_blt.command & COMMAND_DY) ? -1 : 1;
 #endif
-
 }
 
 static void

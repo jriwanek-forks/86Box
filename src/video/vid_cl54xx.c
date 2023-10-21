@@ -566,7 +566,7 @@ gd54xx_overlay_draw(svga_t *svga, int displine)
     int             r[8];
     int             g[8];
     int             b[8];
-    int             x_read = 4;
+    int             x_read  = 4;
     int             x_write = 4;
     uint32_t       *p;
     uint8_t        *src         = &svga->vram[(svga->overlay_latch.addr << shift) & svga->vram_mask];
@@ -3643,7 +3643,7 @@ gd54xx_mem_sys_src(gd54xx_t *gd54xx, uint32_t cpu_dat, uint32_t count)
     int      mask_shift;
     uint32_t byte_pos;
     uint32_t bitmask = 0;
-    svga_t  *svga = &gd54xx->svga;
+    svga_t  *svga    = &gd54xx->svga;
 
     gd54xx->blt.ms_is_dest = 0;
 
@@ -3729,12 +3729,12 @@ gd54xx_mem_sys_src(gd54xx_t *gd54xx, uint32_t cpu_dat, uint32_t count)
 static void
 gd54xx_normal_blit(uint32_t count, gd54xx_t *gd54xx, svga_t *svga)
 {
-    uint8_t  src   = 0;
+    uint8_t  src = 0;
     uint8_t  dst;
-    uint16_t width = gd54xx->blt.width;
-    int      x_max = 0;
-    int      shift = 0;
-    int      mask = 0;
+    uint16_t width    = gd54xx->blt.width;
+    int      x_max    = 0;
+    int      shift    = 0;
+    int      mask     = 0;
     uint32_t src_addr = gd54xx->blt.src_addr;
     uint32_t dst_addr = gd54xx->blt.dst_addr;
 
@@ -3922,7 +3922,8 @@ cl_pci_read(UNUSED(int func), int addr, void *priv)
 
     if ((addr >= 0x30) && (addr <= 0x33) && (!gd54xx->has_bios))
         ret = 0x00;
-    else  switch (addr) {
+    else
+        switch (addr) {
             case 0x00:
                 ret = 0x13; /*Cirrus Logic*/
                 break;
@@ -4020,7 +4021,7 @@ cl_pci_read(UNUSED(int func), int addr, void *priv)
 
             default:
                 break;
-    }
+        }
 
     return ret;
 }
@@ -4354,7 +4355,7 @@ gd54xx_init(const device_t *info)
 
     if (info->flags & DEVICE_MCA) {
         if (id == CIRRUS_ID_CLGD5428)
-            vram              = 1024;
+            vram = 1024;
         else
             vram = device_get_config_int("memory");
         gd54xx->vram_size = vram << 10;

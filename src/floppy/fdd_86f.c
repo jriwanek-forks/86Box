@@ -820,9 +820,9 @@ d86f_is_mfm(int drive)
 uint32_t
 d86f_get_data_len(int drive)
 {
-    const d86f_t  *dev = d86f[drive];
-    uint32_t       i;
-    uint32_t       ret = 128;
+    const d86f_t *dev = d86f[drive];
+    uint32_t      i;
+    uint32_t      ret = 128;
 
     if (dev->req_sector.id.n)
         ret = (uint32_t) 128 << dev->req_sector.id.n;
@@ -1252,8 +1252,8 @@ d86f_calccrc(d86f_t *dev, uint8_t byte)
 int
 d86f_word_is_aligned(int drive, int side, uint32_t base_pos)
 {
-    const d86f_t  *dev                = d86f[drive];
-    uint32_t       adjusted_track_pos = dev->track_pos;
+    const d86f_t *dev                = d86f[drive];
+    uint32_t      adjusted_track_pos = dev->track_pos;
 
     if (base_pos == 0xFFFFFFFF)
         return 0;
@@ -2160,9 +2160,9 @@ d86f_initialize_last_sector_id(int drive, int c, int h, int r, int n)
 static uint8_t
 d86f_sector_flags(int drive, int side, uint8_t c, uint8_t h, uint8_t r, uint8_t n)
 {
-    const d86f_t   *dev = d86f[drive];
-    sector_t       *s;
-    sector_t       *t;
+    const d86f_t *dev = d86f[drive];
+    sector_t     *s;
+    sector_t     *t;
 
     if (dev->last_side_sector[side]) {
         s = dev->last_side_sector[side];
@@ -2311,9 +2311,9 @@ d86f_turbo_format(int drive, int side, int nop)
 int
 d86f_sector_is_present(int drive, int side, uint8_t c, uint8_t h, uint8_t r, uint8_t n)
 {
-    const d86f_t   *dev = d86f[drive];
-    sector_t       *s;
-    sector_t       *t;
+    const d86f_t *dev = d86f[drive];
+    sector_t     *s;
+    sector_t     *t;
 
     if (dev->last_side_sector[side]) {
         s = dev->last_side_sector[side];
@@ -2849,7 +2849,7 @@ d86f_prepare_sector(int drive, int side, int prev_pos, uint8_t *id_buf, uint8_t 
 void
 d86f_construct_encoded_buffer(int drive, int side)
 {
-    d86f_t  *dev = d86f[drive];
+    d86f_t *dev = d86f[drive];
 
     /* *_fuzm are fuzzy bit masks, *_holm are hole masks, dst_neim are masks is mask for bits that are neither fuzzy nor holes in both,
        and src1_d and src2_d are filtered source data. */
@@ -2869,7 +2869,7 @@ d86f_construct_encoded_buffer(int drive, int side)
     const uint16_t *src1_s = dev->thin_track_surface_data[0][side];
     const uint16_t *src2   = dev->thin_track_encoded_data[1][side];
     const uint16_t *src2_s = dev->thin_track_surface_data[1][side];
-    len              = d86f_get_array_size(drive, side, 1);
+    len                    = d86f_get_array_size(drive, side, 1);
 
     for (uint32_t i = 0; i < len; i++) {
         /* The two bits differ. */
@@ -3478,7 +3478,7 @@ d86f_export(int drive, char *fn)
     d86f_t  *dev = d86f[drive];
     d86f_t  *temp86;
     FILE    *fp;
-    int      tracks = 86;
+    int      tracks     = 86;
     int      inc        = 1;
     uint32_t magic      = 0x46423638;
     uint16_t version    = 0x020C;

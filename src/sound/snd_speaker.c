@@ -88,7 +88,8 @@ speaker_update(void)
 void
 speaker_get_buffer(int32_t *buffer, int len, UNUSED(void *priv))
 {
-    double val_l, val_r;
+    double val_l;
+    double val_r;
 
     speaker_update();
 
