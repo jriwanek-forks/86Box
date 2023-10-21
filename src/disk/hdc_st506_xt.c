@@ -1430,7 +1430,7 @@ mem_read(uint32_t addr, void *priv)
     const hdc_t *dev = (hdc_t *) priv;
     uint32_t     ptr;
     uint32_t     mask = 0;
-    uint8_t      ret = 0xff;
+    uint8_t      ret  = 0xff;
 
     /* Ignore accesses to anything below the configured address,
        needed because of the emulator's 4k mapping granularity. */

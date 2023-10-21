@@ -323,7 +323,7 @@ sff_bus_master_dma(uint8_t *data, int transfer_length, int out, void *priv)
     char *sop;
 #endif
 
-    int force_end = 0;
+    int force_end  = 0;
     int buffer_pos = 0;
 
 #ifdef ENABLE_SFF_LOG
@@ -461,7 +461,7 @@ sff_bus_master_reset(sff8038i_t *dev)
     dev->addr               = 0x00000000;
     dev->ptr0               = 0x00;
     dev->count = dev->eot = 0x00000000;
-    dev->irq_state = 0;
+    dev->irq_state        = 0;
 
     ide_pri_disable();
     ide_sec_disable();
@@ -586,7 +586,7 @@ sff_init(UNUSED(const device_t *info))
 
     ide_set_bus_master(next_id, sff_bus_master_dma, sff_bus_master_set_irq, dev);
 
-    dev->slot         = 7;
+    dev->slot = 7;
     /* Channel 0 goes to IRQ 14, channel 1 goes to MIRQ0. */
     dev->irq_mode     = next_id ? IRQ_MODE_MIRQ_0 : IRQ_MODE_LEGACY;
     dev->irq_pin      = PCI_INTA;
@@ -596,7 +596,7 @@ sff_init(UNUSED(const device_t *info))
     dev->irq_state    = 0;
     dev->mirq         = 2;
 
-    dev->channel      = next_id;
+    dev->channel = next_id;
     next_id++;
 
     return dev;

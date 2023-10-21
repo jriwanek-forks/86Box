@@ -131,8 +131,8 @@ rom_get_full_path(char *dest, const char *fn)
 FILE *
 rom_fopen(const char *fn, char *mode)
 {
-    char        temp[1024];
-    FILE       *fp = NULL;
+    char  temp[1024];
+    FILE *fp = NULL;
 
     if (strstr(fn, "roms/") == fn) {
         /* Relative path */
@@ -154,7 +154,7 @@ rom_fopen(const char *fn, char *mode)
 int
 rom_getfile(char *fn, char *s, int size)
 {
-    char        temp[1024];
+    char temp[1024];
 
     if (strstr(fn, "roms/") == fn) {
         /* Relative path */
@@ -474,8 +474,8 @@ bios_add(void)
 {
     int temp_cpu_type;
     int temp_cpu_16bitbus = 1;
-    int temp_is286 = 0;
-    int temp_is6117 = 0;
+    int temp_is286        = 0;
+    int temp_is6117       = 0;
 
     if (/*AT && */ cpu_s) {
         temp_cpu_type     = cpu_s->cpu_type;
@@ -526,8 +526,8 @@ bios_add(void)
 int
 bios_load(const char *fn1, const char *fn2, uint32_t addr, int sz, int off, int flags)
 {
-    uint8_t  ret = 0;
-    uint8_t *ptr = NULL;
+    uint8_t  ret    = 0;
+    uint8_t *ptr    = NULL;
     int      old_sz = sz;
 
     /*

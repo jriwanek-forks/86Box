@@ -48,7 +48,7 @@ typedef struct ali6117_t {
 
 /* Total size, Bank 0 size, Bank 1 size, Bank 2 size, Bank 3 size. */
 static uint32_t ali6117_modes[32][5] = {
-// clang-format off
+  // clang-format off
     {  1024,   512,   512,     0,    0 },
     {  2048,   512,   512,   512,  512 },
     {  3072,   512,   512,  2048,    0 },
@@ -81,7 +81,7 @@ static uint32_t ali6117_modes[32][5] = {
     { 24576,  8192,  8192,  8192,    0 },
     { 32768,  8192,  8192,  8192, 8192 },
     { 65536, 32768, 32768,     0,    0 }
-// clang-format on
+  // clang-format on
 };
 
 #ifdef ENABLE_ALI6117_LOG
@@ -391,7 +391,7 @@ static uint8_t
 ali6117_reg_read(uint16_t addr, void *priv)
 {
     const ali6117_t *dev = (ali6117_t *) priv;
-    uint8_t    ret;
+    uint8_t          ret;
 
     if (addr == 0x22)
         ret = dev->reg_offset;

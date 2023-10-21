@@ -63,14 +63,14 @@
 
 typedef struct tdlzhuf_t {
     uint16_t r;
-    uint16_t bufcnt;      /* string buffer */
-    uint16_t bufndx;      /* string buffer */
-    uint16_t bufpos;      /* string buffer */
-                          /* the following to allow block reads
-                             from input in next_word() */
-    uint16_t ibufcnt;     /* input buffer counters */
-    uint16_t ibufndx;     /* input buffer counters */
-    uint8_t inbuf[BUFSZ]; /* input buffer */
+    uint16_t bufcnt;       /* string buffer */
+    uint16_t bufndx;       /* string buffer */
+    uint16_t bufpos;       /* string buffer */
+                           /* the following to allow block reads
+                              from input in next_word() */
+    uint16_t ibufcnt;      /* input buffer counters */
+    uint16_t ibufndx;      /* input buffer counters */
+    uint8_t  inbuf[BUFSZ]; /* input buffer */
 } tdlzhuf;
 
 typedef struct td0dsk_t {
@@ -909,9 +909,9 @@ disk_flags(int drive)
 static uint16_t
 side_flags(int drive)
 {
-    const td0_t   *dev    = td0[drive];
-    int            side   = 0;
-    uint16_t       sflags = 0;
+    const td0_t *dev    = td0[drive];
+    int          side   = 0;
+    uint16_t     sflags = 0;
 
     side   = fdd_get_head(drive);
     sflags = dev->current_side_flags[side];
@@ -1060,7 +1060,7 @@ track_is_interleave(int drive, int side, int track)
 static void
 td0_seek(int drive, int track)
 {
-    td0_t  *dev = td0[drive];
+    td0_t  *dev   = td0[drive];
     uint8_t id[4] = { 0, 0, 0, 0 };
     int     sector;
     int     current_pos;

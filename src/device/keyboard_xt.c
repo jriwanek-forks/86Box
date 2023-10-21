@@ -609,9 +609,9 @@ const scancode scancode_xt[512] = {
 static uint8_t key_queue[16];
 static int     key_queue_start = 0;
 static int     key_queue_end   = 0;
-static int     is_tandy = 0;
-static int     is_t1x00 = 0;
-static int     is_amstrad = 0;
+static int     is_tandy        = 0;
+static int     is_t1x00        = 0;
+static int     is_amstrad      = 0;
 
 #ifdef ENABLE_KEYBOARD_XT_LOG
 int keyboard_xt_do_log = ENABLE_KEYBOARD_XT_LOG;
@@ -735,7 +735,7 @@ kbd_adddata(uint16_t val)
 void
 kbd_adddata_process(uint16_t val, void (*adddata)(uint16_t val))
 {
-    uint8_t num_lock = 0;
+    uint8_t num_lock     = 0;
     uint8_t shift_states = 0;
 
     if (!adddata)

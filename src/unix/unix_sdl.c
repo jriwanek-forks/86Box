@@ -31,13 +31,13 @@ typedef struct sdl_blit_params {
 extern sdl_blit_params params;
 extern int             blitreq;
 
-SDL_Window         *sdl_win     = NULL;
-SDL_Renderer       *sdl_render  = NULL;
-static SDL_Texture *sdl_tex     = NULL;
-int                 sdl_w       = SCREEN_RES_X;
-int                 sdl_h       = SCREEN_RES_Y;
+SDL_Window         *sdl_win    = NULL;
+SDL_Renderer       *sdl_render = NULL;
+static SDL_Texture *sdl_tex    = NULL;
+int                 sdl_w      = SCREEN_RES_X;
+int                 sdl_h      = SCREEN_RES_Y;
 static int          sdl_fs;
-static int          sdl_flags   = -1;
+static int          sdl_flags = -1;
 static int          cur_w;
 static int          cur_h;
 static int          cur_wx      = 0;
@@ -47,10 +47,10 @@ static int          cur_wh      = 0;
 static volatile int sdl_enabled = 1;
 static SDL_mutex   *sdl_mutex   = NULL;
 int                 mouse_capture;
-int                 title_set         = 0;
-int                 resize_pending    = 0;
-int                 resize_w          = 0;
-int                 resize_h          = 0;
+int                 title_set      = 0;
+int                 resize_pending = 0;
+int                 resize_w       = 0;
+int                 resize_h       = 0;
 static void        *pixeldata;
 
 extern void RenderImGui(void);

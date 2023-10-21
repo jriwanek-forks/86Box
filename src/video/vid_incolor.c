@@ -859,7 +859,7 @@ incolor_poll(void *priv)
     int        x;
     int        oldvc;
     int        oldsc;
-    int        cw      = INCOLOR_CW;
+    int        cw = INCOLOR_CW;
 
     if (!dev->linepos) {
         timer_advance_u64(&dev->timer, dev->dispofftime);

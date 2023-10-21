@@ -1,19 +1,19 @@
 /*
-* 86Box    A hypervisor and IBM PC system emulator that specializes in
-*          running old operating systems and software designed for IBM
-*          PC systems and compatibles from 1981 through fairly recent
-*          system designs based on the PCI bus.
-*
-*          This file is part of the 86Box distribution.
-*
-*          Null network driver
-*
-*
-*
-* Authors: cold-brewed
-*
-*          Copyright 2023 The 86Box development team
-*/
+ * 86Box    A hypervisor and IBM PC system emulator that specializes in
+ *          running old operating systems and software designed for IBM
+ *          PC systems and compatibles from 1981 through fairly recent
+ *          system designs based on the PCI bus.
+ *
+ *          This file is part of the 86Box distribution.
+ *
+ *          Null network driver
+ *
+ *
+ *
+ * Authors: cold-brewed
+ *
+ *          Copyright 2023 The 86Box development team
+ */
 
 #include <stdarg.h>
 #include <stdint.h>
@@ -52,7 +52,7 @@ enum {
  * excluding NET_EVENT_RX. */
 #define NET_EVENT_TX_MAX NET_EVENT_RX
 
-#define NULL_PKT_BATCH NET_QUEUE_LEN
+#define NULL_PKT_BATCH   NET_QUEUE_LEN
 
 typedef struct net_null_t {
     uint8_t    mac_addr[6];
@@ -178,8 +178,6 @@ net_null_init(const netcard_t *card, const uint8_t *mac_addr, UNUSED(void *priv)
 
     return net_null;
 }
-
-
 
 void
 net_null_in_available(void *priv)

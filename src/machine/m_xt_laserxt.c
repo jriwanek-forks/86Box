@@ -141,7 +141,7 @@ laserxt_init(int is_lxt3)
 }
 
 static void
-machine_xt_laserxt_common_init(const machine_t *model,int is_lxt3)
+machine_xt_laserxt_common_init(const machine_t *model, int is_lxt3)
 {
     machine_common_init(model);
 

@@ -82,46 +82,46 @@
 #define PCI_REGSIZE 256    /* size of PCI space */
 
 typedef struct nic_t {
-    dp8390_t   *dp8390;
+    dp8390_t *dp8390;
 
     const char *name;
 
-    uint8_t     pnp_csnsav;
-    uint8_t     pci_slot;
-    uint8_t     irq_state;
-    uint8_t     pad;
+    uint8_t pnp_csnsav;
+    uint8_t pci_slot;
+    uint8_t irq_state;
+    uint8_t pad;
 
     /* RTL8019AS/RTL8029AS registers */
-    uint8_t     config0;
-    uint8_t     config2;
-    uint8_t     config3;
-    uint8_t     _9346cr;
+    uint8_t config0;
+    uint8_t config2;
+    uint8_t config3;
+    uint8_t _9346cr;
 
-    uint8_t     pci_regs[PCI_REGSIZE];
-    uint8_t     eeprom[128]; /* for RTL8029AS */
+    uint8_t pci_regs[PCI_REGSIZE];
+    uint8_t eeprom[128]; /* for RTL8029AS */
 
-    uint8_t     maclocal[6]; /* configured MAC (local) address */
+    uint8_t maclocal[6]; /* configured MAC (local) address */
 
     /* POS registers, MCA boards only */
-    uint8_t     pos_regs[8];
+    uint8_t pos_regs[8];
 
-    int         board;
-    int         is_pci;
-    int         is_mca;
-    int         is_8bit;
-    int         base_irq;
-    int         has_bios;
+    int board;
+    int is_pci;
+    int is_mca;
+    int is_8bit;
+    int base_irq;
+    int has_bios;
 
-    uint32_t    base_address;
-    uint32_t    bios_addr;
-    uint32_t    bios_size;
-    uint32_t    bios_mask;
+    uint32_t base_address;
+    uint32_t bios_addr;
+    uint32_t bios_size;
+    uint32_t bios_mask;
 
-    bar_t       pci_bar[2];
+    bar_t pci_bar[2];
 
-    rom_t       bios_rom;
+    rom_t bios_rom;
 
-    void       *pnp_card;
+    void *pnp_card;
 } nic_t;
 
 #ifdef ENABLE_NE2K_LOG
@@ -317,7 +317,7 @@ page3_read(nic_t *dev, uint32_t off, UNUSED(unsigned int len))
             case 0x1: /* 9346CR */
                 return (dev->_9346cr);
 
-            case 0x3:          /* CONFIG0 */
+            case 0x3:        /* CONFIG0 */
                 return 0x00; /* Cable not BNC */
 
             case 0x5: /* CONFIG2 */
@@ -630,8 +630,8 @@ nic_update_bios(nic_t *dev)
 static uint8_t
 nic_pci_read(UNUSED(int func), int addr, void *priv)
 {
-    const nic_t  *dev = (nic_t *) priv;
-    uint8_t       ret = 0x00;
+    const nic_t *dev = (nic_t *) priv;
+    uint8_t      ret = 0x00;
 
     switch (addr) {
         case 0x00: /* PCI_VID_LO */

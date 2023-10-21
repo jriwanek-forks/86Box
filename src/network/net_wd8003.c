@@ -116,10 +116,10 @@ typedef struct wd_t {
     uint8_t pos_regs[8];
 
     /* Memory for WD cards*/
-    uint8_t msr;        /* Memory Select Register (MSR) */
-    uint8_t icr;        /* Interface Configuration Register (ICR) */
-    uint8_t irr;        /* Interrupt Request Register (IRR) */
-    uint8_t laar;       /* LA Address Register (read by Windows 98!) */
+    uint8_t msr;  /* Memory Select Register (MSR) */
+    uint8_t icr;  /* Interface Configuration Register (ICR) */
+    uint8_t irr;  /* Interrupt Request Register (IRR) */
+    uint8_t laar; /* LA Address Register (read by Windows 98!) */
     uint8_t if_chip;
     uint8_t board_chip;
 } wd_t;

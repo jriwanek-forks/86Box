@@ -168,9 +168,9 @@ mitsumi_cdrom_reset(mcd_t *dev)
 static int
 mitsumi_cdrom_read_sector(mcd_t *dev, int first)
 {
-    cdrom_t *cdrom = calloc(1, sizeof(cdrom_t));
+    cdrom_t *cdrom   = calloc(1, sizeof(cdrom_t));
     uint8_t  status;
-    int      ret = 0;
+    int      ret     = 0;
 
     if (dev->drvmode == DRV_MODE_CDDA) {
         status = cdrom_mitsumi_audio_play(cdrom, dev->readmsf, dev->readcount);

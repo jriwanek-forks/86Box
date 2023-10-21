@@ -52,9 +52,9 @@ extern "C" {
 }
 
 struct mouseinputdata {
-    atomic_bool         mouse_tablet_in_proximity;
+    atomic_bool mouse_tablet_in_proximity;
 
-    char                *mouse_type;
+    char *mouse_type;
 };
 static mouseinputdata mousedata;
 
@@ -234,10 +234,10 @@ RendererStack::mouseMoveEvent(QMouseEvent *event)
         return;
     }
 
-#if defined __unix__ && !defined __HAIKU__
+#    if defined __unix__ && !defined __HAIKU__
     if (!stricmp(mousedata.mouse_type, "wayland"))
         mouse_scale(event->pos().x() - oldPos.x(), event->pos().y() - oldPos.y());
-#endif
+#    endif
 
     if (QApplication::platformName() == "eglfs") {
         leaveEvent((QEvent *) event);
@@ -464,10 +464,10 @@ RendererStack::changeEvent(QEvent *event)
 }
 
 bool
-RendererStack::event(QEvent* event)
+RendererStack::event(QEvent *event)
 {
     if (event->type() == QEvent::MouseMove) {
-        QMouseEvent* mouse_event = (QMouseEvent*)event;
+        QMouseEvent *mouse_event = (QMouseEvent *) event;
 
         if (m_monitor_index >= 1) {
             if (mouse_input_mode >= 1) {
@@ -487,8 +487,8 @@ RendererStack::event(QEvent* event)
         }
 #endif
 
-        mouse_x_abs               = (mouse_event->localPos().x()) / (long double)width();
-        mouse_y_abs               = (mouse_event->localPos().y()) / (long double)height();
+        mouse_x_abs               = (mouse_event->localPos().x()) / (long double) width();
+        mouse_y_abs               = (mouse_event->localPos().y()) / (long double) height();
         mouse_tablet_in_proximity = mousedata.mouse_tablet_in_proximity;
     }
 

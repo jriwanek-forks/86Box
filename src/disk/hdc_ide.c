@@ -2598,11 +2598,11 @@ ide_read_ali_75(void)
 uint8_t
 ide_read_ali_76(void)
 {
-    const ide_t  *ide0;
-    const ide_t  *ide1;
-    int           ch0;
-    int           ch1;
-    uint8_t       ret = 0x00;
+    const ide_t *ide0;
+    const ide_t *ide1;
+    int          ch0;
+    int          ch1;
+    uint8_t      ret = 0x00;
 
     ch0  = ide_boards[0]->cur_dev;
     ch1  = ide_boards[1]->cur_dev;

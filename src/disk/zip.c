@@ -166,7 +166,7 @@ zip_load_abort(const zip_t *dev)
 {
     if (dev->drv->fp)
         fclose(dev->drv->fp);
-    dev->drv->fp           = NULL;
+    dev->drv->fp          = NULL;
     dev->drv->medium_size = 0;
     zip_eject(dev->id); /* Make sure the host OS knows we've rejected (and ejected) the image. */
     return 0;
@@ -1201,7 +1201,7 @@ zip_command(scsi_common_t *sc, const uint8_t *cdb)
     int32_t        alloc_length;
     int            block_desc;
     int            size_idx;
-    int32_t *      BufLen;
+    int32_t       *BufLen;
 
     if (dev->drv->bus_type == ZIP_BUS_SCSI) {
         BufLen          = &scsi_devices[scsi_bus][scsi_id].buffer_length;

@@ -130,14 +130,14 @@ typedef struct cs423x_t {
     uint8_t  indirect_regs[16];
     uint8_t  eeprom_data[2048];
     uint8_t  ram_data[65536];
-    uint8_t  ram_dl : 2;
+    uint8_t  ram_dl  : 2;
     uint8_t  opl_wss : 1;
     char    *nvr_path;
 
-    uint8_t                 pnp_enable : 1;
-    uint8_t                 key_pos : 5;
+    uint8_t                 pnp_enable  : 1;
+    uint8_t                 key_pos     : 5;
     uint8_t                 slam_enable : 1;
-    uint8_t                 slam_state : 2;
+    uint8_t                 slam_state  : 2;
     uint8_t                 slam_ld;
     uint8_t                 slam_reg;
     isapnp_device_config_t *slam_config;

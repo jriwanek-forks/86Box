@@ -108,12 +108,12 @@ umc_8886_log(const char *fmt, ...)
 #endif
 
 typedef struct umc_8886_t {
-    uint8_t  max_func;            /* Last function number */
-    uint8_t  pci_slot;
-    uint8_t  pad;
-    uint8_t  pad0;
+    uint8_t max_func; /* Last function number */
+    uint8_t pci_slot;
+    uint8_t pad;
+    uint8_t pad0;
 
-    uint8_t  pci_conf_sb[2][256]; /* PCI Registers */
+    uint8_t pci_conf_sb[2][256]; /* PCI Registers */
 
     uint16_t sb_id;               /* Southbridge Revision */
     uint16_t ide_id;              /* IDE Revision */

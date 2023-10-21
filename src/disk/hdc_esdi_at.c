@@ -375,7 +375,7 @@ esdi_write(uint16_t port, uint8_t val, void *priv)
                             esdi->command &= ~0x03;
                             if (val & 0x02)
                                 fatal("Read with ECC\n");
-                           fallthrough;
+                            fallthrough;
 
                         case 0xa0:
                             esdi->status = STAT_BUSY;

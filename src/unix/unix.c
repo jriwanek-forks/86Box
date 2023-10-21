@@ -68,9 +68,9 @@ SDL_mutex      *blitmtx;
 SDL_threadID    eventthread;
 static int      exit_event         = 0;
 static int      fullscreen_pending = 0;
-uint32_t        lang_id  = 0x0409; // Multilangual UI variables, for now all set to LCID of en-US
-uint32_t        lang_sys = 0x0409; // Multilangual UI variables, for now all set to LCID of en-US
-char            icon_set[256] = "";                  /* name of the iconset to be used */
+uint32_t        lang_id            = 0x0409; // Multilangual UI variables, for now all set to LCID of en-US
+uint32_t        lang_sys           = 0x0409; // Multilangual UI variables, for now all set to LCID of en-US
+char            icon_set[256]      = "";     /* name of the iconset to be used */
 
 static const uint16_t sdl_to_xt[0x200] = {
     [SDL_SCANCODE_ESCAPE]       = 0x01,
@@ -322,7 +322,7 @@ path_get_slash(char *path)
     char *ret = "";
 
     if (path[strlen(path) - 1] != '/')
-        ret =  "/";
+        ret = "/";
 
     return ret;
 }
@@ -498,7 +498,7 @@ ui_sb_update_text(void)
 void
 path_get_dirname(char *dest, const char *path)
 {
-    int   c = (int) strlen(path);
+    int   c   = (int) strlen(path);
     char *ptr = (char *) path;
 
     while (c > 0) {
@@ -871,7 +871,7 @@ process_media_commands_3(uint8_t *id, char *fn, uint8_t *wp, int cmdargc)
 {
     bool err = false;
 
-    *id      = atoi(xargv[1]);
+    *id = atoi(xargv[1]);
 
     if (xargv[2][0] == '\'' || xargv[2][0] == '"') {
         for (int curarg = 2; curarg < cmdargc; curarg++) {
@@ -1385,7 +1385,8 @@ plat_language_code(UNUSED(char *langcode))
 }
 
 void
-plat_get_cpu_string(char *outbuf, uint8_t len) {
+plat_get_cpu_string(char *outbuf, uint8_t len)
+{
     char cpu_string[] = "Unknown";
 
     strncpy(outbuf, cpu_string, len);

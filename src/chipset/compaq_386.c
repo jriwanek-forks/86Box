@@ -39,63 +39,63 @@
 #include <86box/plat_unused.h>
 #include <86box/chipset.h>
 
-#define RAM_DIAG_L_BASE_MEM_640KB    0x00
-#define RAM_DIAG_L_BASE_MEM_INV      0x10
-#define RAM_DIAG_L_BASE_MEM_512KB    0x20
-#define RAM_DIAG_L_BASE_MEM_256KB    0x30
-#define RAM_DIAG_L_BASE_MEM_MASK     0x30
-#define RAM_DIAG_L_PERMA_BITS        0x80
+#define RAM_DIAG_L_BASE_MEM_640KB 0x00
+#define RAM_DIAG_L_BASE_MEM_INV   0x10
+#define RAM_DIAG_L_BASE_MEM_512KB 0x20
+#define RAM_DIAG_L_BASE_MEM_256KB 0x30
+#define RAM_DIAG_L_BASE_MEM_MASK  0x30
+#define RAM_DIAG_L_PERMA_BITS     0x80
 
-#define RAM_DIAG_H_SYS_RAM_4MB       0x01
-#define RAM_DIAG_H_SYS_RAM_1MB       0x02
-#define RAM_DIAG_H_SYS_RAM_NONE      0x03
-#define RAM_DIAG_H_SYS_RAM_MASK      0x03
-#define RAM_DIAG_H_MOD_A_RAM_4MB     0x04
-#define RAM_DIAG_H_MOD_A_RAM_1MB     0x08
-#define RAM_DIAG_H_MOD_A_RAM_NONE    0x0c
-#define RAM_DIAG_H_MOD_A_RAM_MASK    0x0c
-#define RAM_DIAG_H_MOD_B_RAM_4MB     0x10
-#define RAM_DIAG_H_MOD_B_RAM_1MB     0x20
-#define RAM_DIAG_H_MOD_B_RAM_NONE    0x30
-#define RAM_DIAG_H_MOD_B_RAM_MASK    0x30
-#define RAM_DIAG_H_MOD_C_RAM_4MB     0x40
-#define RAM_DIAG_H_MOD_C_RAM_1MB     0x80
-#define RAM_DIAG_H_MOD_C_RAM_NONE    0xc0
-#define RAM_DIAG_H_MOD_C_RAM_MASK    0xc0
+#define RAM_DIAG_H_SYS_RAM_4MB    0x01
+#define RAM_DIAG_H_SYS_RAM_1MB    0x02
+#define RAM_DIAG_H_SYS_RAM_NONE   0x03
+#define RAM_DIAG_H_SYS_RAM_MASK   0x03
+#define RAM_DIAG_H_MOD_A_RAM_4MB  0x04
+#define RAM_DIAG_H_MOD_A_RAM_1MB  0x08
+#define RAM_DIAG_H_MOD_A_RAM_NONE 0x0c
+#define RAM_DIAG_H_MOD_A_RAM_MASK 0x0c
+#define RAM_DIAG_H_MOD_B_RAM_4MB  0x10
+#define RAM_DIAG_H_MOD_B_RAM_1MB  0x20
+#define RAM_DIAG_H_MOD_B_RAM_NONE 0x30
+#define RAM_DIAG_H_MOD_B_RAM_MASK 0x30
+#define RAM_DIAG_H_MOD_C_RAM_4MB  0x40
+#define RAM_DIAG_H_MOD_C_RAM_1MB  0x80
+#define RAM_DIAG_H_MOD_C_RAM_NONE 0xc0
+#define RAM_DIAG_H_MOD_C_RAM_MASK 0xc0
 
-#define MEM_STATE_BUS                0x00
-#define MEM_STATE_SYS                0x01
-#define MEM_STATE_SYS_RELOC          0x02
-#define MEM_STATE_MOD_A              0x04
-#define MEM_STATE_MOD_B              0x08
-#define MEM_STATE_MOD_C              0x10
-#define MEM_STATE_MASK               (MEM_STATE_SYS | MEM_STATE_MOD_A | MEM_STATE_MOD_B | MEM_STATE_MOD_C)
-#define MEM_STATE_WP                 0x20
+#define MEM_STATE_BUS             0x00
+#define MEM_STATE_SYS             0x01
+#define MEM_STATE_SYS_RELOC       0x02
+#define MEM_STATE_MOD_A           0x04
+#define MEM_STATE_MOD_B           0x08
+#define MEM_STATE_MOD_C           0x10
+#define MEM_STATE_MASK            (MEM_STATE_SYS | MEM_STATE_MOD_A | MEM_STATE_MOD_B | MEM_STATE_MOD_C)
+#define MEM_STATE_WP              0x20
 
 typedef struct cpq_ram_t {
-    uint8_t          wp;
+    uint8_t wp;
 
-    uint32_t         phys_base;
-    uint32_t         virt_base;
+    uint32_t phys_base;
+    uint32_t virt_base;
 
-    mem_mapping_t    mapping;
+    mem_mapping_t mapping;
 } cpq_ram_t;
 
 typedef struct cpq_386_t {
-    uint8_t          regs[8];
+    uint8_t regs[8];
 
-    uint8_t          old_state[256];
-    uint8_t          mem_state[256];
+    uint8_t old_state[256];
+    uint8_t mem_state[256];
 
-    uint32_t         ram_bases[4];
+    uint32_t ram_bases[4];
 
-    uint32_t         ram_sizes[4];
-    uint32_t         ram_map_sizes[4];
+    uint32_t ram_sizes[4];
+    uint32_t ram_map_sizes[4];
 
-    cpq_ram_t        ram[4][64];
-    cpq_ram_t        high_ram[16];
+    cpq_ram_t ram[4][64];
+    cpq_ram_t high_ram[16];
 
-    mem_mapping_t    regs_mapping;
+    mem_mapping_t regs_mapping;
 } cpq_386_t;
 
 static uint8_t
@@ -297,11 +297,11 @@ cpq_recalc_ram(cpq_386_t *dev)
                                          0x00, 0x00, 0x10, 0x20, 0x30, 0x40, 0x00, 0x00 },
                                        { 0x3a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10,
                                          0x00, 0x00, 0x10, 0x00, 0x00, 0x10, 0x20, 0x30 } } };
-    uint8_t  size;
-    uint8_t  start;
-    uint8_t  end;
-    uint8_t  k;
-    uint32_t virt_base;
+    uint8_t    size;
+    uint8_t    start;
+    uint8_t    end;
+    uint8_t    k;
+    uint32_t   virt_base;
     cpq_ram_t *cram;
 
     for (uint16_t i = 0x10; i < sys_min_high; i++)
@@ -317,8 +317,8 @@ cpq_recalc_ram(cpq_386_t *dev)
     for (uint8_t i = 0; i < 4; i++) {
         size = ram_sizes[i][sys_ram][setup_port];
         if (size > 0x00) {
-            start     = ram_bases[i][sys_ram][setup_port];
-            end       = start + (size - 1);
+            start = ram_bases[i][sys_ram][setup_port];
+            end   = start + (size - 1);
 
             virt_base = ((uint32_t) start) << 16;
 
@@ -429,7 +429,7 @@ compaq_ram_init(cpq_ram_t *dev)
 static void
 compaq_ram_diags_parse(cpq_386_t *dev)
 {
-    uint8_t  val = dev->regs[0x00000001];
+    uint8_t  val   = dev->regs[0x00000001];
     uint32_t accum = 0x00100000;
 
     for (uint8_t i = 0; i < 4; i++) {
@@ -464,12 +464,12 @@ compaq_ram_diags_parse(cpq_386_t *dev)
 static void
 compaq_recalc_base_ram(cpq_386_t *dev)
 {
-    uint8_t  base_mem    = dev->regs[0x00000000] & RAM_DIAG_L_BASE_MEM_MASK;
-    uint8_t  sys_ram     = dev->regs[0x00000001] & RAM_DIAG_H_SYS_RAM_MASK;
-    uint8_t  low_start   = 0x00;
-    uint8_t  low_end     = 0x00;
-    uint8_t  high_start  = 0x00;
-    uint8_t  high_end    = 0x00;
+    uint8_t    base_mem   = dev->regs[0x00000000] & RAM_DIAG_L_BASE_MEM_MASK;
+    uint8_t    sys_ram    = dev->regs[0x00000001] & RAM_DIAG_H_SYS_RAM_MASK;
+    uint8_t    low_start  = 0x00;
+    uint8_t    low_end    = 0x00;
+    uint8_t    high_start = 0x00;
+    uint8_t    high_end   = 0x00;
     cpq_ram_t *cram;
 
     switch (base_mem) {

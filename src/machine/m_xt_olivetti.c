@@ -131,8 +131,8 @@ typedef struct m24_kbd_t {
     uint8_t scan[7];
 
     /* Mouse stuff. */
-    int        mouse_input_mode;
-    int        b;
+    int mouse_input_mode;
+    int b;
 
     pc_timer_t send_delay_timer;
 } m24_kbd_t;
@@ -735,11 +735,11 @@ static int
 ms_poll(void *priv)
 {
     m24_kbd_t *m24_kbd = (m24_kbd_t *) priv;
-    int delta_x;
-    int delta_y;
-    int o_x;
-    int o_y;
-    int b = mouse_get_buttons_ex();
+    int        delta_x;
+    int        delta_y;
+    int        o_x;
+    int        o_y;
+    int        b = mouse_get_buttons_ex();
 
     if (((key_queue_end - key_queue_start) & 0xf) > 14)
         return 0xff;
@@ -2242,7 +2242,7 @@ m24_read(uint16_t port, UNUSED(void *priv))
 static uint8_t
 m240_read(uint16_t port, UNUSED(void *priv))
 {
-    uint8_t ret = 0x00;
+    uint8_t ret       = 0x00;
     int     fdd_count = 0;
 
     switch (port) {

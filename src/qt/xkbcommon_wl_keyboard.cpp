@@ -31,17 +31,17 @@ extern "C" {
 #include <QGuiApplication>
 
 typedef struct {
-    struct wl_seat *wl_seat;
+    struct wl_seat     *wl_seat;
     struct wl_keyboard *wl_kbd;
-    uint32_t version;
+    uint32_t            version;
 
     struct xkb_keymap *keymap;
 
     struct wl_list link;
 } seat_t;
 
-static bool wl_init_ok = false;
-static struct wl_list seats;
+static bool                wl_init_ok = false;
+static struct wl_list      seats;
 static struct xkb_context *ctx;
 
 static void
@@ -73,7 +73,7 @@ kbd_keymap(void *data, struct wl_keyboard *wl_kbd, uint32_t format,
 
     if (seat->keymap) {
         struct xkb_keymap *keymap = seat->keymap;
-        seat->keymap = NULL;
+        seat->keymap              = NULL;
         xkbcommon_wl_set_keymap();
         xkb_keymap_unref(keymap);
     }
@@ -144,7 +144,7 @@ seat_capabilities(void *data, struct wl_seat *wl_seat, uint32_t caps)
             wl_keyboard_destroy(seat->wl_kbd);
 
         struct xkb_keymap *keymap = seat->keymap;
-        seat->keymap = NULL;
+        seat->keymap              = NULL;
         xkbcommon_wl_set_keymap();
         xkb_keymap_unref(keymap);
 

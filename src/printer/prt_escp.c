@@ -1818,9 +1818,9 @@ setup_bit_image(escp_t *dev, uint8_t density, uint16_t num_columns)
 static void
 print_bit_graph(escp_t *dev, uint8_t ch)
 {
-    uint8_t  pixel_w; /* width of the "pixel" */
-    uint8_t  pixel_h; /* height of the "pixel" */
-    double   old_y;
+    uint8_t pixel_w; /* width of the "pixel" */
+    uint8_t pixel_h; /* height of the "pixel" */
+    double  old_y;
 
     dev->bg_column[dev->bg_bytes_read++] = ch;
     dev->bg_remaining_bytes--;
@@ -1939,7 +1939,7 @@ static uint8_t
 read_status(void *priv)
 {
     const escp_t *dev = (escp_t *) priv;
-    uint8_t ret = 0x1f;
+    uint8_t       ret = 0x1f;
 
     ret |= 0x80;
 

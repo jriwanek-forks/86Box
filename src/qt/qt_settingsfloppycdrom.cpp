@@ -161,8 +161,8 @@ SettingsFloppyCDROM::SettingsFloppyCDROM(QWidget *parent)
     model->setHeaderData(2, Qt::Horizontal, tr("Type"));
     model->insertRows(0, CDROM_NUM);
     for (int i = 0; i < CDROM_NUM; i++) {
-        auto idx = model->index(i, 0);
-        int type = cdrom_get_type(i);
+        auto idx  = model->index(i, 0);
+        int  type = cdrom_get_type(i);
         setCDROMBus(model, idx, cdrom[i].bus_type, cdrom[i].res);
         setCDROMType(model, idx.siblingAtColumn(2), type);
         int speed = cdrom_get_speed(type);
@@ -186,14 +186,14 @@ SettingsFloppyCDROM::SettingsFloppyCDROM(QWidget *parent)
     ui->tableViewCDROM->setCurrentIndex(model->index(0, 0));
 
     uint8_t bus_type = ui->comboBoxBus->currentData().toUInt();
-    int cdromIdx     = ui->tableViewCDROM->selectionModel()->currentIndex().data().toInt();
+    int     cdromIdx = ui->tableViewCDROM->selectionModel()->currentIndex().data().toInt();
 
     auto *modelType  = ui->comboBoxCDROMType->model();
     int   removeRows = modelType->rowCount();
 
     uint32_t j               = 0;
-    int selectedTypeRow      = 0;
-    int eligibleRows         = 0;
+    int      selectedTypeRow = 0;
+    int      eligibleRows    = 0;
     while (cdrom_drive_types[j].bus_type != BUS_TYPE_NONE) {
         if (((bus_type == CDROM_BUS_ATAPI) || (bus_type == CDROM_BUS_SCSI)) &&
             ((cdrom_drive_types[j].bus_type == bus_type) ||
@@ -230,16 +230,16 @@ SettingsFloppyCDROM::save()
     /* Removable devices category */
     model = ui->tableViewCDROM->model();
     for (int i = 0; i < CDROM_NUM; i++) {
-        cdrom[i].priv = NULL;
-        cdrom[i].ops = NULL;
-        cdrom[i].local = NULL;
-        cdrom[i].insert = NULL;
-        cdrom[i].close = NULL;
-        cdrom[i].get_volume = NULL;
+        cdrom[i].priv        = NULL;
+        cdrom[i].ops         = NULL;
+        cdrom[i].local       = NULL;
+        cdrom[i].insert      = NULL;
+        cdrom[i].close       = NULL;
+        cdrom[i].get_volume  = NULL;
         cdrom[i].get_channel = NULL;
-        cdrom[i].bus_type = model->index(i, 0).data(Qt::UserRole).toUInt();
-        cdrom[i].res = model->index(i, 0).data(Qt::UserRole + 1).toUInt();
-        cdrom[i].speed = model->index(i, 1).data(Qt::UserRole).toUInt();
+        cdrom[i].bus_type    = model->index(i, 0).data(Qt::UserRole).toUInt();
+        cdrom[i].res         = model->index(i, 0).data(Qt::UserRole + 1).toUInt();
+        cdrom[i].speed       = model->index(i, 1).data(Qt::UserRole).toUInt();
         cdrom_set_type(i, model->index(i, 2).data(Qt::UserRole).toInt());
     }
 }
@@ -258,12 +258,12 @@ SettingsFloppyCDROM::onCDROMRowChanged(const QModelIndex &current)
 {
     uint8_t bus     = current.siblingAtColumn(0).data(Qt::UserRole).toUInt();
     uint8_t channel = current.siblingAtColumn(0).data(Qt::UserRole + 1).toUInt();
-    int type        = current.siblingAtColumn(2).data(Qt::UserRole).toInt();
+    int     type    = current.siblingAtColumn(2).data(Qt::UserRole).toInt();
 
     ui->comboBoxBus->setCurrentIndex(-1);
-    auto* model = ui->comboBoxBus->model();
-    auto match = model->match(model->index(0, 0), Qt::UserRole, bus);
-    if (! match.isEmpty())
+    auto *model = ui->comboBoxBus->model();
+    auto  match = model->match(model->index(0, 0), Qt::UserRole, bus);
+    if (!match.isEmpty())
         ui->comboBoxBus->setCurrentIndex(match.first().row());
 
     model = ui->comboBoxChannel->model();
@@ -337,9 +337,9 @@ SettingsFloppyCDROM::on_comboBoxSpeed_activated(int index)
 void
 SettingsFloppyCDROM::on_comboBoxBus_activated(int)
 {
-    auto i = ui->tableViewCDROM->selectionModel()->currentIndex().siblingAtColumn(0);
+    auto    i        = ui->tableViewCDROM->selectionModel()->currentIndex().siblingAtColumn(0);
     uint8_t bus_type = ui->comboBoxBus->currentData().toUInt();
-    int cdromIdx     = ui->tableViewCDROM->selectionModel()->currentIndex().data().toInt();
+    int     cdromIdx = ui->tableViewCDROM->selectionModel()->currentIndex().data().toInt();
 
     Harddrives::busTrackClass->device_track(0, DEV_CDROM, ui->tableViewCDROM->model()->data(i,
                                             Qt::UserRole).toInt(), ui->tableViewCDROM->model()->data(i,
@@ -363,8 +363,8 @@ SettingsFloppyCDROM::on_comboBoxBus_activated(int)
     int   removeRows = modelType->rowCount();
 
     uint32_t j               = 0;
-    int selectedTypeRow      = 0;
-    int eligibleRows         = 0;
+    int      selectedTypeRow = 0;
+    int      eligibleRows    = 0;
     while (cdrom_drive_types[j].bus_type != BUS_TYPE_NONE) {
         if (((bus_type == CDROM_BUS_ATAPI) || (bus_type == CDROM_BUS_SCSI)) &&
             ((cdrom_drive_types[j].bus_type == bus_type) ||

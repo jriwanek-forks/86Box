@@ -756,13 +756,13 @@ s3_accel_out_fifo(s3_t *s3, uint16_t port, uint8_t val)
     switch (port) {
         case 0x8148:
         case 0x82e8:
-            s3->accel.cur_y        = (s3->accel.cur_y & 0xf00) | val;
-            s3->accel.poly_cy      = s3->accel.cur_y;
+            s3->accel.cur_y   = (s3->accel.cur_y & 0xf00) | val;
+            s3->accel.poly_cy = s3->accel.cur_y;
             break;
         case 0x8149:
         case 0x82e9:
-            s3->accel.cur_y        = (s3->accel.cur_y & 0xff) | ((val & 0x0f) << 8);
-            s3->accel.poly_cy      = s3->accel.cur_y;
+            s3->accel.cur_y   = (s3->accel.cur_y & 0xff) | ((val & 0x0f) << 8);
+            s3->accel.poly_cy = s3->accel.cur_y;
             break;
         case 0x814a:
         case 0x82ea:
@@ -777,13 +777,13 @@ s3_accel_out_fifo(s3_t *s3, uint16_t port, uint8_t val)
 
         case 0x8548:
         case 0x86e8:
-            s3->accel.cur_x        = (s3->accel.cur_x & 0xf00) | val;
-            s3->accel.poly_cx      = s3->accel.cur_x << 20;
-            s3->accel.poly_x       = s3->accel.poly_cx >> 20;
+            s3->accel.cur_x   = (s3->accel.cur_x & 0xf00) | val;
+            s3->accel.poly_cx = s3->accel.cur_x << 20;
+            s3->accel.poly_x  = s3->accel.poly_cx >> 20;
             break;
         case 0x8549:
         case 0x86e9:
-            s3->accel.cur_x        = (s3->accel.cur_x & 0xff) | ((val & 0x0f) << 8);
+            s3->accel.cur_x   = (s3->accel.cur_x & 0xff) | ((val & 0x0f) << 8);
             s3->accel.poly_cx = s3->accel.poly_x = s3->accel.cur_x << 20;
             s3->accel.poly_x                     = s3->accel.poly_cx >> 20;
             s3_log("[%04X:%08X] OUT PORTB=%04x, val=%04x.\n", CS, cpu_state.pc, port - 1, s3->accel.cur_x);
@@ -1682,7 +1682,6 @@ s3_accel_out_fifo(s3_t *s3, uint16_t port, uint8_t val)
                     default:
                         break;
                 }
-
             }
             break;
         case 0xe14a:
@@ -2161,7 +2160,7 @@ s3_hwcursor_convert_addr(svga_t *svga)
 static void
 s3_hwcursor_draw(svga_t *svga, int displine)
 {
-    const s3_t *s3 = (s3_t *) svga->priv;
+    const s3_t *s3    = (s3_t *) svga->priv;
     int         shift = 1;
     int         width = 16;
     uint16_t    dat[2] = { 0, 0 };
@@ -2501,7 +2500,7 @@ s3_trio64v_overlay_draw(svga_t *svga, int displine)
     int         g[8];
     int         b[8];
     int         x_size;
-    int         x_read = 4;
+    int         x_read  = 4;
     int         x_write = 4;
     uint32_t   *p;
     uint8_t    *src = &svga->vram[svga->overlay_latch.addr];
@@ -7445,15 +7444,15 @@ polygon_setup(s3_t *s3)
 static __inline void
 convert_to_rgb32(int idf, int is_yuv, uint32_t val, uint8_t *r, uint8_t *g, uint8_t *b, uint8_t *r2, uint8_t *g2, uint8_t *b2)
 {
-    static double dr = 0.0;
-    static double dg = 0.0;
-    static double db = 0.0;
+    static double dr  = 0.0;
+    static double dg  = 0.0;
+    static double db  = 0.0;
     static double dY1 = 0.0;
     static double dCr = 0.0;
     static double dY2 = 0.0;
     static double dCb = 0.0;
-    static double dU = 0.0;
-    static double dV = 0.0;
+    static double dU  = 0.0;
+    static double dV  = 0.0;
 
     switch (idf) {
         case 0: /* 8 bpp, RGB 3-3-2 */
@@ -7536,9 +7535,9 @@ convert_to_rgb32(int idf, int is_yuv, uint32_t val, uint8_t *r, uint8_t *g, uint
 static __inline void
 convert_from_rgb32(int idf, int odf, int is_yuv, uint32_t *val, uint8_t r, uint8_t g, uint8_t b, uint8_t r2, uint8_t g2, uint8_t b2)
 {
-    static double dr = 0.0;
-    static double dg = 0.0;
-    static double db = 0.0;
+    static double dr  = 0.0;
+    static double dg  = 0.0;
+    static double db  = 0.0;
     static double dr2 = 0.0;
     static double dg2 = 0.0;
     static double db2 = 0.0;
@@ -7546,8 +7545,8 @@ convert_from_rgb32(int idf, int odf, int is_yuv, uint32_t *val, uint8_t r, uint8
     static double dCr = 0.0;
     static double dY2 = 0.0;
     static double dCb = 0.0;
-    static double dU = 0.0;
-    static double dV = 0.0;
+    static double dU  = 0.0;
+    static double dV  = 0.0;
 
     dr = (double) r;
     dg = (double) g;
@@ -7634,19 +7633,19 @@ s3_visionx68_video_engine_op(uint32_t cpu_dat, s3_t *s3)
     int       host;
     int       is_yuv;
     uint32_t  src;
-    uint32_t  dest = 0x00000000;
-    uint8_t   r = 0x00;
-    uint8_t   g = 0x00;
-    uint8_t   b = 0x00;
-    uint8_t   r2 = 0x00;
-    uint8_t   g2 = 0x00;
-    uint8_t   b2 = 0x00;
+    uint32_t  dest   = 0x00000000;
+    uint8_t   r      = 0x00;
+    uint8_t   g      = 0x00;
+    uint8_t   b      = 0x00;
+    uint8_t   r2     = 0x00;
+    uint8_t   g2     = 0x00;
+    uint8_t   b2     = 0x00;
     uint16_t *vram_w = (uint16_t *) svga->vram;
     uint32_t *vram_l = (uint32_t *) svga->vram;
-    uint32_t  k2 = 0;
-    uint32_t dda = 0;
-    uint32_t diff = 0;
-    int       count = -1;
+    uint32_t  k2     = 0;
+    uint32_t  dda    = 0;
+    uint32_t  diff   = 0;
+    int       count  = -1;
 
     idf    = s3->videoengine.idf;
     odf    = s3->videoengine.odf;

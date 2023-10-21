@@ -65,13 +65,13 @@ typedef struct plip_t {
     uint8_t    status;
     uint8_t    ctrl;
 
-    uint8_t   state;
-    uint8_t   ack;
-    uint8_t   tx_checksum;
-    uint8_t   tx_checksum_calc;
-    uint8_t  *tx_pkt;
-    uint16_t  tx_len;
-    uint16_t  tx_ptr;
+    uint8_t  state;
+    uint8_t  ack;
+    uint8_t  tx_checksum;
+    uint8_t  tx_checksum_calc;
+    uint8_t *tx_pkt;
+    uint16_t tx_len;
+    uint16_t tx_ptr;
 
     uint8_t   *rx_pkt;
     uint8_t    rx_checksum;

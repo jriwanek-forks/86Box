@@ -294,7 +294,7 @@ uint32_t
 scsi_disk_mode_sense(const scsi_disk_t *dev, uint8_t *buf, uint32_t pos,
                      uint8_t page, const uint8_t block_descriptor_len)
 {
-    int     size = hdd_image_get_last_sector(dev->id);
+    int size = hdd_image_get_last_sector(dev->id);
 
     page &= 0x3f;
 

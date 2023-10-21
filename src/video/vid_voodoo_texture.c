@@ -149,9 +149,9 @@ void
 voodoo_recalc_tex3(voodoo_t *voodoo, int tmu)
 {
     int      aspect = (voodoo->params.tLOD[tmu] >> 21) & 3;
-    int      width = 256;
+    int      width  = 256;
     int      height = 256;
-    int      shift = 8;
+    int      shift  = 8;
     int      lod;
     uint32_t base    = voodoo->params.texBaseAddr[tmu];
     uint32_t offset  = 0;

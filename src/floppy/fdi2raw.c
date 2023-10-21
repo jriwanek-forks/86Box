@@ -37,7 +37,7 @@
 #include <86box/plat_unused.h>
 
 #ifdef DEBUG
-#undef DEBUG
+#    undef DEBUG
 #endif
 #define VERBOSE
 #undef VERBOSE
@@ -1283,7 +1283,7 @@ static void
 track_atari_st(struct fdi *fdi, int max_sector)
 {
     int      gap3 = 0;
-    uint8_t *p = fdi->track_src;
+    uint8_t *p    = fdi->track_src;
 
     switch (max_sector) {
         case 9:
@@ -2260,7 +2260,7 @@ fdi2raw_loadrevolution_2(FDI *fdi, uint16_t *mfmbuf, uint16_t *tracktiming, int 
 
     for (int i = 0; i < (len + 15) / (2 * 8); i++) {
         const uint8_t *data = fdi->track_dst_buffer + i * 2;
-        *mfmbuf++     = 256 * *data + *(data + 1);
+        *mfmbuf++           = 256 * *data + *(data + 1);
     }
     fdi2_celltiming(fdi, cache->totalavg, len, tracktiming);
     if (indexoffsetp)

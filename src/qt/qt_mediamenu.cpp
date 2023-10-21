@@ -431,7 +431,8 @@ MediaMenu::floppySelectImage(int i, bool wp)
         tr("All files") %
         util::DlgFilter({ "*" }, true));
 
-    if (!filename.isEmpty()) floppyMount(i, filename, wp);
+    if (!filename.isEmpty())
+        floppyMount(i, filename, wp);
 }
 
 void
@@ -765,7 +766,7 @@ MediaMenu::cdromUpdateMenu(int i)
             busName = "SCSI";
             break;
         case CDROM_BUS_MITSUMI:
-	    busName = "Mitsumi";
+            busName = "Mitsumi";
 	    break;
     }
 

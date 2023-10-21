@@ -38,18 +38,18 @@
 #include <86box/mo.h>
 
 typedef struct cmd646_t {
-    uint8_t     vlb_idx;
-    uint8_t     single_channel;
-    uint8_t     in_cfg;
-    uint8_t     pci_slot;
+    uint8_t vlb_idx;
+    uint8_t single_channel;
+    uint8_t in_cfg;
+    uint8_t pci_slot;
 
-    uint8_t     regs[256];
+    uint8_t regs[256];
 
-    uint32_t    local;
+    uint32_t local;
 
-    int         irq_pin;
+    int irq_pin;
 
-    int         irq_mode[2];
+    int irq_mode[2];
 
     sff8038i_t *bm[2];
 } cmd646_t;

@@ -50,12 +50,12 @@ enum {
     SERIAL_INT_TX_DMA_TC = 64
 };
 
-void    serial_update_ints(serial_t *dev);
+void serial_update_ints(serial_t *dev);
 
 static int             next_inst = 0;
 static serial_device_t serial_devices[SERIAL_MAX];
 
-static void            serial_xmit_d_empty_evt(void *priv);
+static void serial_xmit_d_empty_evt(void *priv);
 
 #ifdef ENABLE_SERIAL_LOG
 int serial_do_log = ENABLE_SERIAL_LOG;
@@ -88,9 +88,9 @@ serial_reset_port(serial_t *dev)
     dev->lsr = 0x60; /* Mark that both THR/FIFO and TXSR are empty. */
     dev->iir = dev->ier = dev->lcr = dev->fcr = 0;
 
-    dev->fifo_enabled                         = 0;
-    dev->baud_cycles                          = 0;
-    dev->out_new                              = 0xffff;
+    dev->fifo_enabled = 0;
+    dev->baud_cycles  = 0;
+    dev->out_new      = 0xffff;
 
     dev->txsr_empty = 1;
     dev->thr_empty  = 1;
@@ -192,7 +192,7 @@ serial_receive_timer(void *priv)
             if (dev->lsr & 0x01)
                 dev->lsr |= 0x02;
 
-            dev->dat = (uint8_t) (dev->out_new & 0xff);
+            dev->dat     = (uint8_t) (dev->out_new & 0xff);
             dev->out_new = 0xffff;
 
             /* Raise Data Ready interrupt. */
@@ -255,8 +255,8 @@ serial_move_to_txsr(serial_t *dev)
     if (dev->fifo_enabled)
         dev->txsr = fifo_read_evt(dev->xmit_fifo);
     else {
-        dev->txsr = dev->thr;
-        dev->thr  = 0;
+        dev->txsr      = dev->thr;
+        dev->thr       = 0;
         dev->thr_empty = 1;
         serial_xmit_d_empty_evt(dev);
     }
@@ -279,9 +279,9 @@ serial_process_txsr(serial_t *dev)
 {
     serial_log("serial_process_txsr(): FIFO %sabled\n", dev->fifo_enabled ? "en" : "dis");
     serial_transmit(dev, dev->txsr);
-    dev->txsr = 0;
+    dev->txsr       = 0;
     dev->txsr_empty = 1;
-     serial_xmit_d_empty_evt(dev);
+    serial_xmit_d_empty_evt(dev);
     /* Reset BAUDOUT cycle count. */
     dev->baud_cycles = 0;
     /* If FIFO is enabled and there are bytes left to transmit,
@@ -509,7 +509,7 @@ serial_write(uint16_t addr, uint8_t val, void *priv)
                 /* Non-FIFO mode, begin transmitting. */
                 timer_on_auto(&dev->transmit_timer, dev->transmit_period);
                 dev->transmit_enabled |= 1; /* Start moving. */
-                dev->thr = val;
+                dev->thr       = val;
                 dev->thr_empty = 0;
             }
             break;
@@ -826,10 +826,10 @@ serial_rcvr_d_ready_evt(void *priv)
 static void
 serial_xmit_d_empty_evt(void *priv)
 {
-    serial_t *dev = (serial_t *) priv;
-    uint8_t is_empty = dev->fifo_enabled ? fifo_get_empty(dev->xmit_fifo) : dev->thr_empty;
+    serial_t *dev      = (serial_t *) priv;
+    uint8_t   is_empty = dev->fifo_enabled ? fifo_get_empty(dev->xmit_fifo) : dev->thr_empty;
 
-    dev->lsr = (dev->lsr & 0x9f) | (is_empty << 5) | ((dev->txsr_empty && is_empty) << 6);
+    dev->lsr        = (dev->lsr & 0x9f) | (is_empty << 5) | ((dev->txsr_empty && is_empty) << 6);
     dev->int_status = (dev->int_status & ~SERIAL_INT_TRANSMIT) | (is_empty ? SERIAL_INT_TRANSMIT : 0);
 }
 
@@ -907,9 +907,9 @@ serial_reset(void *priv)
         dev->dat = dev->int_status = dev->scratch = dev->fcr = 0x00;
         dev->fifo_enabled = dev->bits = 0x000;
         dev->data_bits = dev->baud_cycles = 0x00;
-        dev->txsr = 0x00;
-        dev->txsr_empty = 0x01;
-        dev->thr_empty = 0x0001;
+        dev->txsr                         = 0x00;
+        dev->txsr_empty                   = 0x01;
+        dev->thr_empty                    = 0x0001;
 
         dev->dlab = dev->out_new = 0x0000;
 
@@ -918,8 +918,8 @@ serial_reset(void *priv)
 
         serial_reset_port(dev);
 
-        dev->dlab      = 96;
-        dev->fcr       = 0x06;
+        dev->dlab = 96;
+        dev->fcr  = 0x06;
 
         serial_transmit_period(dev);
         serial_update_speed(dev);

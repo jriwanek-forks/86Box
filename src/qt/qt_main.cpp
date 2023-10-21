@@ -51,7 +51,7 @@ extern "C" {
 #include <86box/ui.h>
 #include <86box/video.h>
 #ifdef DISCORD
-#   include <86box/discord.h>
+#    include <86box/discord.h>
 #endif
 #include <86box/gdbstub.h>
 #include <86box/version.h>

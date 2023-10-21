@@ -88,8 +88,8 @@ kbc_at_dev_queue_add(atkbc_dev_t *dev, uint8_t val, uint8_t main)
 {
     if (main) {
         kbc_at_dev_log("%s: dev->queue[%02X]     = %02X;\n", dev->name, dev->queue_end, val);
-        dev->queue[dev->queue_end]         = val;
-        dev->queue_end                     = (dev->queue_end + 1) & dev->fifo_mask;
+        dev->queue[dev->queue_end] = val;
+        dev->queue_end             = (dev->queue_end + 1) & dev->fifo_mask;
     } else {
         kbc_at_dev_log("%s: dev->cmd_queue[%02X] = %02X;\n", dev->name, dev->cmd_queue_end, val);
         dev->cmd_queue[dev->cmd_queue_end] = val;
@@ -113,7 +113,7 @@ kbc_at_dev_poll(void *priv)
                 kbc_at_dev_log("%s: Processing keyboard command %02X...\n", dev->name, dev->port->dat);
                 kbc_at_dev_queue_reset(dev, 0);
                 dev->process_cmd(dev);
-                dev->port->wantcmd    = 0;
+                dev->port->wantcmd = 0;
             } else
                 dev->state = DEV_STATE_MAIN_2;
             break;
@@ -122,8 +122,8 @@ kbc_at_dev_poll(void *priv)
             if (!dev->ignore && *dev->scan && (dev->port->out_new == -1) &&
                 (dev->queue_start != dev->queue_end)) {
                 kbc_at_dev_log("%s: %02X (DATA) on channel 1\n", dev->name, dev->queue[dev->queue_start]);
-                dev->port->out_new   = dev->queue[dev->queue_start];
-                dev->queue_start     = (dev->queue_start + 1) & dev->fifo_mask;
+                dev->port->out_new = dev->queue[dev->queue_start];
+                dev->queue_start   = (dev->queue_start + 1) & dev->fifo_mask;
             }
             if (dev->ignore || !(*dev->scan) || dev->port->wantcmd)
                 dev->state = DEV_STATE_MAIN_1;
@@ -134,7 +134,7 @@ kbc_at_dev_poll(void *priv)
                 kbc_at_dev_log("%s: Processing keyboard command %02X...\n", dev->name, dev->port->dat);
                 kbc_at_dev_queue_reset(dev, 0);
                 dev->process_cmd(dev);
-                dev->port->wantcmd    = 0;
+                dev->port->wantcmd = 0;
                 break;
             }
             fallthrough;
@@ -154,7 +154,7 @@ kbc_at_dev_poll(void *priv)
                 kbc_at_dev_log("%s: Processing keyboard command %02X parameter %02X...\n", dev->name, dev->command, dev->port->dat);
                 kbc_at_dev_queue_reset(dev, 0);
                 dev->process_cmd(dev);
-                dev->port->wantcmd    = 0;
+                dev->port->wantcmd = 0;
             }
             break;
         case DEV_STATE_EXECUTE_BAT:

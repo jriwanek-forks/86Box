@@ -282,7 +282,7 @@ line_gain:
             val &= i;
             break;
 
-        case 0x22:      /* 3D Control */
+        case 0x22: /* 3D Control */
             switch (ac97_codecs[dev->model].reset_flags >> AC97_3D_SHIFT) {
                 case 1: /* Analog Devices */
                 case 6: /* Crystal */
@@ -481,7 +481,7 @@ ac97_codec_reset(void *priv)
         dev->regs[0x14 >> 1] = AC97_MUTE | 0x0808;
     if (ac97_codecs[dev->model].misc_flags & AC97_AUXIN)
         dev->regs[0x14 >> 1] = AC97_MUTE | 0x0808;
-    dev->regs[0x1c >> 1] = AC97_MUTE;     /* record gain */
+    dev->regs[0x1c >> 1] = AC97_MUTE; /* record gain */
     if (ac97_codecs[dev->model].reset_flags & AC97_MICPCM)
         dev->regs[0x1e >> 1] = AC97_MUTE; /* mic record gain */
     if (ac97_codecs[dev->model].misc_flags & AC97_LDAC)
@@ -493,7 +493,7 @@ ac97_codec_reset(void *priv)
 
     /* Set flags. */
     dev->regs[0x00 >> 1] = ac97_codecs[dev->model].reset_flags;
-    dev->regs[0x26 >> 1] = 0x000f;        /* codec ready */
+    dev->regs[0x26 >> 1] = 0x000f; /* codec ready */
     dev->regs[0x28 >> 1] = (dev->codec_id << 14) | ac97_codecs[dev->model].extid_flags;
     ac97_codec_writew(dev, 0x2a, 0x0000); /* reset variable DAC/ADC sample rates */
     i = ac97_codecs[dev->model].extid_flags & (AC97_CDAC | AC97_SDAC | AC97_LDAC);

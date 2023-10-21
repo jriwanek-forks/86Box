@@ -1,4 +1,4 @@
- /*
+/*
  * 86Box    A hypervisor and IBM PC system emulator that specializes in
  *          running old operating systems and software designed for IBM
  *          PC systems and compatibles from 1981 through fairly recent
@@ -7,7 +7,7 @@
  *          This file is part of the 86Box distribution.
  *
  *          VDE networking for 86box
- *          See https://wiki.virtualsquare.org/#!tutorials/vdebasics.md 
+ *          See https://wiki.virtualsquare.org/#!tutorials/vdebasics.md
  *          for basic information about VDE. You can browse the source
  *          code at https://github.com/virtualsquare/vde-2
  *
@@ -17,7 +17,7 @@
  *
  * Authors: jguillaumes <jguillaumes@gmail.com>
  *          Copyright 2023 jguillaumes.
- * 
+ *
  * See the COPYING file at the top of the 86box for license details.
  * TL;DR: GPL version 2.
  */
@@ -28,10 +28,10 @@
 #include <stdint.h>
 
 #if !defined(_WIN32)
-#include <poll.h>
-#include <unistd.h>
+#    include <poll.h>
+#    include <unistd.h>
 #else
-#error VDE is not supported under windows
+#    error VDE is not supported under windows
 #endif
 
 #include <libvdeplug.h>
@@ -46,7 +46,7 @@
 #include <86box/network.h>
 #include <86box/net_event.h>
 
-#define VDE_PKT_BATCH NET_QUEUE_LEN
+#define VDE_PKT_BATCH   NET_QUEUE_LEN
 #define VDE_DESCRIPTION "86Box virtual card"
 
 enum {
@@ -78,30 +78,31 @@ typedef struct net_vde_t {
 //-
 static VDECONN *(*f_vde_open)(char *, char *, int, struct vde_open_args *); // This is vde_open_real()
 static void (*f_vde_close)(VDECONN *);
-static int  (*f_vde_datafd)(VDECONN *);             // Get the data (read/write) handle
-static int  (*f_vde_ctlfd)(VDECONN *);              // Get the control handle
-static ssize_t (*f_vde_recv)(VDECONN *, void *, size_t, int);           // Receive a packet
-static ssize_t (*f_vde_send)(VDECONN *, const void *, size_t, int);     // Send a packet
+static int (*f_vde_datafd)(VDECONN *);                              // Get the data (read/write) handle
+static int (*f_vde_ctlfd)(VDECONN *);                               // Get the control handle
+static ssize_t (*f_vde_recv)(VDECONN *, void *, size_t, int);       // Receive a packet
+static ssize_t (*f_vde_send)(VDECONN *, const void *, size_t, int); // Send a packet
 
 //+
 // VDE libvdeplug function table (for import)
 //-
 static dllimp_t vde_imports[] = {
-    {"vde_open_real",   &f_vde_open},
-    {"vde_close",       &f_vde_close},
-    {"vde_datafd",      &f_vde_datafd},
-    {"vde_ctlfd",       &f_vde_ctlfd},
-    {"vde_recv",        &f_vde_recv},
-    {"vde_send",        &f_vde_send},
-    { NULL,             NULL}
+    {"vde_open_real", &f_vde_open  },
+    { "vde_close",    &f_vde_close },
+    { "vde_datafd",   &f_vde_datafd},
+    { "vde_ctlfd",    &f_vde_ctlfd },
+    { "vde_recv",     &f_vde_recv  },
+    { "vde_send",     &f_vde_send  },
+    { NULL,           NULL         }
 };
 
 #ifdef ENABLE_VDE_LOG
-#include <stdarg.h>
+#    include <stdarg.h>
 int vde_do_log = ENABLE_VDE_LOG;
 
 static void
-vde_log(const char *fmt, ...) {
+vde_log(const char *fmt, ...)
+{
     va_list ap;
 
     if (vde_do_log) {
@@ -115,13 +116,15 @@ vde_log(const char *fmt, ...) {
 #endif
 
 #ifdef _WIN32
-#error VDE networking is not supported under windows
-#else 
+#    error VDE networking is not supported under windows
+#else
 
 //+
 // VDE thread
 //-
-static void net_vde_thread(void *priv) {
+static void
+net_vde_thread(void *priv)
+{
     net_vde_t *vde = (net_vde_t *) priv;
     vde_log("VDE: Polling started.\n");
 
@@ -138,21 +141,21 @@ static void net_vde_thread(void *priv) {
     pfd[NET_EVENT_VDE].fd     = f_vde_ctlfd(vde->vdeconn);
     pfd[NET_EVENT_VDE].events = POLLIN;
 
-    while(1) {
+    while (1) {
         poll(pfd, NET_EVENT_MAX, -1);
 
         // Acvity in the control handle means the link is closed
         // We send ourselves a STOP event
         if (pfd[NET_EVENT_VDE].revents & POLLIN) {
-            net_event_set(&vde->stop_event);  
+            net_event_set(&vde->stop_event);
         }
 
         // There are packets queued to transmit
         if (pfd[NET_EVENT_TX].revents & POLLIN) {
             net_event_clear(&vde->tx_event);
             int packets = network_tx_popv(vde->card, vde->pktv, VDE_PKT_BATCH);
-            for (int i=0; i<packets; i++) {
-                int nc = f_vde_send(vde->vdeconn, vde->pktv[i].data,vde->pktv[i].len, 0 );
+            for (int i = 0; i < packets; i++) {
+                int nc = f_vde_send(vde->vdeconn, vde->pktv[i].data, vde->pktv[i].len, 0);
                 if (nc == 0) {
                     vde_log("VDE: Problem, no bytes sent.\n");
                 }
@@ -161,7 +164,7 @@ static void net_vde_thread(void *priv) {
 
         // Packets are available for reading. Read packet and queue it
         if (pfd[NET_EVENT_RX].revents & POLLIN) {
-            int nc = f_vde_recv(vde->vdeconn, vde->pkt.data, NET_MAX_FRAME, 0);
+            int nc       = f_vde_recv(vde->vdeconn, vde->pkt.data, NET_MAX_FRAME, 0);
             vde->pkt.len = nc;
             network_rx_put_pkt(vde->card, &vde->pkt);
         }
@@ -176,16 +179,17 @@ static void net_vde_thread(void *priv) {
 }
 #endif
 
-
 //+
 // Prepare the VDE libvdeplug interface.
 // Load the dynamic library libvdeplug.
 // Returns zero if the library has been loaded, -1 in case of error.
 //-
-int net_vde_prepare(void) {
+int
+net_vde_prepare(void)
+{
 
 #if defined(_WIN32)
-    #error VDE is not supported in Windows
+#    error VDE is not supported in Windows
 #elif defined(__APPLE__)
     libvde_handle = dynld_module("libvdeplug.dylib", vde_imports);
 #else
@@ -204,20 +208,23 @@ int net_vde_prepare(void) {
 //+
 // Close a VDE socket connection
 //-
-void net_vde_close(void *priv) {
+void
+net_vde_close(void *priv)
+{
     int i;
 
-    if (!priv)  return;
+    if (!priv)
+        return;
 
     net_vde_t *vde = (net_vde_t *) priv;
     vde_log("VDE: closing.\n");
-    net_event_set(&vde->stop_event);        // Tell the thread to finish
+    net_event_set(&vde->stop_event); // Tell the thread to finish
     vde_log("VDE: Waiting for the thread to finish...\n");
     thread_wait(vde->poll_tid);
     vde_log("VDE: Thread finished.\n");
 
     // Free all the mallocs!
-    for(i=0;i<VDE_PKT_BATCH; i++) {
+    for (i = 0; i < VDE_PKT_BATCH; i++) {
         free(vde->pktv[i].data);
     }
     free(vde->pkt.data);
@@ -230,7 +237,9 @@ void net_vde_close(void *priv) {
 //+
 // Signal packets are available to be transmitted
 //-
-void net_vde_in_available(void *priv) {
+void
+net_vde_in_available(void *priv)
+{
     net_vde_t *vde = (net_vde_t *) priv;
     net_event_set(&vde->tx_event);
 }
@@ -239,7 +248,9 @@ void net_vde_in_available(void *priv) {
 // Copy error message to the error buffer
 // and log if enabled.
 //-
-void net_vde_error(char *errbuf, const char *message) {
+void
+net_vde_error(char *errbuf, const char *message)
+{
     strncpy(errbuf, message, NET_DRV_ERRBUF_SIZE);
     vde_log("VDE: %s\n", message);
 }
@@ -251,7 +262,9 @@ void net_vde_error(char *errbuf, const char *message) {
 // mac_addr: MAC address we are using
 // priv: Name of the VDE contol socket directory
 //-
-void *net_vde_init(const netcard_t *card, const uint8_t *mac_addr, void *priv, char *netdrv_errbuf) {
+void *
+net_vde_init(const netcard_t *card, const uint8_t *mac_addr, void *priv, char *netdrv_errbuf)
+{
     struct vde_open_args vde_args;
 
     char *socket_name = (char *) priv;
@@ -267,9 +280,9 @@ void *net_vde_init(const netcard_t *card, const uint8_t *mac_addr, void *priv, c
     }
 
     vde_log("VDE: Attaching to virtual switch at %s\n", socket_name);
-    
+
     net_vde_t *vde = calloc(1, sizeof(net_vde_t));
-    vde->card = (netcard_t *) card;
+    vde->card      = (netcard_t *) card;
     memcpy(vde->mac_addr, mac_addr, sizeof(vde->mac_addr));
 
     vde_args.group = 0;
@@ -277,8 +290,9 @@ void *net_vde_init(const netcard_t *card, const uint8_t *mac_addr, void *priv, c
     vde_args.mode  = 0700;  // Allow the switch to connect back to our socket if it is run by the same user
 
     // We are calling vde_open_real(), not the vde_open() macro...
-    if ((vde->vdeconn = f_vde_open(socket_name, VDE_DESCRIPTION, 
-                                        LIBVDEPLUG_INTERFACE_VERSION, &vde_args)) == NULL) {
+    if ((vde->vdeconn = f_vde_open(socket_name, VDE_DESCRIPTION,
+                                   LIBVDEPLUG_INTERFACE_VERSION, &vde_args))
+        == NULL) {
         char buf[NET_DRV_ERRBUF_SIZE];
         snprintf(buf, NET_DRV_ERRBUF_SIZE, "Unable to open socket %s (%s)", socket_name, strerror(errno));
         net_vde_error(netdrv_errbuf, buf);
@@ -287,13 +301,13 @@ void *net_vde_init(const netcard_t *card, const uint8_t *mac_addr, void *priv, c
     }
     vde_log("VDE: Socket opened (%s).\n", socket_name);
 
-    for(uint8_t i = 0; i < VDE_PKT_BATCH; i++) {
+    for (uint8_t i = 0; i < VDE_PKT_BATCH; i++) {
         vde->pktv[i].data = calloc(1, NET_MAX_FRAME);
     }
-    vde->pkt.data = calloc(1,NET_MAX_FRAME);
+    vde->pkt.data = calloc(1, NET_MAX_FRAME);
     net_event_init(&vde->tx_event);
     net_event_init(&vde->stop_event);
-    vde->poll_tid = thread_create(net_vde_thread, vde);     // Fire up the read-write thread!
+    vde->poll_tid = thread_create(net_vde_thread, vde); // Fire up the read-write thread!
 
     return vde;
 }
@@ -307,4 +321,3 @@ const netdrv_t net_vde_drv =  {
     .close     = &net_vde_close,
     .priv      = NULL
 };
-

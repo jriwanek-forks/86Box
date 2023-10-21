@@ -612,13 +612,13 @@ x54x_mbi(x54x_t *dev)
 #if 0
     uint32_t CCBPointer = req->CCBPointer;
 #endif
-    addr24_t  CCBPointer;
-    CCBU     *CmdBlock              = &(req->CmdBlock);
-    uint8_t   HostStatus            = req->HostStatus;
-    uint8_t   TargetStatus          = req->TargetStatus;
-    uint32_t  MailboxCompletionCode = req->MailboxCompletionCode;
-    uint32_t  Incoming;
-    uint8_t   bytes[4] = { 0, 0, 0, 0 };
+    addr24_t CCBPointer;
+    CCBU    *CmdBlock              = &(req->CmdBlock);
+    uint8_t  HostStatus            = req->HostStatus;
+    uint8_t  TargetStatus          = req->TargetStatus;
+    uint32_t MailboxCompletionCode = req->MailboxCompletionCode;
+    uint32_t Incoming;
+    uint8_t  bytes[4] = { 0, 0, 0, 0 };
 
     Incoming = dev->MailboxInAddr + (dev->MailboxInPosCur * ((dev->flags & X54X_MBX_24BIT) ? sizeof(Mailbox_t) : sizeof(Mailbox32_t)));
 
@@ -894,8 +894,8 @@ SenseBufferFree(x54x_t *dev, Req_t *req, int Copy)
 static void
 x54x_scsi_cmd(x54x_t *dev)
 {
-    Req_t         *req   = &dev->Req;
-    uint8_t        bit24 = !!req->Is24bit;
+    Req_t         *req            = &dev->Req;
+    uint8_t        bit24          = !!req->Is24bit;
     uint32_t       target_cdb_len = 12;
     scsi_device_t *sd;
 

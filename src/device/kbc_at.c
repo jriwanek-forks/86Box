@@ -99,19 +99,19 @@
 #define FLAG_PCI           0x08
 
 enum {
-    STATE_RESET = 0,       /* KBC reset state, only accepts command AA. */
-    STATE_KBC_DELAY_OUT,   /* KBC is sending one single byte. */
-    STATE_KBC_AMI_OUT,     /* KBC waiting for OBF - needed for AMIKey commands that require clearing of the output byte. */
-    STATE_MAIN_IBF,        /* KBC checking if the input buffer is full. */
-    STATE_MAIN_KBD,        /* KBC checking if the keyboard has anything to send. */
-    STATE_MAIN_AUX,        /* KBC checking if the auxiliary has anything to send. */
-    STATE_MAIN_BOTH,       /* KBC checking if either device has anything to send. */
-    STATE_KBC_OUT,         /* KBC is sending multiple bytes. */
-    STATE_KBC_PARAM,       /* KBC wants a parameter. */
-    STATE_SEND_KBD,        /* KBC is sending command to the keyboard. */
-    STATE_SCAN_KBD,        /* KBC is waiting for the keyboard command response. */
-    STATE_SEND_AUX,        /* KBC is sending command to the auxiliary device. */
-    STATE_SCAN_AUX         /* KBC is waiting for the auxiliary command response. */
+    STATE_RESET = 0,     /* KBC reset state, only accepts command AA. */
+    STATE_KBC_DELAY_OUT, /* KBC is sending one single byte. */
+    STATE_KBC_AMI_OUT,   /* KBC waiting for OBF - needed for AMIKey commands that require clearing of the output byte. */
+    STATE_MAIN_IBF,      /* KBC checking if the input buffer is full. */
+    STATE_MAIN_KBD,      /* KBC checking if the keyboard has anything to send. */
+    STATE_MAIN_AUX,      /* KBC checking if the auxiliary has anything to send. */
+    STATE_MAIN_BOTH,     /* KBC checking if either device has anything to send. */
+    STATE_KBC_OUT,       /* KBC is sending multiple bytes. */
+    STATE_KBC_PARAM,     /* KBC wants a parameter. */
+    STATE_SEND_KBD,      /* KBC is sending command to the keyboard. */
+    STATE_SCAN_KBD,      /* KBC is waiting for the keyboard command response. */
+    STATE_SEND_AUX,      /* KBC is sending command to the auxiliary device. */
+    STATE_SCAN_AUX       /* KBC is waiting for the auxiliary command response. */
 };
 
 typedef struct atkbc_t {
@@ -155,14 +155,14 @@ typedef struct atkbc_t {
     pc_timer_t pulse_cb;
 
     /* Local copies of the pointers to both ports for easier swapping (AMI '5' MegaKey). */
-    kbc_at_port_t     *ports[2];
+    kbc_at_port_t *ports[2];
 
     uint8_t (*write60_ven)(void *priv, uint8_t val);
     uint8_t (*write64_ven)(void *priv, uint8_t val);
 } atkbc_t;
 
 /* Keyboard controller ports. */
-kbc_at_port_t  *kbc_at_ports[2] = { NULL, NULL };
+kbc_at_port_t *kbc_at_ports[2] = { NULL, NULL };
 
 static uint8_t kbc_ami_revision   = '8';
 static uint8_t kbc_award_revision = 0x42;
@@ -250,18 +250,18 @@ kbc_at_queue_add(atkbc_t *dev, uint8_t val)
 {
     kbc_at_log("ATkbc: dev->key_ctrl_queue[%02X] = %02X;\n", dev->key_ctrl_queue_end, val);
     dev->key_ctrl_queue[dev->key_ctrl_queue_end] = val;
-    dev->key_ctrl_queue_end                 = (dev->key_ctrl_queue_end + 1) & 0x3f;
-    dev->state = STATE_KBC_OUT;
+    dev->key_ctrl_queue_end                      = (dev->key_ctrl_queue_end + 1) & 0x3f;
+    dev->state                                   = STATE_KBC_OUT;
 }
 
 static int
 kbc_translate(atkbc_t *dev, uint8_t val)
 {
-    int      xt_mode   = (dev->mem[0x20] & 0x20) && !(dev->misc_flags & FLAG_PS2);
+    int xt_mode = (dev->mem[0x20] & 0x20) && !(dev->misc_flags & FLAG_PS2);
     /* The IBM AT keyboard controller firmware does not apply translation in XT mode. */
-    int      translate = !xt_mode && ((dev->mem[0x20] & 0x40) || ((dev->flags & KBC_TYPE_MASK) == KBC_TYPE_PS2_2));
-    uint8_t  kbc_ven   = dev->flags & KBC_VEN_MASK;
-    int      ret       = - 1;
+    int     translate = !xt_mode && ((dev->mem[0x20] & 0x40) || ((dev->flags & KBC_TYPE_MASK) == KBC_TYPE_PS2_2));
+    uint8_t kbc_ven   = dev->flags & KBC_VEN_MASK;
+    int     ret       = -1;
 
     /* Allow for scan code translation. */
     if (translate && (val == 0xf0)) {
@@ -377,13 +377,12 @@ static void
 kbc_send_to_ob(atkbc_t *dev, uint8_t val, uint8_t channel, uint8_t stat_hi)
 {
     uint8_t kbc_ven = dev->flags & KBC_VEN_MASK;
-    int temp = (channel == 1) ? kbc_translate(dev, val) : ((int) val);
+    int     temp    = (channel == 1) ? kbc_translate(dev, val) : ((int) val);
 
     if (temp == -1)
         return;
 
-    if ((kbc_ven == KBC_VEN_AMI) || (kbc_ven == KBC_VEN_TRIGEM_AMI) ||
-        (dev->misc_flags & FLAG_PS2))
+    if ((kbc_ven == KBC_VEN_AMI) || (kbc_ven == KBC_VEN_TRIGEM_AMI) || (dev->misc_flags & FLAG_PS2))
         stat_hi |= ((dev->p1 & 0x80) ? 0x10 : 0x00);
     else
         stat_hi |= 0x10;
@@ -417,11 +416,11 @@ kbc_send_to_ob(atkbc_t *dev, uint8_t val, uint8_t channel, uint8_t stat_hi)
 static void
 kbc_delay_to_ob(atkbc_t *dev, uint8_t val, uint8_t channel, uint8_t stat_hi)
 {
-    dev->val = val;
+    dev->val     = val;
     dev->channel = channel;
     dev->stat_hi = stat_hi;
     dev->pending = 1;
-    dev->state = STATE_KBC_DELAY_OUT;
+    dev->state   = STATE_KBC_DELAY_OUT;
 
     if (dev->is_asic && (channel == 0) && (dev->status & STAT_OFULL)) {
         /* Expedite the sending to the output buffer to prevent the wrong
@@ -453,15 +452,15 @@ kbc_ibf_process(atkbc_t *dev)
 {
     /* IBF set, process both commands and data. */
     dev->status &= ~STAT_IFULL;
-    dev->state   = STATE_MAIN_IBF;
+    dev->state = STATE_MAIN_IBF;
     if (dev->status & STAT_CD)
         kbc_at_process_cmd(dev);
     else {
         set_enable_kbd(dev, 1);
         if ((dev->ports[0] != NULL) && (dev->ports[0]->priv != NULL)) {
             dev->ports[0]->wantcmd = 1;
-            dev->ports[0]->dat = dev->ib;
-            dev->state         = STATE_SEND_KBD;
+            dev->ports[0]->dat     = dev->ib;
+            dev->state             = STATE_SEND_KBD;
         } else
             kbc_delay_to_ob(dev, 0xfe, 1, 0x40);
     }
@@ -480,7 +479,7 @@ kbc_scan_kbd_at(atkbc_t *dev)
                 dev->state             = STATE_MAIN_IBF;
             } else if (dev->status & STAT_IFULL)
                 kbc_ibf_process(dev);
-        /* AT mode. */
+            /* AT mode. */
         } else {
 #if 0
             dev->t = dev->mem[0x28];
@@ -530,7 +529,7 @@ kbc_at_poll_at(atkbc_t *dev)
         case STATE_MAIN_IBF:
         default:
 at_main_ibf:
-           if (dev->status & STAT_OFULL) {
+            if (dev->status & STAT_OFULL) {
                 /* OBF set, wait until it is cleared but still process commands. */
                 if ((dev->status & STAT_IFULL) && (dev->status & STAT_CD)) {
                     dev->status &= ~STAT_IFULL;
@@ -557,7 +556,7 @@ at_main_ibf:
 #if 0
             dev->state = (dev->pending == 2) ? STATE_KBC_AMI_OUT : STATE_MAIN_IBF;
 #endif
-            dev->state = STATE_MAIN_IBF;
+            dev->state   = STATE_MAIN_IBF;
             dev->pending = 0;
             goto at_main_ibf;
         case STATE_KBC_OUT:
@@ -701,7 +700,7 @@ kbc_at_poll_ps2(atkbc_t *dev)
 #if 0
             dev->state = (dev->pending == 2) ? STATE_KBC_AMI_OUT : STATE_MAIN_IBF;
 #endif
-            dev->state = STATE_MAIN_IBF;
+            dev->state   = STATE_MAIN_IBF;
             dev->pending = 0;
             // goto ps2_main_ibf;
             break;
@@ -935,7 +934,7 @@ write64_generic(void *priv, uint8_t val)
         case 0xa5: /* load security */
             kbc_at_log("ATkbc: load security\n");
             dev->wantdata = 1;
-            dev->state = STATE_KBC_PARAM;
+            dev->state    = STATE_KBC_PARAM;
             return 0;
 
         case 0xa7: /* disable auxiliary port */
@@ -1103,7 +1102,7 @@ write64_generic(void *priv, uint8_t val)
             if (dev->misc_flags & FLAG_PS2) {
                 kbc_at_log("ATkbc: write auxiliary output buffer\n");
                 dev->wantdata = 1;
-                dev->state = STATE_KBC_PARAM;
+                dev->state    = STATE_KBC_PARAM;
                 return 0;
             }
             break;
@@ -1111,7 +1110,7 @@ write64_generic(void *priv, uint8_t val)
         case 0xd4: /* write to auxiliary port */
             kbc_at_log("ATkbc: write to auxiliary port\n");
             dev->wantdata = 1;
-            dev->state = STATE_KBC_PARAM;
+            dev->state    = STATE_KBC_PARAM;
             return 0;
 
         case 0xf0 ... 0xff:
@@ -1310,7 +1309,8 @@ write64_ami(void *priv, uint8_t val)
             return 0;
 
         /* TODO: The ICS SB486PV sends command B4 but expects to read *TWO* bytes. */
-        case 0xb4: case 0xb5:
+        case 0xb4:
+        case 0xb5:
             /* set KBC lines P22-P23 (P2 bits 2-3) low */
             kbc_at_log("ATkbc: set KBC lines P22-P23 (P2 bits 2-3) low\n");
             if (!(dev->flags & DEVICE_PCI))
@@ -1329,7 +1329,8 @@ write64_ami(void *priv, uint8_t val)
             }
             return 0;
 
-        case 0xbc: case 0xbd:
+        case 0xbc:
+        case 0xbd:
             /* set KBC lines P22-P23 (P2 bits 2-3) high */
             kbc_at_log("ATkbc: set KBC lines P22-P23 (P2 bits 2-3) high\n");
             if (!(dev->flags & DEVICE_PCI))
@@ -1340,8 +1341,8 @@ write64_ami(void *priv, uint8_t val)
 
         case 0xc1: /* write P1 */
             kbc_at_log("ATkbc: AMI MegaKey - write P1\n");
-            dev->wantdata  = 1;
-            dev->state     = STATE_KBC_PARAM;
+            dev->wantdata = 1;
+            dev->state    = STATE_KBC_PARAM;
             return 0;
 
         case 0xc4:
@@ -1604,7 +1605,7 @@ write64_phoenix(void *priv, uint8_t val)
 static uint8_t
 write64_siemens(void *priv, uint8_t val)
 {
-    atkbc_t *dev     = (atkbc_t *) priv;
+    atkbc_t *dev = (atkbc_t *) priv;
 
     switch (val) {
         case 0x92: /*Siemens Award - 92 sent by PCD-2L BIOS*/
@@ -1688,8 +1689,8 @@ write64_quadtel(void *priv, uint8_t val)
 
         case 0xcf: /*??? - sent by MegaPC BIOS*/
             kbc_at_log("ATkbc: ??? - sent by MegaPC BIOS\n");
-            dev->wantdata  = 1;
-            dev->state     = STATE_KBC_PARAM;
+            dev->wantdata = 1;
+            dev->state    = STATE_KBC_PARAM;
             return 0;
 
         default:
@@ -1759,8 +1760,8 @@ write64_toshiba(void *priv, uint8_t val)
 
         case 0xb6: /* T3100e: Set colour / mono byte */
             kbc_at_log("ATkbc: T3100e: Set colour / mono byte\n");
-            dev->wantdata  = 1;
-            dev->state     = STATE_KBC_PARAM;
+            dev->wantdata = 1;
+            dev->state    = STATE_KBC_PARAM;
             return 0;
 
         /* TODO: Toshiba KBC mode switching. */
@@ -1816,13 +1817,13 @@ kbc_at_process_cmd(void *priv)
     atkbc_t *dev = (atkbc_t *) priv;
     int      bad = 1;
     uint8_t  mask;
-    uint8_t kbc_ven = dev->flags & KBC_VEN_MASK;
+    uint8_t  kbc_ven         = dev->flags & KBC_VEN_MASK;
     uint8_t  cmd_ac_conv[16] = { 0x0b, 2, 3, 4, 5, 6, 7, 8, 9, 0x0a, 0x1e, 0x30, 0x2e, 0x20, 0x12, 0x21 };
 
     if (dev->status & STAT_CD) {
         /* Controller command. */
-        dev->wantdata  = 0;
-        dev->state     = STATE_MAIN_IBF;
+        dev->wantdata = 0;
+        dev->state    = STATE_MAIN_IBF;
 
         /* Clear the keyboard controller queue. */
         kbc_at_queue_reset(dev);
@@ -1837,8 +1838,8 @@ kbc_at_process_cmd(void *priv)
 
             /* Write data to KBC memory. */
             case 0x60 ... 0x7f:
-                dev->wantdata  = 1;
-                dev->state     = STATE_KBC_PARAM;
+                dev->wantdata = 1;
+                dev->state    = STATE_KBC_PARAM;
                 break;
 
             case 0xaa: /* self-test */
@@ -1909,8 +1910,8 @@ kbc_at_process_cmd(void *priv)
                     kbc_at_log("ATkbc: diagnostic dump\n");
                     dev->mem[0x30] = (dev->p1 & 0xf0) | 0x80;
                     dev->mem[0x31] = dev->p2;
-                    dev->mem[0x32] = 0x00;    /* T0 and T1. */
-                    dev->mem[0x33] = 0x00;    /* PSW - Program Status Word - always return 0x00 because we do not emulate this byte. */
+                    dev->mem[0x32] = 0x00; /* T0 and T1. */
+                    dev->mem[0x33] = 0x00; /* PSW - Program Status Word - always return 0x00 because we do not emulate this byte. */
                     /* 20 bytes in high nibble in set 1, low nibble in set 1, set 1 space format = 60 bytes. */
                     for (uint8_t i = 0; i < 20; i++) {
                         kbc_at_queue_add(dev, cmd_ac_conv[dev->mem[i + 0x20] >> 4]);
@@ -1932,8 +1933,8 @@ kbc_at_process_cmd(void *priv)
 
             case 0xc7: /* set port1 bits */
                 kbc_at_log("ATkbc: Phoenix - set port1 bits\n");
-                dev->wantdata  = 1;
-                dev->state     = STATE_KBC_PARAM;
+                dev->wantdata = 1;
+                dev->state    = STATE_KBC_PARAM;
                 break;
 
             case 0xca: /* read keyboard mode */
@@ -1943,8 +1944,8 @@ kbc_at_process_cmd(void *priv)
 
             case 0xcb: /* set keyboard mode */
                 kbc_at_log("ATkbc: AMI - set keyboard mode\n");
-                dev->wantdata  = 1;
-                dev->state     = STATE_KBC_PARAM;
+                dev->wantdata = 1;
+                dev->state    = STATE_KBC_PARAM;
                 break;
 
             case 0xd0: /* read P2 */
@@ -1957,14 +1958,14 @@ kbc_at_process_cmd(void *priv)
 
             case 0xd1: /* write P2 */
                 kbc_at_log("ATkbc: write P2\n");
-                dev->wantdata  = 1;
-                dev->state     = STATE_KBC_PARAM;
+                dev->wantdata = 1;
+                dev->state    = STATE_KBC_PARAM;
                 break;
 
             case 0xd2: /* write keyboard output buffer */
                 kbc_at_log("ATkbc: write keyboard output buffer\n");
-                dev->wantdata  = 1;
-                dev->state     = STATE_KBC_PARAM;
+                dev->wantdata = 1;
+                dev->state    = STATE_KBC_PARAM;
                 break;
 
             case 0xdd: /* disable A20 address line */
@@ -2013,7 +2014,7 @@ kbc_at_process_cmd(void *priv)
 
                     if (dev->ib != 0x00) {
                         dev->wantdata = 1;
-                        dev->state = STATE_KBC_PARAM;
+                        dev->state    = STATE_KBC_PARAM;
                     }
                 }
                 break;
@@ -2059,8 +2060,8 @@ kbc_at_process_cmd(void *priv)
                     set_enable_aux(dev, 1);
                     if ((dev->ports[1] != NULL) && (dev->ports[1]->priv != NULL)) {
                         dev->ports[1]->wantcmd = 1;
-                        dev->ports[1]->dat = dev->ib;
-                        dev->state         = STATE_SEND_AUX;
+                        dev->ports[1]->dat     = dev->ib;
+                        dev->state             = STATE_SEND_AUX;
                     } else
                         kbc_delay_to_ob(dev, 0xfe, 2, 0x40);
                 }
@@ -2086,9 +2087,9 @@ kbc_at_process_cmd(void *priv)
 static void
 kbc_at_write(uint16_t port, uint8_t val, void *priv)
 {
-    atkbc_t *dev = (atkbc_t *) priv;
-    uint8_t kbc_ven = dev->flags & KBC_VEN_MASK;
-    uint8_t fast_a20 = (kbc_ven != KBC_VEN_SIEMENS);
+    atkbc_t *dev      = (atkbc_t *) priv;
+    uint8_t  kbc_ven  = dev->flags & KBC_VEN_MASK;
+    uint8_t  fast_a20 = (kbc_ven != KBC_VEN_SIEMENS);
 
     kbc_at_log("ATkbc: [%04X:%08X] write(%04X) = %02X\n", CS, cpu_state.pc, port, val);
 
@@ -2101,8 +2102,8 @@ kbc_at_write(uint16_t port, uint8_t val, void *priv)
                 /* Fast A20 - ignore all other bits. */
                 write_p2_fast_a20(dev, (dev->p2 & 0xfd) | (val & 0x02));
 
-                dev->wantdata  = 0;
-                dev->state     = STATE_MAIN_IBF;
+                dev->wantdata = 0;
+                dev->state    = STATE_MAIN_IBF;
                 return;
             }
             break;
@@ -2111,9 +2112,9 @@ kbc_at_write(uint16_t port, uint8_t val, void *priv)
             dev->status |= STAT_CD;
             if (fast_a20 && (val == 0xd1)) {
                 kbc_at_log("ATkbc: write P2\n");
-                dev->wantdata  = 1;
-                dev->state     = STATE_KBC_PARAM;
-                dev->command = 0xd1;
+                dev->wantdata = 1;
+                dev->state    = STATE_KBC_PARAM;
+                dev->command  = 0xd1;
                 return;
             } else if (fast_reset && ((val & 0xf0) == 0xf0)) {
                 pulse_output(dev, val & 0x0f);
@@ -2141,8 +2142,8 @@ kbc_at_write(uint16_t port, uint8_t val, void *priv)
 static uint8_t
 kbc_at_read(uint16_t port, void *priv)
 {
-    atkbc_t *dev     = (atkbc_t *) priv;
-    uint8_t  ret     = 0xff;
+    atkbc_t *dev = (atkbc_t *) priv;
+    uint8_t  ret = 0xff;
 
     if ((dev->flags & KBC_TYPE_MASK) >= KBC_TYPE_PS2_1)
         cycles -= ISA_CYCLES(8);
@@ -2164,11 +2165,11 @@ kbc_at_read(uint16_t port, void *priv)
             break;
 
         default:
-            kbc_at_log("ATkbc: read(%04x) invalid!\n",port);
+            kbc_at_log("ATkbc: read(%04x) invalid!\n", port);
             break;
     }
 
-    kbc_at_log("ATkbc: [%04X:%08X] read (%04X) = %02X\n",  CS, cpu_state.pc, port, ret);
+    kbc_at_log("ATkbc: [%04X:%08X] read (%04X) = %02X\n", CS, cpu_state.pc, port, ret);
 
     return ret;
 }
@@ -2176,12 +2177,12 @@ kbc_at_read(uint16_t port, void *priv)
 static void
 kbc_at_reset(void *priv)
 {
-    atkbc_t *dev = (atkbc_t *) priv;
+    atkbc_t *dev     = (atkbc_t *) priv;
     uint8_t  kbc_ven = dev->flags & KBC_VEN_MASK;
 
-    dev->status        = STAT_UNLOCKED;
-    dev->mem[0x20]     = 0x01;
-    dev->mem[0x20]    |= CCB_TRANSLATE;
+    dev->status    = STAT_UNLOCKED;
+    dev->mem[0x20] = 0x01;
+    dev->mem[0x20] |= CCB_TRANSLATE;
     dev->command_phase = 0;
 
     /* Set up the correct Video Type bits. */
@@ -2271,7 +2272,7 @@ static void *
 kbc_at_init(const device_t *info)
 {
     atkbc_t *dev;
-    int max_ports;
+    int      max_ports;
 
     dev = (atkbc_t *) calloc(1, sizeof(atkbc_t));
 
@@ -2296,15 +2297,15 @@ kbc_at_init(const device_t *info)
     dev->write60_ven = NULL;
     dev->write64_ven = NULL;
 
-    kbc_ami_revision = '8';
+    kbc_ami_revision   = '8';
     kbc_award_revision = 0x42;
 
     switch (dev->flags & KBC_VEN_MASK) {
         case KBC_VEN_SIEMENS:
-            kbc_ami_revision = '8';
+            kbc_ami_revision   = '8';
             kbc_award_revision = 0x42;
-            dev->write60_ven = write60_ami;
-            dev->write64_ven = write64_siemens;
+            dev->write60_ven   = write60_ami;
+            dev->write64_ven   = write64_siemens;
             break;
 
         case KBC_VEN_ACER:
@@ -2321,10 +2322,10 @@ kbc_at_init(const device_t *info)
             break;
 
         case KBC_VEN_ALI:
-            kbc_ami_revision = 'F';
+            kbc_ami_revision   = 'F';
             kbc_award_revision = 0x43;
-            dev->write60_ven = write60_ami;
-            dev->write64_ven = write64_ami;
+            dev->write60_ven   = write60_ami;
+            dev->write64_ven   = write64_ami;
             break;
 
         case KBC_VEN_TRIGEM_AMI:

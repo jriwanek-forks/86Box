@@ -41,7 +41,7 @@ void
 ati68875_ramdac_out(uint16_t addr, int rs2, int rs3, uint8_t val, void *priv, svga_t *svga)
 {
     ati68875_ramdac_t *ramdac = (ati68875_ramdac_t *) priv;
-    uint8_t rs = (addr & 0x03);
+    uint8_t            rs     = (addr & 0x03);
 
     rs |= (!!rs2 << 2);
     rs |= (!!rs3 << 3);
@@ -86,8 +86,8 @@ uint8_t
 ati68875_ramdac_in(uint16_t addr, int rs2, int rs3, void *priv, svga_t *svga)
 {
     const ati68875_ramdac_t *ramdac = (ati68875_ramdac_t *) priv;
-    uint8_t                  rs = (addr & 0x03);
-    uint8_t                  temp = 0;
+    uint8_t                  rs     = (addr & 0x03);
+    uint8_t                  temp   = 0;
 
     rs |= (!!rs2 << 2);
     rs |= (!!rs3 << 3);

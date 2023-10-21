@@ -387,7 +387,7 @@ hdd_cache_init(hard_disk_t *hdd)
 static void
 hdd_zones_init(hard_disk_t *hdd)
 {
-    uint32_t    lba = 0;
+    uint32_t    lba   = 0;
     uint32_t    track = 0;
     uint32_t    tracks;
     double      revolution_usec = 60.0 / (double) hdd->rpm * 1000000.0;

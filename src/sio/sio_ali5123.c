@@ -101,7 +101,10 @@ ali5123_lpt_handler(ali5123_t *dev)
 static void
 ali5123_serial_handler(ali5123_t *dev, int uart)
 {
-    uint8_t  uart_nos[2][3]= { { 4, 5, 0xb }, { 4, 0xb, 5 } };
+    uint8_t uart_nos[2][3] = {
+        { 4,  5,   0xb },
+        { 4, 0xb, 5    }
+    };
     uint16_t ld_port       = 0;
     uint8_t  uart_no       = uart_nos[!!(dev->regs[0x2d] & 0x20)][uart];
     uint8_t  global_enable = !(dev->regs[0x22] & (1 << (4 + uart)));

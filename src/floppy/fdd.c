@@ -88,7 +88,7 @@ int writeprot[FDD_NUM];
 int fwriteprot[FDD_NUM];
 int fdd_changed[FDD_NUM];
 int ui_writeprot[FDD_NUM] = { 0, 0, 0, 0 };
-int drive_empty[FDD_NUM] = { 1, 1, 1, 1 };
+int drive_empty[FDD_NUM]  = { 1, 1, 1, 1 };
 
 DRIVE drives[FDD_NUM];
 
@@ -467,7 +467,7 @@ fdd_load(int drive, char *fn)
     int         c = 0;
     int         size;
     const char *p;
-    FILE *      fp;
+    FILE       *fp;
 
     fdd_log("FDD: loading drive %d with '%s'\n", drive, fn);
 

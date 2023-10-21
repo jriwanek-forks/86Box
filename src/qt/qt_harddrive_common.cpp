@@ -186,9 +186,9 @@ Harddrives::BusChannelName(uint8_t bus, uint8_t channel)
         case HDD_BUS_SCSI:
             busName = QString("SCSI (%1:%2)").arg(channel >> 4).arg(channel & 15, 2, 10, QChar('0'));
             break;
-	    case CDROM_BUS_MITSUMI:
-	        busName = QString("Mitsumi");
-	        break;
+        case CDROM_BUS_MITSUMI:
+            busName = QString("Mitsumi");
+            break;
     }
 
     return busName;

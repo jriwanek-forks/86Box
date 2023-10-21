@@ -531,10 +531,10 @@ model_55sx_mem_recalc(void)
 #ifdef ENABLE_PS2_MCA_LOG
     int enabled_mem = 0;
 #endif
-    int base = 0;
-    int remap_size = (ps2.option[3] & 0x10) ? 384 : 256;
-    int bit_mask = 0x00;
-    int max_rows = 4;
+    int base             = 0;
+    int remap_size       = (ps2.option[3] & 0x10) ? 384 : 256;
+    int bit_mask         = 0x00;
+    int max_rows         = 4;
     int bank_to_rows[16] = { 4, 2, 1, 0, 0, 2, 1, 0, 0, 0, 0, 0, 0, 2, 1, 0 };
 
     ps2_mca_log("%02X %02X\n", ps2.option[1], ps2.option[3]);

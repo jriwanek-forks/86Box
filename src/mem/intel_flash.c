@@ -165,7 +165,7 @@ flash_readl(uint32_t addr, void *priv)
 static void
 flash_write(uint32_t addr, uint8_t val, void *priv)
 {
-    flash_t *dev = (flash_t *) priv;
+    flash_t *dev     = (flash_t *) priv;
     uint32_t bb_mask = biosmask & 0xffffe000;
     if (biosmask == 0x7ffff)
         bb_mask &= 0xffff8000;
@@ -223,7 +223,7 @@ flash_write(uint32_t addr, uint8_t val, void *priv)
 static void
 flash_writew(uint32_t addr, uint16_t val, void *priv)
 {
-    flash_t *dev = (flash_t *) priv;
+    flash_t *dev     = (flash_t *) priv;
     uint32_t bb_mask = biosmask & 0xffffe000;
     if (biosmask == 0x7ffff)
         bb_mask &= 0xffff8000;

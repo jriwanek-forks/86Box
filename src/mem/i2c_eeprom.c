@@ -26,10 +26,10 @@
 #include <86box/plat_unused.h>
 
 typedef struct i2c_eeprom_t {
-    void   *i2c;
-    uint8_t addr;
+    void    *i2c;
+    uint8_t  addr;
     uint8_t *data;
-    uint8_t writable;
+    uint8_t  writable;
 
     uint32_t addr_mask;
     uint32_t addr_register;

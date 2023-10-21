@@ -1291,7 +1291,7 @@ uint16_t
 nuked_write_addr(void *priv, uint16_t port, uint8_t val)
 {
     const opl3_chip *chip = (opl3_chip *) priv;
-    uint16_t addr;
+    uint16_t         addr;
 
     addr = val;
     if ((port & 0x0002) && ((addr == 0x0005) || chip->newm))

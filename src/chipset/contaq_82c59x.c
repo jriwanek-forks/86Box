@@ -282,7 +282,7 @@ contaq_82c59x_write(uint16_t addr, uint8_t val, void *priv)
                     break;
             }
             break;
-        
+
         default:
             break;
     }

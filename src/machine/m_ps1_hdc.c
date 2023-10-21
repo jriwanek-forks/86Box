@@ -190,7 +190,7 @@ typedef struct ssb_t {
 #if 1
     uint8_t valid : 1; /* 0 (abused as VALID)    */
 #else
-    uint8_t mbz6  : 1; /* 0                      */
+    uint8_t mbz6 : 1; /* 0                      */
 #endif
 
     /* Most recent ID field seen. */
@@ -316,16 +316,16 @@ typedef struct fcb_t {
  * through a DMA or PIO operation.
  */
 #pragma pack(push, 1)
-typedef struct ccb_t{
+typedef struct ccb_t {
     uint8_t ec_p      : 1; /* EC/P (ecc/park)    */
     uint8_t mbz1      : 1; /* 0            */
     uint8_t auto_seek : 1; /* AS (auto-seek)    */
     uint8_t no_data   : 1; /* ND (no data)        */
     uint8_t cmd       : 4; /* command code[4]    */
 
-    uint8_t cyl_high : 2; /* cylinder [9:8] bits    */
-    uint8_t mbz2     : 2; /* 00            */
-    uint8_t head     : 4; /* head number        */
+    uint8_t cyl_high  : 2; /* cylinder [9:8] bits    */
+    uint8_t mbz2      : 2; /* 00            */
+    uint8_t head      : 4; /* head number        */
 
     uint8_t cyl_low; /* cylinder [7:0] bits    */
 
@@ -385,8 +385,8 @@ typedef struct hdc_t {
     int8_t     reset; /* reset state counter */
 
     /* Data transfer. */
-    int16_t buf_idx; /* buffer index and pointer */
-    int16_t buf_len;
+    int16_t  buf_idx; /* buffer index and pointer */
+    int16_t  buf_len;
     uint8_t *buf_ptr;
 
     /* Current operation parameters. */
@@ -395,7 +395,7 @@ typedef struct hdc_t {
     uint16_t track;  /* requested track# */
     uint8_t  head;   /* requested head# */
     uint8_t  sector; /* requested sector# */
-    int count;       /* requested sector count */
+    int      count;  /* requested sector count */
 
     drive_t drives[XTA_NUM]; /* the attached drive(s) */
 
@@ -865,7 +865,7 @@ do_send:
             }
             break;
 
-        case CMD_READ_ID:  /* READ_ID */
+        case CMD_READ_ID: /* READ_ID */
             if (!drive->present) {
                 dev->ssb.not_ready = 1;
                 do_finish(dev);
@@ -882,7 +882,7 @@ do_send:
                             return;
                         }
                     }
-                    dev->head   = ccb->head;
+                    dev->head = ccb->head;
 
                     /* Get sector count and size. */
                     dev->count   = (int) ccb->count;
@@ -892,7 +892,7 @@ do_send:
                     ui_sb_update_icon(SB_HDD | HDD_BUS_XTA, 1);
 
                     /* Ready to transfer the data out. */
-                    dev->state = STATE_SDONE;
+                    dev->state   = STATE_SDONE;
                     dev->buf_idx = 0;
                     /* Delay a bit, no actual transfer. */
                     timer_advance_u64(&dev->timer, HDC_TIME);

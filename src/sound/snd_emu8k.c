@@ -20,27 +20,28 @@
 #include <86box/plat_unused.h>
 
 #if !defined FILTER_INITIAL && !defined FILTER_MOOG && !defined FILTER_CONSTANT
-#if 0
-#define FILTER_INITIAL
-#endif
+#    if 0
+#        define FILTER_INITIAL
+#    endif
 #    define FILTER_MOOG
-#if 0
-#define FILTER_CONSTANT
-#endif
+#    if 0
+#        define FILTER_CONSTANT
+#    endif
 #endif
 
 #if !defined RESAMPLER_LINEAR && !defined RESAMPLER_CUBIC
-#if 0
-#define RESAMPLER_LINEAR
-#endif
+#    if 0
+#        define RESAMPLER_LINEAR
+#    endif
 #    define RESAMPLER_CUBIC
 #endif
 
 #if 0
-#define EMU8K_DEBUG_REGISTERS
+#    define EMU8K_DEBUG_REGISTERS
 #endif
 
 char *PORT_NAMES[][8] = {
+// clang-format off
     /* Data 0 ( 0x620/0x622) */
     {
         "AWE_CPF",
@@ -101,6 +102,7 @@ char *PORT_NAMES[][8] = {
         0,
         0,
     },
+// clang-format on
 };
 
 enum {
@@ -152,6 +154,7 @@ static int32_t env_attack_to_samples[128];
  * In other words, the unit of the table is the 1/21845th of a dB per sample frame, to be added or
  * substracted to the accumulating value_db of the envelope. */
 static int32_t env_decay_to_dbs_or_oct[128] = {
+// clang-format off
        0,    1,    2,    3,    4,    5,    6,    7,    8,    9,   10,   11,   12,   13,   14,   15,
       16,   17,   18,   19,   20,   20,   21,   22,   23,   24,   25,   27,   28,   29,   30,   32,
       33,   34,   36,   38,   39,   41,   43,   45,   49,   51,   53,   55,   58,   60,   63,   66,
@@ -160,6 +163,7 @@ static int32_t env_decay_to_dbs_or_oct[128] = {
      276,  288,  301,  315,  328,  342,  358,  374,  390,  406,  425,  444,  466,  485,  506,  528,
      553,  580,  602,  634,  660,  689,  721,  755,  780,  820,  849,  897,  932,  970, 1012, 1057,
     1106, 1160, 1219, 1285, 1321, 1399, 1441, 1534, 1585, 1640, 1698, 1829, 1902, 1981, 2068, 2162
+// clang-format on
 };
 
 /* The table "env_decay_to_millis" is based on the table "decay_time_tbl" found in the freebsd/linux
@@ -170,6 +174,7 @@ static int32_t env_decay_to_dbs_or_oct[128] = {
  */
 #if 0
 static int32_t env_decay_to_millis[128] = {
+// clang-format off
        0, 45120, 22614, 15990, 11307, 9508, 7995, 6723, 5653, 5184, 4754, 4359, 3997, 3665, 3361, 3082,
     2828,  2765,  2648,  2535,  2428, 2325, 2226, 2132, 2042, 1955, 1872, 1793, 1717, 1644, 1574, 1507,
     1443,  1382,  1324,  1267,  1214, 1162, 1113, 1066,  978,  936,  897,  859,  822,  787,  754,  722,
@@ -178,6 +183,7 @@ static int32_t env_decay_to_millis[128] = {
      172,   165,   158,   151,   145,  139,  133,  127,  122,  117,  112,  107,  102,   98,   94,   90,
       86,    82,    79,    75,    72,   69,   66,   63,   61,   58,   56,   53,   51,   49,   47,   45,
       43,    41,    39,    37,    36,   34,   33,   31,   30,   29,   28,   26,   25,   24,   23,   22,
+// clang-format on
 };
 #endif
 
@@ -1006,7 +1012,7 @@ emu8k_outw(uint16_t addr, uint16_t val, void *priv)
                             case 0x9:
                                 emu8k->reverb_engine.reflections[0].feedback = (val & 0xF) / 15.0;
                                 break;
-                            case 0xB: 
+                            case 0xB:
 #if 0
                                 emu8k->reverb_engine.reflections[0].feedback_r =  (val&0xF)/15.0;
 #endif
@@ -1050,7 +1056,7 @@ emu8k_outw(uint16_t addr, uint16_t val, void *priv)
                             case 1:
                                 emu8k->reverb_engine.refl_in_amp = val & 0xFF;
                                 break;
-                            case 3: 
+                            case 3:
 #if 0
                                 emu8k->reverb_engine.refl_in_amp_r = val&0xFF;
 #endif
@@ -1823,15 +1829,15 @@ emu8k_update(emu8k_t *emu8k)
                     dat <<= 8;
 
                     dat -= (coef2 * emu_voice->filt_buffer[4]) >> 24; /*feedback*/
-                    int64_t t1 = emu_voice->filt_buffer[1];
+                    int64_t t1                = emu_voice->filt_buffer[1];
                     emu_voice->filt_buffer[1] = ((dat + emu_voice->filt_buffer[0]) * coef0 - emu_voice->filt_buffer[1] * coef1) >> 24;
                     emu_voice->filt_buffer[1] = ClipBuffer(emu_voice->filt_buffer[1]);
 
-                    int64_t t2 = emu_voice->filt_buffer[2];
+                    int64_t t2                = emu_voice->filt_buffer[2];
                     emu_voice->filt_buffer[2] = ((emu_voice->filt_buffer[1] + t1) * coef0 - emu_voice->filt_buffer[2] * coef1) >> 24;
                     emu_voice->filt_buffer[2] = ClipBuffer(emu_voice->filt_buffer[2]);
 
-                    int64_t t3 = emu_voice->filt_buffer[3];
+                    int64_t t3                = emu_voice->filt_buffer[3];
                     emu_voice->filt_buffer[3] = ((emu_voice->filt_buffer[2] + t2) * coef0 - emu_voice->filt_buffer[3] * coef1) >> 24;
                     emu_voice->filt_buffer[3] = ClipBuffer(emu_voice->filt_buffer[3]);
 
@@ -2309,20 +2315,20 @@ emu8k_init(emu8k_t *emu8k, uint16_t emu_addr, int onboard_ram)
             filt_coeffs[qidx][c][1] = 16777216.0;
             filt_coeffs[qidx][c][2] = (int32_t) ((1.0f / (0.7071f + q)) * 16777216.0);
 #elif defined FILTER_MOOG
-            float w0 = sin(2.0 * M_PI * out / 44100.0);
-            float q_factor = 1.0f - w0;
-            float p = w0 + 0.8f * w0 * q_factor;
-            float f = p + p - 1.0f;
-            float resonance = (1.0 - pow(2.0, -qidx * 24.0 / 90.0)) * 0.8;
-            float q = resonance * (1.0f + 0.5f * q_factor * (w0 + 5.6f * q_factor * q_factor));
+            float w0                = sin(2.0 * M_PI * out / 44100.0);
+            float q_factor          = 1.0f - w0;
+            float p                 = w0 + 0.8f * w0 * q_factor;
+            float f                 = p + p - 1.0f;
+            float resonance         = (1.0 - pow(2.0, -qidx * 24.0 / 90.0)) * 0.8;
+            float q                 = resonance * (1.0f + 0.5f * q_factor * (w0 + 5.6f * q_factor * q_factor));
             filt_coeffs[qidx][c][0] = (int32_t) (p * 16777216.0);
             filt_coeffs[qidx][c][1] = (int32_t) (f * 16777216.0);
             filt_coeffs[qidx][c][2] = (int32_t) (q * 16777216.0);
 #elif defined FILTER_CONSTANT
-            float q = (1.0 - pow(2.0, -qidx * 24.0 / 90.0)) * 0.8;
-            float coef0 = sin(2.0 * M_PI * out / 44100.0);
-            float coef1 = 1.0 - coef0;
-            float coef2 = q * (1.0 + 1.0 / coef1);
+            float q                 = (1.0 - pow(2.0, -qidx * 24.0 / 90.0)) * 0.8;
+            float coef0             = sin(2.0 * M_PI * out / 44100.0);
+            float coef1             = 1.0 - coef0;
+            float coef2             = q * (1.0 + 1.0 / coef1);
             filt_coeffs[qidx][c][0] = (int32_t) (coef0 * 16777216.0);
             filt_coeffs[qidx][c][1] = (int32_t) (coef1 * 16777216.0);
             filt_coeffs[qidx][c][2] = (int32_t) (coef2 * 16777216.0);

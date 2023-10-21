@@ -34,13 +34,13 @@ enum {
     MODE_ECHO
 };
 
-#define FLAG_EXPLORER 0x200  /* Has 5 buttons */
-#define FLAG_5BTN     0x100  /* using Intellimouse Optical mode */
-#define FLAG_INTELLI   0x80  /* device is IntelliMouse */
-#define FLAG_INTMODE   0x40  /* using Intellimouse mode */
-#define FLAG_SCALED    0x20  /* enable delta scaling */
-#define FLAG_ENABLED   0x10  /* dev is enabled for use */
-#define FLAG_CTRLDAT   0x08  /* ctrl or data mode */
+#define FLAG_EXPLORER 0x200 /* Has 5 buttons */
+#define FLAG_5BTN     0x100 /* using Intellimouse Optical mode */
+#define FLAG_INTELLI   0x80 /* device is IntelliMouse */
+#define FLAG_INTMODE   0x40 /* using Intellimouse mode */
+#define FLAG_SCALED    0x20 /* enable delta scaling */
+#define FLAG_ENABLED   0x10 /* dev is enabled for use */
+#define FLAG_CTRLDAT   0x08 /* ctrl or data mode */
 
 #define FIFO_SIZE      16
 
@@ -76,12 +76,12 @@ static void
 ps2_report_coordinates(atkbc_dev_t *dev, int main)
 {
     uint8_t buff[3] = { 0x08, 0x00, 0x00 };
-    int delta_x;
-    int delta_y;
-    int overflow_x;
-    int overflow_y;
-    int b = mouse_get_buttons_ex();
-    int delta_z;
+    int     delta_x;
+    int     delta_y;
+    int     overflow_x;
+    int     overflow_y;
+    int     b = mouse_get_buttons_ex();
+    int     delta_z;
 
     mouse_subtract_coords(&delta_x, &delta_y, &overflow_x, &overflow_y,
                           -256, 255, 1, 0);
@@ -138,10 +138,10 @@ ps2_bat(void *priv)
 static void
 ps2_write(void *priv)
 {
-    atkbc_dev_t *dev = (atkbc_dev_t *) priv;
-    int b;
-    uint8_t  temp;
-    uint8_t  val;
+    atkbc_dev_t   *dev = (atkbc_dev_t *) priv;
+    int            b;
+    uint8_t        temp;
+    uint8_t        val;
     static uint8_t last_data[6] = { 0x00 };
 
     if (dev->port == NULL)
@@ -156,23 +156,24 @@ ps2_write(void *priv)
 
         if (val == 0xff)
             kbc_at_dev_reset(dev, 1);
-        else  switch (dev->command) {
-            case 0xe8: /* set mouse resolution */
-                dev->resolution = val;
-                kbc_at_dev_queue_add(dev, 0xfa, 0);
-                mouse_ps2_log("%s: Set mouse resolution [%02X]\n", dev->name, val);
-                break;
+        else
+            switch (dev->command) {
+                case 0xe8: /* set mouse resolution */
+                    dev->resolution = val;
+                    kbc_at_dev_queue_add(dev, 0xfa, 0);
+                    mouse_ps2_log("%s: Set mouse resolution [%02X]\n", dev->name, val);
+                    break;
 
-            case 0xf3: /* set sample rate */
-                dev->rate = val;
-                mouse_set_sample_rate((double) val);
-                kbc_at_dev_queue_add(dev, 0xfa, 0); /* Command response */
-                mouse_ps2_log("%s: Set sample rate [%02X]\n", dev->name, val);
-                break;
+                case 0xf3: /* set sample rate */
+                    dev->rate = val;
+                    mouse_set_sample_rate((double) val);
+                    kbc_at_dev_queue_add(dev, 0xfa, 0); /* Command response */
+                    mouse_ps2_log("%s: Set sample rate [%02X]\n", dev->name, val);
+                    break;
 
-            default:
-                kbc_at_dev_queue_add(dev, 0xfc, 0);
-        }
+                default:
+                    kbc_at_dev_queue_add(dev, 0xfc, 0);
+            }
     } else {
         dev->command = val;
 
@@ -217,7 +218,7 @@ ps2_write(void *priv)
             case 0xea: /* set stream */
                 mouse_ps2_log("%s: Set stream\n", dev->name);
                 dev->flags &= ~FLAG_CTRLDAT;
-                dev->mode = MODE_STREAM;
+                dev->mode  = MODE_STREAM;
                 mouse_scan = 1;
                 kbc_at_dev_queue_add(dev, 0xfa, 0); /* ACK for command byte */
                 break;
@@ -232,7 +233,7 @@ ps2_write(void *priv)
             case 0xf0: /* set remote */
                 mouse_ps2_log("%s: Set remote\n", dev->name);
                 dev->flags &= ~FLAG_CTRLDAT;
-                dev->mode = MODE_REMOTE;
+                dev->mode  = MODE_REMOTE;
                 mouse_scan = 1;
                 kbc_at_dev_queue_add(dev, 0xfa, 0); /* ACK for command byte */
                 break;
@@ -304,8 +305,8 @@ ps2_write(void *priv)
 static int
 ps2_poll(void *priv)
 {
-    atkbc_dev_t *dev = (atkbc_dev_t *) priv;
-    int packet_size = (dev->flags & FLAG_INTMODE) ? 4 : 3;
+    atkbc_dev_t *dev         = (atkbc_dev_t *) priv;
+    int          packet_size = (dev->flags & FLAG_INTMODE) ? 4 : 3;
 
     int cond = (!mouse_capture && !video_fullscreen) || (!mouse_scan || !mouse_state_changed()) ||
                ((dev->mode == MODE_STREAM) && (kbc_at_dev_queue_pos(dev, 1) >= (FIFO_SIZE - packet_size)));
@@ -325,7 +326,7 @@ void *
 mouse_ps2_init(const device_t *info)
 {
     atkbc_dev_t *dev = kbc_at_dev_init(DEV_AUX);
-    int      i;
+    int          i;
 
     dev->name = info->name;
     dev->type = info->local;
@@ -345,9 +346,9 @@ mouse_ps2_init(const device_t *info)
     dev->process_cmd = ps2_write;
     dev->execute_bat = ps2_bat;
 
-    dev->scan        = &mouse_scan;
+    dev->scan = &mouse_scan;
 
-    dev->fifo_mask   = FIFO_SIZE - 1;
+    dev->fifo_mask = FIFO_SIZE - 1;
 
     if (dev->port != NULL)
         kbc_at_dev_reset(dev, 0);

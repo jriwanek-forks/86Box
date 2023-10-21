@@ -232,7 +232,7 @@ CLAMP(int16_t in, int16_t min, int16_t max)
 
 #define WRITE(addr, dat)                                                               \
     if (dev->bpp) {                                                                    \
-        vram_w[((addr)) & (dev->vram_mask >> 1)]                    = dat;             \
+        vram_w[((addr)) & (dev->vram_mask >> 1)]                   = dat;              \
         dev->changedvram[(((addr)) & (dev->vram_mask >> 1)) >> 11] = changeframecount; \
     } else {                                                                           \
         dev->vram[((addr)) & (dev->vram_mask)]                = dat;                   \
@@ -3462,8 +3462,8 @@ void
 ibm8514_render_24bpp(svga_t *svga)
 {
     ibm8514_t *dev = (ibm8514_t *) svga->dev8514;
-    uint32_t *p;
-    uint32_t  dat;
+    uint32_t  *p;
+    uint32_t   dat;
 
     if ((dev->displine + svga->y_add) < 0)
         return;
@@ -3622,11 +3622,11 @@ ibm8514_set_poll(svga_t *svga)
 void
 ibm8514_poll(void *priv)
 {
-    svga_t *svga = (svga_t *)priv;
-    ibm8514_t *dev = (ibm8514_t *)svga->dev8514;
-    uint32_t x;
-    int      wx;
-    int      wy;
+    svga_t    *svga = (svga_t *) priv;
+    ibm8514_t *dev  = (ibm8514_t *) svga->dev8514;
+    uint32_t   x;
+    int        wx;
+    int        wy;
 
     ibm8514_log("IBM 8514/A poll=%x.\n", dev->on);
     if (dev->on) {
@@ -3885,8 +3885,8 @@ ibm8514_init(const device_t *info)
     if (svga_get_pri() == NULL)
         return NULL;
 
-    svga_t    *svga  = svga_get_pri();
-    ibm8514_t *dev   = (ibm8514_t *) calloc(1, sizeof(ibm8514_t));
+    svga_t    *svga = svga_get_pri();
+    ibm8514_t *dev  = (ibm8514_t *) calloc(1, sizeof(ibm8514_t));
 
     svga->dev8514    = dev;
     svga->ext8514    = NULL;
@@ -3901,8 +3901,8 @@ ibm8514_init(const device_t *info)
     dev->local       = 0;
     dev->accel_bpp   = 8;
 
-    dev->type     = info->flags;
-    dev->bpp      = 0;
+    dev->type = info->flags;
+    dev->bpp  = 0;
 
     dev->extensions = device_get_config_int("extensions");
     bios_addr = device_get_config_hex20("bios_addr");

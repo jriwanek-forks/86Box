@@ -308,20 +308,21 @@ machine_at_endeavor_gpio_handler(uint8_t write, uint32_t val)
     if (write) {
         ret &= ((val & 0xffffffcf) | 0xffff0000);
         ret |= (val & 0x00000030);
-        if (machine_snd != NULL)  switch ((val >> 4) & 0x03) {
-            case 0x00:
-                sb_vibra16s_onboard_relocate_base(0x0220, machine_snd);
-                break;
-            case 0x01:
-                sb_vibra16s_onboard_relocate_base(0x0260, machine_snd);
-                break;
-            case 0x02:
-                sb_vibra16s_onboard_relocate_base(0x0240, machine_snd);
-                break;
-            case 0x03:
-                sb_vibra16s_onboard_relocate_base(0x0280, machine_snd);
-                break;
-        }
+        if (machine_snd != NULL)
+            switch ((val >> 4) & 0x03) {
+                case 0x00:
+                    sb_vibra16s_onboard_relocate_base(0x0220, machine_snd);
+                    break;
+                case 0x01:
+                    sb_vibra16s_onboard_relocate_base(0x0260, machine_snd);
+                    break;
+                case 0x02:
+                    sb_vibra16s_onboard_relocate_base(0x0240, machine_snd);
+                    break;
+                case 0x03:
+                    sb_vibra16s_onboard_relocate_base(0x0280, machine_snd);
+                    break;
+            }
         machine_set_gpio(ret);
     } else
         ret = machine_get_gpio();

@@ -50,7 +50,7 @@ extern "C" {
 #    include <sys/sysmacros.h>
 #endif
 #ifdef Q_OS_WINDOWS
-#include <windows.h>
+#    include <windows.h>
 #endif
 
 DeviceConfig::DeviceConfig(QWidget *parent)

@@ -623,8 +623,8 @@ stpc_serial_handlers(uint8_t val)
         return 0;
     }
 
-    uint16_t uart0_io = 0x3f8;
-    uint16_t uart1_io = 0x3f8;
+    uint16_t uart0_io  = 0x3f8;
+    uint16_t uart1_io  = 0x3f8;
     uint8_t  uart0_irq = 4;
     uint8_t  uart1_irq = 3;
 

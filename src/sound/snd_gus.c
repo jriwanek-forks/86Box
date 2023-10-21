@@ -107,7 +107,7 @@ typedef struct gus_t {
     pc_timer_t timer_1;
     pc_timer_t timer_2;
 
-    uint8_t  type;
+    uint8_t type;
 
     int      irq;
     int      dma;
@@ -1207,7 +1207,7 @@ gus_get_buffer(int32_t *buffer, int len, void *priv)
 static void
 gus_input_msg(void *priv, uint8_t *msg, uint32_t len)
 {
-    gus_t  *gus = (gus_t *) priv;
+    gus_t *gus = (gus_t *) priv;
 
     if (gus->sysex)
         return;
@@ -1227,7 +1227,7 @@ gus_input_msg(void *priv, uint8_t *msg, uint32_t len)
 static int
 gus_input_sysex(void *priv, uint8_t *buffer, uint32_t len, int abort)
 {
-    gus_t   *gus = (gus_t *) priv;
+    gus_t *gus = (gus_t *) priv;
 
     if (abort) {
         gus->sysex = 0;
@@ -1247,9 +1247,9 @@ gus_input_sysex(void *priv, uint8_t *buffer, uint32_t len, int abort)
 static void
 gus_reset(void *priv)
 {
-    gus_t   *gus = (gus_t *) priv;
-    int      c;
-    double   out     = 1.0;
+    gus_t *gus = (gus_t *) priv;
+    int    c;
+    double out = 1.0;
 
     if (gus == NULL)
         return;
@@ -1273,10 +1273,10 @@ gus_reset(void *priv)
 
     gus->t1l = gus->t2l = 0xff;
 
-    gus->global = 0;
-    gus->addr = 0;
+    gus->global  = 0;
+    gus->addr    = 0;
     gus->dmaaddr = 0;
-    gus->voice = 0;
+    gus->voice   = 0;
     memset(gus->start, 0x00, 32 * sizeof(uint32_t));
     memset(gus->end, 0x00, 32 * sizeof(uint32_t));
     memset(gus->cur, 0x00, 32 * sizeof(uint32_t));
@@ -1290,44 +1290,44 @@ gus_reset(void *priv)
     memset(gus->curvol, 0x00, 32 * sizeof(int));
     memset(gus->pan_l, 0x00, 32 * sizeof(int));
     memset(gus->pan_r, 0x00, 32 * sizeof(int));
-    gus->t1on = 0;
-    gus->t2on = 0;
-    gus->tctrl = 0;
-    gus->t1 = 0;
-    gus->t2 = 0;
-    gus->irqstatus = 0;
+    gus->t1on       = 0;
+    gus->t2on       = 0;
+    gus->tctrl      = 0;
+    gus->t1         = 0;
+    gus->t2         = 0;
+    gus->irqstatus  = 0;
     gus->irqstatus2 = 0;
-    gus->adcommand = 0;
+    gus->adcommand  = 0;
     memset(gus->waveirqs, 0x00, 32 * sizeof(int));
     memset(gus->rampirqs, 0x00, 32 * sizeof(int));
     gus->dmactrl = 0;
 
     gus->uart_out = 1;
 
-    gus->sb_2xa = 0;
-    gus->sb_2xc = 0;
-    gus->sb_2xe = 0;
+    gus->sb_2xa  = 0;
+    gus->sb_2xc  = 0;
+    gus->sb_2xe  = 0;
     gus->sb_ctrl = 0;
-    gus->sb_nmi = 0;
+    gus->sb_nmi  = 0;
 
     gus->reg_ctrl = 0;
 
-    gus->ad_status = 0;
-    gus->ad_data = 0;
+    gus->ad_status     = 0;
+    gus->ad_data       = 0;
     gus->ad_timer_ctrl = 0;
 
-    gus->midi_ctrl = 0;
+    gus->midi_ctrl   = 0;
     gus->midi_status = 0;
     memset(gus->midi_queue, 0x00, 64 * sizeof(uint8_t));
     gus->midi_data = 0;
-    gus->midi_r = 0;
-    gus->midi_w = 0;
-    gus->uart_in = 0;
-    gus->uart_out = 0;
-    gus->sysex = 0;
+    gus->midi_r    = 0;
+    gus->midi_w    = 0;
+    gus->uart_in   = 0;
+    gus->uart_out  = 0;
+    gus->sysex     = 0;
 
-    gus->gp1 = 0;
-    gus->gp2 = 0;
+    gus->gp1      = 0;
+    gus->gp2      = 0;
     gus->gp1_addr = 0;
     gus->gp2_addr = 0;
 
@@ -1337,7 +1337,7 @@ gus_reset(void *priv)
     gus->max_ctrl = 0;
 #endif /*USE_GUSMAX */
 
-    gus->irq_state = 0;
+    gus->irq_state      = 0;
     gus->midi_irq_state = 0;
 
     gus_update_int_status(gus);

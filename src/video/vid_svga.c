@@ -176,8 +176,8 @@ void
 svga_out(uint16_t addr, uint8_t val, void *priv)
 {
     svga_t    *svga = (svga_t *) priv;
-    ibm8514_t *dev = (ibm8514_t *) svga->dev8514;
-    xga_t     *xga = (xga_t *) svga->xga;
+    ibm8514_t *dev  = (ibm8514_t *) svga->dev8514;
+    xga_t     *xga  = (xga_t *) svga->xga;
     uint8_t    o;
     uint8_t    index;
     uint8_t    pal4to16[16] = { 0, 7, 0x38, 0x3f, 0, 3, 4, 0x3f, 0, 2, 4, 0x3e, 0, 3, 5, 0x3f };
@@ -210,7 +210,7 @@ svga_out(uint16_t addr, uint8_t val, void *priv)
                     break;
                 case 2:
                     index                 = dev->dac_addr & 0xff;
-                    dev->dac_b = val;
+                    dev->dac_b             = val;
                     dev->_8514pal[index].r = dev->dac_r;
                     dev->_8514pal[index].g = dev->dac_g;
                     dev->_8514pal[index].b = dev->dac_b;
@@ -443,11 +443,11 @@ svga_out(uint16_t addr, uint8_t val, void *priv)
 uint8_t
 svga_in(uint16_t addr, void *priv)
 {
-    svga_t    *svga = (svga_t *) priv;
-    ibm8514_t *dev = (ibm8514_t *) svga->dev8514;
-    xga_t     *xga = (xga_t *) svga->xga;
+    svga_t    *svga   = (svga_t *) priv;
+    ibm8514_t *dev    = (ibm8514_t *) svga->dev8514;
+    xga_t     *xga    = (xga_t *) svga->xga;
     uint8_t    index;
-    uint8_t    ret = 0xff;
+    uint8_t    ret    = 0xff;
 
     if ((addr >= 0x2ea) && (addr <= 0x2ed)) {
         if (!dev)
@@ -640,7 +640,7 @@ void
 svga_set_ramdac_type(svga_t *svga, int type)
 {
     ibm8514_t *dev = (ibm8514_t *) svga->dev8514;
-    xga_t *xga = (xga_t *) svga->xga;
+    xga_t     *xga = (xga_t *) svga->xga;
 
     if (svga->ramdac_type != type) {
         svga->ramdac_type = type;
@@ -1653,7 +1653,7 @@ svga_write_common(uint32_t addr, uint8_t val, uint8_t linear, void *priv)
     int     writemask2 = svga->writemask;
     int     reset_wm   = 0;
     latch_t vall;
-    uint8_t wm         = svga->writemask;
+    uint8_t wm = svga->writemask;
     uint8_t count;
     uint8_t i;
 
