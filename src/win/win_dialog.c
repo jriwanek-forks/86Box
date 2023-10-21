@@ -62,8 +62,8 @@ ui_msgbox_ex(int flags, void *header, void *message, void *btn1, void *btn2, voi
     TASKDIALOG_BUTTON tdb_no     = { IDNO, STRING_OR_RESOURCE(btn2) };
     TASKDIALOG_BUTTON tdb_cancel = { IDCANCEL, STRING_OR_RESOURCE(btn3) };
     TASKDIALOG_BUTTON tdb_exit   = { IDCLOSE, MAKEINTRESOURCE(IDS_2120) };
-    int ret = 0;
-    int checked = 0;
+    int               ret        = 0;
+    int               checked    = 0;
 
     /* Configure the default OK button. */
     tdconfig.cButtons = 0;

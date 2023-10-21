@@ -121,15 +121,15 @@ umc_8886_log(const char *fmt, ...)
 #define SB_ID dev->sb_id
 
 typedef struct umc_8886_t {
-    uint8_t  max_func;            /* Last function number */
-    uint8_t  pci_slot;
-    uint8_t  pad;
-    uint8_t  pad0;
+    uint8_t max_func; /* Last function number */
+    uint8_t pci_slot;
+    uint8_t pad;
+    uint8_t pad0;
 
-    uint8_t  pci_conf_sb[2][256]; /* PCI Registers */
+    uint8_t pci_conf_sb[2][256]; /* PCI Registers */
 
-    uint16_t sb_id;              /* Southbridge Revision */
-    int      has_ide;            /* Check if Southbridge Revision is AF or F */
+    uint16_t sb_id;   /* Southbridge Revision */
+    int      has_ide; /* Check if Southbridge Revision is AF or F */
 } umc_8886_t;
 
 static void

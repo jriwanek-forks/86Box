@@ -301,7 +301,7 @@ cga_poll(void *priv)
                     } else {
                         for (c = 0; c < 8; c++) {
                             buffer32->line[cga->displine][(x << 4) + (c << 1) + 8]
-                                = buffer32->line[cga->displine][(x << 4) + (c << 1) + 9] 
+                                = buffer32->line[cga->displine][(x << 4) + (c << 1) + 9]
                                 = cols[(fontdat[chr + cga->fontbase][cga->sc & 7] & (1 << (c ^ 7))) ? 1 : 0];
                         }
                     }

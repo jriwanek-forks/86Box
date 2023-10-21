@@ -113,10 +113,10 @@ typedef struct {
 } pipc_io_trap_t;
 
 typedef struct _pipc_ {
-    uint8_t  max_func;
-    uint8_t  max_pcs;
-    uint8_t  pci_slot;
-    uint8_t  pad;
+    uint8_t max_func;
+    uint8_t max_pcs;
+    uint8_t pci_slot;
+    uint8_t pad;
 
     uint8_t pci_isa_regs[256];
     uint8_t ide_regs[256];
@@ -209,7 +209,7 @@ pipc_reset_hard(void *priv)
 
     pipc_log("PIPC: reset_hard()\n");
 
-    pipc_t  *dev      = (pipc_t *) priv;
+    pipc_t *dev = (pipc_t *) priv;
 
     sff_bus_master_reset(dev->bm[0]);
     sff_bus_master_reset(dev->bm[1]);

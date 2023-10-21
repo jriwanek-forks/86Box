@@ -84,8 +84,8 @@ static int           sdl_fs;
 static int           sdl_flags = -1;
 static int           cur_w;
 static int           cur_h;
-static int           cur_ww = 0;
-static int           cur_wh = 0;
+static int           cur_ww      = 0;
+static int           cur_wh      = 0;
 static volatile int  sdl_enabled = 0;
 static SDL_mutex    *sdl_mutex   = NULL;
 

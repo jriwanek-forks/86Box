@@ -833,7 +833,7 @@ machine_pcjr_init(UNUSED(const machine_t *model))
 
     pcjr = malloc(sizeof(pcjr_t));
     memset(pcjr, 0x00, sizeof(pcjr_t));
-    pcjr->memctrl   = -1;
+    pcjr->memctrl = -1;
     if (mem_size < 128)
         pcjr->memctrl &= ~0x24;
     display_type    = machine_get_config_int("display_type");

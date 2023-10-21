@@ -151,14 +151,14 @@ typedef struct cs423x_t {
     uint8_t  indirect_regs[16];
     uint8_t  eeprom_data[2048];
     uint8_t  ram_data[65536];
-    uint8_t  ram_dl : 2;
+    uint8_t  ram_dl  : 2;
     uint8_t  opl_wss : 1;
     char    *nvr_path;
 
-    uint8_t                 pnp_enable : 1;
-    uint8_t                 key_pos : 5;
+    uint8_t                 pnp_enable  : 1;
+    uint8_t                 key_pos     : 5;
     uint8_t                 slam_enable : 1;
-    uint8_t                 slam_state : 2;
+    uint8_t                 slam_state  : 2;
     uint8_t                 slam_ld;
     uint8_t                 slam_reg;
     isapnp_device_config_t *slam_config;
@@ -544,9 +544,9 @@ cs423x_ctxswitch_write(uint16_t addr, UNUSED(uint8_t val), void *priv)
 static void
 cs423x_get_buffer(int32_t *buffer, int len, void *priv)
 {
-    cs423x_t       *dev = (cs423x_t *) priv;
-    int             opl_wss = dev->opl_wss;
-    const int32_t  *opl_buf = NULL;
+    cs423x_t      *dev     = (cs423x_t *) priv;
+    int            opl_wss = dev->opl_wss;
+    const int32_t *opl_buf = NULL;
 
     /* Output audio from the WSS codec, and also the OPL if we're in charge of it. */
     ad1848_update(&dev->ad1848);

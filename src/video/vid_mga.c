@@ -1383,8 +1383,8 @@ mystique_ctrl_read_b(uint32_t addr, void *priv)
     int         fifocount;
     uint16_t    addr_0x0f = 0;
     uint16_t    addr_0x03 = 0;
-    int         rs2 = 0;
-    int         rs3 = 0;
+    int         rs2       = 0;
+    int         rs3       = 0;
 
     if ((mystique->type == MGA_2064W) && (addr & 0x3e00) == 0x3c00) {
         /*RAMDAC*/
@@ -1946,8 +1946,8 @@ mystique_ctrl_write_b(uint32_t addr, uint8_t val, void *priv)
     svga_t     *svga      = &mystique->svga;
     uint16_t    addr_0x0f = 0;
     uint16_t    addr_0x03 = 0;
-    int         rs2 = 0;
-    int         rs3 = 0;
+    int         rs2       = 0;
+    int         rs3       = 0;
 
     if ((mystique->type == MGA_2064W) && (addr & 0x3e00) == 0x3c00) {
         /*RAMDAC*/
@@ -3244,9 +3244,9 @@ blit_iload_iload(mystique_t *mystique, uint32_t data, int size)
     uint32_t             dst;
     uint32_t             dst2;
     uint64_t             data64;
-    int                  min_size = 8;
-    uint32_t             bltckey = mystique->dwgreg.fcol;
-    uint32_t             bltcmsk = mystique->dwgreg.bcol;
+    int                  min_size  = 8;
+    uint32_t             bltckey   = mystique->dwgreg.fcol;
+    uint32_t             bltcmsk   = mystique->dwgreg.bcol;
     const int            transc    = mystique->dwgreg.dwgctrl_running & DWGCTRL_TRANSC;
     const int            trans_sel = (mystique->dwgreg.dwgctrl_running & DWGCTRL_TRANS_MASK) >> DWGCTRL_TRANS_SHIFT;
     uint8_t const *const trans     = &trans_masks[trans_sel][(mystique->dwgreg.selline & 3) * 4];
@@ -3746,9 +3746,9 @@ blit_iload_iload_high(mystique_t *mystique, uint32_t data, int size)
     int      dR;
     int      dG;
     int      dB;
-    int      r = 0;
-    int      g = 0;
-    int      b = 0;
+    int      r      = 0;
+    int      g      = 0;
+    int      b      = 0;
     int      next_r = 0;
     int      next_g = 0;
     int      next_b = 0;
@@ -4542,9 +4542,9 @@ blit_texture_trap(mystique_t *mystique)
                             int tex_b = 0;
                             int ctransp;
                             int atransp = 0;
-                            int i_r = 0;
-                            int i_g = 0;
-                            int i_b = 0;
+                            int i_r     = 0;
+                            int i_g     = 0;
+                            int i_b     = 0;
 
                             if (!(mystique->dwgreg.dr[4] & (1 << 23)))
                                 i_r = (mystique->dwgreg.dr[4] >> 15) & 0xff;
@@ -5505,7 +5505,7 @@ static void *
 mystique_init(const device_t *info)
 {
     mystique_t *mystique = malloc(sizeof(mystique_t));
-    const char *romfn = NULL;
+    const char *romfn    = NULL;
 
     memset(mystique, 0, sizeof(mystique_t));
 

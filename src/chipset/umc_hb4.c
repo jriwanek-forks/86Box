@@ -129,10 +129,10 @@ hb4_log(const char *fmt, ...)
 #endif
 
 typedef struct hb4_t {
-    uint8_t  shadow;
-    uint8_t  shadow_read;
-    uint8_t  shadow_write;
-    uint8_t  pci_slot;
+    uint8_t shadow;
+    uint8_t shadow_read;
+    uint8_t shadow_write;
+    uint8_t pci_slot;
 
     uint8_t  pci_conf[256]; /* PCI Registers */
     int      mem_state[9];
@@ -321,8 +321,8 @@ hb4_write(UNUSED(int func), int addr, uint8_t val, void *priv)
 static uint8_t
 hb4_read(int func, int addr, void *priv)
 {
-    const hb4_t  *dev = (hb4_t *) priv;
-    uint8_t       ret = 0xff;
+    const hb4_t *dev = (hb4_t *) priv;
+    uint8_t      ret = 0xff;
 
     if (func == 0)
         ret = dev->pci_conf[addr];

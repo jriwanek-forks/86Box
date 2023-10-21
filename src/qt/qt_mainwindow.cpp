@@ -40,7 +40,7 @@ extern "C" {
 #include <86box/plat.h>
 #include <86box/ui.h>
 #ifdef DISCORD
-#   include <86box/discord.h>
+#    include <86box/discord.h>
 #endif
 #include <86box/device.h>
 #include <86box/video.h>
@@ -49,10 +49,10 @@ extern "C" {
 #include <86box/vid_ega.h>
 #include <86box/version.h>
 #if 0
-#include <86box/acpi.h> /* Requires timer.h include, which conflicts with Qt headers */
+#    include <86box/acpi.h> /* Requires timer.h include, which conflicts with Qt headers */
 #endif
 extern atomic_int acpi_pwrbut_pressed;
-extern int acpi_enabled;
+extern int        acpi_enabled;
 
 #ifdef USE_VNC
 #    include <86box/vnc.h>
@@ -219,7 +219,7 @@ MainWindow::MainWindow(QWidget *parent)
 #ifdef USE_WACOM
         ui->menuTablet_tool->menuAction()->setVisible(mouse_input_mode >= 1);
 #else
-        ui->menuTablet_tool->menuAction()->setVisible(false);
+            ui->menuTablet_tool->menuAction()->setVisible(false);
 #endif
     });
 
@@ -670,7 +670,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     setContextMenuPolicy(Qt::PreventContextMenu);
     /* Remove default Shift+F10 handler, which unfocuses keyboard input even with no context menu. */
-    connect(new QShortcut(QKeySequence(Qt::SHIFT + Qt::Key_F10), this), &QShortcut::activated, this, [](){});
+    connect(new QShortcut(QKeySequence(Qt::SHIFT + Qt::Key_F10), this), &QShortcut::activated, this, []() {});
 
     connect(this, &MainWindow::initRendererMonitor, this, &MainWindow::initRendererMonitorSlot);
     connect(this, &MainWindow::initRendererMonitorForNonQtThread, this, &MainWindow::initRendererMonitorSlot, Qt::BlockingQueuedConnection);
@@ -991,8 +991,8 @@ MainWindow::processKeyboardInput(bool down, uint32_t keycode)
             }
             break;
 
-        case 0x80 ... 0xff: /* regular break codes */
-        case 0x10b: /* Microsoft scroll up normal */
+        case 0x80 ... 0xff:   /* regular break codes */
+        case 0x10b:           /* Microsoft scroll up normal */
         case 0x180 ... 0x1ff: /* E0 break codes (including Microsoft scroll down normal) */
             /* This key uses a break code as make. Send it manually, only on press. */
             if (down) {
@@ -1007,7 +1007,7 @@ MainWindow::processKeyboardInput(bool down, uint32_t keycode)
                 keycode = 0x38; /* map to Left Alt */
             break;
 
-        case 0x137: /* Print Screen */
+        case 0x137:                                            /* Print Screen */
             if (keyboard_recv(0x38) || keyboard_recv(0x138)) { /* Alt+ */
                 keycode = 0x54;
             } else if (down) {
@@ -1018,7 +1018,7 @@ MainWindow::processKeyboardInput(bool down, uint32_t keycode)
             }
             break;
 
-        case 0x145: /* Pause */
+        case 0x145:                                            /* Pause */
             if (keyboard_recv(0x1d) || keyboard_recv(0x11d)) { /* Ctrl+ */
                 keycode = 0x146;
             } else {
@@ -1132,12 +1132,12 @@ MainWindow::processMacKeyboardInput(bool down, const QKeyEvent *event)
                     (key == Qt::Key_Slash) /* French Canadian unshifted, Ukrainian shifted */
                 ))
                 mac_iso_swap = true;
-#if 0
+#    if 0
             if (down) {
                 QMessageBox questionbox(QMessageBox::Icon::Information, QString("Mac key swap test"), QString("nativeVirtualKey 0x%1\nnativeScanCode 0x%2\nkey 0x%3\nmac_iso_swap %4").arg(nvk, 0, 16).arg(event->nativeScanCode(), 0, 16).arg(key, 0, 16).arg(mac_iso_swap ? "yes" : "no"), QMessageBox::Ok, this);
                 questionbox.exec();
             }
-#endif
+#    endif
             if (mac_iso_swap)
                 nvk = (nvk == 0x0a) ? 0x32 : 0x0a;
         }
@@ -2036,19 +2036,22 @@ MainWindow::on_actionApply_fullscreen_stretch_mode_when_maximized_triggered(bool
     config_save();
 }
 
-void MainWindow::on_actionCursor_Puck_triggered()
+void
+MainWindow::on_actionCursor_Puck_triggered()
 {
     tablet_tool_type = 0;
     config_save();
 }
 
-void MainWindow::on_actionPen_triggered()
+void
+MainWindow::on_actionPen_triggered()
 {
     tablet_tool_type = 1;
     config_save();
 }
 
-void MainWindow::on_actionACPI_Shutdown_triggered()
+void
+MainWindow::on_actionACPI_Shutdown_triggered()
 {
     acpi_pwrbut_pressed = 1;
 }

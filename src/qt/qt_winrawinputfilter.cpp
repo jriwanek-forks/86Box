@@ -115,8 +115,7 @@ WindowsRawInputFilter::nativeEventFilter(const QByteArray &eventType, void *mess
 
             if (window->isActiveWindow() && menus_open == 0)
                 handle_input((HRAWINPUT) msg->lParam);
-            else
-            {
+            else {
                 for (auto &w : window->renderers) {
                     if (w && w->isActiveWindow()) {
                         handle_input((HRAWINPUT) msg->lParam);
@@ -173,7 +172,7 @@ WindowsRawInputFilter::handle_input(HRAWINPUT input)
 void
 WindowsRawInputFilter::keyboard_handle(PRAWINPUT raw)
 {
-    USHORT     scancode;
+    USHORT scancode;
 
     RAWKEYBOARD rawKB = raw->data.keyboard;
     scancode          = rawKB.MakeCode;
@@ -347,8 +346,8 @@ WindowsRawInputFilter::mouse_handle(PRAWINPUT raw)
          */
         delta_x = (state.lLastX - x) / 25;
         delta_y = (state.lLastY - y) / 25;
-        x = state.lLastX;
-        y = state.lLastY;
+        x       = state.lLastX;
+        y       = state.lLastY;
     } else {
         /* relative mouse, i.e. regular mouse */
         delta_x = state.lLastX;
@@ -357,14 +356,14 @@ WindowsRawInputFilter::mouse_handle(PRAWINPUT raw)
 
     mouse_scale(delta_x, delta_y);
 
-    HWND wnd = (HWND)window->winId();
+    HWND wnd = (HWND) window->winId();
 
     RECT rect;
 
     GetWindowRect(wnd, &rect);
 
     int left = rect.left + (rect.right - rect.left) / 2;
-    int top = rect.top + (rect.bottom - rect.top) / 2;
+    int top  = rect.top + (rect.bottom - rect.top) / 2;
 
     SetCursorPos(left, top);
 }

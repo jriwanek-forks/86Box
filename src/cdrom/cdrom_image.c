@@ -108,7 +108,7 @@ image_get_capacity(cdrom_t *dev)
     int           number;
     unsigned char attr;
     uint32_t      address = 0;
-    uint32_t      lb = 0;
+    uint32_t      lb      = 0;
 
     if (!img)
         return 0;

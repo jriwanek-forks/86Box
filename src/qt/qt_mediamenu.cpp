@@ -354,7 +354,8 @@ MediaMenu::floppySelectImage(int i, bool wp)
         tr("All files") %
         util::DlgFilter({ "*" }, true));
 
-    if (!filename.isEmpty()) floppyMount(i, filename, wp);
+    if (!filename.isEmpty())
+        floppyMount(i, filename, wp);
 }
 
 void
@@ -594,9 +595,9 @@ MediaMenu::cdromUpdateMenu(int i)
         case CDROM_BUS_SCSI:
             busName = "SCSI";
             break;
-	    case CDROM_BUS_MITSUMI:
-	        busName = "Mitsumi";
-	        break;
+        case CDROM_BUS_MITSUMI:
+            busName = "Mitsumi";
+            break;
     }
 
     // menu->setTitle(tr("CD-ROM %1 (%2): %3").arg(QString::number(i+1), busName, name.isEmpty() ? tr("(empty)") : name));

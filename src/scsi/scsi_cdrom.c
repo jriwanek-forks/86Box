@@ -557,7 +557,7 @@ static uint32_t
 scsi_cdrom_get_channel(void *priv, int channel)
 {
     const scsi_cdrom_t *dev = (scsi_cdrom_t *) priv;
-    uint32_t ret;
+    uint32_t            ret;
 
     if (!dev)
         return channel + 1;
@@ -582,7 +582,7 @@ static uint32_t
 scsi_cdrom_get_volume(void *priv, int channel)
 {
     const scsi_cdrom_t *dev = (scsi_cdrom_t *) priv;
-    uint32_t ret;
+    uint32_t            ret;
 
     if (!dev)
         return 255;
@@ -706,7 +706,7 @@ scsi_cdrom_drive_status_read(scsi_cdrom_t *dev, UNUSED(uint8_t page_control), ui
 static uint32_t
 scsi_cdrom_drive_status(scsi_cdrom_t *dev, uint8_t *buf, uint32_t pos, uint8_t page)
 {
-    uint8_t page_control = (page >> 6) & 3;
+    uint8_t  page_control = (page >> 6) & 3;
     uint16_t msplen;
 
     page &= 0x3f;
@@ -716,7 +716,7 @@ scsi_cdrom_drive_status(scsi_cdrom_t *dev, uint8_t *buf, uint32_t pos, uint8_t p
             if (scsi_cdrom_drive_status_page_flags & (1LL << ((uint64_t) (page & 0x3f)))) {
                 buf[pos++] = scsi_cdrom_drive_status_read(dev, page_control, i, 0);
                 msplen     = (scsi_cdrom_drive_status_read(dev, page_control, i, 1) << 8);
-                msplen    |= scsi_cdrom_drive_status_read(dev, page_control, i, 2);
+                msplen |= scsi_cdrom_drive_status_read(dev, page_control, i, 2);
                 buf[pos++] = (msplen >> 8) & 0xff;
                 buf[pos++] = msplen & 0xff;
                 scsi_cdrom_log("CD-ROM %i: DRIVE STATUS: Page [%02X] length %i\n", dev->id, i, msplen);
@@ -1759,7 +1759,7 @@ scsi_cdrom_command(scsi_common_t *sc, uint8_t *cdb)
     int           toc_format;
     int           block_desc = 0;
     int           ret;
-    int           format                 = 0;
+    int           format = 0;
     int           real_pos;
     int           track                  = 0;
     char          device_identify[9]     = { '8', '6', 'B', '_', 'C', 'D', '0', '0', 0 };
@@ -1953,7 +1953,7 @@ begin:
                 case CDROM_TYPE_SONY_CDU561_18k:
                 case CDROM_TYPE_SONY_CDU76S_100:
                 case CDROM_TYPE_TEXEL_DMXX24_100: /*GPCMD_PLAY_MSF_SONY*/
-                    cdb[0] = GPCMD_PLAY_AUDIO_MSF;
+                    cdb[0]              = GPCMD_PLAY_AUDIO_MSF;
                     dev->current_cdb[0] = cdb[0];
                     dev->sony_vendor    = 1;
                     goto begin;
@@ -2535,12 +2535,12 @@ begin:
                 case CDROM_TYPE_SONY_CDU76S_100:
                 case CDROM_TYPE_TEXEL_DMXX24_100: /*GPCMD_SET_ADDRESS_FORMAT_SONY*/
                     scsi_cdrom_set_phase(dev, SCSI_PHASE_STATUS);
-                    dev->sony_vendor    = 1;
+                    dev->sony_vendor   = 1;
                     dev->drv->sony_msf = cdb[8] & 1;
                     scsi_cdrom_command_complete(dev);
                     break;
                 case CDROM_TYPE_PIONEER_DRM604X_2403: /*GPCMD_MAGAZINE_EJECT_PIONEER*/
-                case CDROM_TYPE_CHINON_CDS431_H42: /*GPCMD_EJECT_CHINON*/
+                case CDROM_TYPE_CHINON_CDS431_H42:    /*GPCMD_EJECT_CHINON*/
                     scsi_cdrom_set_phase(dev, SCSI_PHASE_STATUS);
                     scsi_cdrom_stop(sc);
                     cdrom_eject(dev->id);
@@ -3060,10 +3060,10 @@ begin:
                     len = 18;
 
                     memset(dev->buffer, 0, 18);
-                    dev->buffer[0] = 0x00;                                                        /*Reserved*/
-                    dev->buffer[1] = 0x00;                                                        /*Reserved*/
-                    dev->buffer[2] = 0x00;                                                        /*Audio Status data length*/
-                    dev->buffer[3] = 0x00;                                                        /*Audio Status data length*/
+                    dev->buffer[0] = 0x00;                                                                              /*Reserved*/
+                    dev->buffer[1] = 0x00;                                                                              /*Reserved*/
+                    dev->buffer[2] = 0x00;                                                                              /*Audio Status data length*/
+                    dev->buffer[3] = 0x00;                                                                              /*Audio Status data length*/
                     dev->buffer[4] = cdrom_get_audio_status_sony(dev->drv, &dev->buffer[6], msf || dev->drv->sony_msf); /*Audio status*/
                     dev->buffer[5] = 0x00;
 
@@ -3566,7 +3566,7 @@ atapi_out:
                 case CDROM_TYPE_SONY_CDU561_18k:
                 case CDROM_TYPE_SONY_CDU76S_100:
                 case CDROM_TYPE_TEXEL_DMXX24_100: /*GPCMD_PLAY_AUDIO_SONY*/
-                    cdb[0] = GPCMD_PLAY_AUDIO_10;
+                    cdb[0]              = GPCMD_PLAY_AUDIO_10;
                     dev->current_cdb[0] = cdb[0];
                     dev->sony_vendor    = 1;
                     goto begin;
@@ -3990,7 +3990,7 @@ static void
 scsi_cdrom_identify(ide_t *ide, int ide_has_dma)
 {
     const scsi_cdrom_t *dev;
-    char          device_identify[9] = { '8', '6', 'B', '_', 'C', 'D', '0', '0', 0 };
+    char                device_identify[9] = { '8', '6', 'B', '_', 'C', 'D', '0', '0', 0 };
 
     dev = (scsi_cdrom_t *) ide->sc;
 
@@ -3998,7 +3998,7 @@ scsi_cdrom_identify(ide_t *ide, int ide_has_dma)
     scsi_cdrom_log("ATAPI Identify: %s\n", device_identify);
 
     if ((dev->drv->type == CDROM_TYPE_NEC_260_100) || (dev->drv->type == CDROM_TYPE_NEC_260_101)) /*NEC only*/
-        ide->buffer[0] = 0x8000 | (5 << 8) | 0x80 | (1 << 5); /* ATAPI device, CD-ROM drive, removable media, interrupt DRQ */
+        ide->buffer[0] = 0x8000 | (5 << 8) | 0x80 | (1 << 5);                                     /* ATAPI device, CD-ROM drive, removable media, interrupt DRQ */
     else
         ide->buffer[0] = 0x8000 | (5 << 8) | 0x80 | (2 << 5); /* ATAPI device, CD-ROM drive, removable media, accelerated DRQ */
     ide_padstr((char *) (ide->buffer + 10), "", 20);          /* Serial Number */

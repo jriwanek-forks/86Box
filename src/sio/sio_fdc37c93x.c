@@ -353,7 +353,7 @@ fdc37c93x_write(uint16_t port, uint8_t val, void *priv)
     fdc37c93x_t *dev    = (fdc37c93x_t *) priv;
     uint8_t      index  = (port & 1) ? 0 : 1;
     uint8_t      valxor = 0x00;
-    uint8_t      keep = 0x00;
+    uint8_t      keep   = 0x00;
 
     /* Compaq Presario 4500: Unlock at FB, Register at EA, Data at EB, Lock at F9. */
     if ((port == 0xea) || (port == 0xf9) || (port == 0xfb))

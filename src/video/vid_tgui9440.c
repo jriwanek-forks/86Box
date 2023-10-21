@@ -1152,7 +1152,7 @@ tgui_ext_linear_write(uint32_t addr, uint8_t val, void *priv)
     svga_t       *svga = (svga_t *) priv;
     const tgui_t *tgui = (tgui_t *) svga->priv;
     int           c;
-    int           bpp = (tgui->ext_gdc_regs[0] & EXT_CTRL_16BIT);
+    int           bpp   = (tgui->ext_gdc_regs[0] & EXT_CTRL_16BIT);
     uint8_t       fg[2] = { tgui->ext_gdc_regs[4], tgui->ext_gdc_regs[5] };
     uint8_t       bg[2] = { tgui->ext_gdc_regs[1], tgui->ext_gdc_regs[2] };
     uint8_t       mask  = tgui->ext_gdc_regs[7];
@@ -1218,7 +1218,7 @@ tgui_ext_linear_writew(uint32_t addr, uint16_t val, void *priv)
     svga_t       *svga = (svga_t *) priv;
     const tgui_t *tgui = (tgui_t *) svga->priv;
     int           c;
-    int           bpp = (tgui->ext_gdc_regs[0] & EXT_CTRL_16BIT);
+    int           bpp   = (tgui->ext_gdc_regs[0] & EXT_CTRL_16BIT);
     uint8_t       fg[2] = { tgui->ext_gdc_regs[4], tgui->ext_gdc_regs[5] };
     uint8_t       bg[2] = { tgui->ext_gdc_regs[1], tgui->ext_gdc_regs[2] };
     uint16_t      mask  = (tgui->ext_gdc_regs[7] << 8) | tgui->ext_gdc_regs[8];
@@ -1264,7 +1264,7 @@ tgui_ext_linear_writew(uint32_t addr, uint16_t val, void *priv)
             if (bpp) {
                 for (c = 15; c >= 0; c--) {
                     if (mask & (1 << c))
-                       svga->vram[addr] = (val & (1 << c)) ? fg[(c & 1) ^ 1] : bg[(c & 1) ^ 1];
+                        svga->vram[addr] = (val & (1 << c)) ? fg[(c & 1) ^ 1] : bg[(c & 1) ^ 1];
                     addr += (c & 3) ? 1 : 13;
                     addr &= svga->vram_mask;
                 }
@@ -1377,15 +1377,15 @@ enum {
         }                                     \
     } while (0)
 
-#define WRITE(addr, dat)                                                               \
-    if (tgui->accel.bpp == 0) {                                                        \
-        svga->vram[(addr) &tgui->vram_mask]                   = dat;                   \
+#define WRITE(addr, dat)                                                                                  \
+    if (tgui->accel.bpp == 0) {                                                                           \
+        svga->vram[(addr) &tgui->vram_mask]                   = dat;                                      \
         svga->changedvram[((addr) & (tgui->vram_mask)) >> 12] = svga->monitor->mon_changeframecount;      \
-    } else if (tgui->accel.bpp == 1) {                                                 \
-        vram_w[(addr) & (tgui->vram_mask >> 1)]                    = dat;              \
+    } else if (tgui->accel.bpp == 1) {                                                                    \
+        vram_w[(addr) & (tgui->vram_mask >> 1)]                    = dat;                                 \
         svga->changedvram[((addr) & (tgui->vram_mask >> 1)) >> 11] = svga->monitor->mon_changeframecount; \
-    } else {                                                                           \
-        vram_l[(addr) & (tgui->vram_mask >> 2)]                    = dat;              \
+    } else {                                                                                              \
+        vram_l[(addr) & (tgui->vram_mask >> 2)]                    = dat;                                 \
         svga->changedvram[((addr) & (tgui->vram_mask >> 2)) >> 10] = svga->monitor->mon_changeframecount; \
     }
 
@@ -1399,7 +1399,7 @@ tgui_accel_command(int count, uint32_t cpu_dat, tgui_t *tgui)
     int             c;
     int             d;
     uint32_t        out;
-    uint32_t        src_dat   = 0;
+    uint32_t        src_dat = 0;
     uint32_t        dst_dat;
     uint32_t        pat_dat;
     int             xdir      = (tgui->accel.flags & 0x200) ? -1 : 1;
@@ -2022,7 +2022,7 @@ tgui_accel_out(uint16_t addr, uint8_t val, void *priv)
 
         case 0x2123:
             tgui->accel.ger22 = (tgui->accel.ger22 & 0xff) | (val << 8);
-            //pclog("Pitch IO23: val = %02x, rowoffset = %x.\n", tgui->accel.ger22, svga->crtc[0x13]);
+            // pclog("Pitch IO23: val = %02x, rowoffset = %x.\n", tgui->accel.ger22, svga->crtc[0x13]);
             switch (svga->bpp) {
                 case 8:
                 case 24:

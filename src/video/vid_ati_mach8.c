@@ -100,7 +100,7 @@ typedef struct mach_t {
     uint8_t  bank_w;
     uint8_t  bank_r;
     uint16_t shadow_set;
-    int ext_on[2];
+    int      ext_on[2];
 
     struct {
         uint8_t  line_idx;
@@ -215,14 +215,14 @@ mach_log(const char *fmt, ...)
 #    define mach_log(fmt, ...)
 #endif
 
-#define WRITE8(addr, var, val)                        \
-    switch ((addr) & 1) {                             \
-        case 0:                                       \
-            var = (var & 0xff00) | (val);             \
-            break;                                    \
-        case 1:                                       \
-            var = (var & 0x00ff) | ((val) << 8);      \
-            break;                                    \
+#define WRITE8(addr, var, val)                   \
+    switch ((addr) & 1) {                        \
+        case 0:                                  \
+            var = (var & 0xff00) | (val);        \
+            break;                               \
+        case 1:                                  \
+            var = (var & 0x00ff) | ((val) << 8); \
+            break;                               \
     }
 
 #define READ8(addr, var)                \
@@ -235,47 +235,47 @@ mach_log(const char *fmt, ...)
             break;                      \
     }
 
-#define READ_PIXTRANS_BYTE_IO(cx, n) \
-    if ((mach->accel.cmd_type == 2) || (mach->accel.cmd_type == 5)) { \
-        if (dev->bpp) { \
-            if (n == 0) \
+#define READ_PIXTRANS_BYTE_IO(cx, n)                                                                                \
+    if ((mach->accel.cmd_type == 2) || (mach->accel.cmd_type == 5)) {                                               \
+        if (dev->bpp) {                                                                                             \
+            if (n == 0)                                                                                             \
                 mach->accel.pix_trans[(n)] = vram_w[(dev->accel.dest + (cx) + (n)) & (dev->vram_mask >> 1)] & 0xff; \
-            else \
-                mach->accel.pix_trans[(n)] = vram_w[(dev->accel.dest + (cx) + (n)) & (dev->vram_mask >> 1)] >> 8; \
-        } else { \
-            mach->accel.pix_trans[(n)] = dev->vram[(dev->accel.dest + (cx) + (n)) & dev->vram_mask]; \
-        } \
+            else                                                                                                    \
+                mach->accel.pix_trans[(n)] = vram_w[(dev->accel.dest + (cx) + (n)) & (dev->vram_mask >> 1)] >> 8;   \
+        } else {                                                                                                    \
+            mach->accel.pix_trans[(n)] = dev->vram[(dev->accel.dest + (cx) + (n)) & dev->vram_mask];                \
+        }                                                                                                           \
     }
 
-#define READ_PIXTRANS_WORD(cx, n)                                                                    \
-    if ((cmd == 0) || (cmd == 1) || (cmd == 5) || (mach->accel.cmd_type == -1)) { \
-        if (dev->bpp) { \
-            temp = vram_w[((dev->accel.cy * dev->pitch) + (cx) + (n)) & (dev->vram_mask >> 1)];             \
-        } else { \
-            temp = dev->vram[((dev->accel.cy * dev->pitch) + (cx) + (n)) & dev->vram_mask];             \
-            temp |= (dev->vram[((dev->accel.cy * dev->pitch) + (cx) + (n + 1)) & dev->vram_mask] << 8); \
-        } \
-    } else if ((mach->accel.cmd_type == 2) || (mach->accel.cmd_type == 5)) { \
-        if (dev->bpp) \
-            temp = vram_w[((dev->accel.dest) + (cx) + (n)) & (dev->vram_mask >> 1)];                           \
-        else { \
-            temp = dev->vram[((dev->accel.dest) + (cx) + (n)) & dev->vram_mask];                           \
-            temp |= (dev->vram[((dev->accel.dest) + (cx) + (n + 1)) & dev->vram_mask] << 8);               \
-        } \
-    } else if ((mach->accel.cmd_type == 3) || (mach->accel.cmd_type == 4)) { \
-        if (dev->bpp) \
-            temp = vram_w[((mach->accel.ge_offset << 1) + ((dev->accel.cy) * (dev->pitch)) + (cx) + (n)) & (dev->vram_mask >> 1)]; \
-        else { \
-            temp = dev->vram[((mach->accel.ge_offset << 2) + ((dev->accel.cy) * (dev->pitch)) + (cx) + (n)) & dev->vram_mask]; \
+#define READ_PIXTRANS_WORD(cx, n)                                                                                                          \
+    if ((cmd == 0) || (cmd == 1) || (cmd == 5) || (mach->accel.cmd_type == -1)) {                                                          \
+        if (dev->bpp) {                                                                                                                    \
+            temp = vram_w[((dev->accel.cy * dev->pitch) + (cx) + (n)) & (dev->vram_mask >> 1)];                                            \
+        } else {                                                                                                                           \
+            temp = dev->vram[((dev->accel.cy * dev->pitch) + (cx) + (n)) & dev->vram_mask];                                                \
+            temp |= (dev->vram[((dev->accel.cy * dev->pitch) + (cx) + (n + 1)) & dev->vram_mask] << 8);                                    \
+        }                                                                                                                                  \
+    } else if ((mach->accel.cmd_type == 2) || (mach->accel.cmd_type == 5)) {                                                               \
+        if (dev->bpp)                                                                                                                      \
+            temp = vram_w[((dev->accel.dest) + (cx) + (n)) & (dev->vram_mask >> 1)];                                                       \
+        else {                                                                                                                             \
+            temp = dev->vram[((dev->accel.dest) + (cx) + (n)) & dev->vram_mask];                                                           \
+            temp |= (dev->vram[((dev->accel.dest) + (cx) + (n + 1)) & dev->vram_mask] << 8);                                               \
+        }                                                                                                                                  \
+    } else if ((mach->accel.cmd_type == 3) || (mach->accel.cmd_type == 4)) {                                                               \
+        if (dev->bpp)                                                                                                                      \
+            temp = vram_w[((mach->accel.ge_offset << 1) + ((dev->accel.cy) * (dev->pitch)) + (cx) + (n)) & (dev->vram_mask >> 1)];         \
+        else {                                                                                                                             \
+            temp = dev->vram[((mach->accel.ge_offset << 2) + ((dev->accel.cy) * (dev->pitch)) + (cx) + (n)) & dev->vram_mask];             \
             temp |= (dev->vram[((mach->accel.ge_offset << 2) + ((dev->accel.cy) * (dev->pitch)) + (cx) + (n + 1)) & dev->vram_mask] << 8); \
-        } \
+        }                                                                                                                                  \
     }
 
-#define READ(addr, dat) \
-        if (dev->bpp) \
-            dat = vram_w[(addr) & (dev->vram_mask >> 1)]; \
-        else \
-            dat = dev->vram[(addr) & (dev->vram_mask)];
+#define READ(addr, dat)                               \
+    if (dev->bpp)                                     \
+        dat = vram_w[(addr) & (dev->vram_mask >> 1)]; \
+    else                                              \
+        dat = dev->vram[(addr) & (dev->vram_mask)];
 
 #define MIX(mixmode, dest_dat, src_dat)                                                       \
     {                                                                                         \
@@ -379,14 +379,13 @@ mach_log(const char *fmt, ...)
         }                                                                                     \
     }
 
-
-#define WRITE(addr, dat)                                         \
-    if (dev->bpp) { \
-        vram_w[((addr)) & (dev->vram_mask >> 1)]                = dat; \
+#define WRITE(addr, dat)                                                               \
+    if (dev->bpp) {                                                                    \
+        vram_w[((addr)) & (dev->vram_mask >> 1)]                   = dat;              \
         dev->changedvram[(((addr)) & (dev->vram_mask >> 1)) >> 11] = changeframecount; \
-    } else { \
-        dev->vram[((addr)) & (dev->vram_mask)]                = dat; \
-        dev->changedvram[(((addr)) & (dev->vram_mask)) >> 12] = changeframecount; \
+    } else {                                                                           \
+        dev->vram[((addr)) & (dev->vram_mask)]                = dat;                   \
+        dev->changedvram[(((addr)) & (dev->vram_mask)) >> 12] = changeframecount;      \
     }
 
 static int
@@ -410,26 +409,26 @@ mach_pixel_read(mach_t *mach)
 static void
 mach_accel_start(int cmd_type, int cpu_input, int count, uint32_t mix_dat, uint32_t cpu_dat, mach_t *mach, ibm8514_t *dev)
 {
-    int           compare_mode;
-    int           poly_src     = 0;
-    uint16_t      rd_mask      = dev->accel.rd_mask;
-    uint16_t      wrt_mask     = dev->accel.wrt_mask;
-    uint16_t      dest_cmp_clr = dev->accel.color_cmp;
-    int           frgd_sel;
-    int           bkgd_sel;
-    int           mono_src;
-    int           compare  = 0;
-    uint16_t      src_dat  = 0;
-    uint16_t      dest_dat = 0;
-    uint16_t      old_dest_dat;
-    uint16_t     *vram_w    = (uint16_t *) dev->vram;
-    uint16_t      mix       = 0;
-    int16_t       clip_l    = dev->accel.clip_left & 0x7ff;
-    int16_t       clip_t    = dev->accel.clip_top & 0x7ff;
-    int16_t       clip_r    = dev->accel.multifunc[4] & 0x7ff;
-    int16_t       clip_b    = dev->accel.multifunc[3] & 0x7ff;
-    uint32_t      mono_dat0 = 0;
-    uint32_t      mono_dat1 = 0;
+    int       compare_mode;
+    int       poly_src     = 0;
+    uint16_t  rd_mask      = dev->accel.rd_mask;
+    uint16_t  wrt_mask     = dev->accel.wrt_mask;
+    uint16_t  dest_cmp_clr = dev->accel.color_cmp;
+    int       frgd_sel;
+    int       bkgd_sel;
+    int       mono_src;
+    int       compare  = 0;
+    uint16_t  src_dat  = 0;
+    uint16_t  dest_dat = 0;
+    uint16_t  old_dest_dat;
+    uint16_t *vram_w    = (uint16_t *) dev->vram;
+    uint16_t  mix       = 0;
+    int16_t   clip_l    = dev->accel.clip_left & 0x7ff;
+    int16_t   clip_t    = dev->accel.clip_top & 0x7ff;
+    int16_t   clip_r    = dev->accel.multifunc[4] & 0x7ff;
+    int16_t   clip_b    = dev->accel.multifunc[3] & 0x7ff;
+    uint32_t  mono_dat0 = 0;
+    uint32_t  mono_dat1 = 0;
 
     if (!dev->bpp) {
         rd_mask &= 0xff;
@@ -444,9 +443,9 @@ mach_accel_start(int cmd_type, int cpu_input, int count, uint32_t mix_dat, uint3
     mach->accel.ge_offset = (mach->accel.ge_offset_lo | (mach->accel.ge_offset_hi << 16));
 
     if ((mono_src == 2) || (bkgd_sel == 2) || (frgd_sel == 2) || mach_pixel_read(mach)) {
-        mach->force_busy  = 1;
-        dev->force_busy   = 1;
-        dev->force_busy2  = 1;
+        mach->force_busy = 1;
+        dev->force_busy  = 1;
+        dev->force_busy2 = 1;
     }
 
     if (cpu_input) {
@@ -2614,9 +2613,9 @@ mach_recalctimings(svga_t *svga)
             if (dev->accel.advfunc_cntl & 4) {
                 if (mach->shadow_set & 2) {
                     if (dev->h_disp == 8) {
-                        dev->h_disp = 1024;
-                        dev->dispend = 768;
-                        dev->v_total = 1536;
+                        dev->h_disp      = 1024;
+                        dev->dispend     = 768;
+                        dev->v_total     = 1536;
                         dev->v_syncstart = 1536;
                     }
                     mach_log("Shadow set 2.\n");
@@ -2625,7 +2624,7 @@ mach_recalctimings(svga_t *svga)
                     svga->clock = (cpuclock * (double) (1ULL << 32)) / svga->getclock((mach->accel.clock_sel >> 2) & 0x0f, svga->clock_gen);
             } else {
                 if (dev->h_disp == 1024) {
-                    dev->h_disp = 640;
+                    dev->h_disp  = 640;
                     dev->dispend = 480;
                 }
                 if (mach->shadow_set & 1) {
@@ -2702,12 +2701,12 @@ mach_recalctimings(svga_t *svga)
                     break;
             }
         } else {
-            dev->h_disp                     = (dev->hdisp + 1) << 3;
-            dev->h_total                    = (dev->htotal + 1);
-            dev->v_total                    = (dev->vtotal + 1);
-            dev->v_syncstart                = (dev->vsyncstart + 1);
-            dev->rowcount                  = !!(dev->disp_cntl & 0x08);
-            dev->dispend                   = ((dev->vdisp >> 1) + 1);
+            dev->h_disp      = (dev->hdisp + 1) << 3;
+            dev->h_total     = (dev->htotal + 1);
+            dev->v_total     = (dev->vtotal + 1);
+            dev->v_syncstart = (dev->vsyncstart + 1);
+            dev->rowcount    = !!(dev->disp_cntl & 0x08);
+            dev->dispend     = ((dev->vdisp >> 1) + 1);
 
             if (dev->dispend == 766)
                 dev->dispend += 2;
@@ -2718,9 +2717,9 @@ mach_recalctimings(svga_t *svga)
             if (dev->accel.advfunc_cntl & 4) {
                 if (mach->shadow_set & 2) {
                     if (dev->h_disp == 8) {
-                        dev->h_disp = 1024;
-                        dev->dispend = 768;
-                        dev->v_total = 1536;
+                        dev->h_disp      = 1024;
+                        dev->dispend     = 768;
+                        dev->v_total     = 1536;
                         dev->v_syncstart = 1536;
                     }
                     svga->clock = (cpuclock * (double) (1ULL << 32)) / 44900000.0;
@@ -2728,7 +2727,7 @@ mach_recalctimings(svga_t *svga)
                     svga->clock = (cpuclock * (double) (1ULL << 32)) / svga->getclock((mach->accel.clock_sel >> 2) & 0x0f, svga->clock_gen);
             } else {
                 if (dev->h_disp == 1024) {
-                    dev->h_disp = 640;
+                    dev->h_disp  = 640;
                     dev->dispend = 480;
                 }
                 if (mach->shadow_set & 1) {
@@ -2744,10 +2743,10 @@ mach_recalctimings(svga_t *svga)
                 dev->v_syncstart >>= 1;
                 dev->v_total >>= 1;
             }
-            dev->pitch = dev->ext_pitch;
+            dev->pitch     = dev->ext_pitch;
             dev->rowoffset = dev->ext_crt_pitch;
             mach_log("cntl=%d, hv(%d,%d), pitch=%d, rowoffset=%d, gextconfig=%03x.\n", dev->accel.advfunc_cntl & 4, dev->h_disp, dev->dispend, dev->pitch, dev->rowoffset, mach->accel.ext_ge_config & 0xcec0);
-            svga->map8 = dev->pallook;
+            svga->map8       = dev->pallook;
             svga->render8514 = ibm8514_render_8bpp;
             if (mach->regs[0xb8] & 0x40)
                 svga->clock *= 2;
@@ -3743,8 +3742,8 @@ mach_accel_out(uint16_t port, uint8_t val, mach_t *mach)
         case 0xeef:
             WRITE8(port, mach->cursor_offset_hi_reg, val);
             mach->cursor_offset_hi = mach->cursor_offset_hi_reg & 0x0f;
-            dev->hwcursor.addr = (mach->cursor_offset_lo | (mach->cursor_offset_hi << 16)) << 2;
-            dev->hwcursor.ena = !!(mach->cursor_offset_hi_reg & 0x8000);
+            dev->hwcursor.addr     = (mach->cursor_offset_lo | (mach->cursor_offset_hi << 16)) << 2;
+            dev->hwcursor.ena      = !!(mach->cursor_offset_hi_reg & 0x8000);
             break;
 
         case 0x12ee:
@@ -3959,7 +3958,7 @@ static uint16_t
 mach_accel_in_fifo(mach_t *mach, svga_t *svga, ibm8514_t *dev, uint16_t port, int len)
 {
     const uint16_t *vram_w = (uint16_t *) dev->vram;
-    uint16_t        temp = 0;
+    uint16_t        temp   = 0;
     int             cmd;
     int             frgd_sel;
     int             bkgd_sel;
@@ -4082,7 +4081,7 @@ mach_accel_in_fifo(mach_t *mach, svga_t *svga, ibm8514_t *dev, uint16_t port, in
                             temp |= (dev->vram[(dev->accel.newdest_in + dev->accel.cur_x) & dev->vram_mask] << 8);
                         }
                         if (dev->subsys_stat & 1) {
-                            dev->force_busy = 1;
+                            dev->force_busy     = 1;
                             dev->data_available = 1;
                         }
                     }
@@ -4099,7 +4098,7 @@ mach_accel_in_fifo(mach_t *mach, svga_t *svga, ibm8514_t *dev, uint16_t port, in
                         cmd = -1;
                         READ_PIXTRANS_BYTE_IO(dev->accel.dx, 0)
 
-                        temp = mach->accel.pix_trans[0];
+                        temp     = mach->accel.pix_trans[0];
                         frgd_sel = (mach->accel.dp_config >> 13) & 7;
                         bkgd_sel = (mach->accel.dp_config >> 7) & 3;
                         mono_src = (mach->accel.dp_config >> 5) & 3;
@@ -4354,11 +4353,11 @@ mach_accel_in_fifo(mach_t *mach, svga_t *svga, ibm8514_t *dev, uint16_t port, in
 static uint8_t
 mach_accel_in(uint16_t port, mach_t *mach)
 {
-    svga_t         *svga   = &mach->svga;
-    ibm8514_t      *dev    = (ibm8514_t *) svga->dev8514;
-    uint8_t         temp   = 0;
-    int             vpos      = 0;
-    int             vblankend = svga->vblankstart + svga->crtc[0x16];
+    svga_t    *svga      = &mach->svga;
+    ibm8514_t *dev       = (ibm8514_t *) svga->dev8514;
+    uint8_t    temp      = 0;
+    int        vpos      = 0;
+    int        vblankend = svga->vblankstart + svga->crtc[0x16];
 
     switch (port) {
         case 0x2e8:
@@ -4401,7 +4400,7 @@ mach_accel_in(uint16_t port, mach_t *mach)
                 if (vpos >= svga->vblankstart || vpos <= vblankend)
                     dev->subsys_stat |= 1;
             } else {
-                 if (vpos >= svga->vblankstart && vpos <= vblankend)
+                if (vpos >= svga->vblankstart && vpos <= vblankend)
                     dev->subsys_stat |= 1;
             }
 
@@ -4609,8 +4608,8 @@ mach_accel_inb(uint16_t port, void *priv)
 static uint16_t
 mach_accel_inw(uint16_t port, void *priv)
 {
-    mach_t *mach = (mach_t *) priv;
-    svga_t *svga = &mach->svga;
+    mach_t  *mach = (mach_t *) priv;
+    svga_t  *svga = &mach->svga;
     uint16_t temp;
 
     if (port & 0x8000)
@@ -4625,8 +4624,8 @@ mach_accel_inw(uint16_t port, void *priv)
 static uint32_t
 mach_accel_inl(uint16_t port, void *priv)
 {
-    mach_t *mach = (mach_t *) priv;
-    svga_t *svga = &mach->svga;
+    mach_t  *mach = (mach_t *) priv;
+    svga_t  *svga = &mach->svga;
     uint32_t temp;
 
     if (port & 0x8000) {
@@ -5137,8 +5136,8 @@ mach32_ap_readl(uint32_t addr, void *priv)
 static void
 mach32_updatemapping(mach_t *mach)
 {
-    svga_t *svga = &mach->svga;
-    ibm8514_t *dev = (ibm8514_t *) svga->dev8514;
+    svga_t    *svga = &mach->svga;
+    ibm8514_t *dev  = (ibm8514_t *) svga->dev8514;
 
     if (mach->pci_bus && (!(mach->pci_regs[PCI_REG_COMMAND] & PCI_COMMAND_MEM))) {
         mem_mapping_disable(&svga->mapping);
@@ -5202,8 +5201,8 @@ mach32_updatemapping(mach_t *mach)
 static void
 mach32_hwcursor_draw(svga_t *svga, int displine)
 {
-    const mach_t *mach   = (mach_t *) svga->priv;
-    ibm8514_t    *dev    = (ibm8514_t *) svga->dev8514;
+    const mach_t *mach = (mach_t *) svga->priv;
+    ibm8514_t    *dev  = (ibm8514_t *) svga->dev8514;
     uint16_t      dat;
     int           comb;
     int           offset = dev->hwcursor_latch.x - dev->hwcursor_latch.xoff;
@@ -5504,7 +5503,7 @@ mach_mca_read(int port, void *priv)
 static void
 mach_mca_write(int port, uint8_t val, void *priv)
 {
-    mach_t       *mach = (mach_t *) priv;
+    mach_t *mach = (mach_t *) priv;
 
     if (port < 0x102)
         return;
@@ -5531,7 +5530,7 @@ mach_mca_feedb(void *priv)
 static void
 mach_mca_reset(void *priv)
 {
-    mach_t *mach = (mach_t *) priv;
+    mach_t    *mach = (mach_t *) priv;
     svga_t    *svga = &mach->svga;
     ibm8514_t *dev  = (ibm8514_t *) svga->dev8514;
 
@@ -5634,13 +5633,13 @@ mach32_pci_write(UNUSED(int func), int addr, uint8_t val, void *priv)
         case PCI_REG_COMMAND:
             mach->pci_regs[PCI_REG_COMMAND] = val & 0x27;
             if (val & PCI_COMMAND_IO) {
-                io_removehandler(0x02ea, 4,  mach_in, NULL, NULL, mach_out, NULL, NULL, mach);
+                io_removehandler(0x02ea, 4, mach_in, NULL, NULL, mach_out, NULL, NULL, mach);
                 io_removehandler(0x03c0, 32, mach_in, NULL, NULL, mach_out, NULL, NULL, mach);
-                io_sethandler(0x02ea, 4,  mach_in, NULL, NULL, mach_out, NULL, NULL, mach);
+                io_sethandler(0x02ea, 4, mach_in, NULL, NULL, mach_out, NULL, NULL, mach);
                 io_sethandler(0x03c0, 32, mach_in, NULL, NULL, mach_out, NULL, NULL, mach);
             } else {
                 io_removehandler(0x03c0, 32, mach_in, NULL, NULL, mach_out, NULL, NULL, mach);
-                io_removehandler(0x02ea, 4,  mach_in, NULL, NULL, mach_out, NULL, NULL, mach);
+                io_removehandler(0x02ea, 4, mach_in, NULL, NULL, mach_out, NULL, NULL, mach);
             }
             mach32_updatemapping(mach);
             break;
@@ -5684,20 +5683,20 @@ mach8_init(const device_t *info)
     svga_t    *svga;
     ibm8514_t *dev;
 
-    mach             = calloc(1, sizeof(mach_t));
+    mach = calloc(1, sizeof(mach_t));
 
-    svga             = &mach->svga;
-    dev              = (ibm8514_t *) calloc(1, sizeof(ibm8514_t));
+    svga = &mach->svga;
+    dev  = (ibm8514_t *) calloc(1, sizeof(ibm8514_t));
 
-    svga->dev8514    = dev;
+    svga->dev8514 = dev;
 
-    mach->pci_bus    = !!(info->flags & DEVICE_PCI);
-    mach->vlb_bus    = !!(info->flags & DEVICE_VLB);
-    mach->mca_bus    = !!(info->flags & DEVICE_MCA);
-    dev->type        = info->flags;
-    dev->local       = info->local & 0xff;
-    mach->has_bios   = !(info->local & 0xff00);
-    mach->memory     = device_get_config_int("memory");
+    mach->pci_bus     = !!(info->flags & DEVICE_PCI);
+    mach->vlb_bus     = !!(info->flags & DEVICE_VLB);
+    mach->mca_bus     = !!(info->flags & DEVICE_MCA);
+    dev->type         = info->flags;
+    dev->local        = info->local & 0xff;
+    mach->has_bios    = !(info->local & 0xff00);
+    mach->memory      = device_get_config_int("memory");
     mach->ramdac_type = mach->pci_bus ? device_get_config_int("ramdac") : 1;
 
     if ((dev->local & 0xff) >= 0x02) {
@@ -5708,8 +5707,7 @@ mach8_init(const device_t *info)
                          0xc0000, 0x8000, 0x7fff,
                          0, MEM_MAPPING_EXTERNAL);
             }
-        }
-        else if (mach->vlb_bus)
+        } else if (mach->vlb_bus)
             rom_init(&mach->bios_rom,
                      BIOS_MACH32_VLB_ROM_PATH,
                      0xc0000, 0x8000, 0x7fff,
@@ -5738,16 +5736,16 @@ mach8_init(const device_t *info)
 
     if ((dev->local & 0xff) >= 0x02) {
         svga_init(info, svga, mach, mach->memory << 10, /*default: 2MB for Mach32*/
-                      mach_recalctimings,
-                      mach_in, mach_out,
-                      mach32_hwcursor_draw,
-                      NULL);
-        dev->vram_size   = mach->memory << 10;
-        dev->vram        = calloc(dev->vram_size, 1);
-        dev->changedvram = calloc(dev->vram_size >> 12, 1);
-        dev->vram_mask   = dev->vram_size - 1;
+                  mach_recalctimings,
+                  mach_in, mach_out,
+                  mach32_hwcursor_draw,
+                  NULL);
+        dev->vram_size          = mach->memory << 10;
+        dev->vram               = calloc(dev->vram_size, 1);
+        dev->changedvram        = calloc(dev->vram_size >> 12, 1);
+        dev->vram_mask          = dev->vram_size - 1;
         dev->hwcursor.cur_ysize = 64;
-        mach->config1 = 0x20;
+        mach->config1           = 0x20;
         if (mach->pci_bus && !mach->ramdac_type)
             svga->ramdac = device_add(&ati68860_ramdac_device);
         else
@@ -5787,21 +5785,21 @@ mach8_init(const device_t *info)
         mem_mapping_disable(&mach->mmio_linear_mapping);
     } else {
         svga_init(info, svga, mach, (512 << 10), /*default: 512kB VGA for 28800-6 + 1MB for Mach8*/
-                      mach_recalctimings,
-                      mach_in, mach_out,
-                      NULL,
-                      NULL);
+                  mach_recalctimings,
+                  mach_in, mach_out,
+                  NULL,
+                  NULL);
         dev->vram_size   = (1024 << 10);
         dev->vram        = calloc(dev->vram_size, 1);
         dev->changedvram = calloc(dev->vram_size >> 12, 1);
         dev->vram_mask   = dev->vram_size - 1;
         video_inform(VIDEO_FLAG_TYPE_8514, &timing_gfxultra_isa);
-        mach->config1 = 0x02 | 0x20 | 0x80;
-        mach->config2 = 0x02;
+        mach->config1   = 0x02 | 0x20 | 0x80;
+        mach->config2   = 0x02;
         svga->clock_gen = device_add(&ati18810_device);
     }
-    dev->bpp = 0;
-    svga->getclock  = ics2494_getclock;
+    dev->bpp       = 0;
+    svga->getclock = ics2494_getclock;
 
     dev->on[0] = 0;
     dev->on[1] = 0;
@@ -5809,13 +5807,13 @@ mach8_init(const device_t *info)
     dev->ext_crt_pitch = 0x80;
     dev->accel_bpp = 8;
     svga->force_old_addr = 1;
-    svga->miscout = 1;
-    svga->bpp = 8;
-    svga->packed_chain4 = 1;
-    dev->rowoffset = 0x80;
-    io_sethandler(0x01ce, 2,  mach_in, NULL, NULL, mach_out, NULL, NULL, mach);
+    svga->miscout        = 1;
+    svga->bpp            = 8;
+    svga->packed_chain4  = 1;
+    dev->rowoffset       = 0x80;
+    io_sethandler(0x01ce, 2, mach_in, NULL, NULL, mach_out, NULL, NULL, mach);
     io_sethandler(0x03c0, 32, mach_in, NULL, NULL, mach_out, NULL, NULL, mach);
-    io_sethandler(0x02ea, 4,  mach_in, NULL, NULL, mach_out, NULL, NULL, mach);
+    io_sethandler(0x02ea, 4, mach_in, NULL, NULL, mach_out, NULL, NULL, mach);
     mach_io_set(mach);
 
     if ((dev->local & 0xff) >= 0x02) {
@@ -6088,4 +6086,3 @@ const device_t mach32_onboard_pci_device = {
     .force_redraw = mach_force_redraw,
     .config = mach32_pci_config
 };
-

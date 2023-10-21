@@ -142,7 +142,7 @@ void
 cdrom_interface_reset(void)
 {
     cdrom_log("CD-ROM Interface: reset(current=%d)\n",
-            cdrom_interface_current);
+              cdrom_interface_current);
 
     /* If we have a valid controller, add its device. */
     if ((cdrom_interface_current > 0) && controllers[cdrom_interface_current].device)
@@ -401,9 +401,9 @@ cdrom_stop(cdrom_t *dev)
 void
 cdrom_seek(cdrom_t *dev, uint32_t pos, uint8_t vendor_type)
 {
-    int      m;
-    int      s;
-    int      f;
+    int m;
+    int s;
+    int f;
 
     if (!dev)
         return;
@@ -412,9 +412,9 @@ cdrom_seek(cdrom_t *dev, uint32_t pos, uint8_t vendor_type)
 
     switch (vendor_type) {
         case 0x40:
-            m = bcd2bin((pos >> 24) & 0xff);
-            s = bcd2bin((pos >> 16) & 0xff);
-            f = bcd2bin((pos >> 8) & 0xff);
+            m   = bcd2bin((pos >> 24) & 0xff);
+            s   = bcd2bin((pos >> 16) & 0xff);
+            f   = bcd2bin((pos >> 8) & 0xff);
             pos = MSFtoLBA(m, s, f) - 150;
             break;
         case 0x80:
@@ -592,9 +592,9 @@ cdrom_audio_track_search(cdrom_t *dev, uint32_t pos, int type, uint8_t playbit)
             dev->seek_pos = pos;
             break;
         case 0x40:
-            m   = bcd2bin((pos >> 24) & 0xff);
-            s   = bcd2bin((pos >> 16) & 0xff);
-            f   = bcd2bin((pos >> 8) & 0xff);
+            m = bcd2bin((pos >> 24) & 0xff);
+            s = bcd2bin((pos >> 16) & 0xff);
+            f = bcd2bin((pos >> 8) & 0xff);
             if (pos == 0xffffffff) {
                 cdrom_log("CD-ROM %i: (type 1) Search from current position\n", dev->id);
                 pos = dev->seek_pos;
@@ -631,9 +631,9 @@ cdrom_audio_track_search_pioneer(cdrom_t *dev, uint32_t pos, uint8_t playbit)
     if (dev->cd_status == CD_STATUS_DATA_ONLY)
         return 0;
 
-    f   = bcd2bin((pos >> 24) & 0xff);
-    s   = bcd2bin((pos >> 16) & 0xff);
-    m   = bcd2bin((pos >> 8) & 0xff);
+    f = bcd2bin((pos >> 24) & 0xff);
+    s = bcd2bin((pos >> 16) & 0xff);
+    m = bcd2bin((pos >> 8) & 0xff);
     if (pos == 0xffffffff) {
         pos = dev->seek_pos;
     } else
@@ -656,10 +656,10 @@ cdrom_audio_play_pioneer(cdrom_t *dev, uint32_t pos)
     if (dev->cd_status == CD_STATUS_DATA_ONLY)
         return 0;
 
-    f   = bcd2bin((pos >> 24) & 0xff);
-    s   = bcd2bin((pos >> 16) & 0xff);
-    m   = bcd2bin((pos >> 8) & 0xff);
-    pos = MSFtoLBA(m, s, f) - 150;
+    f           = bcd2bin((pos >> 24) & 0xff);
+    s           = bcd2bin((pos >> 16) & 0xff);
+    m           = bcd2bin((pos >> 8) & 0xff);
+    pos         = MSFtoLBA(m, s, f) - 150;
     dev->cd_end = pos;
 
     dev->cd_buflen = 0;
@@ -683,10 +683,10 @@ cdrom_audio_play_toshiba(cdrom_t *dev, uint32_t pos, int type)
             dev->cd_end = pos;
             break;
         case 0x40:
-            m   = bcd2bin((pos >> 24) & 0xff);
-            s   = bcd2bin((pos >> 16) & 0xff);
-            f   = bcd2bin((pos >> 8) & 0xff);
-            pos = MSFtoLBA(m, s, f) - 150;
+            m           = bcd2bin((pos >> 24) & 0xff);
+            s           = bcd2bin((pos >> 16) & 0xff);
+            f           = bcd2bin((pos >> 8) & 0xff);
+            pos         = MSFtoLBA(m, s, f) - 150;
             dev->cd_end = pos;
             break;
         case 0x80:
@@ -732,9 +732,9 @@ cdrom_audio_scan(cdrom_t *dev, uint32_t pos, int type)
             dev->seek_pos = pos;
             break;
         case 0x40:
-            m   = bcd2bin((pos >> 24) & 0xff);
-            s   = bcd2bin((pos >> 16) & 0xff);
-            f   = bcd2bin((pos >> 8) & 0xff);
+            m = bcd2bin((pos >> 24) & 0xff);
+            s = bcd2bin((pos >> 16) & 0xff);
+            f = bcd2bin((pos >> 8) & 0xff);
             if (pos == 0xffffffff) {
                 cdrom_log("CD-ROM %i: (type 1) Search from current position\n", dev->id);
                 pos = dev->seek_pos;
@@ -880,11 +880,11 @@ cdrom_get_current_subchannel_sony(cdrom_t *dev, uint8_t *b, int msf)
         b[7] = subc.abs_s;
         b[8] = subc.abs_f;
     } else {
-        dat      = MSFtoLBA(subc.rel_m, subc.rel_s, subc.rel_f);
+        dat  = MSFtoLBA(subc.rel_m, subc.rel_s, subc.rel_f);
         b[3] = (dat >> 16) & 0xff;
         b[4] = (dat >> 8) & 0xff;
         b[5] = dat & 0xff;
-        dat      = MSFtoLBA(subc.abs_m, subc.abs_s, subc.abs_f) - 150;
+        dat  = MSFtoLBA(subc.abs_m, subc.abs_s, subc.abs_f) - 150;
         b[6] = (dat >> 16) & 0xff;
         b[7] = (dat >> 8) & 0xff;
         b[8] = dat & 0xff;
@@ -944,7 +944,7 @@ cdrom_get_audio_status_sony(cdrom_t *dev, uint8_t *b, int msf)
         b[2] = subc.abs_s;
         b[3] = subc.abs_f;
     } else {
-        dat = MSFtoLBA(subc.abs_m, subc.abs_s, subc.abs_f) - 150;
+        dat  = MSFtoLBA(subc.abs_m, subc.abs_s, subc.abs_f) - 150;
         b[0] = (dat >> 24) & 0xff;
         b[1] = (dat >> 16) & 0xff;
         b[2] = (dat >> 8) & 0xff;
@@ -975,14 +975,12 @@ cdrom_get_current_subcodeq(cdrom_t *dev, uint8_t *b)
 uint8_t
 cdrom_get_current_subcodeq_playstatus(cdrom_t *dev, uint8_t *b)
 {
-    uint8_t ret;
+    uint8_t      ret;
     subchannel_t subc;
 
     dev->ops->get_subchannel(dev, dev->seek_pos, &subc);
 
-    if ((dev->cd_status == CD_STATUS_DATA_ONLY) ||
-        (dev->cd_status == CD_STATUS_PLAYING_COMPLETED) ||
-        (dev->cd_status == CD_STATUS_STOPPED))
+    if ((dev->cd_status == CD_STATUS_DATA_ONLY) || (dev->cd_status == CD_STATUS_PLAYING_COMPLETED) || (dev->cd_status == CD_STATUS_STOPPED))
         ret = 0x03;
     else
         ret = (dev->cd_status == CD_STATUS_PLAYING) ? 0x00 : dev->audio_op;
@@ -1755,9 +1753,9 @@ cdrom_readsector_raw(cdrom_t *dev, uint8_t *buffer, int sector, int ismsf, int c
                 msf = cdrom_lba_to_msf_accurate(sector);
                 break;
             case 0x40:
-                m = bcd2bin((sector >> 24) & 0xff);
-                s = bcd2bin((sector >> 16) & 0xff);
-                f = bcd2bin((sector >> 8) & 0xff);
+                m   = bcd2bin((sector >> 24) & 0xff);
+                s   = bcd2bin((sector >> 16) & 0xff);
+                f   = bcd2bin((sector >> 8) & 0xff);
                 lba = MSFtoLBA(m, s, f) - 150;
                 msf = sector;
                 break;

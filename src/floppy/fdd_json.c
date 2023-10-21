@@ -126,7 +126,7 @@ handle(json_t *dev, char *name, char *str)
 {
     sector_t *sec = NULL;
     uint32_t  l;
-    uint32_t pat;
+    uint32_t  pat;
     uint8_t  *p;
     char     *sp;
     int       s;

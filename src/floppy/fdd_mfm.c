@@ -157,8 +157,8 @@ get_adv_track_bitrate(int drive, int side, int track, int *br, int *rpm)
 static void
 set_disk_flags(int drive)
 {
-    int      br = 250;
-    int      rpm = 300;
+    int      br              = 250;
+    int      rpm             = 300;
     mfm_t   *dev             = mfm[drive];
     uint16_t temp_disk_flags = 0x1080; /* We ALWAYS claim to have extra bit cells, even if the actual amount is 0;
                                           Bit 12 = 1, bits 6, 5 = 0 - extra bit cells field specifies the entire
@@ -207,8 +207,8 @@ set_side_flags(int drive, int side)
 {
     mfm_t   *dev             = mfm[drive];
     uint16_t temp_side_flags = 0;
-    int      br = 250;
-    int      rpm = 300;
+    int      br              = 250;
+    int      rpm             = 300;
 
     if (dev->hdr.if_type & 0x80)
         get_adv_track_bitrate(drive, side, dev->cur_track, &br, &rpm);
@@ -271,7 +271,7 @@ get_raw_size(int drive, int side)
     const mfm_t *dev = mfm[drive];
     int          track_index;
     int          is_300_rpm;
-    int          br = 250;
+    int          br  = 250;
     int          rpm = 300;
 
     if (dev->hdr.if_type & 0x80) {

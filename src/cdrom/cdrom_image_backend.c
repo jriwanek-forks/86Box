@@ -286,7 +286,7 @@ int
 cdi_get_audio_track_info(cd_img_t *cdi, UNUSED(int end), int track, int *track_num, TMSF *start, uint8_t *attr)
 {
     const track_t *trk = &cdi->tracks[track - 1];
-    int      pos = trk->start + 150;
+    int            pos = trk->start + 150;
 
     if ((track < 1) || (track > cdi->tracks_num))
         return 0;
@@ -380,9 +380,9 @@ cdi_read_sector(cd_img_t *cdi, uint8_t *buffer, int raw, uint32_t sector)
     int      raw_size;
     int      cooked_size;
     uint64_t offset = 0ULL;
-    int      m = 0;
-    int      s = 0;
-    int      f = 0;
+    int      m      = 0;
+    int      s      = 0;
+    int      f      = 0;
 
     if (track < 0)
         return 0;
@@ -825,11 +825,11 @@ cdi_load_cue(cd_img_t *cdi, const char *cuefile)
     char     pathname[MAX_FILENAME_LENGTH];
     char     filename[MAX_FILENAME_LENGTH];
     char     temp[MAX_FILENAME_LENGTH];
-    uint64_t shift = 0ULL;
-    uint64_t prestart = 0ULL;
-    uint64_t cur_pregap = 0ULL;
+    uint64_t shift        = 0ULL;
+    uint64_t prestart     = 0ULL;
+    uint64_t cur_pregap   = 0ULL;
     uint64_t total_pregap = 0ULL;
-    uint64_t frame = 0ULL;
+    uint64_t frame        = 0ULL;
     uint64_t index;
     int      success;
     int      error;

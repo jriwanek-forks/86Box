@@ -26,9 +26,9 @@
 #include <86box/keyboard.h>
 #include <86box/mouse.h>
 
-#define FLAG_PS2       0x08  /* dev is AT or PS/2 */
-#define FLAG_AT        0x00  /* dev is AT or PS/2 */
-#define FLAG_TYPE_MASK 0x07  /* mask for type     */
+#define FLAG_PS2       0x08 /* dev is AT or PS/2 */
+#define FLAG_AT        0x00 /* dev is AT or PS/2 */
+#define FLAG_TYPE_MASK 0x07 /* mask for type     */
 
 #define FIFO_SIZE      16
 
@@ -71,9 +71,9 @@ uint8_t keyboard_set3_all_break;
    Bits 0 - 1 = scan code set. */
 uint8_t keyboard_mode = 0x02;
 
-static atkbc_dev_t *SavedKbd                        = NULL;
+static atkbc_dev_t *SavedKbd = NULL;
 
-static uint8_t     inv_cmd_response                 = 0xfa;
+static uint8_t inv_cmd_response = 0xfa;
 
 static const scancode scancode_set1[512] = {
   // clang-format off
@@ -519,9 +519,9 @@ static void
 add_data_kbd(uint16_t val)
 {
     atkbc_dev_t *dev = SavedKbd;
-    uint8_t  fake_shift[4];
-    uint8_t  num_lock = 0;
-    uint8_t  shift_states = 0;
+    uint8_t      fake_shift[4];
+    uint8_t      num_lock     = 0;
+    uint8_t      shift_states = 0;
 
     keyboard_get_states(NULL, &num_lock, NULL);
     shift_states = keyboard_get_shift() & STATE_SHIFT_MASK;
@@ -718,12 +718,11 @@ keyboard_at_invalid_cmd(atkbc_dev_t *dev)
     kbc_at_dev_queue_add(dev, inv_cmd_response, 0);
 }
 
-
 static void
 keyboard_at_write(void *priv)
 {
     atkbc_dev_t *dev = (atkbc_dev_t *) priv;
-    uint8_t val;
+    uint8_t      val;
 
     if (dev->port == NULL)
         return;
@@ -765,7 +764,7 @@ keyboard_at_write(void *priv)
             case 0xf3: /* set typematic rate/delay */
                 if (val & 0x80) {
                     keyboard_at_log("%s: Set typematic rate/delay [%02X] has bit 7 set - invalid\n", dev->name, val);
-                    dev->flags |= FLAG_CTRLDAT;      /* Resend = keep waiting for parameter. */
+                    dev->flags |= FLAG_CTRLDAT;         /* Resend = keep waiting for parameter. */
                     kbc_at_dev_queue_add(dev, 0xfe, 0); /* Command response */
                     dev->state = DEV_STATE_MAIN_WANT_IN;
                 } else {
@@ -961,15 +960,15 @@ keyboard_at_init(const device_t *info)
     dev->process_cmd = keyboard_at_write;
     dev->execute_bat = keyboard_at_bat;
 
-    dev->scan        = &keyboard_scan;
+    dev->scan = &keyboard_scan;
 
-    dev->fifo_mask   = FIFO_SIZE - 1;
+    dev->fifo_mask = FIFO_SIZE - 1;
 
     if (dev->port != NULL)
         kbc_at_dev_reset(dev, 0);
 
     keyboard_send = add_data_kbd;
-    SavedKbd = dev;
+    SavedKbd      = dev;
 
     inv_cmd_response = (dev->type & FLAG_PS2) ? 0xfe : 0xfa;
 

@@ -79,7 +79,7 @@ wss_write(UNUSED(uint16_t addr), uint8_t val, void *priv)
 static void
 wss_get_buffer(int32_t *buffer, int len, void *priv)
 {
-    wss_t *wss = (wss_t *) priv;
+    wss_t         *wss     = (wss_t *) priv;
     const int32_t *opl_buf = NULL;
 
     if (wss->opl_enabled)

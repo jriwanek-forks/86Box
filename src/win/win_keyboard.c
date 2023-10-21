@@ -110,7 +110,7 @@ keyboard_handle(PRAWINPUT raw)
     USHORT     scancode;
     static int recv_lalt = 0;
     static int recv_ralt = 0;
-    static int recv_tab = 0;
+    static int recv_tab  = 0;
 
     RAWKEYBOARD rawKB = raw->data.keyboard;
     scancode          = rawKB.MakeCode;

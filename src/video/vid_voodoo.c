@@ -194,7 +194,7 @@ voodoo_readl(uint32_t addr, void *priv)
 
     cycles -= voodoo->read_time;
 
-    if (addr & 0x800000) { /*Texture*/
+    if (addr & 0x800000) {      /*Texture*/
     } else if (addr & 0x400000) /*Framebuffer*/
     {
         if (SLI_ENABLED) {

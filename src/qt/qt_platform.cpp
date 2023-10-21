@@ -111,7 +111,7 @@ extern "C" {
 #include <86box/config.h>
 #include <86box/ui.h>
 #ifdef DISCORD
-#   include <86box/discord.h>
+#    include <86box/discord.h>
 #endif
 
 #include "../cpu/cpu.h"
@@ -432,30 +432,30 @@ set_language(uint32_t id)
 
 extern "C++" {
 QMap<uint32_t, QPair<QString, QString>> ProgSettings::lcid_langcode = {
-    { 0x0403, { "ca-ES", "Catalan (Spain)" }         },
-    { 0x0804, { "zh-CN", "Chinese (Simplified)" }    },
-    { 0x0404, { "zh-TW", "Chinese (Traditional)" }   },
-    { 0x041A, { "hr-HR", "Croatian (Croatia)" }      },
-    { 0x0405, { "cs-CZ", "Czech (Czech Republic)" }  },
-    { 0x0407, { "de-DE", "German (Germany)" }        },
-    { 0x0809, { "en-GB", "English (United Kingdom)" }},
-    { 0x0409, { "en-US", "English (United States)" } },
-    { 0x040B, { "fi-FI", "Finnish (Finland)" }       },
-    { 0x040C, { "fr-FR", "French (France)" }         },
-    { 0x040E, { "hu-HU", "Hungarian (Hungary)" }     },
-    { 0x0410, { "it-IT", "Italian (Italy)" }         },
-    { 0x0411, { "ja-JP", "Japanese (Japan)" }        },
-    { 0x0412, { "ko-KR", "Korean (Korea)" }          },
-    { 0x0415, { "pl-PL", "Polish (Poland)" }         },
-    { 0x0416, { "pt-BR", "Portuguese (Brazil)" }     },
-    { 0x0816, { "pt-PT", "Portuguese (Portugal)" }   },
-    { 0x0419, { "ru-RU", "Russian (Russia)" }        },
-    { 0x041B, { "sk-SK", "Slovak (Slovakia)" }       },
-    { 0x0424, { "sl-SI", "Slovenian (Slovenia)" }    },
+    { 0x0403, { "ca-ES", "Catalan (Spain)" }              },
+    { 0x0804, { "zh-CN", "Chinese (Simplified)" }         },
+    { 0x0404, { "zh-TW", "Chinese (Traditional)" }        },
+    { 0x041A, { "hr-HR", "Croatian (Croatia)" }           },
+    { 0x0405, { "cs-CZ", "Czech (Czech Republic)" }       },
+    { 0x0407, { "de-DE", "German (Germany)" }             },
+    { 0x0809, { "en-GB", "English (United Kingdom)" }     },
+    { 0x0409, { "en-US", "English (United States)" }      },
+    { 0x040B, { "fi-FI", "Finnish (Finland)" }            },
+    { 0x040C, { "fr-FR", "French (France)" }              },
+    { 0x040E, { "hu-HU", "Hungarian (Hungary)" }          },
+    { 0x0410, { "it-IT", "Italian (Italy)" }              },
+    { 0x0411, { "ja-JP", "Japanese (Japan)" }             },
+    { 0x0412, { "ko-KR", "Korean (Korea)" }               },
+    { 0x0415, { "pl-PL", "Polish (Poland)" }              },
+    { 0x0416, { "pt-BR", "Portuguese (Brazil)" }          },
+    { 0x0816, { "pt-PT", "Portuguese (Portugal)" }        },
+    { 0x0419, { "ru-RU", "Russian (Russia)" }             },
+    { 0x041B, { "sk-SK", "Slovak (Slovakia)" }            },
+    { 0x0424, { "sl-SI", "Slovenian (Slovenia)" }         },
     { 0x0C0A, { "es-ES", "Spanish (Spain, Modern Sort)" } },
-    { 0x041F, { "tr-TR", "Turkish (Turkey)" }        },
-    { 0x0422, { "uk-UA", "Ukrainian (Ukraine)" }     },
-    { 0xFFFF, { "system", "(System Default)" }       },
+    { 0x041F, { "tr-TR", "Turkish (Turkey)" }             },
+    { 0x0422, { "uk-UA", "Ukrainian (Ukraine)" }          },
+    { 0xFFFF, { "system", "(System Default)" }            },
 };
 }
 
@@ -614,7 +614,7 @@ ProgSettings::reloadStrings()
     translatedstrings[IDS_2167] = QCoreApplication::translate("", "Failed to initialize network driver").toStdWString();
     translatedstrings[IDS_2168] = QCoreApplication::translate("", "The network configuration will be switched to the null driver").toStdWString();
 
-    auto gsstr             = QCoreApplication::translate("", " is required for automatic conversion of PostScript files to PDF.\n\nAny documents sent to the generic PostScript printer will be saved as PostScript (.ps) files.");
+    auto gsstr = QCoreApplication::translate("", " is required for automatic conversion of PostScript files to PDF.\n\nAny documents sent to the generic PostScript printer will be saved as PostScript (.ps) files.");
     if (gsstr.contains("libgs")) {
         gsstr.replace("libgs", LIB_NAME_GS);
     } else
@@ -637,14 +637,15 @@ plat_chdir(char *path)
 }
 
 void
-plat_get_global_config_dir(char* strptr)
+plat_get_global_config_dir(char *strptr)
 {
 #ifdef __APPLE__
     auto dir = QDir(QStandardPaths::standardLocations(QStandardPaths::GenericConfigLocation)[0] + "/net.86Box.86Box/");
 #else
     auto dir = QDir(QStandardPaths::standardLocations(QStandardPaths::GenericConfigLocation)[0] + "/86Box/");
 #endif
-    if (!dir.exists()) dir.mkpath(".");
+    if (!dir.exists())
+        dir.mkpath(".");
     strncpy(strptr, dir.canonicalPath().toUtf8().constData(), 1024);
 }
 
@@ -672,15 +673,16 @@ plat_init_rom_paths(void)
 }
 
 void
-plat_get_cpu_string(char *outbuf, uint8_t len) {
+plat_get_cpu_string(char *outbuf, uint8_t len)
+{
     auto cpu_string = QString("Unknown");
     /* Write the default string now in case we have to exit early from an error */
     qstrncpy(outbuf, cpu_string.toUtf8().constData(), len);
 
 #if defined(Q_OS_MACOS)
-    auto *process = new QProcess(nullptr);
+    auto       *process = new QProcess(nullptr);
     QStringList arguments;
-    QString program = "/usr/sbin/sysctl";
+    QString     program = "/usr/sbin/sysctl";
     arguments << "machdep.cpu.brand_string";
     process->start(program, arguments);
     if (!process->waitForStarted()) {
@@ -689,9 +691,9 @@ plat_get_cpu_string(char *outbuf, uint8_t len) {
     if (!process->waitForFinished()) {
         return;
     }
-    QByteArray result = process->readAll();
-    auto command_result = QString(result).split(": ").last();
-    if(!command_result.isEmpty()) {
+    QByteArray result         = process->readAll();
+    auto       command_result = QString(result).split(": ").last();
+    if (!command_result.isEmpty()) {
         cpu_string = command_result;
     }
 #elif defined(Q_OS_WINDOWS)
@@ -703,38 +705,36 @@ plat_get_cpu_string(char *outbuf, uint8_t len) {
     bufSize = 32768;
     if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, keyName, 0, 1, &hKey) == ERROR_SUCCESS) {
         if (RegQueryValueExA(hKey, valueName, NULL, NULL, buf, &bufSize) == ERROR_SUCCESS) {
-            cpu_string = reinterpret_cast<const char*>(buf);
+            cpu_string = reinterpret_cast<const char *>(buf);
         }
         RegCloseKey(hKey);
     }
 #elif defined(Q_OS_LINUX)
-    auto cpuinfo = QString("/proc/cpuinfo");
+    auto cpuinfo    = QString("/proc/cpuinfo");
     auto cpuinfo_fi = QFileInfo(cpuinfo);
-    if(!cpuinfo_fi.isReadable()) {
+    if (!cpuinfo_fi.isReadable()) {
         return;
     }
     QFile file(cpuinfo);
     if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
         QTextStream textStream(&file);
-        while(true) {
+        while (true) {
             QString line = textStream.readLine();
             if (line.isNull()) {
                 break;
             }
-            if(QRegularExpression("model name.*:").match(line).hasMatch()) {
+            if (QRegularExpression("model name.*:").match(line).hasMatch()) {
                 auto list = line.split(": ");
-                if(!list.last().isEmpty()) {
+                if (!list.last().isEmpty()) {
                     cpu_string = list.last();
                     break;
                 }
             }
-
         }
     }
 #endif
 
     qstrncpy(outbuf, cpu_string.toUtf8().constData(), len);
-
 }
 
 double

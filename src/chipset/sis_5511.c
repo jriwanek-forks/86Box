@@ -71,7 +71,7 @@ typedef struct sis_5511_t {
     uint8_t regs[16];
     uint8_t states[7];
 
-    uint8_t slic_regs[4096];   
+    uint8_t slic_regs[4096];
 
     uint8_t pci_conf[256];
     uint8_t pci_conf_sb[2][256];
@@ -84,7 +84,7 @@ typedef struct sis_5511_t {
     void       *pit;
     nvr_t      *nvr;
 
-   uint8_t (*pit_read_reg)(void *priv, uint8_t reg);
+    uint8_t (*pit_read_reg)(void *priv, uint8_t reg);
 } sis_5511_t;
 
 static void
@@ -155,149 +155,150 @@ sis_5511_write(UNUSED(int func), int addr, uint8_t val, void *priv)
 
     sis_5511_log("SiS 5511: [W] dev->pci_conf[%02X] = %02X\n", addr, val);
 
-    if (func == 0x00)  switch (addr) {
-        case 0x07: /* Status - High Byte */
-            dev->pci_conf[addr] &= 0xb0;
-            break;
+    if (func == 0x00)
+        switch (addr) {
+            case 0x07: /* Status - High Byte */
+                dev->pci_conf[addr] &= 0xb0;
+                break;
 
-        case 0x50:
-            dev->pci_conf[addr]   = val;
-            cpu_cache_ext_enabled = !!(val & 0x40);
-            cpu_update_waitstates();
-            break;
+            case 0x50:
+                dev->pci_conf[addr]   = val;
+                cpu_cache_ext_enabled = !!(val & 0x40);
+                cpu_update_waitstates();
+                break;
 
-        case 0x51:
-            dev->pci_conf[addr] = val & 0xfe;
-            break;
+            case 0x51:
+                dev->pci_conf[addr] = val & 0xfe;
+                break;
 
-        case 0x52:
-            dev->pci_conf[addr] = val & 0x3f;
-            break;
+            case 0x52:
+                dev->pci_conf[addr] = val & 0x3f;
+                break;
 
-        case 0x53:
-        case 0x54:
-            dev->pci_conf[addr] = val;
-            break;
+            case 0x53:
+            case 0x54:
+                dev->pci_conf[addr] = val;
+                break;
 
-        case 0x55:
-            dev->pci_conf[addr] = val & 0xf8;
-            break;
+            case 0x55:
+                dev->pci_conf[addr] = val & 0xf8;
+                break;
 
-        case 0x56 ... 0x59:
-            dev->pci_conf[addr] = val;
-            break;
+            case 0x56 ... 0x59:
+                dev->pci_conf[addr] = val;
+                break;
 
-        case 0x5a:
-            /* TODO: Fast Gate A20 Emulation and Fast Reset Emulation on the KBC.
-                     The former (bit 7) means the chipset intercepts D1h to 64h and 00h to 60h.
-                     The latter (bit 6) means the chipset intercepts all odd FXh to 64h.
-                     Bit 5 sets fast reset latency. This should be fixed on the other SiS
-                     chipsets as well. */
-            dev->pci_conf[addr] = val;
-            break;
+            case 0x5a:
+                /* TODO: Fast Gate A20 Emulation and Fast Reset Emulation on the KBC.
+                         The former (bit 7) means the chipset intercepts D1h to 64h and 00h to 60h.
+                         The latter (bit 6) means the chipset intercepts all odd FXh to 64h.
+                         Bit 5 sets fast reset latency. This should be fixed on the other SiS
+                         chipsets as well. */
+                dev->pci_conf[addr] = val;
+                break;
 
-        case 0x5b:
-            dev->pci_conf[addr] = val & 0xf7;
-            break;
+            case 0x5b:
+                dev->pci_conf[addr] = val & 0xf7;
+                break;
 
-        case 0x5c:
-            dev->pci_conf[addr] = val & 0xcf;
-            break;
+            case 0x5c:
+                dev->pci_conf[addr] = val & 0xcf;
+                break;
 
-        case 0x5d:
-            dev->pci_conf[addr] = val;
-            break;
+            case 0x5d:
+                dev->pci_conf[addr] = val;
+                break;
 
-        case 0x5e:
-            dev->pci_conf[addr] = val & 0xfe;
-            break;
+            case 0x5e:
+                dev->pci_conf[addr] = val & 0xfe;
+                break;
 
-        case 0x5f:
-            dev->pci_conf[addr] = val & 0xfe;
-            break;
+            case 0x5f:
+                dev->pci_conf[addr] = val & 0xfe;
+                break;
 
-        case 0x60:
-            dev->pci_conf[addr] = val & 0x3e;
-            if ((dev->pci_conf[0x68] & 1) && (val & 2)) {
-                smi_raise();
-                dev->pci_conf[0x69] |= 1;
-            }
-            break;
+            case 0x60:
+                dev->pci_conf[addr] = val & 0x3e;
+                if ((dev->pci_conf[0x68] & 1) && (val & 2)) {
+                    smi_raise();
+                    dev->pci_conf[0x69] |= 1;
+                }
+                break;
 
-        case 0x61 ... 0x64:
-            dev->pci_conf[addr] = val;
-            break;
+            case 0x61 ... 0x64:
+                dev->pci_conf[addr] = val;
+                break;
 
-        case 0x65:
-            dev->pci_conf[addr] = val & 0xd0;
-            sis_5511_smram_recalc(dev);
-            break;
+            case 0x65:
+                dev->pci_conf[addr] = val & 0xd0;
+                sis_5511_smram_recalc(dev);
+                break;
 
-        case 0x66:
-            dev->pci_conf[addr] = val & 0x7f;
-            break;
+            case 0x66:
+                dev->pci_conf[addr] = val & 0x7f;
+                break;
 
-        case 0x67:
-        case 0x68:
-            dev->pci_conf[addr] = val;
-            break;
+            case 0x67:
+            case 0x68:
+                dev->pci_conf[addr] = val;
+                break;
 
-        case 0x69:
-            dev->pci_conf[addr] &= val;
-            break;
+            case 0x69:
+                dev->pci_conf[addr] &= val;
+                break;
 
-        case 0x6a ... 0x6e:
-            dev->pci_conf[addr] = val;
-            break;
+            case 0x6a ... 0x6e:
+                dev->pci_conf[addr] = val;
+                break;
 
-        case 0x6f:
-            dev->pci_conf[addr] = val & 0x3f;
-            break;
+            case 0x6f:
+                dev->pci_conf[addr] = val & 0x3f;
+                break;
 
-        case 0x70: /* DRAM Bank Register 0-0 */
-        case 0x72: /* DRAM Bank Register 0-1 */
-        case 0x74: /* DRAM Bank Register 1-0 */
-        case 0x76: /* DRAM Bank Register 1-1 */
-        case 0x78: /* DRAM Bank Register 2-0 */
-        case 0x7a: /* DRAM Bank Register 2-1 */
-        case 0x7c: /* DRAM Bank Register 3-0 */
-        case 0x7e: /* DRAM Bank Register 3-1 */
-            spd_write_drbs(dev->regs, 0x70, 0x7e, 0x82);
-            break;
- 
-        case 0x71: /* DRAM Bank Register 0-0 */
-            dev->pci_conf[addr] = val;
-            break;
+            case 0x70: /* DRAM Bank Register 0-0 */
+            case 0x72: /* DRAM Bank Register 0-1 */
+            case 0x74: /* DRAM Bank Register 1-0 */
+            case 0x76: /* DRAM Bank Register 1-1 */
+            case 0x78: /* DRAM Bank Register 2-0 */
+            case 0x7a: /* DRAM Bank Register 2-1 */
+            case 0x7c: /* DRAM Bank Register 3-0 */
+            case 0x7e: /* DRAM Bank Register 3-1 */
+                spd_write_drbs(dev->regs, 0x70, 0x7e, 0x82);
+                break;
 
-        case 0x75: /* DRAM Bank Register 1-0 */
-        case 0x79: /* DRAM Bank Register 2-0 */
-        case 0x7d: /* DRAM Bank Register 3-0 */
-            dev->pci_conf[addr] = val & 0x7f;
-            break;
+            case 0x71: /* DRAM Bank Register 0-0 */
+                dev->pci_conf[addr] = val;
+                break;
 
-        case 0x73: /* DRAM Bank Register 0-1 */
-        case 0x77: /* DRAM Bank Register 1-1 */
-        case 0x7b: /* DRAM Bank Register 2-1 */
-        case 0x7f: /* DRAM Bank Register 3-1 */
-            dev->pci_conf[addr] = val & 0x83;
-            break;
+            case 0x75: /* DRAM Bank Register 1-0 */
+            case 0x79: /* DRAM Bank Register 2-0 */
+            case 0x7d: /* DRAM Bank Register 3-0 */
+                dev->pci_conf[addr] = val & 0x7f;
+                break;
 
-        case 0x80 ... 0x85:
-            dev->pci_conf[addr] = val & 0xee;
-            sis_5511_shadow_recalc(dev);
-            break;
-        case 0x86:
-            dev->pci_conf[addr] = val & 0xe8;
-            sis_5511_shadow_recalc(dev);
-            break;
+            case 0x73: /* DRAM Bank Register 0-1 */
+            case 0x77: /* DRAM Bank Register 1-1 */
+            case 0x7b: /* DRAM Bank Register 2-1 */
+            case 0x7f: /* DRAM Bank Register 3-1 */
+                dev->pci_conf[addr] = val & 0x83;
+                break;
 
-        case 0x90 ... 0x93: /* 5512 General Purpose Register Index */
-            dev->pci_conf[addr] = val;
-            break;
+            case 0x80 ... 0x85:
+                dev->pci_conf[addr] = val & 0xee;
+                sis_5511_shadow_recalc(dev);
+                break;
+            case 0x86:
+                dev->pci_conf[addr] = val & 0xe8;
+                sis_5511_shadow_recalc(dev);
+                break;
 
-        default:
-            break;
-    }
+            case 0x90 ... 0x93: /* 5512 General Purpose Register Index */
+                dev->pci_conf[addr] = val;
+                break;
+
+            default:
+                break;
+        }
 }
 
 static void
@@ -309,7 +310,7 @@ sis_5511_slic_write(uint32_t addr, uint8_t val, void *priv)
 
     switch (addr) {
         case 0x00000000:
-        case 0x00000008:    /* 0x00000008 is a SiS 5512 register. */
+        case 0x00000008: /* 0x00000008 is a SiS 5512 register. */
             dev->slic_regs[addr] = val;
             break;
         case 0x00000010:
@@ -330,7 +331,7 @@ static uint8_t
 sis_5511_read(UNUSED(int func), int addr, void *priv)
 {
     const sis_5511_t *dev = (sis_5511_t *) priv;
-    uint8_t ret = 0xff;
+    uint8_t           ret = 0xff;
 
     if (func == 0x00)
         ret = dev->pci_conf[addr];
@@ -344,12 +345,12 @@ static uint8_t
 sis_5511_slic_read(uint32_t addr, void *priv)
 {
     sis_5511_t *dev = (sis_5511_t *) priv;
-    uint8_t ret = 0xff;
+    uint8_t     ret = 0xff;
 
     addr &= 0x00000fff;
 
     switch (addr) {
-        case 0x00000008:    /* 0x00000008 is a SiS 5512 register. */
+        case 0x00000008: /* 0x00000008 is a SiS 5512 register. */
             ret = dev->slic_regs[addr];
             break;
     }
@@ -633,7 +634,7 @@ static uint8_t
 sis_5513_read(int func, int addr, void *priv)
 {
     const sis_5511_t *dev = (sis_5511_t *) priv;
-    uint8_t ret = 0xff;
+    uint8_t           ret = 0xff;
 
     if (func == 0x00) {
         switch (addr) {
@@ -732,7 +733,7 @@ static uint8_t
 sis_5513_isa_read(uint16_t addr, void *priv)
 {
     const sis_5511_t *dev = (sis_5511_t *) priv;
-    uint8_t ret = 0xff;
+    uint8_t           ret = 0xff;
 
     if (addr == 0x23) {
         if (dev->index == 0x05)
@@ -790,7 +791,7 @@ sis_5511_reset(void *priv)
     dev->pci_conf[0x80] = dev->pci_conf[0x81] = 0x00;
     dev->pci_conf[0x82] = dev->pci_conf[0x83] = 0x00;
     dev->pci_conf[0x84] = dev->pci_conf[0x85] = 0x00;
-    dev->pci_conf[0x86] = 0x00;
+    dev->pci_conf[0x86]                       = 0x00;
 
     cpu_cache_ext_enabled = 0;
     cpu_update_waitstates();
@@ -814,22 +815,22 @@ sis_5511_reset(void *priv)
     dev->pci_conf_sb[0][0x05] = dev->pci_conf_sb[0][0x06] = 0x00;
     dev->pci_conf_sb[0][0x07]                             = 0x02;
     dev->pci_conf_sb[0][0x08] = dev->pci_conf_sb[0][0x09] = 0x00;
-    dev->pci_conf_sb[0][0x0a] = 0x01;
-    dev->pci_conf_sb[0][0x0b] = 0x06;
-    dev->pci_conf_sb[0][0x0e] = 0x80;
-    dev->pci_conf_sb[0][0x40] = 0x00;
+    dev->pci_conf_sb[0][0x0a]                             = 0x01;
+    dev->pci_conf_sb[0][0x0b]                             = 0x06;
+    dev->pci_conf_sb[0][0x0e]                             = 0x80;
+    dev->pci_conf_sb[0][0x40]                             = 0x00;
     dev->pci_conf_sb[0][0x41] = dev->pci_conf_sb[0][0x42] = 0x80;
     dev->pci_conf_sb[0][0x43] = dev->pci_conf_sb[0][0x44] = 0x80;
     dev->pci_conf_sb[0][0x48] = dev->pci_conf_sb[0][0x49] = 0x80;
     dev->pci_conf_sb[0][0x4a] = dev->pci_conf_sb[0][0x4b] = 0x80;
     dev->pci_conf_sb[0][0x60] = dev->pci_conf_sb[0][0x51] = 0x80;
-    dev->pci_conf_sb[0][0x62] = 0x00;
-    dev->pci_conf_sb[0][0x63] = 0x80;
-    dev->pci_conf_sb[0][0x64] = 0x00;
-    dev->pci_conf_sb[0][0x65] = 0x80;
+    dev->pci_conf_sb[0][0x62]                             = 0x00;
+    dev->pci_conf_sb[0][0x63]                             = 0x80;
+    dev->pci_conf_sb[0][0x64]                             = 0x00;
+    dev->pci_conf_sb[0][0x65]                             = 0x80;
     dev->pci_conf_sb[0][0x66] = dev->pci_conf_sb[0][0x67] = 0x00;
     dev->pci_conf_sb[0][0x68] = dev->pci_conf_sb[0][0x69] = 0x00;
-    dev->pci_conf_sb[0][0x6a] = 0x04;
+    dev->pci_conf_sb[0][0x6a]                             = 0x04;
 
     pci_set_irq_routing(PCI_INTA, PCI_IRQ_DISABLED);
     pci_set_irq_routing(PCI_INTB, PCI_IRQ_DISABLED);
@@ -842,7 +843,7 @@ sis_5511_reset(void *priv)
 
     dev->regs[0x00] = dev->regs[0x01] = 0x00;
     dev->regs[0x03] = dev->regs[0x04] = 0x00;
-    dev->regs[0x05] = 0x00;
+    dev->regs[0x05]                   = 0x00;
     dev->regs[0x08] = dev->regs[0x09] = 0x00;
     dev->regs[0x0a] = dev->regs[0x0b] = 0x00;
 
@@ -856,22 +857,22 @@ sis_5511_reset(void *priv)
     dev->pci_conf_sb[1][0x03] = 0x55;
     dev->pci_conf_sb[1][0x04] = dev->pci_conf_sb[1][0x05] = 0x00;
     dev->pci_conf_sb[1][0x06] = dev->pci_conf_sb[1][0x07] = 0x00;
-    dev->pci_conf_sb[1][0x08] = 0x00;
-    dev->pci_conf_sb[1][0x09] = 0x8a;
+    dev->pci_conf_sb[1][0x08]                             = 0x00;
+    dev->pci_conf_sb[1][0x09]                             = 0x8a;
     dev->pci_conf_sb[1][0x0a] = dev->pci_conf_sb[1][0x0b] = 0x01;
     dev->pci_conf_sb[1][0x0c] = dev->pci_conf_sb[1][0x0d] = 0x00;
-    dev->pci_conf_sb[1][0x0e] = 0x80;
-    dev->pci_conf_sb[1][0x0f] = 0x00;
-    dev->pci_conf_sb[1][0x10] = 0xf1;
-    dev->pci_conf_sb[1][0x11] = 0x01;
-    dev->pci_conf_sb[1][0x14] = 0xf5;
-    dev->pci_conf_sb[1][0x15] = 0x03;
-    dev->pci_conf_sb[1][0x18] = 0x71;
-    dev->pci_conf_sb[1][0x19] = 0x01;
-    dev->pci_conf_sb[1][0x1c] = 0x75;
-    dev->pci_conf_sb[1][0x1d] = 0x03;
-    dev->pci_conf_sb[1][0x20] = 0x01;
-    dev->pci_conf_sb[1][0x21] = 0xf0;
+    dev->pci_conf_sb[1][0x0e]                             = 0x80;
+    dev->pci_conf_sb[1][0x0f]                             = 0x00;
+    dev->pci_conf_sb[1][0x10]                             = 0xf1;
+    dev->pci_conf_sb[1][0x11]                             = 0x01;
+    dev->pci_conf_sb[1][0x14]                             = 0xf5;
+    dev->pci_conf_sb[1][0x15]                             = 0x03;
+    dev->pci_conf_sb[1][0x18]                             = 0x71;
+    dev->pci_conf_sb[1][0x19]                             = 0x01;
+    dev->pci_conf_sb[1][0x1c]                             = 0x75;
+    dev->pci_conf_sb[1][0x1d]                             = 0x03;
+    dev->pci_conf_sb[1][0x20]                             = 0x01;
+    dev->pci_conf_sb[1][0x21]                             = 0xf0;
     dev->pci_conf_sb[1][0x22] = dev->pci_conf_sb[1][0x23] = 0x00;
 
     sis_5513_ide_irq_handler(dev);
@@ -893,8 +894,8 @@ sis_5511_close(void *priv)
 static void *
 sis_5511_init(UNUSED(const device_t *info))
 {
-    sis_5511_t *dev = (sis_5511_t *) calloc(1, sizeof(sis_5511_t));
-    uint8_t pit_is_fast = (((pit_mode == -1) && is486) || (pit_mode == 1));
+    sis_5511_t *dev         = (sis_5511_t *) calloc(1, sizeof(sis_5511_t));
+    uint8_t     pit_is_fast = (((pit_mode == -1) && is486) || (pit_mode == 1));
 
     memset(dev, 0, sizeof(sis_5511_t));
 
@@ -936,7 +937,7 @@ sis_5511_init(UNUSED(const device_t *info))
     dev->smram = smram_add();
 
     /* PIT */
-    dev->pit = device_find_first_priv(DEVICE_PIT);
+    dev->pit          = device_find_first_priv(DEVICE_PIT);
     dev->pit_read_reg = pit_is_fast ? pitf_read_reg : pit_read_reg;
 
     /* NVR */

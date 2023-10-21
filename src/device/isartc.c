@@ -103,10 +103,10 @@ typedef struct rtcdev_t {
     uint32_t base_addr; /* configured I/O address */
 
     /* Fields for the specific driver. */
-    void    (*f_wr)(uint16_t, uint8_t, void *);
+    void (*f_wr)(uint16_t, uint8_t, void *);
     uint8_t (*f_rd)(uint16_t, void *);
-    int8_t    year; /* register for YEAR value */
-    char      pad[3];
+    int8_t year; /* register for YEAR value */
+    char   pad[3];
 
     nvr_t nvr; /* RTC/NVR */
 } rtcdev_t;
@@ -402,11 +402,11 @@ mm67_read(uint16_t port, void *priv)
             break;
 
         case MM67_AL_MSEC:
-            ret                = dev->nvr.regs[reg] & 0xf0;
+            ret = dev->nvr.regs[reg] & 0xf0;
             break;
 
         case MM67_AL_DOW:
-            ret                = dev->nvr.regs[reg] & 0x0f;
+            ret = dev->nvr.regs[reg] & 0x0f;
             break;
 
         default:

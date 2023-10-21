@@ -29,7 +29,7 @@
 #include <86box/plat.h>
 #include <86box/win.h>
 
-int    mouse_capture;
+int mouse_capture;
 
 void
 win_mouse_init(void)
@@ -102,8 +102,8 @@ win_mouse_handle(PRAWINPUT raw)
          */
         delta_x = (state.lLastX - x) / 25;
         delta_y = (state.lLastY - y) / 25;
-        x = state.lLastX;
-        y = state.lLastY;
+        x       = state.lLastX;
+        y       = state.lLastY;
     } else {
         /* relative mouse, i.e. regular mouse */
         delta_x = state.lLastX;

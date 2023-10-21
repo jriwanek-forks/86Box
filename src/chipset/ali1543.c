@@ -489,7 +489,7 @@ static void
 ali5229_ide_irq_handler(ali1543_t *dev)
 {
     int ctl = 0;
-    int ch = 0;
+    int ch  = 0;
     int bit = 0;
 
     if (dev->ide_conf[0x52] & 0x10) {
@@ -884,7 +884,7 @@ static uint8_t
 ali5229_read(int func, int addr, void *priv)
 {
     const ali1543_t *dev = (ali1543_t *) priv;
-    uint8_t    ret = 0xff;
+    uint8_t          ret = 0xff;
 
     if (dev->ide_dev_enable && (func == 0)) {
         ret = dev->ide_conf[addr];
@@ -972,7 +972,7 @@ static uint8_t
 ali5237_read(int func, int addr, void *priv)
 {
     const ali1543_t *dev = (ali1543_t *) priv;
-    uint8_t    ret = 0xff;
+    uint8_t          ret = 0xff;
 
     if (dev->usb_dev_enable && (func == 0))
         ret = dev->usb_conf[addr];
@@ -1551,8 +1551,8 @@ ali1543_reset(void *priv)
     dev->pci_conf[0x0a] = 0x01;
     dev->pci_conf[0x0b] = 0x06;
 
-    ali1533_write(0, 0x41, 0x00, dev);    /* Disables the keyboard and mouse IRQ latch. */
-    ali1533_write(0, 0x48, 0x00, dev);    /* Disables all IRQ's. */
+    ali1533_write(0, 0x41, 0x00, dev); /* Disables the keyboard and mouse IRQ latch. */
+    ali1533_write(0, 0x48, 0x00, dev); /* Disables all IRQ's. */
     ali1533_write(0, 0x44, 0x00, dev);
     ali1533_write(0, 0x4d, 0x00, dev);
     ali1533_write(0, 0x53, 0x00, dev);

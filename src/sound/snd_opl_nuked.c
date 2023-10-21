@@ -55,7 +55,7 @@
 #define WRBUF_DELAY 1
 #define RSM_FRAC    10
 
-#define OPL_FREQ FREQ_48000
+#define OPL_FREQ    FREQ_48000
 
 // Channel types
 enum {
@@ -1118,7 +1118,7 @@ uint16_t
 nuked_write_addr(void *priv, uint16_t port, uint8_t val)
 {
     const nuked_t *dev = (nuked_t *) priv;
-    uint16_t addr;
+    uint16_t       addr;
 
     addr = val;
     if ((port & 0x0002) && ((addr == 0x0005) || dev->newm))

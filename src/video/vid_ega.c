@@ -302,8 +302,8 @@ ega_in(uint16_t addr, void *priv)
                 ret = ega->attrregs[ega->attraddr];
             break;
         case 0x3c2:
-             ret = (egaswitches & (8 >> egaswitchread)) ? 0x10 : 0x00;
-             break;
+            ret = (egaswitches & (8 >> egaswitchread)) ? 0x10 : 0x00;
+            break;
         case 0x3c4:
             if (ega_type)
                 ret = ega->seqaddr;
@@ -388,7 +388,7 @@ ega_in(uint16_t addr, void *priv)
             }
             break;
         case 0x7c6:
-            ret = 0xfd;        /* EGA mode supported. */
+            ret = 0xfd; /* EGA mode supported. */
             break;
         case 0xbc6:
             /* 0000 = None;
@@ -458,7 +458,7 @@ ega_recalctimings(ega_t *ega)
     ega->rowcount = ega->crtc[9] & 0x1f;
 
     if (ega_type == 2) {
-        color = (ega->miscout & 1);
+        color  = (ega->miscout & 1);
         clksel = ((ega->miscout & 0xc) >> 2);
 
         if (color) {
@@ -565,7 +565,7 @@ ega_recalctimings(ega_t *ega)
     if (ega->dispofftime < TIMER_USEC)
         ega->dispofftime = TIMER_USEC;
 
-    ega->dot_time  = (uint64_t) (ega->dot_clock);
+    ega->dot_time = (uint64_t) (ega->dot_clock);
     if (ega->dot_time < TIMER_USEC)
         ega->dot_time = TIMER_USEC;
 
@@ -577,31 +577,31 @@ ega_recalctimings(ega_t *ega)
 void
 ega_dot_poll(void *priv)
 {
-    ega_t   *ega = (ega_t *) priv;
-    static uint8_t chr;
-    static uint8_t attr;
-    const bool doublewidth   = ((ega->seqregs[1] & 8) != 0);
-    const bool attrblink     = ((ega->attrregs[0x10] & 8) != 0);
-    const bool attrlinechars = (ega->attrregs[0x10] & 4);
-    const bool crtcreset     = ((ega->crtc[0x17] & 0x80) == 0);
-    const bool seq9dot       = ((ega->seqregs[1] & 1) == 0);
-    const bool blinked       = ega->blink & 0x10;
-    const int  dwshift       = doublewidth ? 1 : 0;
-    const int  dotwidth      = 1 << dwshift;
-    const int  charwidth     = dotwidth * (seq9dot ? 9 : 8);
-    const int  cursoron      = (ega->sc == (ega->crtc[10] & 31));
-    const int  cursoraddr    = (ega->crtc[0xe] << 8) | ega->crtc[0xf];
-    uint32_t addr;
-    int drawcursor;
-    uint32_t charaddr;
-    static int fg;
-    static int bg;
+    ega_t          *ega = (ega_t *) priv;
+    static uint8_t  chr;
+    static uint8_t  attr;
+    const bool      doublewidth   = ((ega->seqregs[1] & 8) != 0);
+    const bool      attrblink     = ((ega->attrregs[0x10] & 8) != 0);
+    const bool      attrlinechars = (ega->attrregs[0x10] & 4);
+    const bool      crtcreset     = ((ega->crtc[0x17] & 0x80) == 0);
+    const bool      seq9dot       = ((ega->seqregs[1] & 1) == 0);
+    const bool      blinked       = ega->blink & 0x10;
+    const int       dwshift       = doublewidth ? 1 : 0;
+    const int       dotwidth      = 1 << dwshift;
+    const int       charwidth     = dotwidth * (seq9dot ? 9 : 8);
+    const int       cursoron      = (ega->sc == (ega->crtc[10] & 31));
+    const int       cursoraddr    = (ega->crtc[0xe] << 8) | ega->crtc[0xf];
+    uint32_t        addr;
+    int             drawcursor;
+    uint32_t        charaddr;
+    static int      fg;
+    static int      bg;
     static uint32_t dat;
-    static int disptime;
-    static int _dispontime;
-    static int _dispofftime;
-    static int cclock = 0;
-    static int active = 0;
+    static int      disptime;
+    static int      _dispontime;
+    static int      _dispofftime;
+    static int      cclock = 0;
+    static int      active = 0;
 
     if (ega->seqregs[1] & 8) {
         disptime    = ((ega->crtc[0] + 2) << 1);
@@ -751,7 +751,7 @@ ega_poll(void *priv)
             if (ega->linedbl && !ega->linecountff) {
                 ega->linecountff = 1;
                 ega->ma          = ega->maback;
-                ega->cca          = ega->maback;
+                ega->cca         = ega->maback;
             }
             if (ega->sc == (ega->crtc[9] & 31)) {
                 ega->linecountff = 0;
@@ -761,13 +761,13 @@ ega_poll(void *priv)
                 if (ega->interlace)
                     ega->maback += (ega->rowoffset << 3);
                 ega->maback &= ega->vrammask;
-                ega->ma = ega->maback;
+                ega->ma  = ega->maback;
                 ega->cca = ega->maback;
             } else {
                 ega->linecountff = 0;
                 ega->sc++;
                 ega->sc &= 31;
-                ega->ma = ega->maback;
+                ega->ma  = ega->maback;
                 ega->cca = ega->maback;
             }
         }

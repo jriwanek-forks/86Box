@@ -386,7 +386,7 @@ ems_write(uint16_t port, uint8_t val, void *priv)
             if (val)
                 dev->flags |= FLAG_CONFIG;
             break;
-        
+
         default:
             break;
     }

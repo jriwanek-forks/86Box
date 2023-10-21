@@ -734,8 +734,8 @@ viso_read(void *priv, uint8_t *buffer, uint64_t seek, size_t count)
 uint64_t
 viso_get_length(void *priv)
 {
-    track_file_t       *tf   = (track_file_t *) priv;
-    const viso_t       *viso = (viso_t *) tf->priv;
+    track_file_t *tf   = (track_file_t *) priv;
+    const viso_t *viso = (viso_t *) tf->priv;
 
     return ((uint64_t) viso->all_sectors) * viso->sector_size;
 }
@@ -785,7 +785,7 @@ viso_init(const char *dirname, int *error)
     viso_t  *viso = (viso_t *) calloc(1, sizeof(viso_t));
     uint8_t *data = NULL;
     uint8_t *p;
-    *error        = 1;
+    *error = 1;
     if (viso == NULL)
         goto end;
     viso->sector_size        = VISO_SECTOR_SIZE;
@@ -809,18 +809,18 @@ viso_init(const char *dirname, int *error)
 
     /* Set up directory traversal. */
     cdrom_image_viso_log("VISO: Traversing directories:\n");
-    viso_entry_t        *entry;
-    viso_entry_t        *last_entry;
-    viso_entry_t        *dir;
-    viso_entry_t        *last_dir;
-    const viso_entry_t  *eltorito_dir = NULL;
-    const viso_entry_t  *eltorito_entry = NULL;
-    struct dirent       *readdir_entry;
-    int                  len;
-    int                  eltorito_others_present = 0;
-    size_t               dir_path_len;
-    uint64_t             eltorito_offset = 0;
-    uint8_t              eltorito_type   = 0;
+    viso_entry_t       *entry;
+    viso_entry_t       *last_entry;
+    viso_entry_t       *dir;
+    viso_entry_t       *last_dir;
+    const viso_entry_t *eltorito_dir   = NULL;
+    const viso_entry_t *eltorito_entry = NULL;
+    struct dirent      *readdir_entry;
+    int                 len;
+    int                 eltorito_others_present = 0;
+    size_t              dir_path_len;
+    uint64_t            eltorito_offset = 0;
+    uint8_t             eltorito_type   = 0;
 
     /* Fill root directory entry. */
     dir_path_len = strlen(dirname);
@@ -1025,7 +1025,7 @@ next_dir:
         /* Fill volume descriptor. */
         p = data;
         if (!(viso->format & VISO_FORMAT_ISO))
-            VISO_LBE_32(p, ftello64(viso->tf.fp) / viso->sector_size);    /* sector offset (HSF only) */
+            VISO_LBE_32(p, ftello64(viso->tf.fp) / viso->sector_size);      /* sector offset (HSF only) */
         *p++ = 1 + i;                                                       /* type */
         memcpy(p, (viso->format & VISO_FORMAT_ISO) ? "CD001" : "CDROM", 5); /* standard ID */
         p += 5;
@@ -1129,7 +1129,7 @@ next_dir:
 
             p = data;
             if (!(viso->format & VISO_FORMAT_ISO))
-                VISO_LBE_32(p, ftello64(viso->tf.fp) / viso->sector_size);    /* sector offset (HSF only) */
+                VISO_LBE_32(p, ftello64(viso->tf.fp) / viso->sector_size);      /* sector offset (HSF only) */
             *p++ = 0;                                                           /* type */
             memcpy(p, (viso->format & VISO_FORMAT_ISO) ? "CD001" : "CDROM", 5); /* standard ID */
             p += 5;
@@ -1153,7 +1153,7 @@ next_dir:
     /* Fill terminator. */
     p = data;
     if (!(viso->format & VISO_FORMAT_ISO))
-        VISO_LBE_32(p, ftello64(viso->tf.fp) / viso->sector_size);    /* sector offset (HSF only) */
+        VISO_LBE_32(p, ftello64(viso->tf.fp) / viso->sector_size);      /* sector offset (HSF only) */
     *p++ = 0xff;                                                        /* type */
     memcpy(p, (viso->format & VISO_FORMAT_ISO) ? "CD001" : "CDROM", 5); /* standard ID */
     p += 5;
@@ -1474,8 +1474,8 @@ next_entry:
 
     /* Go through files, assigning sectors to them. */
     cdrom_image_viso_log("VISO: Assigning sectors to files:\n");
-    size_t        base_factor  = viso->sector_size / orig_sector_size;
-    viso_entry_t *prev_entry   = viso->root_dir;
+    size_t         base_factor = viso->sector_size / orig_sector_size;
+    viso_entry_t  *prev_entry  = viso->root_dir;
     viso_entry_t **entry_map_p = viso->entry_map;
     entry                      = prev_entry->next;
     while (entry) {
@@ -1542,7 +1542,7 @@ next_entry:
     if (!viso->metadata)
         goto end;
     fseeko64(viso->tf.fp, 0, SEEK_SET);
-    uint64_t metadata_size = viso->metadata_sectors * viso->sector_size;
+    uint64_t metadata_size   = viso->metadata_sectors * viso->sector_size;
     uint64_t metadata_remain = metadata_size;
     while (metadata_remain > 0)
         metadata_remain -= fread(viso->metadata + (metadata_size - metadata_remain), 1, MIN(metadata_remain, viso->sector_size), viso->tf.fp);
