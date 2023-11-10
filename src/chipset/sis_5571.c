@@ -42,6 +42,9 @@
 #include <86box/smram.h>
 #include <86box/spd.h>
 #include <86box/sis_55xx.h>
+#include <86box/fifo8.h>
+#include <86box/usb.h>
+
 #include <86box/chipset.h>
 
 #ifdef ENABLE_SIS_5571_LOG

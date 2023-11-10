@@ -43,6 +43,9 @@ add_executable(86Box
     pci.c
     mca.c
     usb.c
+    usb_uhci_new.c
+    fifo.c
+    fifo8.c
     device.c
     nvr.c
     nvr_at.c
