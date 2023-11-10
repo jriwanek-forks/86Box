@@ -46,6 +46,7 @@
 #include <86box/hdc.h>
 #include <86box/hdc_ide.h>
 #include <86box/hdc_ide_sff8038i.h>
+#include <86box/fifo8.h>
 #include <86box/usb.h>
 #include <86box/machine.h>
 #include <86box/smbus.h>
@@ -1562,8 +1563,12 @@ piix_init(const device_t *info)
     else
         sff_set_irq_mode(dev->bm[1], IRQ_MODE_MIRQ_0);
 
-    if (dev->type >= 3)
-        dev->usb   = device_add(&usb_device);
+    if (dev->type >= 3) {
+        usb_params_t params;
+        params.pci_slot = dev->pci_slot;
+        params.pci_regs = (uint8_t*)dev->regs[2];
+        dev->usb   = device_add_parameters(&usb_device, &params);
+    }
 
     if (dev->type > 3) {
         dev->nvr   = device_add(&piix4_nvr_device);
