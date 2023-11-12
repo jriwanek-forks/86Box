@@ -115,7 +115,7 @@ static void uhci_update_irq(UHCIState *s) {
       (s->status & UHCI_STS_HSERR) || (s->status & UHCI_STS_HCPERR)) {
     level = 1;
   }
-  pci_irq(dev->params.pci_slot, dev->params.pci_regs[0x3d], 0, level, &s->irq_state);
+  pci_irq(dev->params.pci_slot, PCI_INTD, 0, level, &s->irq_state);
 }
 
 void uhci_reset(usb_t *dev) {
@@ -196,7 +196,7 @@ uint16_t uhci_reg_readw(uint16_t addr, void *priv) {
 uint8_t uhci_reg_read(uint16_t addr, void *priv) {
   const usb_t *dev = (usb_t *)priv;
   uint8_t ret;
-  UHCIState *s = &dev->uhci_state;
+  const UHCIState *s = &dev->uhci_state;
 
   addr &= 0x0000001f;
 
@@ -210,6 +210,33 @@ void uhci_reg_write(uint16_t addr, uint8_t val, void *priv) {
   addr &= 0x0000001f;
 
   switch (addr) {
+  case 0x00:
+    if ((val & UHCI_CMD_RS) && !(s->cmd & UHCI_CMD_RS)) {
+      timer_on_auto(&s->frame_timer, (11936 + s->sof_timing) / 12000.);
+      s->status &= ~UHCI_STS_HCHALTED;
+    } else if (!(val & UHCI_CMD_RS)) {
+      timer_disable(&s->frame_timer);
+      s->status |= UHCI_STS_HCHALTED;
+    }
+    if (val & UHCI_CMD_GRESET) {
+      UHCIPort *port;
+      int i;
+
+      /* send reset on the USB bus */
+      for (i = 0; i < 2; i++) {
+        port = &s->ports[i];
+        if (port->dev)
+        port->dev->device_reset(port->dev->priv);
+      }
+      uhci_reset(dev);
+      return;
+    }
+    if (val & UHCI_CMD_HCRESET) {
+      uhci_reset(dev);
+      return;
+    }
+    s->cmd = val | (s->cmd & 0xFF00);
+    break;
   case 0x02:
     s->status &= ~val | 0xFF00;
     if (val & UHCI_STS_HCHALTED)
@@ -226,7 +253,7 @@ void uhci_reg_write(uint16_t addr, uint8_t val, void *priv) {
     break;
   case 0x0a:
   case 0x0b:
-    s->fl_base_addr &= 0x0000FFFF;
+    s->fl_base_addr &= (addr & 1) ? 0x00FFFFFF : 0xFF00FFFF;
     s->fl_base_addr |= (val) << ((addr & 1) ? 24 : 16);
     break;
   case 0x0c:
@@ -247,8 +274,9 @@ void uhci_reg_writew(uint16_t addr, uint16_t val, void *priv) {
   switch (addr) {
   case 0x00:
     if ((val & UHCI_CMD_RS) && !(s->cmd & UHCI_CMD_RS)) {
-      timer_on_auto(&s->frame_timer, 1);
+      timer_on_auto(&s->frame_timer, (11936 + s->sof_timing) / 12000.);
     } else if (!(val & UHCI_CMD_RS)) {
+      timer_disable(&s->frame_timer);
       s->status |= UHCI_STS_HCHALTED;
     }
     if (val & UHCI_CMD_GRESET) {
@@ -269,7 +297,7 @@ void uhci_reg_writew(uint16_t addr, uint16_t val, void *priv) {
       return;
     }
     s->cmd = val;
-      break;
+    break;
 
   case 0x02:
     s->status &= ~val;
@@ -481,14 +509,15 @@ static int uhci_handle_td(UHCIState *s, uint32_t qh_addr, UHCI_TD *td,
 
   switch (pid) {
   case USB_PID_OUT:
-  case USB_PID_SETUP:
-    dma_bm_read(td->buffer, (uint8_t *)buf, max_len, 1);
-    result = dev->device_process(dev->priv, buf, &max_len, pid,
-                                 (td->token >> 15) & 0xf, 0);
-    break;
+  case USB_PID_SETUP: {
+      dma_bm_read(td->buffer, (uint8_t *)buf, max_len, 4);
+      result = dev->device_process(dev->priv, buf, &max_len, pid,
+                                   (td->token >> 15) & 0xf, spd);
+      break;
+    }
   case USB_PID_IN:
     result = dev->device_process(dev->priv, buf, &max_len, pid,
-                                 (td->token >> 15) & 0xf, 0);
+                                 (td->token >> 15) & 0xf, spd);
     break;
   }
   ret = uhci_complete_td(s, td, result, buf, max_len, td_addr, int_mask);
@@ -496,14 +525,14 @@ static int uhci_handle_td(UHCIState *s, uint32_t qh_addr, UHCI_TD *td,
 }
 
 static void uhci_process_frame(UHCIState *s) {
-  uint32_t frame_addr, link, old_td_ctrl, val, int_mask;
+  uint32_t frame_addr, link, old_td_ctrl, int_mask;
   uint32_t curr_qh, td_count = 0;
   int cnt, ret;
   UHCI_TD td;
   UHCI_QH qh;
   QhDb qhdb = { { 0 }, 0};
 
-  frame_addr = s->fl_base_addr + ((s->frnum & 0x3ff) << 2);
+  frame_addr = (s->fl_base_addr & ~0xfff) | ((s->frnum & 0x3ff) << 2);
   dma_bm_read(frame_addr, (uint8_t *)&link, 4, 4);
   int_mask = 0;
   curr_qh = 0;
@@ -541,7 +570,7 @@ static void uhci_process_frame(UHCIState *s) {
     ret = uhci_handle_td(s, curr_qh, &td, link, &int_mask);
 
     if (old_td_ctrl != td.ctrl) {
-      dma_bm_write((link & ~0xf) + 4, (uint8_t *)&val, sizeof(val), 4);
+      dma_bm_write((link & ~0xf) + 4, (uint8_t *)&td.ctrl, sizeof(td.ctrl), 4);
     }
 
     switch (ret) {
@@ -599,7 +628,7 @@ void uhci_frame_timer(void *opaque) {
   }
   s->pending_int_mask = 0;
 
-  timer_on_auto(&s->frame_timer, 1);
+  timer_on_auto(&s->frame_timer, (11936 + s->sof_timing) / 12000.);
 }
 
 void uhci_attach(UHCIState *s, usb_device_t* device, int index)
