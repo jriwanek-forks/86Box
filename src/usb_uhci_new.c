@@ -118,6 +118,20 @@ static void uhci_update_irq(UHCIState *s) {
   pci_irq(dev->params.pci_slot, PCI_INTD, 0, level, &s->irq_state);
 }
 
+static void uhci_resume (void *opaque)
+{
+    UHCIState *s = (UHCIState *)opaque;
+
+    if (!s)
+        return;
+
+    if (s->cmd & UHCI_CMD_EGSM) {
+        s->cmd |= UHCI_CMD_FGR;
+        s->status |= UHCI_STS_RD;
+        uhci_update_irq(s);
+    }
+}
+
 void uhci_reset(usb_t *dev) {
   UHCIState *s = &dev->uhci_state;
   int i = 0;
@@ -389,6 +403,7 @@ static int uhci_handle_td_error(UHCIState *s, UHCI_TD *td, uint32_t td_addr,
   uint32_t queue_token = uhci_queue_token(td);
   int ret;
 
+  //pclog("UHCI ERROR %d\n", status);
   switch (status) {
   case USB_ERROR_NAK:
     td->ctrl |= TD_CTRL_NAK;
@@ -458,6 +473,7 @@ static int uhci_complete_td(UHCIState *s, UHCI_TD *td, int status,
 
 static usb_device_t *uhci_find_device(UHCIState *s, uint8_t addr) {
   int i = 0;
+  //pclog("Looking for device with addr %d\n", addr);
   for (i = 0; i < 2; i++) {
     if (!(s->ports[i].ctrl & UHCI_PORT_EN))
       continue;
@@ -466,6 +482,7 @@ static usb_device_t *uhci_find_device(UHCIState *s, uint8_t addr) {
     if (s->ports[i].dev->address == addr)
       return s->ports[i].dev;
   }
+  //pclog("None found.\n");
   return NULL;
 }
 
@@ -640,9 +657,10 @@ void uhci_attach(UHCIState *s, usb_device_t* device, int index)
 
     /* update speed */
     {
-        port->ctrl |= UHCI_PORT_LSDA;
+        //port->ctrl |= UHCI_PORT_LSDA;
     }
     port->dev = device;
+    uhci_resume(s);
 }
 
 void uhci_detach(UHCIState *s, int index)
@@ -660,4 +678,5 @@ void uhci_detach(UHCIState *s, int index)
         port->ctrl |= UHCI_PORT_ENC;
     }
     port->dev = NULL;
+    uhci_resume(s);
 }
