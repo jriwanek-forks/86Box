@@ -100,6 +100,7 @@ static mouse_t mouse_devices[] = {
 #ifdef USE_STANDALONE_QUICKPORT
     { &mouse_upc_standalone_device     },
 #endif
+    { &mouse_usb_device                },
 #ifdef USE_WACOM
     { &mouse_wacom_device              },
     { &mouse_wacom_artpad_device       },
@@ -566,6 +567,8 @@ mouse_set_sample_rate(double new_rate)
     sample_rate = new_rate;
     if (mouse_timed)
         timer_on_auto(&mouse_timer, 1000000.0 / sample_rate);
+    
+    pclog("New sample rate is %f\n", new_rate);
 }
 
 void
@@ -693,8 +696,13 @@ mouse_reset(void)
     /* Poll at 100 Hz, the default of a PS/2 mouse. */
     mouse_set_sample_rate(100.0);
 
-    if ((mouse_type > 1) && (mouse_devices[mouse_type].device != NULL))
-        mouse_priv = device_add(mouse_devices[mouse_type].device);
+    mouse_curr = mouse_devices[mouse_type].device;
+
+    if ((mouse_type > 1) && (mouse_curr != NULL))
+        mouse_priv = device_add(mouse_curr);
+    
+    if (mouse_priv == NULL)
+        mouse_curr = NULL;
 }
 
 void

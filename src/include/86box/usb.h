@@ -187,6 +187,9 @@ typedef struct usb_device_t {
     uint8_t control_endpoint_pid;
     uint8_t current_configuration;
     usb_desc_setup_t setup_desc;
+
+    // Is there a pending data phase?
+    uint8_t data_phase;
     
     void* priv;
 } usb_device_t;
@@ -231,8 +234,16 @@ typedef struct usb_t {
     int           ohci_enable;
     uint32_t      ohci_mem_base;
     mem_mapping_t ohci_mmio_mapping;
+    int           inst_cnt;
     usb_params_t params;
 } usb_t;
+
+enum usb_bus_types
+{
+    USB_BUS_OHCI = 0,
+    USB_BUS_UHCI = 1,
+    USB_BUS_MAX  = 2
+};
 
 /* Global variables. */
 extern const device_t usb_device;
@@ -240,6 +251,9 @@ extern const device_t usb_device;
 /* Functions. */
 extern void uhci_update_io_mapping(usb_t *dev, uint8_t base_l, uint8_t base_h, int enable);
 extern void ohci_update_mem_mapping(usb_t *dev, uint8_t base1, uint8_t base2, uint8_t base3, int enable);
+extern uint16_t usb_attach_device(usb_device_t* device, uint8_t bus_type);
+void usb_detach_device(uint16_t port);
+extern uint8_t usb_parse_control_endpoint(usb_device_t* usb_device, uint8_t* data, uint32_t *len, uint8_t pid_token, uint8_t endpoint, uint8_t underrun_not_allowed);
 
 #ifdef __cplusplus
 }
