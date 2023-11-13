@@ -1629,9 +1629,13 @@ static void *
 pipc_init(const device_t *info)
 {
     pipc_t *dev = (pipc_t *) malloc(sizeof(pipc_t));
+    usb_params_t params;
     memset(dev, 0, sizeof(pipc_t));
 
     pipc_log("PIPC: init()\n");
+
+    params.pci_slot = dev->pci_slot;
+    params.pci_regs = dev->usb_regs[0];
 
     dev->local = info->local;
     pci_add_card(PCI_ADD_SOUTHBRIDGE, pipc_read, pipc_write, dev, &dev->pci_slot);
@@ -1659,9 +1663,10 @@ pipc_init(const device_t *info)
         acpi_set_trap_update(dev->acpi, pipc_trap_update_586, dev);
     }
 
-    dev->usb[0] = device_add_inst(&usb_device, 1);
+    dev->usb[0] = device_add_inst_parameters(&usb_device, 1, &params);
     if (dev->local >= VIA_PIPC_686A) {
-        dev->usb[1] = device_add_inst(&usb_device, 2);
+        params.pci_regs = dev->usb_regs[1];
+        dev->usb[1] = device_add_inst_parameters(&usb_device, 2, &params);
 
         dev->ac97 = device_add(&ac97_via_device);
 
