@@ -179,17 +179,17 @@ typedef struct {
 #define EM_FLAG    0x00004 /* in CR0 */
 #define WP_FLAG    0x10000 /* in CR0 */
 
-#define CR4_VME    (1 << 0)  /* Virtual 8086 Mode Extensions */
-#define CR4_PVI    (1 << 1)  /* Protected-mode Virtual Interrupts */
-#define CR4_TSD    (1 << 2)  /* Time Stamp Disable */
-#define CR4_DE     (1 << 3)  /* Debugging Extensions */
-#define CR4_PSE    (1 << 4)  /* Page Size Extension */
-#define CR4_PAE    (1 << 5)  /* Physical Address Extension */
-#define CR4_MCE    (1 << 6)  /* Machine Check Exception */
-#define CR4_PGE    (1 << 7)  /* Page Global Enabled */
-#define CR4_PCE    (1 << 8)  /* Performance-Monitoring Counter enable */
-#define CR4_OSFXSR (1 << 9)  /* Operating system support for FXSAVE and FXRSTOR instructions */
-#define CR4_OSXMEX (1 << 10) /* Operating system support for SSE exceptions */
+#define CR4_VME        (1 << 0)  /* Virtual 8086 Mode Extensions */
+#define CR4_PVI        (1 << 1)  /* Protected-mode Virtual Interrupts */
+#define CR4_TSD        (1 << 2)  /* Time Stamp Disable */
+#define CR4_DE         (1 << 3)  /* Debugging Extensions */
+#define CR4_PSE        (1 << 4)  /* Page Size Extension */
+#define CR4_PAE        (1 << 5)  /* Physical Address Extension */
+#define CR4_MCE        (1 << 6)  /* Machine Check Exception */
+#define CR4_PGE        (1 << 7)  /* Page Global Enabled */
+#define CR4_PCE        (1 << 8)  /* Performance-Monitoring Counter enable */
+#define CR4_OSFXSR     (1 << 9)  /* Operating system support for FXSAVE and FXRSTOR instructions */
+#define CR4_OSXMMEXCPT (1 << 10) /* Operating system support for unmasked SIMD floating-point exceptions */
 
 #define CPL        ((cpu_state.seg_cs.access >> 5) & 3)
 
