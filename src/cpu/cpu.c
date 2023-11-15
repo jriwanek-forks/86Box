@@ -608,9 +608,11 @@ cpu_set(void)
     x86_2386_opcodes_REPNE = ops_2386_REPNE;
     x86_opcodes_3DNOW      = ops_3DNOW;
 #ifdef USE_DYNAREC
-    x86_dynarec_opcodes_REPE  = dynarec_ops_REPE;
-    x86_dynarec_opcodes_REPNE = dynarec_ops_REPNE;
-    x86_dynarec_opcodes_3DNOW = dynarec_ops_3DNOW;
+    x86_dynarec_opcodes_REPE     = dynarec_ops_REPE;
+    x86_dynarec_opcodes_REPE_0f  = NULL;
+    x86_dynarec_opcodes_REPNE    = dynarec_ops_REPNE;
+    x86_dynarec_opcodes_REPNE_0f = NULL;
+    x86_dynarec_opcodes_3DNOW    = dynarec_ops_3DNOW;
 #endif
 
     if (hasfpu) {
