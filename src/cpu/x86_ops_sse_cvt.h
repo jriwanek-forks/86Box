@@ -104,6 +104,8 @@ opCVTTPS2PI_mm_xmm_a16(uint32_t fetchdat)
     SSE_GETSRC();
     dst->l[0] = trunc(src.f[0]);
     dst->l[1] = trunc(src.f[1]);
+    check_sse_exceptions(src.f[0]);
+    check_sse_exceptions(src.f[1]);
     MMX_SETEXP(cpu_reg);
     CLOCK_CYCLES(1);
 
@@ -122,6 +124,8 @@ opCVTTPS2PI_mm_xmm_a32(uint32_t fetchdat)
     SSE_GETSRC();
     dst->l[0] = trunc(src.f[0]);
     dst->l[1] = trunc(src.f[1]);
+    check_sse_exceptions(src.f[0]);
+    check_sse_exceptions(src.f[1]);
     MMX_SETEXP(cpu_reg);
     CLOCK_CYCLES(1);
 
@@ -189,15 +193,19 @@ opCVTPS2PI_mm_xmm_a16(uint32_t fetchdat)
     dst = MMX_GETREGP(cpu_reg);
     SSE_GETSRC();
     fesetround(rounding_modes[(mxcsr >> 13) & 3]);
-    if (src.f[0] > 2147483647.0)
+    if (src.f[0] > 2147483647.0) {
         dst->l[0] = 0x80000000;
-    else
+        mxcsr |= 1;
+    } else
         dst->l[0] = src.f[0];
-    if (src.f[1] > 2147483647.0)
+    if (src.f[1] > 2147483647.0) {
         dst->l[1] = 0x80000000;
-    else
+        mxcsr |= 1;
+    } else
         dst->l[1] = src.f[1];
     fesetround(FE_TONEAREST);
+    check_sse_exceptions(src.f[0]);
+    check_sse_exceptions(src.f[1]);
     MMX_SETEXP(cpu_reg);
     CLOCK_CYCLES(1);
 
@@ -215,15 +223,19 @@ opCVTPS2PI_mm_xmm_a32(uint32_t fetchdat)
     dst = MMX_GETREGP(cpu_reg);
     SSE_GETSRC();
     fesetround(rounding_modes[(mxcsr >> 13) & 3]);
-    if (src.f[0] > 2147483647.0)
+    if (src.f[0] > 2147483647.0) {
         dst->l[0] = 0x80000000;
-    else
+        mxcsr |= 1;
+    } else
         dst->l[0] = src.f[0];
-    if (src.f[1] > 2147483647.0)
+    if (src.f[1] > 2147483647.0) {
         dst->l[1] = 0x80000000;
-    else
+        mxcsr |= 1;
+    } else
         dst->l[1] = src.f[1];
     fesetround(FE_TONEAREST);
+    check_sse_exceptions(src.f[0]);
+    check_sse_exceptions(src.f[1]);
     MMX_SETEXP(cpu_reg);
     CLOCK_CYCLES(1);
 
