@@ -3203,10 +3203,10 @@ opPMINSW_mm_mm_a16(uint32_t fetchdat)
 
     MMX_GETSRC();
 
-    dst->w[0] = fmin(dst->sw[0], src.sw[0]);
-    dst->w[1] = fmin(dst->sw[1], src.sw[1]);
-    dst->w[2] = fmin(dst->sw[2], src.sw[2]);
-    dst->w[3] = fmin(dst->sw[3], src.sw[3]);
+    dst->sw[0] = fmin(dst->sw[0], src.sw[0]);
+    dst->sw[1] = fmin(dst->sw[1], src.sw[1]);
+    dst->sw[2] = fmin(dst->sw[2], src.sw[2]);
+    dst->sw[3] = fmin(dst->sw[3], src.sw[3]);
 
     CLOCK_CYCLES(1);
     MMX_SETEXP(cpu_reg); 
@@ -3227,10 +3227,10 @@ opPMINSW_mm_mm_a32(uint32_t fetchdat)
 
     MMX_GETSRC();
 
-    dst->w[0] = fmin(dst->sw[0], src.sw[0]);
-    dst->w[1] = fmin(dst->sw[1], src.sw[1]);
-    dst->w[2] = fmin(dst->sw[2], src.sw[2]);
-    dst->w[3] = fmin(dst->sw[3], src.sw[3]);
+    dst->sw[0] = fmin(dst->sw[0], src.sw[0]);
+    dst->sw[1] = fmin(dst->sw[1], src.sw[1]);
+    dst->sw[2] = fmin(dst->sw[2], src.sw[2]);
+    dst->sw[3] = fmin(dst->sw[3], src.sw[3]);
 
     CLOCK_CYCLES(1);
     MMX_SETEXP(cpu_reg); 
@@ -3379,10 +3379,10 @@ opPMAXSW_mm_mm_a16(uint32_t fetchdat)
 
     MMX_GETSRC();
 
-    dst->w[0] = fmax(dst->sw[0], src.sw[0]);
-    dst->w[1] = fmax(dst->sw[1], src.sw[1]);
-    dst->w[2] = fmax(dst->sw[2], src.sw[2]);
-    dst->w[3] = fmax(dst->sw[3], src.sw[3]);
+    dst->sw[0] = fmax(dst->sw[0], src.sw[0]);
+    dst->sw[1] = fmax(dst->sw[1], src.sw[1]);
+    dst->sw[2] = fmax(dst->sw[2], src.sw[2]);
+    dst->sw[3] = fmax(dst->sw[3], src.sw[3]);
 
     CLOCK_CYCLES(1);
     MMX_SETEXP(cpu_reg); 
@@ -3403,10 +3403,10 @@ opPMAXSW_mm_mm_a32(uint32_t fetchdat)
 
     MMX_GETSRC();
 
-    dst->w[0] = fmax(dst->sw[0], src.sw[0]);
-    dst->w[1] = fmax(dst->sw[1], src.sw[1]);
-    dst->w[2] = fmax(dst->sw[2], src.sw[2]);
-    dst->w[3] = fmax(dst->sw[3], src.sw[3]);
+    dst->sw[0] = fmax(dst->sw[0], src.sw[0]);
+    dst->sw[1] = fmax(dst->sw[1], src.sw[1]);
+    dst->sw[2] = fmax(dst->sw[2], src.sw[2]);
+    dst->sw[3] = fmax(dst->sw[3], src.sw[3]);
 
     CLOCK_CYCLES(1);
     MMX_SETEXP(cpu_reg); 
