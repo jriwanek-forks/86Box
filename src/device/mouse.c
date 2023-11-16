@@ -10,6 +10,7 @@
  *
  * TODO:    Add the Genius bus- and serial mouse.
  *          Remove the '3-button' flag from mouse types.
+ *          Investigate USB mouse issues and re-enable it after fixing them.
  *
  *
  *
@@ -100,7 +101,9 @@ static mouse_t mouse_devices[] = {
 #ifdef USE_STANDALONE_QUICKPORT
     { &mouse_upc_standalone_device     },
 #endif
+#ifdef USE_USB_MOUSE
     { &mouse_usb_device                },
+#endif
 #ifdef USE_WACOM
     { &mouse_wacom_device              },
     { &mouse_wacom_artpad_device       },
