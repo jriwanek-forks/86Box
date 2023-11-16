@@ -1,3 +1,29 @@
+/*
+ * 86Box    A hypervisor and IBM PC system emulator that specializes in
+ *          running old operating systems and software designed for IBM
+ *          PC systems and compatibles from 1981 through fairly recent
+ *          system designs based on the PCI bus.
+ *
+ *          This file is part of the 86Box distribution.
+ *
+ *          Universal Host Controller Interface (UHCI) implementation.
+ *
+ *
+ *
+ * Authors: Fabrice Bellard
+ *          Max Krasnyansky
+ *          Cacodemon345
+ *
+ *          Copyright (c) 2005 Fabrice Bellard.
+ *          Copyright (c) 2008 Max Krasnyansky
+ *          Copyright (c) 2023 Cacodemon345
+ */
+
+/* TODO
+  1. Implement proper wakeup support.
+  2. Implement hardware part of KBC emulation.
+*/
+
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
