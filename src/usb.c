@@ -6,8 +6,7 @@
  *
  *          This file is part of the 86Box distribution.
  *
- *          Universal Serial Bus emulation (currently dummy UHCI and
- *          OHCI).
+ *          Universal Serial Bus emulation (currently dummy OHCI).
  *
  *
  *
@@ -309,6 +308,8 @@ ohci_update_mem_mapping(usb_t *dev, uint8_t base1, uint8_t base2, uint8_t base3,
 uint8_t
 usb_parse_control_endpoint(usb_device_t* usb_device, uint8_t* data, uint32_t *len, uint8_t pid_token, uint8_t endpoint, uint8_t underrun_not_allowed)
 {
+/* FIXME: This needs to be redone. */
+#if 0
     usb_desc_setup_t* setup_packet = (usb_desc_setup_t*)data;
     uint8_t ret = USB_ERROR_STALL;
     
@@ -490,6 +491,9 @@ usb_parse_control_endpoint(usb_device_t* usb_device, uint8_t* data, uint32_t *le
         }
     }
     return ret;
+#else
+    return USB_ERROR_STALL;
+#endif
 }
 
 static void
@@ -523,6 +527,7 @@ usb_close(void *priv)
 
 extern void uhci_attach(UHCIState *s, usb_device_t* device, int index);
 
+/* FIXME: This needs a rewrite (with the detach counterpart) to support more than 2 ports. */
 uint16_t usb_attach_device(usb_device_t* device, uint8_t bus_type)
 {
     if (!usb_device_inst[0])
