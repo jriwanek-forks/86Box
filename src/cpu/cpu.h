@@ -143,11 +143,11 @@ typedef struct cpu_t {
     uint32_t    cpuid_model;
     uint16_t    cyrix_id;
     uint8_t     cpu_flags;
-    int8_t      mem_read_cycles;
-    int8_t      mem_write_cycles;
-    int8_t      cache_read_cycles;
-    int8_t      cache_write_cycles;
-    int8_t      atclk_div;
+    uint16_t    mem_read_cycles;
+    uint16_t    mem_write_cycles;
+    uint16_t    cache_read_cycles;
+    uint16_t    cache_write_cycles;
+    uint16_t    atclk_div;
 } CPU;
 
 typedef struct {
