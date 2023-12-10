@@ -462,19 +462,19 @@ delete_nvr_file(uint8_t flash)
 int
 pc_init(int argc, char *argv[])
 {
-    char            *ppath = NULL;
-    char            *rpath = NULL;
-    char            *cfg = NULL;
-    char            *p;
-    char             temp[2048];
-    char            *fn[FDD_NUM] = { NULL };
-    char             drive = 0;
-    char            *temp2 = NULL;
-    char            *what;
-    const struct tm *info;
-    time_t           now;
-    int              c;
-    int              lvmp = 0;
+    char      *ppath = NULL;
+    char      *rpath = NULL;
+    char      *cfg = NULL;
+    char      *p;
+    char       temp[2048];
+    char      *fn[FDD_NUM] = { NULL };
+    char       drive = 0;
+    char      *temp2 = NULL;
+    char      *what;
+    struct tm *info = NULL;
+    time_t     now;
+    int        c;
+    int        lvmp = 0;
 #ifdef ENABLE_NG
     int ng = 0;
 #endif
@@ -839,7 +839,7 @@ usage:
      * if there is one. Create a little info header first.
      */
     (void) time(&now);
-    info = localtime(&now);
+    localtime_r(&now, info);
     strftime(temp, sizeof(temp), "%Y/%m/%d %H:%M:%S", info);
     pclog("#\n# %ls v%ls logfile, created %s\n#\n",
           EMU_NAME_W, EMU_VERSION_FULL_W, temp);
