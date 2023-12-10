@@ -627,7 +627,7 @@ ProgSettings::reloadStrings()
     translatedstrings[STRING_NET_ERROR_DESC]            = QCoreApplication::translate("", "The network configuration will be switched to the null driver").toStdWString();
 }
 
-wchar_t *
+const wchar_t *
 plat_get_string(int i)
 {
     if (ProgSettings::translatedstrings.empty())

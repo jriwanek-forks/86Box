@@ -163,7 +163,7 @@ extern void     plat_get_cpu_string(char *outbuf, uint8_t len);
 extern void     plat_set_thread_name(void *thread, const char *name);
 
 /* Resource management. */
-extern wchar_t *plat_get_string(int id);
+extern const wchar_t *plat_get_string(int id);
 
 /* Emulator start/stop support functions. */
 extern void do_start(void);
