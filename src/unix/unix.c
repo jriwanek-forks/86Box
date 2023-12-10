@@ -240,7 +240,7 @@ dynld_close(void *handle)
     dlclose(handle);
 }
 
-wchar_t *
+const wchar_t *
 plat_get_string(int i)
 {
     switch (i) {

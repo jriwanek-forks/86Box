@@ -277,7 +277,7 @@ set_language(uint32_t id)
     }
 }
 
-wchar_t *
+const wchar_t *
 plat_get_string(int i)
 {
     LPTSTR str;

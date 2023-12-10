@@ -622,7 +622,7 @@ ProgSettings::reloadStrings()
     translatedstrings[IDS_2133] = gsstr.toStdWString();
 }
 
-wchar_t *
+const wchar_t *
 plat_get_string(int i)
 {
     if (ProgSettings::translatedstrings.empty())

@@ -151,8 +151,8 @@ extern void     plat_get_cpu_string(char *outbuf, uint8_t len);
 extern double   plat_get_dpi(void);
 
 /* Resource management. */
-extern void     set_language(uint32_t id);
-extern wchar_t *plat_get_string(int id);
+extern void           set_language(uint32_t id);
+extern const wchar_t *plat_get_string(int id);
 
 /* Emulator start/stop support functions. */
 extern void do_start(void);
