@@ -208,7 +208,7 @@ dynld_module(const char *name, dllimp_t *table)
 void
 plat_tempfile(char *bufp, char *prefix, char *suffix)
 {
-    struct tm     *calendertime;
+    struct tm     *calendertime = NULL;
     struct timeval t;
     time_t         curtime;
 
@@ -218,7 +218,7 @@ plat_tempfile(char *bufp, char *prefix, char *suffix)
         strcpy(bufp, "");
     gettimeofday(&t, NULL);
     curtime      = time(NULL);
-    calendertime = localtime(&curtime);
+    localtime_r(&curtime, calendertime);
     sprintf(&bufp[strlen(bufp)], "%d%02d%02d-%02d%02d%02d-%03ld%s", calendertime->tm_year, calendertime->tm_mon, calendertime->tm_mday, calendertime->tm_hour, calendertime->tm_min, calendertime->tm_sec, t.tv_usec / 1000, suffix);
 }
 

@@ -261,7 +261,7 @@ opVPCEXT(uint32_t fetchdat)
     /* 0f 3f 03 xx opcodes are mostly related to the host clock, so fetch it now */
     if (b1 == 0x03) {
         (void) time(&now);
-        tm = localtime(&now);
+        localtime_r(&now, tm);
     }
 
     if ((b1 == 0x07) && (b2 == 0x0b)) {

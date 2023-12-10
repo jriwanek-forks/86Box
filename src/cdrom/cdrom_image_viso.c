@@ -436,12 +436,15 @@ static int
 viso_fill_time(uint8_t *data, time_t time, int format, int longform)
 {
     uint8_t   *p      = data;
-    struct tm *time_s = localtime(&time);
+    struct tm *time_s = NULL;
+
+	localtime_r(&time, time_s);
+
     if (!time_s) {
         /* localtime will return NULL if the time_t is negative (Windows)
            or way too far into 64-bit space (Linux). Fall back to epoch. */
         time_t epoch = 0;
-        time_s       = localtime(&epoch);
+        localtime_r(&epoch, time_s);
         if (UNLIKELY(!time_s))
             fatal("VISO: localtime(0) = NULL\n");
 
@@ -1007,9 +1010,11 @@ next_dir:
     /* Get current time for the volume descriptors, and calculate
        the timezone offset for descriptors and file times to use. */
     tzset();
-    time_t now = time(NULL);
+    time_t now_seconds = time(NULL);
+	struct tm now;
+	gmtime_r(&now_seconds, &now);
     if (viso->format & VISO_FORMAT_ISO) /* timezones are ISO only */
-        tz_offset = (now - mktime(gmtime(&now))) / (3600 / 4);
+        tz_offset = (now_seconds - mktime(&now)) / (3600 / 4);
 
     /* Get root directory basename for the volume ID. */
     const char *basename = path_get_filename(viso->root_dir->path);
@@ -1108,7 +1113,7 @@ next_dir:
             }
         }
 
-        len = viso_fill_time(p, now, viso->format, 1); /* volume created */
+        len = viso_fill_time(p, now_seconds, viso->format, 1); /* volume created */
         memcpy(p + len, p, len);                       /* volume modified */
         p += len * 2;
         VISO_SKIP(p, len * 2); /* volume expires/effective */
