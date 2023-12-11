@@ -187,14 +187,14 @@ ui_sb_mt32lcd(char *str)
 }
 
 void
-ui_sb_set_text_w(wchar_t *wstr)
+ui_sb_set_text_w(const wchar_t *wstr)
 {
     sb_text = QString::fromWCharArray(wstr);
     ui_sb_update_text();
 }
 
 void
-ui_sb_set_text(char *str)
+ui_sb_set_text(const char *str)
 {
     sb_text = str;
     ui_sb_update_text();

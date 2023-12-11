@@ -517,7 +517,7 @@ path_get_dirname(char *dest, const char *path)
 }
 volatile int cpu_thread_run = 1;
 void
-ui_sb_set_text_w(wchar_t *wstr)
+ui_sb_set_text_w(const wchar_t *wstr)
 {
     /* No-op. */
 }

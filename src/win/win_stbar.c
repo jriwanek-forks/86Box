@@ -1019,7 +1019,7 @@ ui_sb_update_text(void)
 
 /* API */
 void
-ui_sb_set_text_w(wchar_t *wstr)
+ui_sb_set_text_w(const wchar_t *wstr)
 {
     if (wstr)
         wcscpy(sb_text, wstr);
@@ -1030,7 +1030,7 @@ ui_sb_set_text_w(wchar_t *wstr)
 
 /* API */
 void
-ui_sb_set_text(char *str)
+ui_sb_set_text(const char *str)
 {
     if (str)
         mbstowcs(sb_text, str, strlen(str) + 1);
