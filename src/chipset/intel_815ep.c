@@ -11,9 +11,10 @@
  *
  *
  * Authors: Tiseno100,
+ *          Jasmine Iwanek, <jriwanek@gmail.com>
  *
- *          Copyright 2022 Tiseno100.
- *
+ *          Copyright 2022      Tiseno100.
+ *          Copyright 2022-2023 Jasmine Iwanek.
  */
 
 #include <stdarg.h>
@@ -29,6 +30,7 @@
 #include <86box/timer.h>
 #include <86box/io.h>
 #include <86box/device.h>
+#include <86box/plat_unused.h>
 
 #include <86box/mem.h>
 #include <86box/pci.h>
@@ -55,8 +57,10 @@ intel_815ep_log(const char *fmt, ...)
 #endif
 
 typedef struct intel_815ep_t {
-    uint8_t    pci_conf[256];
-    smram_t   *lsmm_segment;
+    uint8_t pci_conf[256];
+    uint8_t pci_slot;
+
+    smram_t *lsmm_segment;
 } intel_815ep_t;
 
 static void
@@ -133,7 +137,7 @@ intel_815ep_write(int func, int addr, uint8_t val, void *priv)
 static uint8_t
 intel_815ep_read(int func, int addr, void *priv)
 {
-    intel_815ep_t *dev = (intel_815ep_t *) priv;
+    const intel_815ep_t *dev = (intel_815ep_t *) priv;
 
     intel_815ep_log("Intel 815EP MCH: dev->regs[%02x] (%02x)\n", addr, dev->pci_conf[addr]);
     return dev->pci_conf[addr];
@@ -200,7 +204,6 @@ intel_815ep_reset(void *priv)
         intel_pam_recalc(i, 0);
 
     intel_lsmm_segment_recalc(dev, 0); /* Reset LSMM SMRAM to defaults */
-
 }
 
 static void
@@ -213,13 +216,13 @@ intel_815ep_close(void *priv)
 }
 
 static void *
-intel_815ep_init(const device_t *info)
+intel_815ep_init(UNUSED(const device_t *info))
 {
     intel_815ep_t *dev = (intel_815ep_t *) malloc(sizeof(intel_815ep_t));
     memset(dev, 0, sizeof(intel_815ep_t));
 
     /* Device */
-    pci_add_card(PCI_ADD_NORTHBRIDGE, intel_815ep_read, intel_815ep_write, dev); /* Device 0: Intel 815EP MCH */
+    pci_add_card(PCI_ADD_NORTHBRIDGE, intel_815ep_read, intel_815ep_write, dev, &dev->pci_slot); /* Device 0: Intel 815EP MCH */
 
     /* AGP Bridge */
     device_add(&intel_815ep_agp_device);
