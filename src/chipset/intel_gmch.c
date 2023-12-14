@@ -10,8 +10,11 @@
  *
  *
  *
- * Authors: Tiseno100
- *          Copyright 2021 Tiseno100.
+ * Authors: Tiseno100,
+ *          Jasmine Iwanek, <jriwanek@gmail.com>
+ *
+ *          Copyright 2021      Tiseno100.
+ *          Copyright 2022-2023 Jasmine Iwanek.
  */
 
 #include <stdarg.h>
@@ -27,6 +30,7 @@
 #include <86box/timer.h>
 #include <86box/io.h>
 #include <86box/device.h>
+#include <86box/plat_unused.h>
 
 #include <86box/mem.h>
 #include <86box/pci.h>
@@ -36,8 +40,6 @@
 
 #ifdef ENABLE_INTEL_GMCH_LOG
 int intel_gmch_do_log = ENABLE_INTEL_GMCH_LOG;
-
-
 static void
 intel_gmch_log(const char *fmt, ...)
 {
@@ -54,19 +56,20 @@ intel_gmch_log(const char *fmt, ...)
 #endif
 
 typedef struct intel_gmch_t {
-    uint8_t    pci_conf[256];
-    smram_t   *low_smram;
-    smram_t   *upper_smram_hseg;
-    smram_t   *upper_smram_tseg;
+    uint8_t pci_conf[256];
+    uint8_t pci_slot;
+
+    smram_t *low_smram;
+    smram_t *upper_smram_hseg;
+    smram_t *upper_smram_tseg;
 } intel_gmch_t;
 
 static void
 intel_gmch_pam(int cur_reg, intel_gmch_t *dev)
 {
-    if(cur_reg == 0x59)
+    if (cur_reg == 0x59)
         mem_set_mem_state_both(0xf0000, 0x10000, ((dev->pci_conf[0x59] & 0x10) ? MEM_READ_INTERNAL : MEM_READ_EXTANY) | ((dev->pci_conf[0x59] & 0x20) ? MEM_WRITE_INTERNAL : MEM_WRITE_EXTANY));
-    else
-    {
+    else {
         int negate = cur_reg - 0x5a;
         mem_set_mem_state_both(0xc0000 + (negate << 15), 0x4000, ((dev->pci_conf[cur_reg] & 1) ? MEM_READ_INTERNAL : MEM_READ_EXTANY) | ((dev->pci_conf[cur_reg] & 2) ? MEM_WRITE_INTERNAL : MEM_WRITE_EXTANY));
         mem_set_mem_state_both(0xc4000 + (negate << 15), 0x4000, ((dev->pci_conf[cur_reg] & 0x10) ? MEM_READ_INTERNAL : MEM_READ_EXTANY) | ((dev->pci_conf[cur_reg] & 0x20) ? MEM_WRITE_INTERNAL : MEM_WRITE_EXTANY));
@@ -78,19 +81,19 @@ intel_gmch_pam(int cur_reg, intel_gmch_t *dev)
 static void
 intel_gmch_smram(intel_gmch_t *dev)
 {
-    uint32_t tom = (mem_size << 10);
+    uint32_t tom      = (mem_size << 10);
     uint32_t tom_size = 0;
 
     smram_disable_all();
 
-    if(((dev->pci_conf[0x70] >> 4) & 3) != 0) {
-        if(((dev->pci_conf[0x70] >> 4) & 3) >= 2) { /* Top Remapping based on intel_4x0.c by OBattler */
+    if (((dev->pci_conf[0x70] >> 4) & 3) != 0) {
+        if (((dev->pci_conf[0x70] >> 4) & 3) >= 2) { /* Top Remapping based on intel_4x0.c by OBattler */
             /* Phase 0 */
             tom -= (1 << 20);
             mem_set_mem_state_smm(tom, (1 << 20), MEM_READ_INTERNAL | MEM_WRITE_INTERNAL);
 
             /* Phase 1 */
-            tom = (mem_size << 10);
+            tom      = (mem_size << 10);
             tom_size = (((dev->pci_conf[0x70] >> 4) & 3) == 3) ? 0x100000 : 0x80000; /* 3: 1MB / 2: 512KB */
             tom -= tom_size;
 
@@ -99,7 +102,7 @@ intel_gmch_smram(intel_gmch_t *dev)
             mem_set_mem_state_smram_ex(0, tom, tom_size, 0); /* All Non-SMM accesses are forwarded to the Hub */
         }
 
-        if(((dev->pci_conf[0x70] >> 2) & 3) == 0) {
+        if (((dev->pci_conf[0x70] >> 2) & 3) == 0) {
             smram_enable(dev->upper_smram_hseg, 0xfeea0000, 0x000a0000, 0x20000, 0, 1);
             mem_set_mem_state_smram_ex(0, 0xfeea0000, 0x00020000, 0); /* All Non-SMM accesses are forwarded to the Hub */
         }
@@ -151,7 +154,7 @@ intel_gmch_write(int func, int addr, uint8_t val, void *priv)
                 break;
 
             case 0x2c ... 0x2f:
-                if(dev->pci_conf[addr] == 0)
+                if (dev->pci_conf[addr] == 0)
                     dev->pci_conf[addr] = val;
                 break;
 
@@ -182,8 +185,8 @@ intel_gmch_write(int func, int addr, uint8_t val, void *priv)
                 intel_gmch_pam(addr, dev);
                 break;
 
-            case 0x70: /* SMRAM */
-                if(!(dev->pci_conf[addr] & 2)) { /* D_LCK Locks SMRAM Registers from being configured. Clear only possible via reset */
+            case 0x70:                            /* SMRAM */
+                if (!(dev->pci_conf[addr] & 2)) { /* D_LCK Locks SMRAM Registers from being configured. Clear only possible via reset */
                     dev->pci_conf[addr] = val;
                     intel_gmch_smram(dev);
                 }
@@ -271,13 +274,13 @@ intel_gmch_write(int func, int addr, uint8_t val, void *priv)
 static uint8_t
 intel_gmch_read(int func, int addr, void *priv)
 {
-    intel_gmch_t *dev = (intel_gmch_t *) priv;
+    const intel_gmch_t *dev = (intel_gmch_t *) priv;
 
     if (func == 0) {
         intel_gmch_log("Intel 815EP: dev->regs[%02x] (%02x) POST: %02x \n", addr, dev->pci_conf[addr], inb(0x80));
         return dev->pci_conf[addr];
-    }
-    else return 0xff;
+    } else
+        return 0xff;
 }
 
 static void
@@ -287,11 +290,11 @@ intel_gmch_reset(void *priv)
     memset(dev->pci_conf, 0x00, sizeof(dev->pci_conf)); /* Wash out the registers */
 
     /* VID - Vendor Identification Register */
-    dev->pci_conf[0x00] = 0x86;    /* Intel */
+    dev->pci_conf[0x00] = 0x86; /* Intel */
     dev->pci_conf[0x01] = 0x80;
 
     /* DID - Device Identification Register */
-    dev->pci_conf[0x02] = 0x30;    /* 815EP */
+    dev->pci_conf[0x02] = 0x30; /* 815EP */
     dev->pci_conf[0x03] = 0x11;
 
     /* PCICMD - PCI Command Register */
@@ -357,13 +360,13 @@ intel_gmch_close(void *priv)
 }
 
 static void *
-intel_gmch_init(const device_t *info)
+intel_gmch_init(UNUSED(const device_t *info))
 {
     intel_gmch_t *dev = (intel_gmch_t *) malloc(sizeof(intel_gmch_t));
     memset(dev, 0, sizeof(intel_gmch_t));
 
     /* Device */
-    pci_add_card(PCI_ADD_NORTHBRIDGE, intel_gmch_read, intel_gmch_write, dev);
+    pci_add_card(PCI_ADD_NORTHBRIDGE, intel_gmch_read, intel_gmch_write, dev, &dev->pci_slot);
 
     /* AGP Bridge */
     device_add(&intel_815ep_agp_device);
@@ -375,7 +378,7 @@ intel_gmch_init(const device_t *info)
     /* SMRAM */
     dev->upper_smram_tseg = smram_add(); /* SMRAM High TSEG */
     dev->upper_smram_hseg = smram_add(); /* SMRAM High HSEG */
-    dev->low_smram = smram_add(); /* SMRAM Low  */
+    dev->low_smram        = smram_add(); /* SMRAM Low  */
 
     intel_gmch_reset(dev);
     return dev;

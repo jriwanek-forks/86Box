@@ -10,10 +10,11 @@
  *
  *
  *
- * Authors: Tiseno100
+ * Authors: Tiseno100,
+ *          Jasmine Iwanek, <jriwanek@gmail.com>
  *
- *          Copyright 2021 Tiseno100.
- *
+ *          Copyright 2021      Tiseno100.
+ *          Copyright 2022-2023 Jasmine Iwanek.
  */
 
 #include <stdarg.h>
@@ -29,6 +30,7 @@
 #include <86box/timer.h>
 #include <86box/io.h>
 #include <86box/device.h>
+#include <86box/plat_unused.h>
 
 #include <86box/mem.h>
 #include <86box/pci.h>
@@ -51,22 +53,25 @@ intel_845_log(const char *fmt, ...)
     }
 }
 #else
-#define intel_845_log(fmt, ...)
+#    define intel_845_log(fmt, ...)
 #endif
 
 typedef struct intel_845_t {
     int is_ddr;
+
     uint8_t pci_conf[256];
-    smram_t *low_smram,
-            *upper_smram_hseg,
-            *upper_smram_tseg;
+    uint8_t pci_slot;
+
+    smram_t *low_smram;
+    smram_t *upper_smram_hseg;
+    smram_t *upper_smram_tseg;
 
 } intel_845_t;
 
 static void
 intel_845_pam(int cur_reg, intel_845_t *dev)
 {
-    if(cur_reg == 0x90)
+    if (cur_reg == 0x90)
         mem_set_mem_state_both(0xf0000, 0x10000, ((dev->pci_conf[0x90] & 0x10) ? MEM_READ_INTERNAL : MEM_READ_EXTANY) | ((dev->pci_conf[0x90] & 0x20) ? MEM_WRITE_INTERNAL : MEM_WRITE_EXTANY));
     else {
         int negate = cur_reg - 0x91;
@@ -80,7 +85,7 @@ intel_845_pam(int cur_reg, intel_845_t *dev)
 uint32_t
 intel_845_tom_size(int size)
 {
-    switch(size) {
+    switch (size) {
         case 0:
         default:
             return 0x00020000;
@@ -99,28 +104,27 @@ intel_845_tom_size(int size)
 static void
 intel_845_smram(intel_845_t *dev)
 {
-    uint32_t tom = (mem_size << 10);
+    uint32_t tom      = (mem_size << 10);
     uint32_t tom_size = 0;
 
     smram_disable_all();
 
-    if(dev->pci_conf[0x9d] & 8) {
+    if (dev->pci_conf[0x9d] & 8) {
         smram_enable(dev->low_smram, 0x000a0000, 0x000a0000, 0x20000, !!(dev->pci_conf[0x9d] & 0x40), 1);
 
-        if(dev->pci_conf[0x9d] & 0x20) /* SMM Space Close */
+        if (dev->pci_conf[0x9d] & 0x20) /* SMM Space Close */
             mem_set_mem_state_smram_ex(1, 0x000a0000, 0x20000, 2);
 
-
-        if(dev->pci_conf[0x9e] & 0x80) /* SMRAM Mirror */
+        if (dev->pci_conf[0x9e] & 0x80) /* SMRAM Mirror */
             smram_enable(dev->upper_smram_hseg, 0xfeea0000, 0x000a0000, 0x20000, 0, 1);
 
-        if(dev->pci_conf[0x9e] & 1)  { /* Top Remapping based on intel_4x0.c by OBattler */
+        if (dev->pci_conf[0x9e] & 1) { /* Top Remapping based on intel_4x0.c by OBattler */
             /* Phase 0 */
             tom -= (1 << 20);
             mem_set_mem_state_smm(tom, (1 << 20), MEM_READ_INTERNAL | MEM_WRITE_INTERNAL);
 
             /* Phase 1 */
-            tom = (mem_size << 10);
+            tom      = (mem_size << 10);
             tom_size = intel_845_tom_size((dev->pci_conf[0x9e] >> 1) & 3);
             tom -= tom_size;
 
@@ -136,12 +140,12 @@ static void
 intel_845_write(int func, int addr, uint8_t val, void *priv)
 {
 
-    intel_845_t *dev = (intel_845_t *)priv;
+    intel_845_t *dev = (intel_845_t *) priv;
 
     if (func == 0) {
         intel_845_log("Intel i845: dev->regs[%02x] = %02x POST: %02x \n", addr, val, inb(0x80));
 
-        switch(addr) {
+        switch (addr) {
             case 0x04:
                 dev->pci_conf[addr] = val & 0x80;
                 break;
@@ -159,7 +163,7 @@ intel_845_write(int func, int addr, uint8_t val, void *priv)
                 break;
 
             case 0x2c ... 0x2f:
-                if(dev->pci_conf[addr] == 0)
+                if (dev->pci_conf[addr] == 0)
                     dev->pci_conf[addr] = val;
                 break;
 
@@ -218,7 +222,7 @@ intel_845_write(int func, int addr, uint8_t val, void *priv)
                 break;
 
             case 0x9d ... 0x9e: /* SMRAM */
-                if(!(dev->pci_conf[0x9d] & 0x10)) {
+                if (!(dev->pci_conf[0x9d] & 0x10)) {
                     dev->pci_conf[addr] = val;
                     intel_845_smram(dev);
                 }
@@ -299,19 +303,19 @@ intel_845_write(int func, int addr, uint8_t val, void *priv)
 static uint8_t
 intel_845_read(int func, int addr, void *priv)
 {
-    intel_845_t *dev = (intel_845_t *) priv;
+    const intel_845_t *dev = (intel_845_t *) priv;
 
     if (func == 0) {
         intel_845_log("Intel i845: dev->regs[%02x] (%02x) POST: %02x \n", addr, dev->pci_conf[addr], inb(0x80));
         return dev->pci_conf[addr];
-    }
-    else return 0xff;
+    } else
+        return 0xff;
 }
 
 static void
 intel_845_reset(void *priv)
 {
-    intel_845_t *dev = (intel_845_t *)priv;
+    intel_845_t *dev = (intel_845_t *) priv;
     memset(dev->pci_conf, 0x00, sizeof(dev->pci_conf));
 
     dev->pci_conf[0x00] = 0x86;
@@ -361,12 +365,12 @@ intel_845_close(void *priv)
 }
 
 static void *
-intel_845_init(const device_t *info)
+intel_845_init(UNUSED(const device_t *info))
 {
     intel_845_t *dev = (intel_845_t *) malloc(sizeof(intel_845_t));
     memset(dev, 0, sizeof(intel_845_t));
 
-    pci_add_card(PCI_ADD_NORTHBRIDGE, intel_845_read, intel_845_write, dev);
+    pci_add_card(PCI_ADD_NORTHBRIDGE, intel_845_read, intel_845_write, dev, &dev->pci_slot);
 
     /* AGP Bridge */
     device_add(&intel_845_agp_device);
@@ -381,7 +385,7 @@ intel_845_init(const device_t *info)
     /* SMRAM Segments */
     dev->upper_smram_tseg = smram_add(); /* SMRAM High TSEG */
     dev->upper_smram_hseg = smram_add(); /* SMRAM High HSEG */
-    dev->low_smram = smram_add();        /* SMRAM Low  */
+    dev->low_smram        = smram_add(); /* SMRAM Low  */
 
     intel_845_reset(dev);
 

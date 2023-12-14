@@ -10,10 +10,11 @@
  *
  *
  *
- * Authors: Tiseno100.
+ * Authors: Tiseno100,
+ *          Jasmine Iwanek, <jriwanek@gmail.com>
  *
- *          Copyright 2022 Tiseno100.
- *
+ *          Copyright 2022      Tiseno100.
+ *          Copyright 2022-2023 Jasmine Iwanek.
  */
 
 #include <stdarg.h>
@@ -29,6 +30,7 @@
 #include <86box/timer.h>
 #include <86box/io.h>
 #include <86box/device.h>
+#include <86box/plat_unused.h>
 
 #include <86box/apm.h>
 #include <86box/nvr.h>
@@ -68,14 +70,14 @@ intel_ich2_log(const char *fmt, ...)
 
 typedef struct intel_ich2_t {
     uint8_t pci_conf[5][256];
+    uint8_t pci_slot;
 
-    acpi_t            *acpi;
-    nvr_t             *nvr;
-    sff8038i_t        *ide_drive[2];
-    smbus_piix4_t     *smbus;
-    tco_t             *tco;
-    usb_t             *usb_hub[2];
-
+    acpi_t        *acpi;
+    nvr_t         *nvr;
+    sff8038i_t    *ide_drive[2];
+    smbus_piix4_t *smbus;
+    tco_t         *tco;
+    usb_t         *usb_hub[2];
 } intel_ich2_t;
 
 /* LPC Bridge functions */
@@ -162,8 +164,8 @@ intel_ich2_function_disable(intel_ich2_t *dev)
 static void
 intel_ich2_ide_setup(intel_ich2_t *dev)
 {
-    uint16_t bm_base = (dev->pci_conf[1][0x21] & 0xf0) | (dev->pci_conf[1][0x20] & 0xf0);
-    int bm_enable = ((dev->pci_conf[1][0x04] & 0x05) == 0x05);
+    uint16_t bm_base   = (dev->pci_conf[1][0x21] & 0xf0) | (dev->pci_conf[1][0x20] & 0xf0);
+    int      bm_enable = ((dev->pci_conf[1][0x04] & 0x05) == 0x05);
 
     ide_pri_disable();
     ide_sec_disable();
@@ -332,7 +334,7 @@ intel_ich2_write(int func, int addr, uint8_t val, void *priv)
 static uint8_t
 intel_ich2_read(int func, int addr, void *priv)
 {
-    intel_ich2_t *dev = (intel_ich2_t *) priv;
+    const intel_ich2_t *dev = (intel_ich2_t *) priv;
 
     if (func == 0) {
         intel_ich2_log("Intel ICH2 LPC: dev->regs[%02x] (%02x)\n", addr, dev->pci_conf[func][addr]);
@@ -430,8 +432,8 @@ intel_ich2_reset(void *priv)
 
     dev->pci_conf[1][0x54] = 0xff;
 
-    sff_bus_master_reset(dev->ide_drive[0], 0); /* Setup the IDE */
-    sff_bus_master_reset(dev->ide_drive[1], 8);
+    sff_bus_master_reset(dev->ide_drive[0]); /* Setup the IDE */
+    sff_bus_master_reset(dev->ide_drive[1]);
     intel_ich2_ide_setup(dev);
 
     /* Function 2: USB Hub 0 */
@@ -515,18 +517,17 @@ intel_ich2_close(void *priv)
 }
 
 static void *
-intel_ich2_init(const device_t *info)
+intel_ich2_init(UNUSED(const device_t *info))
 {
     intel_ich2_t *dev = (intel_ich2_t *) malloc(sizeof(intel_ich2_t));
     memset(dev, 0, sizeof(intel_ich2_t));
-    int slot;
 
     /* Device */
-    slot = pci_add_card(PCI_ADD_SOUTHBRIDGE, intel_ich2_read, intel_ich2_write, dev); /* Device 31: Intel ICH2 */
+    pci_add_card(PCI_ADD_SOUTHBRIDGE, intel_ich2_read, intel_ich2_write, dev, &dev->pci_slot); /* Device 31: Intel ICH2 */
 
     /* ACPI Interface */
     dev->acpi = device_add(&acpi_intel_ich2_device);
-    acpi_set_slot(dev->acpi, slot);
+    acpi_set_slot(dev->acpi, dev->pci_slot);
 
     /* DMA */
     dma_alias_set_piix();
@@ -548,8 +549,8 @@ intel_ich2_init(const device_t *info)
     /* SFF Compatible IDE Drives */
     dev->ide_drive[0] = device_add_inst(&sff8038i_device, 1);
     dev->ide_drive[1] = device_add_inst(&sff8038i_device, 2);
-    sff_set_slot(dev->ide_drive[0], slot);
-    sff_set_slot(dev->ide_drive[1], slot);
+    sff_set_slot(dev->ide_drive[0], dev->pci_slot);
+    sff_set_slot(dev->ide_drive[1], dev->pci_slot);
 
     /* TCO */
     dev->tco = device_add(&tco_device);
