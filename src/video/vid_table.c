@@ -231,8 +231,8 @@ video_cards[] = {
     { .device = &s3_virge_385_pci_device,                       .flags = VIDEO_FLAG_TYPE_NONE },
     { .device = &s3_virge_357_pci_device,                       .flags = VIDEO_FLAG_TYPE_NONE },
     { .device = &s3_trio3d2x_pci_device,                        .flags = VIDEO_FLAG_TYPE_NONE },
-    { .device = &millennium_device,                             .flags = VIDEO_FLAG_TYPE_NONE },
-    { .device = &millennium_ii_device,                          .flags = VIDEO_FLAG_TYPE_NONE },
+    { .device = &millennium_device,                             .flags = VIDEO_FLAG_TYPE_SECONDARY },
+    { .device = &millennium_ii_device,                          .flags = VIDEO_FLAG_TYPE_SECONDARY },
     { .device = &mystique_device,                               .flags = VIDEO_FLAG_TYPE_NONE },
     { .device = &mystique_220_device,                           .flags = VIDEO_FLAG_TYPE_NONE },
     { .device = &tgui9440_pci_device,                           .flags = VIDEO_FLAG_TYPE_NONE },
@@ -249,7 +249,7 @@ video_cards[] = {
     { .device = &s3_diamond_stealth_4000_agp_device,            .flags = VIDEO_FLAG_TYPE_NONE },
     { .device = &s3_trio3d2x_agp_device,                        .flags = VIDEO_FLAG_TYPE_NONE },
 #ifdef USE_G100
-    { .device = &productiva_g100_device,                        .flags = VIDEO_FLAG_TYPE_SPECIAL },
+    { .device = &productiva_g100_device,                        .flags = VIDEO_FLAG_TYPE_SECONDARY },
 #endif /*USE_G100 */
     { .device = &velocity_100_agp_device,                       .flags = VIDEO_FLAG_TYPE_NONE },
     { .device = &velocity_200_agp_device,                       .flags = VIDEO_FLAG_TYPE_NONE },
