@@ -439,8 +439,10 @@ int
 sb_16_read_dma(void *priv)
 {
     const sb_dsp_t *dsp = (sb_dsp_t *) priv;
-    int temp, ret = 0;
-    int dma_flags, dma_ch = dsp->sb_16_dmanum;
+    int temp;
+    int ret = 0;
+    int dma_flags;
+    int dma_ch = dsp->sb_16_dmanum;
 
     if (dsp->sb_16_dma_enabled && dsp->sb_16_dma_supported && !dsp->sb_16_dma_translate)
         ret = dma_channel_read(dma_ch);
@@ -474,7 +476,8 @@ int
 sb_16_write_dma(void *priv, uint16_t val)
 {
     const sb_dsp_t *dsp = (sb_dsp_t *) priv;
-    int temp, ret = 0;
+    int temp;
+    int ret = 0;
     int dma_ch = dsp->sb_16_dmanum;
  
     if (dsp->sb_16_dma_enabled && dsp->sb_16_dma_supported && !dsp->sb_16_dma_translate)
