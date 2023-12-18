@@ -45,8 +45,7 @@ static const float128_t float128_ln2inv2 =
 
 #define L2_ARR_SIZE 9
 
-static float128_t ln_arr[L2_ARR_SIZE] =
-{
+static float128_t ln_arr[L2_ARR_SIZE] = {
     PACK_FLOAT_128(0x3fff000000000000, 0x0000000000000000), /*  1 */
     PACK_FLOAT_128(0x3ffd555555555555, 0x5555555555555555), /*  3 */
     PACK_FLOAT_128(0x3ffc999999999999, 0x999999999999999a), /*  5 */
@@ -296,8 +295,7 @@ invalid:
             return packFloatx80(bSign, 0x7FFF, BX_CONST64(0x8000000000000000));
         }
     }
-    if (bExp == 0x7FFF)
-    {
+    if (bExp == 0x7FFF) {
         if (bSig << 1)
             return softfloat_propagateNaNExtF80UI(a.signExp, aSig, b.signExp, bSig, &status);
 
@@ -331,14 +329,12 @@ invalid:
     if (aSign && aExp >= 0x3FFF)
         return a;
 
-    if (aExp >= 0x3FFC) // big argument
-    {
+    if (aExp >= 0x3FFC) // big argument {
         return fyl2x(extF80_add(a, floatx80_one, &status), b, status);
     }
 
     // handle tiny argument
-    if (aExp < FLOATX80_EXP_BIAS-70)
-    {
+    if (aExp < FLOATX80_EXP_BIAS-70) {
         // first order approximation, return (a*b)/ln(2)
         int32_t zExp = aExp + FLOAT_LN2INV_EXP - 0x3FFE;
 

@@ -49,8 +49,7 @@ static const float128_t float128_pi4 =
 static const float128_t float128_pi6 =
         packFloat128(BX_CONST64(0x3ffe0c152382d736), BX_CONST64(0x58465BB32E0F580F));
 
-static float128_t atan_arr[FPATAN_ARR_SIZE] =
-{
+static float128_t atan_arr[FPATAN_ARR_SIZE] = {
     PACK_FLOAT_128(0x3fff000000000000, 0x0000000000000000), /*  1 */
     PACK_FLOAT_128(0xbffd555555555555, 0x5555555555555555), /*  3 */
     PACK_FLOAT_128(0x3ffc999999999999, 0x999999999999999a), /*  5 */
@@ -160,8 +159,7 @@ floatx80 fpatan(floatx80 a, floatx80 b, softfloat_status_t &status)
 
     int zSign = aSign ^ bSign;
 
-    if (bExp == 0x7FFF)
-    {
+    if (bExp == 0x7FFF) {
         if (bSig<<1)
             return softfloat_propagateNaNExtF80UI(a.signExp, aSig, b.signExp, bSig, &status);
 
@@ -181,8 +179,7 @@ floatx80 fpatan(floatx80 a, floatx80 b, softfloat_status_t &status)
         /* return PI/2 */
         return softfloat_roundPackToExtF80(bSign, FLOATX80_PI2_EXP, FLOAT_PI_HI, FLOAT_PI_LO, 80, &status);
     }
-    if (aExp == 0x7FFF)
-    {
+    if (aExp == 0x7FFF) {
         if (aSig<<1)
             return softfloat_propagateNaNExtF80UI(a.signExp, aSig, b.signExp, bSig, &status);
 
@@ -196,8 +193,7 @@ return_PI_or_ZERO:
         else         /* return  0 */
             return packToExtF80(bSign, 0, 0);
     }
-    if (! bExp)
-    {
+    if (! bExp) {
         if (! bSig) {
              if (aSig && ! aExp) softfloat_raiseFlags(&status, softfloat_flag_denormal);
              goto return_PI_or_ZERO;
@@ -208,8 +204,7 @@ return_PI_or_ZERO:
         bExp = normExpSig.exp + 1;
         bSig = normExpSig.sig;
     }
-    if (! aExp)
-    {
+    if (! aExp) {
         if (! aSig)   /* return PI/2 */
             return softfloat_roundPackToExtF80(bSign, FLOATX80_PI2_EXP, FLOAT_PI_HI, FLOAT_PI_LO, 80, &status);
 
@@ -238,11 +233,9 @@ return_PI_or_ZERO:
     float128_t x;
     int swap = 0, add_pi6 = 0, add_pi4 = 0;
 
-    if (aExp > bExp || (aExp == bExp && aSig > bSig))
-    {
+    if (aExp > bExp || (aExp == bExp && aSig > bSig)) {
         x = f128_div(b128, a128, &status);
-    }
-    else {
+    } else {
         x = f128_div(a128, b128, &status);
         swap = 1;
     }
@@ -252,8 +245,7 @@ return_PI_or_ZERO:
     if (xExp <= FLOATX80_EXP_BIAS-40)
         goto approximation_completed;
 
-    if (x.v64 >= BX_CONST64(0x3ffe800000000000))        // 3/4 < x < 1
-    {
+    if (x.v64 >= BX_CONST64(0x3ffe800000000000)) {       // 3/4 < x < 1
         /*
         arctan(x) = arctan((x-1)/(x+1)) + pi/4
         */
@@ -261,12 +253,9 @@ return_PI_or_ZERO:
         float128_t t2 = f128_add(x, float128_one, &status);
         x = f128_div(t1, t2, &status);
         add_pi4 = 1;
-    }
-    else
-    {
+    } else {
         /* argument correction */
-        if (xExp >= 0x3FFD)                     // 1/4 < x < 3/4
-        {
+        if (xExp >= 0x3FFD) {                   // 1/4 < x < 3/4
             /*
             arctan(x) = arctan((x*sqrt(3)-1)/(x+sqrt(3))) + pi/6
             */

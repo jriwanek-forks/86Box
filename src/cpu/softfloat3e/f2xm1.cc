@@ -50,8 +50,7 @@ static const float128_t float128_ln2   =
 
 #define EXP_ARR_SIZE 15
 
-static float128_t exp_arr[EXP_ARR_SIZE] =
-{
+static float128_t exp_arr[EXP_ARR_SIZE] = {
     PACK_FLOAT_128(0x3fff000000000000, 0x0000000000000000), /*  1 */
     PACK_FLOAT_128(0x3ffe000000000000, 0x0000000000000000), /*  2 */
     PACK_FLOAT_128(0x3ffc555555555555, 0x5555555555555555), /*  3 */
@@ -125,7 +124,9 @@ floatx80 f2xm1(floatx80 a, struct softfloat_status_t *status)
     static const floatx80 floatx80_default_nan =
         packFloatx80(0, floatx80_default_nan_exp, floatx80_default_nan_fraction);
 
-    uint64_t zSig0, zSig1, zSig2;
+    uint64_t zSig0;
+    uint64_t zSig1;
+    uint64_t zSig2;
     struct exp32_sig64 normExpSig;
 
     // handle unsupported extended double-precision floating encodings
@@ -163,8 +164,7 @@ floatx80 f2xm1(floatx80 a, struct softfloat_status_t *status)
 
     softfloat_raiseFlags(status, softfloat_flag_inexact);
 
-    if (aExp < 0x3FFF)
-    {
+    if (aExp < 0x3FFF) {
         if (aExp < FLOATX80_EXP_BIAS-68)
             goto tiny_argument;
 
@@ -176,9 +176,7 @@ floatx80 f2xm1(floatx80 a, struct softfloat_status_t *status)
         x = f128_mul(x, float128_ln2, status);
         x = poly_exp(x, status);
         return f128_to_extF80(x, status);
-    }
-    else
-    {
+    } else {
         if (a.signExp == 0xBFFF && ! (aSig<<1))
            return floatx80_neghalf;
 

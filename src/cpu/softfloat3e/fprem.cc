@@ -32,7 +32,8 @@ these four paragraphs for those parts of this code that are retained.
 /* executes single exponent reduction cycle */
 static uint64_t remainder_kernel(uint64_t aSig0, uint64_t bSig, int expDiff, uint64_t *zSig0, uint64_t *zSig1)
 {
-    uint128 term, z;
+    uint128 term;
+    uint128 z;
     uint64_t aSig1 = 0;
     shortShift128Left(aSig1, aSig0, expDiff, &aSig1, &aSig0);
     uint64_t q = estimateDiv128To64(aSig1, aSig0, bSig);
@@ -55,8 +56,13 @@ static int do_fprem(floatx80 a, floatx80 b, floatx80 *r, uint64_t *q, int roundi
     static const floatx80 floatx80_default_nan =
         packFloatx80(0, floatx80_default_nan_exp, floatx80_default_nan_fraction);
 
-    int32_t aExp, bExp, zExp, expDiff;
-    uint64_t aSig0, aSig1 = 0, bSig;
+    int32_t aExp;
+    int32_t bExp;
+    int32_t zExp;
+    int32_t expDiff;
+    uint64_t aSig0;
+    uint64_t aSig1 = 0;
+    uint64_t bSig;
     int aSign;
     struct exp32_sig64 normExpSig;
     uint128 term;
@@ -132,8 +138,7 @@ static int do_fprem(floatx80 a, floatx80 b, floatx80 *r, uint64_t *q, int roundi
         remainder_kernel(aSig0, bSig, n, &aSig0, &aSig1);
         zExp = aExp - n;
         overflow = 1;
-    }
-    else {
+    } else {
         zExp = bExp;
 
         if (expDiff < 0) {
@@ -147,8 +152,7 @@ static int do_fprem(floatx80 a, floatx80 b, floatx80 *r, uint64_t *q, int roundi
 
         if (expDiff > 0) {
             *q = remainder_kernel(aSig0, bSig, expDiff, &aSig0, &aSig1);
-        }
-        else {
+        } else {
             if (bSig <= aSig0) {
                aSig0 -= bSig;
                *q = 1;
@@ -156,7 +160,8 @@ static int do_fprem(floatx80 a, floatx80 b, floatx80 *r, uint64_t *q, int roundi
         }
 
         if (rounding_mode == softfloat_round_near_even) {
-            uint64_t term0, term1;
+            uint64_t term0;
+            uint64_t term1;
             shortShift128Right(bSig, 0, 1, &term0, &term1);
 
             if (! softfloat_lt128(aSig0, aSig1, term0, term1)) {
