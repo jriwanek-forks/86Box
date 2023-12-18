@@ -81,8 +81,7 @@ static float32 propagateFloat32MulAddNaN(float32 a, float32 b, float32 c, struct
     //  operate according to float_first_operand_nan mode
     if (aIsSignalingNaN | aIsNaN) {
         return a;
-    }
-    else {
+    } else {
         return (bIsSignalingNaN | bIsNaN) ? b : c;
     }
 }
@@ -115,8 +114,7 @@ static float64 propagateFloat64MulAddNaN(float64 a, float64 b, float64 c, struct
     //  operate according to float_first_operand_nan mode
     if (aIsSignalingNaN | aIsNaN) {
         return a;
-    }
-    else {
+    } else {
         return (bIsSignalingNaN | bIsNaN) ? b : c;
     }
 }

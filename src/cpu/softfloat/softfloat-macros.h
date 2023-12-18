@@ -129,7 +129,8 @@ BX_CPP_INLINE Bit64u shift64RightJamming(Bit64u a, int count)
 
 BX_CPP_INLINE void shift64ExtraRightJamming(Bit64u a0, Bit64u a1, int count, Bit64u *z0Ptr, Bit64u *z1Ptr)
 {
-    Bit64u z0, z1;
+    Bit64u z0;
+    Bit64u z1;
     int negCount = (-count) & 63;
 
     if (count == 0) {
@@ -190,8 +191,14 @@ BX_CPP_INLINE void
 
 BX_CPP_INLINE void mul64To128(Bit64u a, Bit64u b, Bit64u *z0Ptr, Bit64u *z1Ptr)
 {
-    Bit32u aHigh, aLow, bHigh, bLow;
-    Bit64u z0, zMiddleA, zMiddleB, z1;
+    Bit32u aHigh;
+    Bit32u aLow;
+    Bit32u bHigh;
+    Bit32u bLow;
+    Bit64u z0;
+    Bit64u zMiddleA;
+    Bit64u zMiddleB;
+    Bit64u z1;
 
     aLow = (Bit32u) a;
     aHigh = (Bit32u)(a>>32);
@@ -222,8 +229,12 @@ BX_CPP_INLINE void mul64To128(Bit64u a, Bit64u b, Bit64u *z0Ptr, Bit64u *z1Ptr)
 #ifdef USE_estimateDiv128To64
 static Bit64u estimateDiv128To64(Bit64u a0, Bit64u a1, Bit64u b)
 {
-    Bit64u b0, b1;
-    Bit64u rem0, rem1, term0, term1;
+    Bit64u b0;
+    Bit64u b1;
+    Bit64u rem0;
+    Bit64u rem1;
+    Bit64u term0;
+    Bit64u term1;
     Bit64u z;
 
     if (b <= a0) return BX_CONST64(0xFFFFFFFFFFFFFFFF);
@@ -402,25 +413,22 @@ BX_CPP_INLINE void shift128Right(Bit64u a0, Bit64u a1, int count, Bit64u *z0Ptr,
 
 BX_CPP_INLINE void shift128RightJamming(Bit64u a0, Bit64u a1, int count, Bit64u *z0Ptr, Bit64u *z1Ptr)
 {
-    Bit64u z0, z1;
+    Bit64u z0;
+    Bit64u z1;
     int negCount = (-count) & 63;
 
     if (count == 0) {
         z1 = a1;
         z0 = a0;
-    }
-    else if (count < 64) {
+    } else if (count < 64) {
         z1 = (a0<<negCount) | (a1>>count) | ((a1<<negCount) != 0);
         z0 = a0>>count;
-    }
-    else {
+    } else {
         if (count == 64) {
             z1 = a0 | (a1 != 0);
-        }
-        else if (count < 128) {
+        } else if (count < 128) {
             z1 = (a0>>(count & 63)) | (((a0<<negCount) | a1) != 0);
-        }
-        else {
+        } else {
             z1 = ((a0 | a1) != 0);
         }
         z0 = 0;
@@ -462,8 +470,11 @@ BX_CPP_INLINE void add192(
      Bit64u *z2Ptr
 )
 {
-    Bit64u z0, z1, z2;
-    unsigned carry0, carry1;
+    Bit64u z0;
+    Bit64u z1;
+    Bit64u z2;
+    unsigned carry0;
+    unsigned carry1;
 
     z2 = a2 + b2;
     carry1 = (z2 < a2);
@@ -498,8 +509,11 @@ BX_CPP_INLINE void sub192(
      Bit64u *z2Ptr
 )
 {
-    Bit64u z0, z1, z2;
-    unsigned borrow0, borrow1;
+    Bit64u z0;
+    Bit64u z1;
+    Bit64u z2;
+    unsigned borrow0;
+    unsigned borrow1;
 
     z2 = a2 - b2;
     borrow1 = (a2 < b2);
@@ -565,7 +579,10 @@ BX_CPP_INLINE void mul128By64To192(
      Bit64u *z2Ptr
 )
 {
-    Bit64u z0, z1, z2, more1;
+    Bit64u z0;
+    Bit64u z1;
+    Bit64u z2;
+    Bit64u more1;
 
     mul64To128(a1, b, &z1, &z2);
     mul64To128(a0, b, &z0, &more1);
@@ -595,8 +612,12 @@ BX_CPP_INLINE void mul128To256(
      Bit64u *z3Ptr
 )
 {
-    Bit64u z0, z1, z2, z3;
-    Bit64u more1, more2;
+    Bit64u z0;
+    Bit64u z1;
+    Bit64u z2;
+    Bit64u z3;
+    Bit64u more1;
+    Bit64u more2;
 
     mul64To128(a1, b1, &z2, &z3);
     mul64To128(a1, b0, &z1, &more2);
@@ -642,7 +663,9 @@ BX_CPP_INLINE void shift128ExtraRightJamming(
      Bit64u *z2Ptr
 )
 {
-    Bit64u z0, z1, z2;
+    Bit64u z0;
+    Bit64u z1;
+    Bit64u z2;
     int negCount = (-count) & 63;
 
     if (count == 0) {
@@ -655,19 +678,16 @@ BX_CPP_INLINE void shift128ExtraRightJamming(
             z2 = a1<<negCount;
             z1 = (a0<<negCount) | (a1>>count);
             z0 = a0>>count;
-        }
-        else {
+        } else {
             if (count == 64) {
                 z2 = a1;
                 z1 = a0;
-            }
-            else {
+            } else {
                 a2 |= a1;
                 if (count < 128) {
                     z2 = a0<<negCount;
                     z1 = a0>>(count & 63);
-                }
-                else {
+                } else {
                     z2 = (count == 128) ? a0 : (a0 != 0);
                     z1 = 0;
                 }

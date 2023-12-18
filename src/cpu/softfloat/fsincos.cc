@@ -36,7 +36,9 @@ static const floatx80 floatx80_one = packFloatx80(0, 0x3fff, BX_CONST64(0x800000
    M_PI approximation */
 static Bit64u argument_reduction_kernel(Bit64u aSig0, int Exp, Bit64u *zSig0, Bit64u *zSig1)
 {
-    Bit64u term0, term1, term2;
+    Bit64u term0;
+    Bit64u term1;
+    Bit64u term2;
     Bit64u aSig1 = 0;
 
     shortShift128Left(aSig1, aSig0, Exp, &aSig1, &aSig0);
@@ -53,7 +55,9 @@ static Bit64u argument_reduction_kernel(Bit64u aSig0, int Exp, Bit64u *zSig0, Bi
 
 static int reduce_trig_arg(int expDiff, int *zSign, Bit64u *aSig0, Bit64u *aSig1)
 {
-    Bit64u term0, term1, q = 0;
+    Bit64u term0;
+    Bit64u term1;
+    Bit64u q = 0;
 
     if (expDiff < 0) {
         shift128Right(*aSig0, 0, 1, aSig0, aSig1);
@@ -61,8 +65,7 @@ static int reduce_trig_arg(int expDiff, int *zSign, Bit64u *aSig0, Bit64u *aSig1
     }
     if (expDiff > 0) {
         q = argument_reduction_kernel(*aSig0, expDiff, aSig0, aSig1);
-    }
-    else {
+    } else {
         if (FLOAT_PI_HI <= *aSig0) {
             *aSig0 -= FLOAT_PI_HI;
             q = 1;
@@ -88,8 +91,7 @@ static int reduce_trig_arg(int expDiff, int *zSign, Bit64u *aSig0, Bit64u *aSig1
 #define SIN_ARR_SIZE 11
 #define COS_ARR_SIZE 11
 
-static float128 sin_arr[SIN_ARR_SIZE] =
-{
+static float128 sin_arr[SIN_ARR_SIZE] = {
     PACK_FLOAT_128(0x3fff000000000000, 0x0000000000000000), /*  1 */
     PACK_FLOAT_128(0xbffc555555555555, 0x5555555555555555), /*  3 */
     PACK_FLOAT_128(0x3ff8111111111111, 0x1111111111111111), /*  5 */
@@ -103,8 +105,7 @@ static float128 sin_arr[SIN_ARR_SIZE] =
     PACK_FLOAT_128(0x3fbd71b8ef6dcf57, 0x18bef146fcee6e45)  /* 21 */
 };
 
-static float128 cos_arr[COS_ARR_SIZE] =
-{
+static float128 cos_arr[COS_ARR_SIZE] = {
     PACK_FLOAT_128(0x3fff000000000000, 0x0000000000000000), /*  0 */
     PACK_FLOAT_128(0xbffe000000000000, 0x0000000000000000), /*  2 */
     PACK_FLOAT_128(0x3ffa555555555555, 0x5555555555555555), /*  4 */
@@ -227,9 +228,13 @@ int fsincos(floatx80 a, floatx80 *sin_a, floatx80 *cos_a, struct float_status_t 
 *----------------------------------------------------------------------------*/
     const floatx80 floatx80_default_nan = packFloatx80(0, floatx80_default_nan_exp, floatx80_default_nan_fraction);
 
-    Bit64u aSig0, aSig1 = 0;
-    Bit32s aExp, zExp, expDiff;
-    int aSign, zSign;
+    Bit64u aSig0;
+    Bit64u aSig1 = 0;
+    Bit32s aExp;
+    Bit32s zExp;
+    Bit32s expDiff;
+    int aSign;
+    int zSign;
     int q = 0;
 
     // handle unsupported extended double-precision floating encodings
@@ -292,8 +297,7 @@ int fsincos(floatx80 a, floatx80 *sin_a, floatx80 *cos_a, struct float_status_t 
             return 0;
         }
         zExp = aExp;
-    }
-    else {
+    } else {
         q = reduce_trig_arg(expDiff, &zSign, &aSig0, &aSig1);
     }
 
@@ -355,9 +359,13 @@ int ftan(floatx80 *a, struct float_status_t *status)
 *----------------------------------------------------------------------------*/
     const floatx80 floatx80_default_nan = packFloatx80(0, floatx80_default_nan_exp, floatx80_default_nan_fraction);
 
-    Bit64u aSig0, aSig1 = 0;
-    Bit32s aExp, zExp, expDiff;
-    int aSign, zSign;
+    Bit64u aSig0;
+    Bit64u aSig1 = 0;
+    Bit32s aExp;
+    Bit32s zExp;
+    Bit32s expDiff;
+    int aSign;
+    int zSign;
     int q = 0;
 
     // handle unsupported extended double-precision floating encodings
@@ -371,8 +379,7 @@ int ftan(floatx80 *a, struct float_status_t *status)
 
     /* invalid argument */
     if (aExp == 0x7FFF) {
-        if ((Bit64u) (aSig0<<1))
-        {
+        if ((Bit64u) (aSig0<<1)) {
             *a = propagateFloatx80NaNOne(*a, status);
             return 0;
         }
@@ -387,8 +394,7 @@ int ftan(floatx80 *a, struct float_status_t *status)
         if (aSig0 == 0) return 0;
         float_raise(status, float_flag_denormal);
         /* handle pseudo denormals */
-        if (! (aSig0 & BX_CONST64(0x8000000000000000)))
-        {
+        if (! (aSig0 & BX_CONST64(0x8000000000000000))) {
             float_raise(status, float_flag_inexact | float_flag_underflow);
             return 0;
         }
@@ -411,8 +417,7 @@ int ftan(floatx80 *a, struct float_status_t *status)
             return 0;
         }
         zExp = aExp;
-    }
-    else {
+    } else {
         q = reduce_trig_arg(expDiff, &zSign, &aSig0, &aSig1);
     }
 

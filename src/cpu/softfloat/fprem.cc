@@ -31,7 +31,8 @@ these four paragraphs for those parts of this code that are retained.
 /* executes single exponent reduction cycle */
 static Bit64u remainder_kernel(Bit64u aSig0, Bit64u bSig, int expDiff, Bit64u *zSig0, Bit64u *zSig1)
 {
-    Bit64u term0, term1;
+    Bit64u term0;
+    Bit64u term1;
     Bit64u aSig1 = 0;
 
     shortShift128Left(aSig1, aSig0, expDiff, &aSig1, &aSig0);
@@ -52,8 +53,13 @@ static int do_fprem(floatx80 a, floatx80 b, floatx80 *r, Bit64u *q, int rounding
 *----------------------------------------------------------------------------*/
     const floatx80 floatx80_default_nan = packFloatx80(0, floatx80_default_nan_exp, floatx80_default_nan_fraction);
 
-    Bit32s aExp, bExp, zExp, expDiff;
-    Bit64u aSig0, aSig1, bSig;
+    Bit32s aExp;
+    Bit32s bExp;
+    Bit32s zExp;
+    Bit32s expDiff;
+    Bit64u aSig0;
+    Bit64u aSig1;
+    Bit64u bSig;
     int aSign;
     *q = 0;
 
@@ -123,8 +129,7 @@ static int do_fprem(floatx80 a, floatx80 b, floatx80 *r, Bit64u *q, int rounding
         remainder_kernel(aSig0, bSig, n, &aSig0, &aSig1);
         zExp = aExp - n;
         overflow = 1;
-    }
-    else {
+    } else {
         zExp = bExp;
 
         if (expDiff < 0) {
@@ -139,21 +144,19 @@ static int do_fprem(floatx80 a, floatx80 b, floatx80 *r, Bit64u *q, int rounding
 
         if (expDiff > 0) {
             *q = remainder_kernel(aSig0, bSig, expDiff, &aSig0, &aSig1);
-        }
-        else {
+        } else {
             if (bSig <= aSig0) {
                aSig0 -= bSig;
                *q = 1;
             }
         }
 
-        if (rounding_mode == float_round_nearest_even)
-        {
-            Bit64u term0, term1;
+        if (rounding_mode == float_round_nearest_even) {
+            Bit64u term0;
+            Bit64u term1;
             shift128Right(bSig, 0, 1, &term0, &term1);
 
-            if (! lt128(aSig0, aSig1, term0, term1))
-            {
+            if (! lt128(aSig0, aSig1, term0, term1)) {
                int lt = lt128(term0, term1, aSig0, aSig1);
                int eq = eq128(aSig0, aSig1, term0, term1);
 

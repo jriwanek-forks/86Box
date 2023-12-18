@@ -46,8 +46,7 @@ extern float128 OddPoly(float128 x, float128 *arr, int n, struct float_status_t 
 
 #define L2_ARR_SIZE 9
 
-static float128 ln_arr[L2_ARR_SIZE] =
-{
+static float128 ln_arr[L2_ARR_SIZE] = {
     PACK_FLOAT_128(0x3fff000000000000, 0x0000000000000000), /*  1 */
     PACK_FLOAT_128(0x3ffd555555555555, 0x5555555555555555), /*  3 */
     PACK_FLOAT_128(0x3ffc999999999999, 0x999999999999999a), /*  5 */
@@ -159,8 +158,7 @@ invalid:
 
     if (aExp == 0x7FFF) {
         if ((Bit64u) (aSig<<1)
-             || ((bExp == 0x7FFF) && (Bit64u) (bSig<<1)))
-        {
+             || ((bExp == 0x7FFF) && (Bit64u) (bSig<<1))) {
             return propagateFloatx80NaN(a, b, status);
         }
         if (aSign) goto invalid;
@@ -259,9 +257,15 @@ floatx80 fyl2xp1(floatx80 a, floatx80 b, struct float_status_t *status)
 *----------------------------------------------------------------------------*/
     const floatx80 floatx80_default_nan = packFloatx80(0, floatx80_default_nan_exp, floatx80_default_nan_fraction);
 
-    Bit32s aExp, bExp;
-    Bit64u aSig, bSig, zSig0, zSig1, zSig2;
-    int aSign, bSign;
+    Bit32s aExp;
+    Bit32s bExp;
+    Bit64u aSig;
+    Bit64u bSig;
+    Bit64u zSig0;
+    Bit64u zSig1;
+    Bit64u zSig2;
+    int aSign;
+    int bSign;
 
     // handle unsupported extended double-precision floating encodings
     if (floatx80_is_unsupported(a) || floatx80_is_unsupported(b)) {
@@ -280,8 +284,7 @@ invalid:
 
     if (aExp == 0x7FFF) {
         if ((Bit64u) (aSig<<1)
-             || ((bExp == 0x7FFF) && (Bit64u) (bSig<<1)))
-        {
+             || ((bExp == 0x7FFF) && (Bit64u) (bSig<<1))) {
             return propagateFloatx80NaN(a, b, status);
         }
         if (aSign) goto invalid;
@@ -293,8 +296,7 @@ invalid:
             return packFloatx80(bSign, 0x7FFF, BX_CONST64(0x8000000000000000));
         }
     }
-    if (bExp == 0x7FFF)
-    {
+    if (bExp == 0x7FFF) {
         if ((Bit64u) (bSig<<1))
             return propagateFloatx80NaN(a, b, status);
 
@@ -324,14 +326,12 @@ invalid:
     if (aSign && aExp >= 0x3FFF)
         return a;
 
-    if (aExp >= 0x3FFC) // big argument
-    {
+    if (aExp >= 0x3FFC) { // big argument
         return fyl2x(floatx80_add(a, floatx80_one, status), b, status);
     }
 
     // handle tiny argument
-    if (aExp < FLOATX80_EXP_BIAS-70)
-    {
+    if (aExp < FLOATX80_EXP_BIAS-70) {
         // first order approximation, return (a*b)/ln(2)
         Bit32s zExp = aExp + FLOAT_LN2INV_EXP - 0x3FFE;
 
