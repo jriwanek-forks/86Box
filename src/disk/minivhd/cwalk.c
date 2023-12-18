@@ -606,7 +606,8 @@ static size_t cwk_path_join_and_normalize_multiple(const char **paths,
   char *buffer, size_t buffer_size)
 {
   size_t pos;
-  bool absolute, has_segment_output;
+  bool absolute;
+  bool has_segment_output;
   struct cwk_segment_joined sj;
 
   // We initialize the position after the root, which should get us started.
@@ -743,10 +744,17 @@ static void cwk_path_skip_segments_until_diverge(struct cwk_segment_joined *bsj,
 size_t cwk_path_get_relative(const char *base_directory, const char *path,
   char *buffer, size_t buffer_size)
 {
-  size_t pos, base_root_length, path_root_length;
-  bool absolute, base_available, other_available, has_output;
-  const char *base_paths[2], *other_paths[2];
-  struct cwk_segment_joined bsj, osj;
+  size_t pos;
+  size_t base_root_length;
+  size_t path_root_length;
+  bool absolute;
+  bool base_available;
+  bool other_available;
+  bool has_output;
+  const char *base_paths[2];
+  const char *other_paths[2];
+  struct cwk_segment_joined bsj;
+  struct cwk_segment_joined osj;
 
   pos = 0;
 
@@ -883,7 +891,11 @@ size_t cwk_path_change_root(const char *path, const char *new_root,
   char *buffer, size_t buffer_size)
 {
   const char *tail;
-  size_t root_length, path_length, tail_length, new_root_length, new_path_size;
+  size_t root_length;
+  size_t path_length;
+  size_t tail_length;
+  size_t new_root_length;
+  size_t new_path_size;
 
   // First we need to determine the actual size of the root which we will
   // change.
@@ -956,7 +968,9 @@ size_t cwk_path_change_basename(const char *path, const char *new_basename,
   char *buffer, size_t buffer_size)
 {
   struct cwk_segment segment;
-  size_t pos, root_size, new_basename_size;
+  size_t pos;
+  size_t root_size;
+  size_t new_basename_size;
 
   // First we try to get the last segment. We may only have a root without any
   // segments, in which case we will create one.
@@ -1059,8 +1073,12 @@ size_t cwk_path_change_extension(const char *path, const char *new_extension,
   char *buffer, size_t buffer_size)
 {
   struct cwk_segment segment;
-  const char *c, *old_extension;
-  size_t pos, root_size, trail_size, new_extension_size;
+  const char *c;
+  const char *old_extension;
+  size_t pos;
+  size_t root_size;
+  size_t trail_size;
+  size_t new_extension_size;
 
   // First we try to get the last segment. We may only have a root without any
   // segments, in which case we will create one.
