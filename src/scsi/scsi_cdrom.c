@@ -282,6 +282,52 @@ static const mode_sense_pages_t scsi_cdrom_mode_sense_pages_default = {
      { GPMODE_CAPABILITIES_PAGE, 0x12, 0, 0, 1, 0, 0, 0, 2, 0xC2, 1, 0, 0, 0, 2, 0xC2, 0, 0, 0, 0 }}
 };
 
+static const mode_sense_pages_t scsi_cdrom_mode_sense_pages_default_dvd = {
+    {{ 0, 0 },
+     { GPMODE_R_W_ERROR_PAGE, 6, 0, 5, 0, 0, 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { GPMODE_CDROM_PAGE, 6, 0, 1, 0, 60, 0, 75 },
+     { GPMODE_CDROM_AUDIO_PAGE | 0x80, 0xE, 4, 0, 0, 0, 0, 75, 1, 255, 2, 255, 0, 0, 0, 0 },
+     { 0x0F, 0x14, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { GPMODE_CAPABILITIES_PAGE, 0x12, 8, 0, 1, 0, 0, 0, 2, 0xC2, 1, 0, 0, 0, 2, 0xC2, 0, 0, 0, 0 }}
+};
+
 static const mode_sense_pages_t scsi_cdrom_mode_sense_pages_default_scsi = {
     {{ GPMODE_UNIT_ATN_PAGE, 6, 0, 0, 0, 0, 0, 0 }, /*Guess-work*/
      { GPMODE_R_W_ERROR_PAGE, 6, 0, 5, 0, 0, 0, 0 },
@@ -326,6 +372,52 @@ static const mode_sense_pages_t scsi_cdrom_mode_sense_pages_default_scsi = {
      { 0, 0 },
      { 0, 0 },
      { GPMODE_CAPABILITIES_PAGE, 0x12, 0, 0, 1, 0, 0, 0, 2, 0xC2, 1, 0, 0, 0, 2, 0xC2, 0, 0, 0, 0 }}
+};
+
+static const mode_sense_pages_t scsi_cdrom_mode_sense_pages_default_scsi_dvd = {
+    {{ GPMODE_UNIT_ATN_PAGE, 6, 0, 0, 0, 0, 0, 0 }, /*Guess-work*/
+     { GPMODE_R_W_ERROR_PAGE, 6, 0, 5, 0, 0, 0, 0 },
+     { GPMODE_DISCONNECT_PAGE, 0x0e, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+     { GPMODE_FORMAT_DEVICE_PAGE, 0x16, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { GPMODE_CDROM_PAGE, 6, 0, 1, 0, 60, 0, 75 },
+     { GPMODE_CDROM_AUDIO_PAGE | 0x80, 0xE, 5, 4, 0, 128, 0, 75, 1, 255, 2, 255, 0, 0, 0, 0 },
+     { 0x0F, 0x14, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { GPMODE_CAPABILITIES_PAGE, 0x12, 8, 0, 1, 0, 0, 0, 2, 0xC2, 1, 0, 0, 0, 2, 0xC2, 0, 0, 0, 0 }}
 };
 
 static const mode_sense_pages_t scsi_cdrom_mode_sense_pages_default_sony_scsi = {
@@ -772,10 +864,17 @@ scsi_cdrom_mode_sense_read(scsi_cdrom_t *dev, uint8_t page_control, uint8_t page
                 case 1:
                     return scsi_cdrom_mode_sense_pages_changeable.pages[page][pos];
                 case 2:
-                    if (dev->drv->bus_type == CDROM_BUS_SCSI)
-                        return scsi_cdrom_mode_sense_pages_default_scsi.pages[page][pos];
-                    else
-                        return scsi_cdrom_mode_sense_pages_default.pages[page][pos];
+                    if (dev->drv->bus_type == CDROM_BUS_SCSI) {
+                        if ((dev->drv->type == CDROM_TYPE_86BOX_DVD_100) || (dev->drv->type == CDROM_TYPE_TOSHIBA_SDM1401_1008))
+                            return scsi_cdrom_mode_sense_pages_default_scsi_dvd.pages[page][pos];
+                        else
+                            return scsi_cdrom_mode_sense_pages_default_scsi.pages[page][pos];
+                    } else {
+                        if (dev->drv->type == CDROM_TYPE_86BOX_DVD_100)
+                            return scsi_cdrom_mode_sense_pages_default_dvd.pages[page][pos];
+                        else
+                            return scsi_cdrom_mode_sense_pages_default.pages[page][pos];
+                    }
 
                 default:
                     break;
