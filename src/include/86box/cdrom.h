@@ -63,6 +63,7 @@ enum {
 enum
 {
     CDROM_TYPE_86BOX_100,
+    CDROM_TYPE_86BOX_DVD_100,
     CDROM_TYPE_AZT_CDA46802I_115,
     CDROM_TYPE_BTC_BCD36XH_U10,
     CDROM_TYPE_GOLDSTAR_CRD_8160B_314,
@@ -124,7 +125,8 @@ static const struct
     const char *internal_name;
     const int   bus_type;
 } cdrom_drive_types[] = {
-    { "86BOX",    "CD-ROM",             "1.00", "86BOX CD-ROM 1.00",             "86BOX_CD-ROM_1.00",             BUS_TYPE_BOTH  },
+    { "86BOX",    "CD-ROM",             "1.00", "86BOX CD-ROM 1.00",             "86BOX_CD-ROM_1.00",             BUS_TYPE_BOTH },
+    { "86BOX",    "DVD-ROM",            "1.00", "86BOX DVD-ROM 1.00",            "86BOX_DVD-ROM_1.00",            BUS_TYPE_BOTH },
     { "AZT",      "CDA46802I",          "1.15", "AZT CDA46802I 1.15",            "AZT_CDA46802I_1.15",            BUS_TYPE_IDE  },
     { "BTC",      "CD-ROM BCD36XH",     "U1.0", "BTC CD-ROM BCD36XH U1.0",       "BTC_CD-ROM_BCD36XH_U1.0",       BUS_TYPE_IDE  },
     { "GOLDSTAR", "CRD-8160B",          "3.14", "GOLDSTAR CRD-8160B 3.14",       "GOLDSTAR_CRD-8160B_3.14",       BUS_TYPE_IDE  },
@@ -153,7 +155,7 @@ static const struct
     { "NEC",      "CD-ROM DRIVE:75",    "1.03", "NEC CD-ROM DRIVE:75 1.03",      "NEC_CD-ROM_DRIVE75_1.03",       BUS_TYPE_SCSI },
     { "NEC",      "CD-ROM DRIVE:77",    "1.06", "NEC CD-ROM DRIVE:77 1.06",      "NEC_CD-ROM_DRIVE77_1.06",       BUS_TYPE_SCSI },
     { "NEC",      "CD-ROM DRIVE:211",   "1.00", "NEC CD-ROM DRIVE:211 1.00",     "NEC_CD-ROM_DRIVE211_1.00",      BUS_TYPE_SCSI },
-    { "NEC",      "CD-ROM DRIVE:464",   "1.05", "NEC CD-ROM DRIVE:464 1.05",     "NEC_CD-ROM_DRIVE464_1.05",       BUS_TYPE_SCSI },
+    { "NEC",      "CD-ROM DRIVE:464",   "1.05", "NEC CD-ROM DRIVE:464 1.05",     "NEC_CD-ROM_DRIVE464_1.05",      BUS_TYPE_SCSI },
     { "SONY",     "CD-ROM CDU-541",     "1.0i", "SONY CD-ROM CDU-541 1.0i",      "SONY_CD-ROM_CDU-541_1.0i",      BUS_TYPE_SCSI },
     { "SONY",     "CD-ROM CDU-561",     "1.8k", "SONY CD-ROM CDU-561 1.8k",      "SONY_CD-ROM_CDU-561_1.8k",      BUS_TYPE_SCSI },
     { "SONY",     "CD-ROM CDU-76S",     "1.00", "SONY CD-ROM CDU-76S 1.00",      "SONY_CD-ROM_CDU-76S_1.00",      BUS_TYPE_SCSI },
