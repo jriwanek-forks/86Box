@@ -824,7 +824,8 @@ scsi_cdrom_mode_sense(scsi_cdrom_t *dev, uint8_t *buf, uint32_t pos, uint8_t pag
                                early vendor SCSI CD-ROM models) are caddy drives, the later
                                ones are tray drives. */
                             if (dev->drv->bus_type == CDROM_BUS_SCSI)
-                                buf[pos++] |= ((dev->drv->type == CDROM_TYPE_86BOX_100) ? 0x20 : 0x00);
+                                buf[pos++] |= ((dev->drv->type == CDROM_TYPE_86BOX_100)  ||
+                                               (dev->drv->type == CDROM_TYPE_86BOX_DVD_100) ? 0x20 : 0x00);
                             else
                                 buf[pos++] |= ((dev->drv->type == CDROM_TYPE_NEC_260_100) ||
                                                 ((dev->drv->type == CDROM_TYPE_NEC_260_101)) ? 0x00 : 0x20);
@@ -3189,6 +3190,7 @@ begin:
                     dev->buffer[3] = 0x02;
                     switch (dev->drv->type) {
                         case CDROM_TYPE_86BOX_100:
+                        case CDROM_TYPE_86BOX_DVD_100:
                             dev->buffer[2] = 0x05; /*SCSI-2 compliant*/
                             break;
                         case CDROM_TYPE_CHINON_CDS431_H42:
@@ -4003,7 +4005,7 @@ scsi_cdrom_identify(ide_t *ide, int ide_has_dma)
         ide->buffer[0] = 0x8000 | (5 << 8) | 0x80 | (2 << 5); /* ATAPI device, CD-ROM drive, removable media, accelerated DRQ */
     ide_padstr((char *) (ide->buffer + 10), "", 20);          /* Serial Number */
 
-    if (dev->drv->type == CDROM_TYPE_86BOX_100) {
+    if ((dev->drv->type == CDROM_TYPE_86BOX_100) || (dev->drv->type == CDROM_TYPE_86BOX_DVD_100)) {
         ide_padstr((char *) (ide->buffer + 23), EMU_VERSION_EX, 8);   /* Firmware */
         ide_padstr((char *) (ide->buffer + 27), device_identify, 40); /* Model */
     } else {
