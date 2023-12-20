@@ -512,6 +512,52 @@ static const mode_sense_pages_t scsi_cdrom_mode_sense_pages_changeable = {
      { GPMODE_CAPABILITIES_PAGE, 0x12, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }}
 };
 
+static const mode_sense_pages_t scsi_cdrom_mode_sense_pages_changeable_dvd = {
+    {{ GPMODE_UNIT_ATN_PAGE, 6, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF }, /*Guess-work*/
+     { GPMODE_R_W_ERROR_PAGE, 6, 0xFF, 0xFF, 0, 0, 0, 0 },
+     { GPMODE_DISCONNECT_PAGE, 0x0E, 0xFF, 0, 0, 0, 0, 0, 0, 0, 0xFF, 0xFF, 0, 0, 0, 0 },
+     { GPMODE_FORMAT_DEVICE_PAGE, 0x16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { GPMODE_CDROM_PAGE, 6, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF },
+     { GPMODE_CDROM_AUDIO_PAGE | 0x80, 0xE, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF },
+     { 0x0F, 0x14, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { 0, 0 },
+     { GPMODE_CAPABILITIES_PAGE, 0x12, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }}
+};
+
 static const mode_sense_pages_t scsi_cdrom_mode_sense_pages_changeable_sony = {
     {{ 0, 0 },
      { GPMODE_R_W_ERROR_PAGE, 6, 0xFF, 0xFF, 0, 0, 0, 0 },
@@ -722,6 +768,28 @@ scsi_cdrom_mode_sense_load(scsi_cdrom_t *dev)
                 fclose(fp);
             }
             break;
+        case CDROM_TYPE_86BOX_DVD_100:
+        case CDROM_TYPE_TOSHIBA_SDM1401_1008:
+            memset(&dev->ms_pages_saved, 0, sizeof(mode_sense_pages_t));
+            if (dev->drv->bus_type == CDROM_BUS_SCSI)
+                memcpy(&dev->ms_pages_saved, &scsi_cdrom_mode_sense_pages_default_scsi_dvd,
+                       sizeof(mode_sense_pages_t));
+            else
+                memcpy(&dev->ms_pages_saved, &scsi_cdrom_mode_sense_pages_default_dvd,
+                       sizeof(mode_sense_pages_t));
+
+            memset(file_name, 0, 512);
+            if (dev->drv->bus_type == CDROM_BUS_SCSI)
+                sprintf(file_name, "scsi_cdrom_%02i_mode_sense_dvd_bin", dev->id);
+            else
+                sprintf(file_name, "cdrom_%02i_mode_sense_dvd_bin", dev->id);
+            fp = plat_fopen(nvr_path(file_name), "rb");
+            if (fp) {
+                if (fread(dev->ms_pages_saved.pages[GPMODE_CDROM_AUDIO_PAGE], 1, 0x10, fp) != 0x10)
+                    fatal("scsi_cdrom_mode_sense_load(): Error reading data\n");
+                fclose(fp);
+            }
+		    break;
         default:
             memset(&dev->ms_pages_saved, 0, sizeof(mode_sense_pages_t));
             if (dev->drv->bus_type == CDROM_BUS_SCSI)
@@ -764,6 +832,18 @@ scsi_cdrom_mode_sense_save(scsi_cdrom_t *dev)
             fp = plat_fopen(nvr_path(file_name), "wb");
             if (fp) {
                 fwrite(dev->ms_pages_saved_sony.pages[GPMODE_CDROM_AUDIO_PAGE_SONY], 1, 0x10, fp);
+                fclose(fp);
+            }
+            break;
+        case CDROM_TYPE_86BOX_DVD_100:
+        case CDROM_TYPE_TOSHIBA_SDM1401_1008:
+            if (dev->drv->bus_type == CDROM_BUS_SCSI)
+                sprintf(file_name, "scsi_cdrom_%02i_mode_sense_dvd_bin", dev->id);
+            else
+                sprintf(file_name, "cdrom_%02i_mode_sense_dvd_bin", dev->id);
+            fp = plat_fopen(nvr_path(file_name), "wb");
+            if (fp) {
+                fwrite(dev->ms_pages_saved.pages[GPMODE_CDROM_AUDIO_PAGE], 1, 0x10, fp);
                 fclose(fp);
             }
             break;
@@ -862,7 +942,10 @@ scsi_cdrom_mode_sense_read(scsi_cdrom_t *dev, uint8_t page_control, uint8_t page
                 case 3:
                     return dev->ms_pages_saved.pages[page][pos];
                 case 1:
-                    return scsi_cdrom_mode_sense_pages_changeable.pages[page][pos];
+                    if ((dev->drv->type == CDROM_TYPE_86BOX_DVD_100) || (dev->drv->type == CDROM_TYPE_TOSHIBA_SDM1401_1008))
+                        return scsi_cdrom_mode_sense_pages_changeable_dvd.pages[page][pos];
+                    else
+                        return scsi_cdrom_mode_sense_pages_changeable.pages[page][pos];
                 case 2:
                     if (dev->drv->bus_type == CDROM_BUS_SCSI) {
                         if ((dev->drv->type == CDROM_TYPE_86BOX_DVD_100) || (dev->drv->type == CDROM_TYPE_TOSHIBA_SDM1401_1008))
