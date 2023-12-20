@@ -3372,8 +3372,10 @@ begin:
                     dev->buffer[3] = 0x02;
                     switch (dev->drv->type) {
                         case CDROM_TYPE_86BOX_100:
+                            dev->buffer[2] = 0x05; /*SCSI-2 compliant*/ /*TODO: Table 95 of SPC-4 says this is SCSI-3 not 2, check this */
+                            break;
                         case CDROM_TYPE_86BOX_DVD_100:
-                            dev->buffer[2] = 0x05; /*SCSI-2 compliant*/
+                            dev->buffer[2] = 0x06; /*SCSI-4 compliant*/
                             break;
                         case CDROM_TYPE_CHINON_CDS431_H42:
                         case CDROM_TYPE_DEC_RRD45_0436:
