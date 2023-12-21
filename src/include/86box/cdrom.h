@@ -61,6 +61,21 @@ enum {
 };
 
 enum {
+    DRIVE_TYPE_NONE = 0,
+    DRIVE_TYPE_CD   = 1,
+    DRIVE_TYPE_DVD  = 2,
+    DRIVE_TYPE_BD   = 3
+};
+
+enum {
+	MPC_VER_0 = 0,
+	MPC_VER_1 = 1,
+	MPC_VER_2 = 2,
+	MPC_VER_3 = 3,
+	MPC_VER_4 = 4
+};
+
+enum {
     CDROM_TYPE_86BOX_100,
     CDROM_TYPE_86BOX_DVD_100,
     CDROM_TYPE_AZT_CDA46802I_115,
@@ -115,60 +130,62 @@ enum {
 #define BUS_TYPE_BOTH              -2
 #define BUS_TYPE_NONE              -1
 
-    const char  vendor[9];
-    const char  model[17];
-    const char  revision[5];
-    const char *name;
-    const char *internal_name;
-    const int   bus_type;
 static const struct {
+    const char    vendor[9];
+    const char    model[17];
+    const char    revision[5];
+    const char   *name;
+    const char   *internal_name;
+    const int8_t  bus_type;
+    const uint8_t drive_type;
+    const uint8_t mpcversion;
 } cdrom_drive_types[] = {
-    { "86BOX",    "CD-ROM",             "1.00", "86BOX CD-ROM 1.00",             "86BOX_CD-ROM_1.00",             BUS_TYPE_BOTH },
-    { "86BOX",    "DVD-ROM",            "1.00", "86BOX DVD-ROM 1.00",            "86BOX_DVD-ROM_1.00",            BUS_TYPE_BOTH },
-    { "AZT",      "CDA46802I",          "1.15", "AZT CDA46802I 1.15",            "AZT_CDA46802I_1.15",            BUS_TYPE_IDE  },
-    { "BTC",      "CD-ROM BCD36XH",     "U1.0", "BTC CD-ROM BCD36XH U1.0",       "BTC_CD-ROM_BCD36XH_U1.0",       BUS_TYPE_IDE  },
-    { "GOLDSTAR", "CRD-8160B",          "3.14", "GOLDSTAR CRD-8160B 3.14",       "GOLDSTAR_CRD-8160B_3.14",       BUS_TYPE_IDE  },
-    { "HITACHI",  "CDR-8130",           "0020", "HITACHI CDR-8130 0020",         "HITACHI_CDR-8130_0020",         BUS_TYPE_IDE  },
-    { "KENWOOD",  "CD-ROM UCR-421",     "208E", "KENWOOD CD-ROM UCR-421 208E",   "KENWOOD_CD-ROM_UCR-421_208E",   BUS_TYPE_IDE  },
-    { "MATSHITA", "CD-ROM CR-587",      "7S13", "MATSHITA CD-ROM CR-587 7S13",   "MATSHITA_CD-ROM_CR-587_7S13",   BUS_TYPE_IDE  },
-    { "MATSHITA", "CD-ROM CR-588",      "LS15", "MATSHITA CD-ROM CR-588 LS15",   "MATSHITA_CD-ROM_CR-588_LS15",   BUS_TYPE_IDE  },
-    { "MATSHITA", "CR-571",             "1.0e", "MATSHITA CR-571 1.0e",          "MATSHITA_CR-571_1.0e",          BUS_TYPE_IDE  },
-    { "MATSHITA", "CR-572",             "1.0j", "MATSHITA CR-572 1.0j",          "MATSHITA_CR-572_1.0j",          BUS_TYPE_IDE  },
-    { "MITSUMI",  "CRMC-FX4820T",       "D02A", "MITSUMI CRMC-FX4820T D02A",     "MITSUMI_CRMC-FX4820T_D02A",     BUS_TYPE_IDE  },
-    { "NEC",      "CD-ROM DRIVE:260",   "1.00", "NEC CD-ROM DRIVE:260 1.00",     "NEC_CD-ROM_DRIVE260_1.00",      BUS_TYPE_IDE  },
-    { "NEC",      "CD-ROM DRIVE:260",   "1.01", "NEC CD-ROM DRIVE:260 1.01",     "NEC_CD-ROM_DRIVE260_1.01",      BUS_TYPE_IDE  },
-    { "NEC",      "CD-ROM DRIVE:273",   "4.20", "NEC CD-ROM DRIVE:273 4.20",     "NEC_CD-ROM_DRIVE273_4.20",      BUS_TYPE_IDE  },
-    { "NEC",      "CD-ROM DRIVE:280",   "1.05", "NEC CD-ROM DRIVE:280 1.05",     "NEC_CD-ROM_DRIVE280_1.05",      BUS_TYPE_IDE  },
-    { "NEC",      "CD-ROM DRIVE:280",   "3.08", "NEC CD-ROM DRIVE:280 3.08",     "NEC_CD-ROM_DRIVE280_3.08",      BUS_TYPE_IDE  },
-    { "PHILIPS",  "CD-ROM PCA403CD",    "U31P", "PHILIPS CD-ROM PCA403CD U31P",  "PHILIPS_CD-ROM_PCA403CD_U31P",  BUS_TYPE_IDE  },
-    { "SONY",     "CD-ROM CDU76",       "1.0i", "SONY CD-ROM CDU76 1.0i",        "SONY_CD-ROM_CDU76_1.0i",        BUS_TYPE_IDE  },
-    { "SONY",     "CD-ROM CDU311",      "3.0h", "SONY CD-ROM CDU311 3.0h",       "SONY_CD-ROM_CDU311_3.0h",       BUS_TYPE_IDE  },
-    { "TOSHIBA",  "CD-ROM XM-5302TA",   "0305", "TOSHIBA CD-ROM XM-5302TA 0305", "TOSHIBA_CD-ROM_XM-5302TA_0305", BUS_TYPE_IDE  },
-    { "TOSHIBA",  "CD-ROM XM-5702B",    "TA70", "TOSHIBA CD-ROM XM-5702B TA70",  "TOSHIBA_CD-ROM_XM-5702B_TA70",  BUS_TYPE_IDE  },
-    { "CHINON",   "CD-ROM CDS-431",     "H42 ", "CHINON CD-ROM CDS-431 H42",     "CHINON_CD-ROM_CDS-431_H42",     BUS_TYPE_SCSI },
-    { "DEC",      "RRD45   (C) DEC",    "0436", "DEC RRD45 0436",                "DEC_RRD45_0436",                BUS_TYPE_SCSI },
-    { "MATSHITA", "CD-ROM CR-501",      "1.0b", "MATSHITA CD-ROM CR-501 1.0b",   "MATSHITA_CD-ROM_CR-501_1.0b",   BUS_TYPE_SCSI },
-    { "NEC",      "CD-ROM DRIVE:25",    "1.0a", "NEC CD-ROM DRIVE:25 1.0a",      "NEC_CD-ROM_DRIVE25_1.0a",       BUS_TYPE_SCSI },
-    { "NEC",      "CD-ROM DRIVE:38",    "1.00", "NEC CD-ROM DRIVE:38 1.00",      "NEC_CD-ROM_DRIVE38_1.00",       BUS_TYPE_SCSI },
-    { "NEC",      "CD-ROM DRIVE:75",    "1.03", "NEC CD-ROM DRIVE:75 1.03",      "NEC_CD-ROM_DRIVE75_1.03",       BUS_TYPE_SCSI },
-    { "NEC",      "CD-ROM DRIVE:77",    "1.06", "NEC CD-ROM DRIVE:77 1.06",      "NEC_CD-ROM_DRIVE77_1.06",       BUS_TYPE_SCSI },
-    { "NEC",      "CD-ROM DRIVE:211",   "1.00", "NEC CD-ROM DRIVE:211 1.00",     "NEC_CD-ROM_DRIVE211_1.00",      BUS_TYPE_SCSI },
-    { "NEC",      "CD-ROM DRIVE:464",   "1.05", "NEC CD-ROM DRIVE:464 1.05",     "NEC_CD-ROM_DRIVE464_1.05",      BUS_TYPE_SCSI },
-    { "SONY",     "CD-ROM CDU-541",     "1.0i", "SONY CD-ROM CDU-541 1.0i",      "SONY_CD-ROM_CDU-541_1.0i",      BUS_TYPE_SCSI },
-    { "SONY",     "CD-ROM CDU-561",     "1.8k", "SONY CD-ROM CDU-561 1.8k",      "SONY_CD-ROM_CDU-561_1.8k",      BUS_TYPE_SCSI },
-    { "SONY",     "CD-ROM CDU-76S",     "1.00", "SONY CD-ROM CDU-76S 1.00",      "SONY_CD-ROM_CDU-76S_1.00",      BUS_TYPE_SCSI },
-    { "PHILIPS",  "CDD2600",            "1.07", "PHILIPS CDD2600 1.07",          "PHILIPS_CDD2600_1.07",          BUS_TYPE_SCSI },
-    { "PIONEER",  "CD-ROM DRM-604X",    "2403", "PIONEER CD-ROM DRM-604X 2403",  "PIONEER_CD-ROM_DRM-604X_2403",  BUS_TYPE_SCSI },
-    { "PLEXTOR",  "CD-ROM PX-32TS",     "1.03", "PLEXTOR CD-ROM PX-32TS 1.03",   "PLEXTOR_CD-ROM_PX-32TS_1.03",   BUS_TYPE_SCSI },
-    { "TEAC",     "CD 50",              "1.00", "TEAC CD 50 1.00",               "TEAC_CD_50_1.00",               BUS_TYPE_SCSI },
-    { "TEAC",     "CD-ROM R55S",        "1.0R", "TEAC CD-ROM R55S 1.0R",         "TEAC_CD-ROM_R55S_1.0R",         BUS_TYPE_SCSI },
-    { "TEXEL",    "CD-ROM DM-XX24",     "1.00", "TEXEL CD-ROM DM-XX24 1.00",     "TEXEL_CD-ROM_DM-XX24_1.00",     BUS_TYPE_SCSI },
-    { "TOSHIBA",  "CD-ROM DRIVE:XM",    "3433", "TOSHIBA CD-ROM DRIVE:XM 3433",  "TOSHIBA_CD-ROM_DRIVEXM_3433",   BUS_TYPE_SCSI },
-    { "TOSHIBA",  "CD-ROM XM-3201B",    "3232", "TOSHIBA CD-ROM XM-3201B 3232",  "TOSHIBA_CD-ROM_XM-3201B_3232",  BUS_TYPE_SCSI },
-    { "TOSHIBA",  "CD-ROM XM-3301TA",   "0272", "TOSHIBA CD-ROM XM-3301TA 0272", "TOSHIBA_CD-ROM_XM-3301TA_0272", BUS_TYPE_SCSI },
-    { "TOSHIBA",  "CD-ROM XM-5701TA",   "3136", "TOSHIBA CD-ROM XM-5701TA 3136", "TOSHIBA_CD-ROM_XM-5701TA_3136", BUS_TYPE_SCSI },
-    { "TOSHIBA",  "DVD-ROM SD-M1401",   "1008", "TOSHIBA DVD-ROM SD-M1401 1008", "TOSHIBA_DVD-ROM_SD-M1401_1008", BUS_TYPE_SCSI },
-    { "",         "",                   "",     "",                              "",                              BUS_TYPE_NONE },
+    { "86BOX",    "CD-ROM",             "1.00", "86BOX CD-ROM 1.00",             "86BOX_CD-ROM_1.00",             BUS_TYPE_BOTH, DRIVE_TYPE_CD,   MPC_VER_2 },
+    { "86BOX",    "DVD-ROM",            "1.00", "86BOX DVD-ROM 1.00",            "86BOX_DVD-ROM_1.00",            BUS_TYPE_BOTH, DRIVE_TYPE_DVD,  MPC_VER_4 },
+    { "AZT",      "CDA46802I",          "1.15", "AZT CDA46802I 1.15",            "AZT_CDA46802I_1.15",            BUS_TYPE_IDE,  DRIVE_TYPE_CD,   MPC_VER_2 },
+    { "BTC",      "CD-ROM BCD36XH",     "U1.0", "BTC CD-ROM BCD36XH U1.0",       "BTC_CD-ROM_BCD36XH_U1.0",       BUS_TYPE_IDE,  DRIVE_TYPE_CD,   MPC_VER_2 },
+    { "GOLDSTAR", "CRD-8160B",          "3.14", "GOLDSTAR CRD-8160B 3.14",       "GOLDSTAR_CRD-8160B_3.14",       BUS_TYPE_IDE,  DRIVE_TYPE_CD,   MPC_VER_2 },
+    { "HITACHI",  "CDR-8130",           "0020", "HITACHI CDR-8130 0020",         "HITACHI_CDR-8130_0020",         BUS_TYPE_IDE,  DRIVE_TYPE_CD,   MPC_VER_2 },
+    { "KENWOOD",  "CD-ROM UCR-421",     "208E", "KENWOOD CD-ROM UCR-421 208E",   "KENWOOD_CD-ROM_UCR-421_208E",   BUS_TYPE_IDE,  DRIVE_TYPE_CD,   MPC_VER_2 },
+    { "MATSHITA", "CD-ROM CR-587",      "7S13", "MATSHITA CD-ROM CR-587 7S13",   "MATSHITA_CD-ROM_CR-587_7S13",   BUS_TYPE_IDE,  DRIVE_TYPE_CD,   MPC_VER_2 },
+    { "MATSHITA", "CD-ROM CR-588",      "LS15", "MATSHITA CD-ROM CR-588 LS15",   "MATSHITA_CD-ROM_CR-588_LS15",   BUS_TYPE_IDE,  DRIVE_TYPE_CD,   MPC_VER_2 },
+    { "MATSHITA", "CR-571",             "1.0e", "MATSHITA CR-571 1.0e",          "MATSHITA_CR-571_1.0e",          BUS_TYPE_IDE,  DRIVE_TYPE_CD,   MPC_VER_2 },
+    { "MATSHITA", "CR-572",             "1.0j", "MATSHITA CR-572 1.0j",          "MATSHITA_CR-572_1.0j",          BUS_TYPE_IDE,  DRIVE_TYPE_CD,   MPC_VER_2 },
+    { "MITSUMI",  "CRMC-FX4820T",       "D02A", "MITSUMI CRMC-FX4820T D02A",     "MITSUMI_CRMC-FX4820T_D02A",     BUS_TYPE_IDE,  DRIVE_TYPE_CD,   MPC_VER_2 },
+    { "NEC",      "CD-ROM DRIVE:260",   "1.00", "NEC CD-ROM DRIVE:260 1.00",     "NEC_CD-ROM_DRIVE260_1.00",      BUS_TYPE_IDE,  DRIVE_TYPE_CD,   MPC_VER_2 },
+    { "NEC",      "CD-ROM DRIVE:260",   "1.01", "NEC CD-ROM DRIVE:260 1.01",     "NEC_CD-ROM_DRIVE260_1.01",      BUS_TYPE_IDE,  DRIVE_TYPE_CD,   MPC_VER_2 },
+    { "NEC",      "CD-ROM DRIVE:273",   "4.20", "NEC CD-ROM DRIVE:273 4.20",     "NEC_CD-ROM_DRIVE273_4.20",      BUS_TYPE_IDE,  DRIVE_TYPE_CD,   MPC_VER_2 },
+    { "NEC",      "CD-ROM DRIVE:280",   "1.05", "NEC CD-ROM DRIVE:280 1.05",     "NEC_CD-ROM_DRIVE280_1.05",      BUS_TYPE_IDE,  DRIVE_TYPE_CD,   MPC_VER_2 },
+    { "NEC",      "CD-ROM DRIVE:280",   "3.08", "NEC CD-ROM DRIVE:280 3.08",     "NEC_CD-ROM_DRIVE280_3.08",      BUS_TYPE_IDE,  DRIVE_TYPE_CD,   MPC_VER_2 },
+    { "PHILIPS",  "CD-ROM PCA403CD",    "U31P", "PHILIPS CD-ROM PCA403CD U31P",  "PHILIPS_CD-ROM_PCA403CD_U31P",  BUS_TYPE_IDE,  DRIVE_TYPE_CD,   MPC_VER_2 },
+    { "SONY",     "CD-ROM CDU76",       "1.0i", "SONY CD-ROM CDU76 1.0i",        "SONY_CD-ROM_CDU76_1.0i",        BUS_TYPE_IDE,  DRIVE_TYPE_CD,   MPC_VER_2 },
+    { "SONY",     "CD-ROM CDU311",      "3.0h", "SONY CD-ROM CDU311 3.0h",       "SONY_CD-ROM_CDU311_3.0h",       BUS_TYPE_IDE,  DRIVE_TYPE_CD,   MPC_VER_2 },
+    { "TOSHIBA",  "CD-ROM XM-5302TA",   "0305", "TOSHIBA CD-ROM XM-5302TA 0305", "TOSHIBA_CD-ROM_XM-5302TA_0305", BUS_TYPE_IDE,  DRIVE_TYPE_CD,   MPC_VER_2 },
+    { "TOSHIBA",  "CD-ROM XM-5702B",    "TA70", "TOSHIBA CD-ROM XM-5702B TA70",  "TOSHIBA_CD-ROM_XM-5702B_TA70",  BUS_TYPE_IDE,  DRIVE_TYPE_CD,   MPC_VER_2 },
+    { "CHINON",   "CD-ROM CDS-431",     "H42 ", "CHINON CD-ROM CDS-431 H42",     "CHINON_CD-ROM_CDS-431_H42",     BUS_TYPE_SCSI, DRIVE_TYPE_CD,   MPC_VER_2 },
+    { "DEC",      "RRD45   (C) DEC",    "0436", "DEC RRD45 0436",                "DEC_RRD45_0436",                BUS_TYPE_SCSI, DRIVE_TYPE_CD,   MPC_VER_2 },
+    { "MATSHITA", "CD-ROM CR-501",      "1.0b", "MATSHITA CD-ROM CR-501 1.0b",   "MATSHITA_CD-ROM_CR-501_1.0b",   BUS_TYPE_SCSI, DRIVE_TYPE_CD,   MPC_VER_2 },
+    { "NEC",      "CD-ROM DRIVE:25",    "1.0a", "NEC CD-ROM DRIVE:25 1.0a",      "NEC_CD-ROM_DRIVE25_1.0a",       BUS_TYPE_SCSI, DRIVE_TYPE_CD,   MPC_VER_2 },
+    { "NEC",      "CD-ROM DRIVE:38",    "1.00", "NEC CD-ROM DRIVE:38 1.00",      "NEC_CD-ROM_DRIVE38_1.00",       BUS_TYPE_SCSI, DRIVE_TYPE_CD,   MPC_VER_2 },
+    { "NEC",      "CD-ROM DRIVE:75",    "1.03", "NEC CD-ROM DRIVE:75 1.03",      "NEC_CD-ROM_DRIVE75_1.03",       BUS_TYPE_SCSI, DRIVE_TYPE_CD,   MPC_VER_2 },
+    { "NEC",      "CD-ROM DRIVE:77",    "1.06", "NEC CD-ROM DRIVE:77 1.06",      "NEC_CD-ROM_DRIVE77_1.06",       BUS_TYPE_SCSI, DRIVE_TYPE_CD,   MPC_VER_2 },
+    { "NEC",      "CD-ROM DRIVE:211",   "1.00", "NEC CD-ROM DRIVE:211 1.00",     "NEC_CD-ROM_DRIVE211_1.00",      BUS_TYPE_SCSI, DRIVE_TYPE_CD,   MPC_VER_2 },
+    { "NEC",      "CD-ROM DRIVE:464",   "1.05", "NEC CD-ROM DRIVE:464 1.05",     "NEC_CD-ROM_DRIVE464_1.05",      BUS_TYPE_SCSI, DRIVE_TYPE_CD,   MPC_VER_2 },
+    { "SONY",     "CD-ROM CDU-541",     "1.0i", "SONY CD-ROM CDU-541 1.0i",      "SONY_CD-ROM_CDU-541_1.0i",      BUS_TYPE_SCSI, DRIVE_TYPE_CD,   MPC_VER_2 },
+    { "SONY",     "CD-ROM CDU-561",     "1.8k", "SONY CD-ROM CDU-561 1.8k",      "SONY_CD-ROM_CDU-561_1.8k",      BUS_TYPE_SCSI, DRIVE_TYPE_CD,   MPC_VER_2 },
+    { "SONY",     "CD-ROM CDU-76S",     "1.00", "SONY CD-ROM CDU-76S 1.00",      "SONY_CD-ROM_CDU-76S_1.00",      BUS_TYPE_SCSI, DRIVE_TYPE_CD,   MPC_VER_2 },
+    { "PHILIPS",  "CDD2600",            "1.07", "PHILIPS CDD2600 1.07",          "PHILIPS_CDD2600_1.07",          BUS_TYPE_SCSI, DRIVE_TYPE_CD,   MPC_VER_2 },
+    { "PIONEER",  "CD-ROM DRM-604X",    "2403", "PIONEER CD-ROM DRM-604X 2403",  "PIONEER_CD-ROM_DRM-604X_2403",  BUS_TYPE_SCSI, DRIVE_TYPE_CD,   MPC_VER_2 },
+    { "PLEXTOR",  "CD-ROM PX-32TS",     "1.03", "PLEXTOR CD-ROM PX-32TS 1.03",   "PLEXTOR_CD-ROM_PX-32TS_1.03",   BUS_TYPE_SCSI, DRIVE_TYPE_CD,   MPC_VER_2 },
+    { "TEAC",     "CD 50",              "1.00", "TEAC CD 50 1.00",               "TEAC_CD_50_1.00",               BUS_TYPE_SCSI, DRIVE_TYPE_CD,   MPC_VER_2 },
+    { "TEAC",     "CD-ROM R55S",        "1.0R", "TEAC CD-ROM R55S 1.0R",         "TEAC_CD-ROM_R55S_1.0R",         BUS_TYPE_SCSI, DRIVE_TYPE_CD,   MPC_VER_2 },
+    { "TEXEL",    "CD-ROM DM-XX24",     "1.00", "TEXEL CD-ROM DM-XX24 1.00",     "TEXEL_CD-ROM_DM-XX24_1.00",     BUS_TYPE_SCSI, DRIVE_TYPE_CD,   MPC_VER_2 },
+    { "TOSHIBA",  "CD-ROM DRIVE:XM",    "3433", "TOSHIBA CD-ROM DRIVE:XM 3433",  "TOSHIBA_CD-ROM_DRIVEXM_3433",   BUS_TYPE_SCSI, DRIVE_TYPE_CD,   MPC_VER_2 },
+    { "TOSHIBA",  "CD-ROM XM-3201B",    "3232", "TOSHIBA CD-ROM XM-3201B 3232",  "TOSHIBA_CD-ROM_XM-3201B_3232",  BUS_TYPE_SCSI, DRIVE_TYPE_CD,   MPC_VER_2 },
+    { "TOSHIBA",  "CD-ROM XM-3301TA",   "0272", "TOSHIBA CD-ROM XM-3301TA 0272", "TOSHIBA_CD-ROM_XM-3301TA_0272", BUS_TYPE_SCSI, DRIVE_TYPE_CD,   MPC_VER_2 },
+    { "TOSHIBA",  "CD-ROM XM-5701TA",   "3136", "TOSHIBA CD-ROM XM-5701TA 3136", "TOSHIBA_CD-ROM_XM-5701TA_3136", BUS_TYPE_SCSI, DRIVE_TYPE_CD,   MPC_VER_2 },
+    { "TOSHIBA",  "DVD-ROM SD-M1401",   "1008", "TOSHIBA DVD-ROM SD-M1401 1008", "TOSHIBA_DVD-ROM_SD-M1401_1008", BUS_TYPE_SCSI, DRIVE_TYPE_DVD,  MPC_VER_2 },
+    { "",         "",                   "",     "",                              "",                              BUS_TYPE_NONE, DRIVE_TYPE_NONE, MPC_VER_0 },
 };
 
 /* To shut up the GCC compilers. */
