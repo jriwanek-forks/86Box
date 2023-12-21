@@ -417,7 +417,7 @@ static const mode_sense_pages_t scsi_cdrom_mode_sense_pages_default_scsi_dvd = {
      { 0, 0 },
      { 0, 0 },
      { 0, 0 },
-     { GPMODE_CAPABILITIES_PAGE, 0x12, 8, 0, 1, 0, 0, 0, 2, 0xC2, 1, 0, 0, 0, 2, 0xC2, 0, 0, 0, 0 }}
+     { GPMODE_CAPABILITIES_PAGE, 0x14, 8, 0, 1, 0, 0, 0, 2, 0xC2, 1, 0, 0, 0, 2, 0xC2, 0, 0, 0, 0, 0, 0 }}
 };
 
 static const mode_sense_pages_t scsi_cdrom_mode_sense_pages_default_sony_scsi = {
