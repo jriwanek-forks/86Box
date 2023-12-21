@@ -60,8 +60,7 @@ enum {
     CDROM_BUS_USB      = 8
 };
 
-enum
-{
+enum {
     CDROM_TYPE_86BOX_100,
     CDROM_TYPE_86BOX_DVD_100,
     CDROM_TYPE_AZT_CDA46802I_115,
@@ -116,14 +115,13 @@ enum
 #define BUS_TYPE_BOTH              -2
 #define BUS_TYPE_NONE              -1
 
-static const struct
-{
     const char  vendor[9];
     const char  model[17];
     const char  revision[5];
     const char *name;
     const char *internal_name;
     const int   bus_type;
+static const struct {
 } cdrom_drive_types[] = {
     { "86BOX",    "CD-ROM",             "1.00", "86BOX CD-ROM 1.00",             "86BOX_CD-ROM_1.00",             BUS_TYPE_BOTH },
     { "86BOX",    "DVD-ROM",            "1.00", "86BOX DVD-ROM 1.00",            "86BOX_DVD-ROM_1.00",            BUS_TYPE_BOTH },
