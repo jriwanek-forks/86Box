@@ -614,6 +614,7 @@ static void scsi_cdrom_drive_status_load(scsi_cdrom_t *dev);
 
 static void scsi_cdrom_init(scsi_cdrom_t *dev);
 
+#define ENABLE_SCSI_CDROM_LOG 1
 #ifdef ENABLE_SCSI_CDROM_LOG
 int scsi_cdrom_do_log = ENABLE_SCSI_CDROM_LOG;
 
