@@ -2514,22 +2514,31 @@ begin:
              */
             if (dev->drv->cd_status != CD_STATUS_EMPTY) {
                 len = dev->drv->cdrom_capacity;
-                if (len > CD_MAX_SECTORS) {
+                if (len > CD_MAX_SECTORS) { // if there is media mounted, use the size to determine which set of support...
                     b[6] = (MMC_PROFILE_DVD_ROM >> 8) & 0xff;
                     b[7] = MMC_PROFILE_DVD_ROM & 0xff;
                     ret  = 1;
-                } else {
-                    b[6] = (MMC_PROFILE_CD_ROM >> 8) & 0xff;
-                    b[7] = MMC_PROFILE_CD_ROM & 0xff;
-                    ret  = 0;
                 }
-            } else /* fix @jriwanek's mistake by adding brackets around this chunk... */ {
-                /* TODO */
-				
-                b[6] = (MMC_PROFILE_DVD_ROM >> 8) & 0xff;
-                b[7] = MMC_PROFILE_DVD_ROM & 0xff;
-                ret = 2;
-			}
+            }
+            
+            // decide which to list in the header as the primary media type by the actual drive type
+            // this should get abstracted out so there isn't a mass of duplicated code... Helper function ?
+            switch(cdrom_drive_types[dev->drv->type].drive_type) {
+                case DRIVE_TYPE_BD: // we don't actually handle BD-ROM drives yet...
+                case DRIVE_TYPE_DVD:
+                    b[6] = (MMC_PROFILE_DVD_ROM >> 8) & 0xff;
+                    b[7] = MMC_PROFILE_DVD_ROM & 0xff;
+                    ret = 1;
+                    break;
+                case DRIVE_TYPE_CD: // fall through to the error case, any type we don't handle will flag as CD
+                default:
+                    if (ret != 1) { // don't overwrite things if we specified DVD based on size
+                        b[6] = (MMC_PROFILE_CD_ROM >> 8) & 0xff;
+                        b[7] = MMC_PROFILE_CD_ROM & 0xff;
+                        ret  = 0;
+                    }
+            }
+
             alloc_length = 8;
             b += 8;
 
