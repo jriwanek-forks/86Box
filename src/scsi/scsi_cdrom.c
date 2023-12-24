@@ -2567,7 +2567,7 @@ begin:
                     b += 4;
                 }
             }
-			
+
 			/*
 			 * These two entries feel entirely un-necessary for an optical drive as
 			 * one of them is _OBSOLETE_ in MMC-6 and the other appears to describe
