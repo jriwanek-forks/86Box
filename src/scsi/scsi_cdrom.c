@@ -2518,22 +2518,31 @@ begin:
                     b[7] = MMC_PROFILE_CD_ROM & 0xff;
                     ret  = 0;
                 }
-            } else
+            } else /* fix @jriwanek's mistake by adding brackets around this chunk... */ {
                 /* TODO */
+				
                 b[6] = (MMC_PROFILE_DVD_ROM >> 8) & 0xff;
                 b[7] = MMC_PROFILE_DVD_ROM & 0xff;
                 ret = 2;
-
+			}
             alloc_length = 8;
             b += 8;
 
             if ((feature == 0) || ((cdb[1] & 3) < 2)) {
                 b[2] = (0 << 2) | 0x02 | 0x01; /* persistent and current */
+				/*
+				 * original is on the next line -- this is the "Additional Data Length" field, which is extra data that will exactly follow this entry. We have _none_ here, wo why are we claiming and not using 8 bytes ?
                 b[3] = 8;
-
+				 */
+				b[3] = 0;
+				
+				// the hell? Why are we going to have a _blank_ profile entry flagged "persistent and current" here ?
+				// these two lines are not needed...
+				/*
                 alloc_length += 4;
                 b += 4;
-
+				 */
+				 
                 for (uint8_t i = 0; i < 2; i++) {
                     b[0] = (profiles[i] >> 8) & 0xff;
                     b[1] = profiles[i] & 0xff;
@@ -2545,6 +2554,14 @@ begin:
                     b += 4;
                 }
             }
+			/*
+			 * These two entries feel entirely un-necessary for an optical drive as
+			 * one of them is _OBSOLETE_ in MMC-6 and the other appears to describe
+			 * devices more along the lines of the old "removable platter" hard drives
+			 * that some minicomputers used to have.
+			 *
+			 * Leaving these alone in case they are necessary.
+			 */
             if ((feature == 1) || ((cdb[1] & 3) < 2)) {
                 b[1] = 1;
                 b[2] = (2 << 2) | 0x02 | 0x01; /* persistent and current */
@@ -2570,6 +2587,7 @@ begin:
                 b += 8;
             }
 
+			// calculate the actual buffer size and write it into the response header.
             dev->buffer[0] = ((alloc_length - 4) >> 24) & 0xff;
             dev->buffer[1] = ((alloc_length - 4) >> 16) & 0xff;
             dev->buffer[2] = ((alloc_length - 4) >> 8) & 0xff;
