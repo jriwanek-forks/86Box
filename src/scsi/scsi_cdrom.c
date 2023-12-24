@@ -1712,7 +1712,7 @@ scsi_cdrom_read_dvd_structure(scsi_cdrom_t *dev, int format, const uint8_t *pack
             /* data written + 4 byte header */
             return (16 + 4);
 
-        default: /* TODO: formats beyond DVD-ROM requires */
+        default: /* TODO: formats beyond DVD-ROM required */
             scsi_cdrom_invalid_field(dev);
             return 0;
     }
