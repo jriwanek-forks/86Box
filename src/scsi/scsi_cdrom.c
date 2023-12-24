@@ -2484,6 +2484,11 @@ begin:
             return;
 
         case GPCMD_GET_CONFIGURATION:
+			// a lot of this needs reworked -- there is a complex set of rules
+			// covering which features are actually present, we only ever report
+			// the support of -ROM disc's and there is a lot more going on, as
+			// drives can also support reading CD-R, CD-RW, DVD-R, DVD-RAM, etc...
+			// including, also, separate features for various dual-layer recordables
             scsi_cdrom_set_phase(dev, SCSI_PHASE_DATA_IN);
 
             /* XXX: could result in alignment problems in some architectures */
@@ -2529,31 +2534,31 @@ begin:
             b += 8;
 
             if ((feature == 0) || ((cdb[1] & 3) < 2)) {
-                b[2] = (0 << 2) | 0x02 | 0x01; /* persistent and current */
-				/*
-				 * original is on the next line -- this is the "Additional Data Length" field, which is extra data that will exactly follow this entry. We have _none_ here, wo why are we claiming and not using 8 bytes ?
-                b[3] = 8;
-				 */
-				b[3] = 0;
+				// Profile List Descriptor
+				// Feature Code is 0x0000, so bytes 0 and 1 left blank
+                b[2] = (0 << 2) | 0x02 | 0x01; /* persistent and current - `profile list reporting always available`, `current must be set to one` by spec */
+				b[3] = 8; // n * 4 -- additional data length, number of following profiles times 4 bytes
 				
-				// the hell? Why are we going to have a _blank_ profile entry flagged "persistent and current" here ?
-				// these two lines are not needed...
-				/*
+				// advance to first profile
                 alloc_length += 4;
                 b += 4;
-				 */
 				 
                 for (uint8_t i = 0; i < 2; i++) {
+					// feature code...
                     b[0] = (profiles[i] >> 8) & 0xff;
                     b[1] = profiles[i] & 0xff;
 
+					// current feature
                     if (ret == i)
                         b[2] |= 1;
 
+					// go to next feature
+					// technically each feature is 4 bytes, but the last byte is reserved
                     alloc_length += 4;
                     b += 4;
                 }
             }
+			
 			/*
 			 * These two entries feel entirely un-necessary for an optical drive as
 			 * one of them is _OBSOLETE_ in MMC-6 and the other appears to describe
