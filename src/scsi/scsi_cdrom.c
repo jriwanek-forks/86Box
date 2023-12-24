@@ -282,52 +282,6 @@ static const mode_sense_pages_t scsi_cdrom_mode_sense_pages_default = {
      { GPMODE_CAPABILITIES_PAGE, 0x12, 0, 0, 1, 0, 0, 0, 2, 0xC2, 1, 0, 0, 0, 2, 0xC2, 0, 0, 0, 0 }}
 };
 
-static const mode_sense_pages_t scsi_cdrom_mode_sense_pages_default_dvd = {
-    {{ 0, 0 },
-     { GPMODE_R_W_ERROR_PAGE, 6, 0, 5, 0, 0, 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { GPMODE_CDROM_PAGE, 6, 0, 1, 0, 60, 0, 75 },
-     { GPMODE_CDROM_AUDIO_PAGE | 0x80, 0xE, 4, 0, 0, 0, 0, 75, 1, 255, 2, 255, 0, 0, 0, 0 },
-     { 0x0F, 0x14, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { GPMODE_CAPABILITIES_PAGE, 0x12, 8, 0, 1, 0, 0, 0, 2, 0xC2, 1, 0, 0, 0, 2, 0xC2, 0, 0, 0, 0 }}
-};
-
 static const mode_sense_pages_t scsi_cdrom_mode_sense_pages_default_scsi = {
     {{ GPMODE_UNIT_ATN_PAGE, 6, 0, 0, 0, 0, 0, 0 }, /*Guess-work*/
      { GPMODE_R_W_ERROR_PAGE, 6, 0, 5, 0, 0, 0, 0 },
@@ -372,52 +326,6 @@ static const mode_sense_pages_t scsi_cdrom_mode_sense_pages_default_scsi = {
      { 0, 0 },
      { 0, 0 },
      { GPMODE_CAPABILITIES_PAGE, 0x12, 0, 0, 1, 0, 0, 0, 2, 0xC2, 1, 0, 0, 0, 2, 0xC2, 0, 0, 0, 0 }}
-};
-
-static const mode_sense_pages_t scsi_cdrom_mode_sense_pages_default_scsi_dvd = {
-    {{ GPMODE_UNIT_ATN_PAGE, 6, 0, 0, 0, 0, 0, 0 }, /*Guess-work*/
-     { GPMODE_R_W_ERROR_PAGE, 6, 0, 5, 0, 0, 0, 0 },
-     { GPMODE_DISCONNECT_PAGE, 0x0e, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-     { GPMODE_FORMAT_DEVICE_PAGE, 0x16, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { GPMODE_CDROM_PAGE, 6, 0, 1, 0, 60, 0, 75 },
-     { GPMODE_CDROM_AUDIO_PAGE | 0x80, 0xE, 5, 4, 0, 128, 0, 75, 1, 255, 2, 255, 0, 0, 0, 0 },
-     { 0x0F, 0x14, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { GPMODE_CAPABILITIES_PAGE, 0x14, 8, 0, 1, 0, 0, 0, 2, 0xC2, 1, 0, 0, 0, 2, 0xC2, 0, 0, 0, 0, 0, 0 }}
 };
 
 static const mode_sense_pages_t scsi_cdrom_mode_sense_pages_default_sony_scsi = {
@@ -512,52 +420,6 @@ static const mode_sense_pages_t scsi_cdrom_mode_sense_pages_changeable = {
      { GPMODE_CAPABILITIES_PAGE, 0x12, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }}
 };
 
-static const mode_sense_pages_t scsi_cdrom_mode_sense_pages_changeable_dvd = {
-    {{ GPMODE_UNIT_ATN_PAGE, 6, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF }, /*Guess-work*/
-     { GPMODE_R_W_ERROR_PAGE, 6, 0xFF, 0xFF, 0, 0, 0, 0 },
-     { GPMODE_DISCONNECT_PAGE, 0x0E, 0xFF, 0, 0, 0, 0, 0, 0, 0, 0xFF, 0xFF, 0, 0, 0, 0 },
-     { GPMODE_FORMAT_DEVICE_PAGE, 0x16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { GPMODE_CDROM_PAGE, 6, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF },
-     { GPMODE_CDROM_AUDIO_PAGE | 0x80, 0xE, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF },
-     { 0x0F, 0x14, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { 0, 0 },
-     { GPMODE_CAPABILITIES_PAGE, 0x12, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }}
-};
-
 static const mode_sense_pages_t scsi_cdrom_mode_sense_pages_changeable_sony = {
     {{ 0, 0 },
      { GPMODE_R_W_ERROR_PAGE, 6, 0xFF, 0xFF, 0, 0, 0, 0 },
@@ -614,7 +476,6 @@ static void scsi_cdrom_drive_status_load(scsi_cdrom_t *dev);
 
 static void scsi_cdrom_init(scsi_cdrom_t *dev);
 
-#define ENABLE_SCSI_CDROM_LOG 1
 #ifdef ENABLE_SCSI_CDROM_LOG
 int scsi_cdrom_do_log = ENABLE_SCSI_CDROM_LOG;
 
@@ -769,28 +630,6 @@ scsi_cdrom_mode_sense_load(scsi_cdrom_t *dev)
                 fclose(fp);
             }
             break;
-        case CDROM_TYPE_86BOX_DVD_100:
-        case CDROM_TYPE_TOSHIBA_SDM1401_1008:
-            memset(&dev->ms_pages_saved, 0, sizeof(mode_sense_pages_t));
-            if (dev->drv->bus_type == CDROM_BUS_SCSI)
-                memcpy(&dev->ms_pages_saved, &scsi_cdrom_mode_sense_pages_default_scsi_dvd,
-                       sizeof(mode_sense_pages_t));
-            else
-                memcpy(&dev->ms_pages_saved, &scsi_cdrom_mode_sense_pages_default_dvd,
-                       sizeof(mode_sense_pages_t));
-
-            memset(file_name, 0, 512);
-            if (dev->drv->bus_type == CDROM_BUS_SCSI)
-                sprintf(file_name, "scsi_cdrom_%02i_mode_sense_dvd_bin", dev->id);
-            else
-                sprintf(file_name, "cdrom_%02i_mode_sense_dvd_bin", dev->id);
-            fp = plat_fopen(nvr_path(file_name), "rb");
-            if (fp) {
-                if (fread(dev->ms_pages_saved.pages[GPMODE_CDROM_AUDIO_PAGE], 1, 0x10, fp) != 0x10)
-                    fatal("scsi_cdrom_mode_sense_load(): Error reading data\n");
-                fclose(fp);
-            }
-		    break;
         default:
             memset(&dev->ms_pages_saved, 0, sizeof(mode_sense_pages_t));
             if (dev->drv->bus_type == CDROM_BUS_SCSI)
@@ -833,18 +672,6 @@ scsi_cdrom_mode_sense_save(scsi_cdrom_t *dev)
             fp = plat_fopen(nvr_path(file_name), "wb");
             if (fp) {
                 fwrite(dev->ms_pages_saved_sony.pages[GPMODE_CDROM_AUDIO_PAGE_SONY], 1, 0x10, fp);
-                fclose(fp);
-            }
-            break;
-        case CDROM_TYPE_86BOX_DVD_100:
-        case CDROM_TYPE_TOSHIBA_SDM1401_1008:
-            if (dev->drv->bus_type == CDROM_BUS_SCSI)
-                sprintf(file_name, "scsi_cdrom_%02i_mode_sense_dvd_bin", dev->id);
-            else
-                sprintf(file_name, "cdrom_%02i_mode_sense_dvd_bin", dev->id);
-            fp = plat_fopen(nvr_path(file_name), "wb");
-            if (fp) {
-                fwrite(dev->ms_pages_saved.pages[GPMODE_CDROM_AUDIO_PAGE], 1, 0x10, fp);
                 fclose(fp);
             }
             break;
@@ -943,22 +770,12 @@ scsi_cdrom_mode_sense_read(scsi_cdrom_t *dev, uint8_t page_control, uint8_t page
                 case 3:
                     return dev->ms_pages_saved.pages[page][pos];
                 case 1:
-                    if ((dev->drv->type == CDROM_TYPE_86BOX_DVD_100) || (dev->drv->type == CDROM_TYPE_TOSHIBA_SDM1401_1008))
-                        return scsi_cdrom_mode_sense_pages_changeable_dvd.pages[page][pos];
-                    else
-                        return scsi_cdrom_mode_sense_pages_changeable.pages[page][pos];
+                    return scsi_cdrom_mode_sense_pages_changeable.pages[page][pos];
                 case 2:
-                    if (dev->drv->bus_type == CDROM_BUS_SCSI) {
-                        if ((dev->drv->type == CDROM_TYPE_86BOX_DVD_100) || (dev->drv->type == CDROM_TYPE_TOSHIBA_SDM1401_1008))
-                            return scsi_cdrom_mode_sense_pages_default_scsi_dvd.pages[page][pos];
-                        else
-                            return scsi_cdrom_mode_sense_pages_default_scsi.pages[page][pos];
-                    } else {
-                        if (dev->drv->type == CDROM_TYPE_86BOX_DVD_100)
-                            return scsi_cdrom_mode_sense_pages_default_dvd.pages[page][pos];
-                        else
-                            return scsi_cdrom_mode_sense_pages_default.pages[page][pos];
-                    }
+                    if (dev->drv->bus_type == CDROM_BUS_SCSI)
+                        return scsi_cdrom_mode_sense_pages_default_scsi.pages[page][pos];
+                    else
+                        return scsi_cdrom_mode_sense_pages_default.pages[page][pos];
 
                 default:
                     break;
@@ -1007,8 +824,7 @@ scsi_cdrom_mode_sense(scsi_cdrom_t *dev, uint8_t *buf, uint32_t pos, uint8_t pag
                                early vendor SCSI CD-ROM models) are caddy drives, the later
                                ones are tray drives. */
                             if (dev->drv->bus_type == CDROM_BUS_SCSI)
-                                buf[pos++] |= ((dev->drv->type == CDROM_TYPE_86BOX_100)  ||
-                                               (dev->drv->type == CDROM_TYPE_86BOX_DVD_100) ? 0x20 : 0x00);
+                                buf[pos++] |= ((dev->drv->type == CDROM_TYPE_86BOX_100) ? 0x20 : 0x00);
                             else
                                 buf[pos++] |= ((dev->drv->type == CDROM_TYPE_NEC_260_100) ||
                                                 ((dev->drv->type == CDROM_TYPE_NEC_260_101)) ? 0x00 : 0x20);
@@ -1712,7 +1528,7 @@ scsi_cdrom_read_dvd_structure(scsi_cdrom_t *dev, int format, const uint8_t *pack
             /* data written + 4 byte header */
             return (16 + 4);
 
-        default: /* TODO: formats beyond DVD-ROM required */
+        default: /* TODO: formats beyond DVD-ROM requires */
             scsi_cdrom_invalid_field(dev);
             return 0;
     }
@@ -2519,20 +2335,17 @@ begin:
                     ret  = 0;
                 }
             } else
-                /* TODO */
-                b[6] = (MMC_PROFILE_DVD_ROM >> 8) & 0xff;
-                b[7] = MMC_PROFILE_DVD_ROM & 0xff;
                 ret = 2;
 
             alloc_length = 8;
-            b += 8;
+            b += 8;   // jump past header
 
             if ((feature == 0) || ((cdb[1] & 3) < 2)) {
                 b[2] = (0 << 2) | 0x02 | 0x01; /* persistent and current */
-                b[3] = 8;
+                b[3] = 0; // 8; // 8 bytes additional data but not actually accounted for ? Fixed to 0 -- DRH 23-DEV-2023 23:24 UTC-5
 
                 alloc_length += 4;
-                b += 4;
+                // b += 4; // ??? why are we jumping to the _next_ feature without putting in the first entry ? --  DRH 23-DEV-2023 23:25 UTC-5
 
                 for (uint8_t i = 0; i < 2; i++) {
                     b[0] = (profiles[i] >> 8) & 0xff;
@@ -2542,25 +2355,29 @@ begin:
                         b[2] |= 1;
 
                     alloc_length += 4;
-                    b += 4;
+                    b += 4; // jump to the space for the next entry
                 }
             }
+			// feature 1?			
             if ((feature == 1) || ((cdb[1] & 3) < 2)) {
-                b[1] = 1;
+                b[1] = 1; // Obsolete -- "Formerly Non-removable disk profile" in MMC-6
                 b[2] = (2 << 2) | 0x02 | 0x01; /* persistent and current */
                 b[3] = 8;
 
+				// encoding the bus type ?
                 if (dev->drv->bus_type == CDROM_BUS_SCSI)
                     b[7] = 1;
                 else
                     b[7] = 2;
                 b[8] = 1;
 
+				// this, at least, matches...
                 alloc_length += 12;
                 b += 12;
             }
+			// feature 2?
             if ((feature == 2) || ((cdb[1] & 3) < 2)) {
-                b[1] = 2;
+                b[1] = 2; // "Removable Disc" -- "Re-writable; with removable media"
                 b[2] = (1 << 2) | 0x02 | 0x01; /* persistent and current */
                 b[3] = 4;
 
@@ -2569,7 +2386,9 @@ begin:
                 alloc_length += 8;
                 b += 8;
             }
-
+			// 'feature == 1' and 'feature == 2' bits on optical devices?
+			// These don't seem to be for optical devices, but for things like the "Diablo"
+ 			// removable platter hard drive that some Alto's had.
             dev->buffer[0] = ((alloc_length - 4) >> 24) & 0xff;
             dev->buffer[1] = ((alloc_length - 4) >> 16) & 0xff;
             dev->buffer[2] = ((alloc_length - 4) >> 8) & 0xff;
@@ -3376,11 +3195,7 @@ begin:
                     dev->buffer[3] = 0x02;
                     switch (dev->drv->type) {
                         case CDROM_TYPE_86BOX_100:
-                            dev->buffer[2] = 0x05; /*SCSI-2 compliant*/ /*TODO: Table 95 of SPC-4 says this is SCSI-3 not 2, check this */
-                            break;
-                        case CDROM_TYPE_86BOX_DVD_100:
-                            dev->buffer[2] = 0x06; /*SCSI-4 compliant*/
-                            dev->buffer[3] = 0x02;
+                            dev->buffer[2] = 0x05; /*SCSI-2 compliant*/
                             break;
                         case CDROM_TYPE_CHINON_CDS431_H42:
                         case CDROM_TYPE_DEC_RRD45_0436:
@@ -4194,7 +4009,7 @@ scsi_cdrom_identify(ide_t *ide, int ide_has_dma)
         ide->buffer[0] = 0x8000 | (5 << 8) | 0x80 | (2 << 5); /* ATAPI device, CD-ROM drive, removable media, accelerated DRQ */
     ide_padstr((char *) (ide->buffer + 10), "", 20);          /* Serial Number */
 
-    if ((dev->drv->type == CDROM_TYPE_86BOX_100) || (dev->drv->type == CDROM_TYPE_86BOX_DVD_100)) {
+    if (dev->drv->type == CDROM_TYPE_86BOX_100) {
         ide_padstr((char *) (ide->buffer + 23), EMU_VERSION_EX, 8);   /* Firmware */
         ide_padstr((char *) (ide->buffer + 27), device_identify, 40); /* Model */
     } else {
