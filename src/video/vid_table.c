@@ -204,6 +204,7 @@ video_cards[] = {
     { &s3_stb_velocity_3d_pci_device                   },
     { &s3_virge_375_pci_device                         },
     { &s3_diamond_stealth_2000pro_pci_device           },
+    { &s3_genoa_3d_pci_device                          },
     { &s3_virge_385_pci_device                         },
     { &s3_virge_357_pci_device                         },
     { &s3_diamond_stealth_4000_pci_device              },
