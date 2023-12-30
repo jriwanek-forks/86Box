@@ -574,6 +574,7 @@ extern const device_t s3_stb_velocity_3d_pci_device;
 extern const device_t s3_virge_375_pci_device;
 extern const device_t s3_virge_375_onboard_pci_device;
 extern const device_t s3_diamond_stealth_2000pro_pci_device;
+extern const device_t s3_genoa_3d_pci_device;
 extern const device_t s3_virge_385_pci_device;
 extern const device_t s3_virge_357_pci_device;
 extern const device_t s3_virge_357_agp_device;

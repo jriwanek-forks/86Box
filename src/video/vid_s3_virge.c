@@ -68,6 +68,7 @@ static int dither[4][4] = {
 #define ROM_STB_VELOCITY_3D           "roms/video/s3virge/stb_velocity3d_110.BIN"
 #define ROM_VIRGE_DX                  "roms/video/s3virge/86c375_1.bin"
 #define ROM_DIAMOND_STEALTH3D_2000PRO "roms/video/s3virge/virgedxdiamond.vbi"
+#define ROM_GENOA_3D                  "roms/video/s3virge/genoa3d.vbi"
 #define ROM_VIRGE_GX                  "roms/video/s3virge/86c375_4.bin"
 #define ROM_VIRGE_GX2                 "roms/video/s3virge/flagpoint.VBI"
 #define ROM_DIAMOND_STEALTH3D_4000    "roms/video/s3virge/DS3D4K v1.03 Brightness bug fix.bin"
@@ -99,6 +100,7 @@ enum {
     S3_STB_VELOCITY_3D,
     S3_VIRGE_DX,
     S3_DIAMOND_STEALTH3D_2000PRO,
+    S3_GENOA_3D,
     S3_VIRGE_GX,
     S3_VIRGE_GX2,
     S3_DIAMOND_STEALTH3D_4000,
@@ -5326,6 +5328,9 @@ s3_virge_init(const device_t *info)
             case S3_DIAMOND_STEALTH3D_2000PRO:
                 bios_fn = ROM_DIAMOND_STEALTH3D_2000PRO;
                 break;
+            case S3_GENOA_3D:
+                bios_fn = ROM_GENOA_3D;
+                break;
             case S3_VIRGE_GX:
                 bios_fn = ROM_VIRGE_GX;
                 break;
@@ -5616,6 +5621,12 @@ static int
 s3_virge_375_diamond_available(void)
 {
     return rom_present(ROM_DIAMOND_STEALTH3D_2000PRO);
+}
+
+static int
+s3_virge_375_genoa_available(void)
+{
+    return rom_present(ROM_GENOA_3D);
 }
 
 static int
@@ -5989,6 +6000,20 @@ const device_t s3_diamond_stealth_2000pro_pci_device = {
     .close         = s3_virge_close,
     .reset         = s3_virge_reset,
     .available     = s3_virge_375_diamond_available,
+    .speed_changed = s3_virge_speed_changed,
+    .force_redraw  = s3_virge_force_redraw,
+    .config        = s3_virge_config
+};
+
+const device_t s3_genoa_3d_pci_device = {
+    .name          = "S3 ViRGE/DX (Genoa 3D) PCI",
+    .internal_name = "genoa_3d_pci",
+    .flags         = DEVICE_PCI,
+    .local         = S3_GENOA_3D,
+    .init          = s3_virge_init,
+    .close         = s3_virge_close,
+    .reset         = s3_virge_reset,
+    .available     = s3_virge_375_genoa_available,
     .speed_changed = s3_virge_speed_changed,
     .force_redraw  = s3_virge_force_redraw,
     .config        = s3_virge_config
