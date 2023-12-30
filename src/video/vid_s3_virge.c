@@ -114,7 +114,10 @@ typedef struct
 
 typedef struct s3d_t {
     uint32_t cmd_set;
-    int      clip_l, clip_r, clip_t, clip_b;
+    int      clip_l;
+    int      clip_r;
+    int      clip_t;
+    int      clip_b;
 
     uint32_t dest_base;
     uint32_t dest_str;
@@ -125,22 +128,37 @@ typedef struct s3d_t {
     uint32_t tex_base;
     uint32_t tex_bdr_clr;
     uint32_t tbv, tbu;
-    int32_t  TdVdX, TdUdX;
-    int32_t  TdVdY, TdUdY;
-    uint32_t tus, tvs;
+    int32_t  TdVdX;
+    int32_t  TdUdX;
+    int32_t  TdVdY;
+    int32_t  TdUdY;
+    uint32_t tus;
+    uint32_t tvs;
 
-    int32_t  TdZdX, TdZdY;
+    int32_t  TdZdX;
+    int32_t  TdZdY;
     uint32_t tzs;
 
-    int32_t  TdWdX, TdWdY;
+    int32_t  TdWdX;
+    int32_t  TdWdY;
     uint32_t tws;
 
-    int32_t  TdDdX, TdDdY;
+    int32_t  TdDdX;
+    int32_t  TdDdY;
     uint32_t tds;
 
-    int16_t  TdGdX, TdBdX, TdRdX, TdAdX;
-    int16_t  TdGdY, TdBdY, TdRdY, TdAdY;
-    uint32_t tgs, tbs, trs, tas;
+    int16_t  TdGdX;
+    int16_t  TdBdX;
+    int16_t  TdRdX;
+    int16_t  TdAdX;
+    int16_t  TdGdY;
+    int16_t  TdBdY;
+    int16_t  TdRdY;
+    int16_t  TdAdY;
+    uint32_t tgs;
+    uint32_t tbs;
+    uint32_t trs;
+    uint32_t tas;
 
     uint32_t TdXdY12;
     uint32_t txend12;
@@ -149,9 +167,13 @@ typedef struct s3d_t {
     uint32_t TdXdY02;
     uint32_t txs;
     uint32_t tys;
-    int      ty01, ty12, tlr;
+    int      ty01;
+    int      ty12;
+    int      tlr;
 
-    uint8_t fog_r, fog_g, fog_b;
+    uint8_t fog_r;
+    uint8_t fog_g;
+    uint8_t fog_b;
 } s3d_t;
 
 typedef struct virge_t {
@@ -165,13 +187,18 @@ typedef struct virge_t {
 
     uint8_t bank;
     uint8_t ma_ext;
-    uint8_t reg6b, lfb_bios;
+    uint8_t reg6b;
+    uint8_t lfb_bios;
 
-    uint8_t virge_id, virge_id_high, virge_id_low, virge_rev;
+    uint8_t virge_id;
+    uint8_t virge_id_high;
+    uint8_t virge_id_low;
+    uint8_t virge_rev;
 
     uint8_t int_line;
 
-    uint32_t linear_base, linear_size;
+    uint32_t linear_base;
+    uint32_t linear_size;
 
     uint8_t pci_regs[256];
 
@@ -192,15 +219,19 @@ typedef struct virge_t {
     event_t  *wake_main_thread;
     event_t  *not_full_event;
 
-    uint32_t hwc_fg_col, hwc_bg_col;
+    uint32_t hwc_fg_col;
+    uint32_t hwc_bg_col;
     int      hwc_col_stack_pos;
 
-    struct
-    {
+    struct {
         uint32_t src_base;
         uint32_t dest_base;
-        int      clip_l, clip_r, clip_t, clip_b;
-        int      dest_str, src_str;
+        int      clip_l;
+		int      clip_r;
+		int      clip_t;
+		int      clip_b;
+        int      dest_str;
+		int      src_str;
         uint32_t mono_pat_0;
         uint32_t mono_pat_1;
         uint32_t pat_bg_clr;
@@ -208,19 +239,27 @@ typedef struct virge_t {
         uint32_t src_bg_clr;
         uint32_t src_fg_clr;
         uint32_t cmd_set;
-        int      r_width, r_height;
-        int      rsrc_x, rsrc_y;
-        int      rdest_x, rdest_y;
+        int      r_width;
+		int      r_height;
+        int      rsrc_x;
+		int      rsrc_y;
+        int      rdest_x;
+		int      rdest_y;
 
-        int      lxend0, lxend1;
+        int      lxend0;
+        int      lxend1;
         int32_t  ldx;
-        uint32_t lxstart, lystart;
+        uint32_t lxstart;
+        uint32_t lystart;
         int      lycnt;
         int      line_dir;
 
-        int     src_x, src_y;
-        int     dest_x, dest_y;
-        int     w, h;
+        int     src_x;
+		int     src_y;
+        int     dest_x;
+		int     dest_y;
+        int     w;
+		int     h;
         uint8_t rop;
 
         int      data_left_count;
@@ -237,17 +276,18 @@ typedef struct virge_t {
         uint32_t plxstart;
         uint32_t pystart;
         uint32_t pycnt;
-        uint32_t dest_l, dest_r;
+        uint32_t dest_l;
+		uint32_t dest_r;
     } s3d;
 
     s3d_t s3d_tri;
 
     s3d_t      s3d_buffer[RB_SIZE];
-    atomic_int s3d_read_idx, s3d_write_idx;
+    atomic_int s3d_read_idx;
+	atomic_int s3d_write_idx;
     atomic_int s3d_busy;
 
-    struct
-    {
+    struct {
         uint32_t pri_ctrl;
         uint32_t chroma_ctrl;
         uint32_t sec_ctrl;
@@ -274,8 +314,14 @@ typedef struct virge_t {
 
         int sdif;
 
-        int pri_x, pri_y, pri_w, pri_h;
-        int sec_x, sec_y, sec_w, sec_h;
+        int pri_x;
+		int pri_y;
+		int pri_w;
+		int pri_h;
+        int sec_x;
+		int sec_y;
+		int sec_w;
+		int sec_h;
     } streams;
 
     uint8_t      cmd_dma;
@@ -288,13 +334,16 @@ typedef struct virge_t {
 
     int virge_busy, local;
 
-    uint8_t subsys_stat, subsys_cntl, advfunc_cntl;
+    uint8_t subsys_stat;
+	uint8_t subsys_cntl;
+	uint8_t advfunc_cntl;
 
     uint8_t render_thread_run;
 
     uint8_t serialport;
 
-    void *i2c, *ddc;
+    void *i2c;
+	void *ddc;
 
     int waiting;
 } virge_t;
@@ -468,8 +517,7 @@ s3_virge_out(uint16_t addr, uint8_t val, void *priv)
                 svga_recalctimings(svga);
                 return;
             }
-            if (svga->seqaddr == 4) /*Chain-4 - update banking*/
-            {
+            if (svga->seqaddr == 4) { /*Chain-4 - update banking*/
                 if (val & 8)
                     svga->write_bank = svga->read_bank = virge->bank << 16;
                 else
@@ -815,8 +863,7 @@ s3_virge_recalctimings(svga_t *svga)
         svga->clock = (cpuclock * (float) (1ULL << 32)) / freq;
     }
 
-    if ((svga->crtc[0x67] & 0xc) != 0xc) /*VGA mode*/
-    {
+    if ((svga->crtc[0x67] & 0xc) != 0xc) { /*VGA mode*/
         svga->ma_latch |= (virge->ma_ext << 16);
         if (svga->crtc[0x51] & 0x30)
             svga->rowoffset += (svga->crtc[0x51] & 0x30) << 4;
@@ -860,8 +907,7 @@ s3_virge_recalctimings(svga_t *svga)
         }
         svga->vram_display_mask = (!(svga->crtc[0x31] & 0x08) && (svga->crtc[0x32] & 0x40)) ? 0x3ffff : virge->vram_mask;
         s3_virge_log("VGA mode\n");
-    } else /*Streams mode*/
-    {
+    } else { /*Streams mode*/
         if (virge->streams.buffer_ctrl & 1)
             svga->ma_latch = virge->streams.pri_fb1 >> 2;
         else
@@ -2481,7 +2527,10 @@ skip_line:
 #define RGB24(r, g, b) ((b) | ((g) << 8) | ((r) << 16))
 
 typedef struct rgba_t {
-    int r, g, b, a;
+    int r;
+	int g;
+	int b;
+	int a;
 } rgba_t;
 
 typedef struct s3d_state_t {
@@ -2510,7 +2559,8 @@ typedef struct s3d_texture_state_t {
     int level;
     int texture_shift;
 
-    int32_t u, v;
+    int32_t u;
+    int32_t v;
 } s3d_texture_state_t;
 
 static void (*tex_read)(s3d_state_t *state, s3d_texture_state_t *texture_state, rgba_t *out);
