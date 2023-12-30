@@ -114,15 +114,15 @@ enum {
 };
 
 enum {
-    FIFO_INVALID = (0x00 << 24),
-    FIFO_WRITE_BYTE = (0x01 << 24),
-    FIFO_WRITE_WORD = (0x02 << 24),
+    FIFO_INVALID     = (0x00 << 24),
+    FIFO_WRITE_BYTE  = (0x01 << 24),
+    FIFO_WRITE_WORD  = (0x02 << 24),
     FIFO_WRITE_DWORD = (0x03 << 24)
 };
 
 typedef struct {
-    uint32_t      addr_type;
-    uint32_t      val;
+    uint32_t addr_type;
+    uint32_t val;
 } fifo_entry_t;
 
 typedef struct s3d_t {
@@ -284,7 +284,8 @@ typedef struct virge_t {
         uint32_t plxstart;
         uint32_t pystart;
         uint32_t pycnt;
-        uint32_t dest_l, dest_r;
+        uint32_t dest_l;
+        uint32_t dest_r;
     } s3d;
 
     s3d_t        s3d_tri;
@@ -3377,7 +3378,10 @@ skip_line:
 #define RGB24(r, g, b) ((b) | ((g) << 8) | ((r) << 16))
 
 typedef struct rgba_t {
-    int r, g, b, a;
+    int r;
+    int g;
+    int b;
+    int a;
 } rgba_t;
 
 typedef struct s3d_state_t {
