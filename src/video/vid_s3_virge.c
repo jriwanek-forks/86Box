@@ -284,7 +284,8 @@ typedef struct virge_t {
         uint32_t plxstart;
         uint32_t pystart;
         uint32_t pycnt;
-        uint32_t dest_l, dest_r;
+        uint32_t dest_l;
+		uint32_t dest_r;
     } s3d;
 
     s3d_t        s3d_tri;
@@ -3377,7 +3378,10 @@ skip_line:
 #define RGB24(r, g, b) ((b) | ((g) << 8) | ((r) << 16))
 
 typedef struct rgba_t {
-    int r, g, b, a;
+    int r;
+	int g;
+	int b;
+	int a;
 } rgba_t;
 
 typedef struct s3d_state_t {
@@ -5767,7 +5771,7 @@ const device_t s3_genoa_3d_pci_device = {
     .init          = s3_virge_init,
     .close         = s3_virge_close,
     .reset         = s3_virge_reset,
-    { .available = s3_virge_375_diamond_available },
+    .available     = s3_virge_375_diamond_available,
     .speed_changed = s3_virge_speed_changed,
     .force_redraw  = s3_virge_force_redraw,
     .config        = s3_virge_config
