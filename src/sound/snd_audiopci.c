@@ -1697,6 +1697,99 @@ update_legacy(es1371_t *dev, uint32_t old_legacy_ctrl)
 }
 
 static uint8_t
+es1370_pci_read(int func, int addr, void *priv)
+{
+    const es1371_t *dev = (es1371_t *) priv;
+
+    if (func > 0)
+        return 0xff;
+
+    if ((addr > 0x3f) && ((addr < 0xdc) || (addr > 0xe1)))
+        return 0x00;
+
+    switch (addr) {
+        case 0x00:
+            return 0x74; /* Ensoniq */
+        case 0x01:
+            return 0x12;
+
+        case 0x02:
+            return 0x00; /* ES1370 */
+        case 0x03:
+            return 0x50;
+
+        case 0x04:
+            return dev->pci_command;
+        case 0x05:
+            return dev->pci_serr;
+
+        case 0x06:
+            return 0x10; /* Supports ACPI */
+        case 0x07:
+            return 0x00;
+
+        case 0x08:
+            return 0x00; /* Revision ID - 0x00 is actual Ensoniq-branded ES1370 */
+        case 0x09:
+            return 0x00; /* Multimedia audio device */
+        case 0x0a:
+            return 0x01; // TODO
+        case 0x0b:
+            return 0x04; // TODO
+
+        case 0x10:
+            return 0x01 | (dev->base_addr & 0xc0); /* memBaseAddr */
+        case 0x11:
+            return dev->base_addr >> 8;
+        case 0x12:
+            return dev->base_addr >> 16;
+        case 0x13:
+            return dev->base_addr >> 24;
+
+        case 0x2c:
+            return 0x42; /* Subsystem vendor ID */
+        case 0x2d:
+            return 0x49;
+        case 0x2e:
+            return 0x4c; /* Subsystem product ID */
+        case 0x2f:
+            return 0x4c;
+
+        case 0x34: // TODO
+            return 0xdc; /* Capabilites pointer */
+
+        case 0x3c:
+            return dev->int_line;
+        case 0x3d:
+            return 0x01; /* INTA */
+
+        case 0x3e:
+            return 0xc; /* Minimum grant */
+        case 0x3f:
+            return 0x80; /* Maximum latency */
+
+        case 0xdc:
+            return 0x01; /* Capabilities identifier */
+        case 0xdd:
+            return 0x00; /* Next item pointer */
+        case 0xde:
+            return 0x31; /* Power management capabilities */
+        case 0xdf:
+            return 0x6c;
+
+        case 0xe0:
+            return dev->pmcsr & 0xff;
+        case 0xe1:
+            return dev->pmcsr >> 8;
+
+        default:
+            break;
+    }
+
+    return 0x00;
+}
+
+static uint8_t
 es1371_pci_read(int func, int addr, void *priv)
 {
     const es1371_t *dev = (es1371_t *) priv;
@@ -1795,6 +1888,57 @@ es1371_io_set(es1371_t *dev, int set)
         io_handler(set, dev->base_addr, 0x0040,
                    es1371_inb, es1371_inw, es1371_inl,
                    es1371_outb, es1371_outw, es1371_outl, dev);
+    }
+}
+
+static void
+es1370_pci_write(int func, int addr, uint8_t val, void *priv)
+{
+    es1371_t *dev = (es1371_t *) priv;
+
+    if (func)
+        return;
+
+    switch (addr) {
+        case 0x04:
+            es1371_io_set(dev, 0);
+            dev->pci_command = val & 0x05;
+            es1371_io_set(dev, 1);
+            break;
+        case 0x05:
+            dev->pci_serr = val & 1;
+            break;
+
+        case 0x10:
+            es1371_io_set(dev, 0);
+            dev->base_addr = (dev->base_addr & 0xffffff00) | (val & 0xc0);
+            es1371_io_set(dev, 1);
+            break;
+        case 0x11:
+            es1371_io_set(dev, 0);
+            dev->base_addr = (dev->base_addr & 0xffff00c0) | (val << 8);
+            es1371_io_set(dev, 1);
+            break;
+        case 0x12:
+            dev->base_addr = (dev->base_addr & 0xff00ffc0) | (val << 16);
+            break;
+        case 0x13:
+            dev->base_addr = (dev->base_addr & 0x00ffffc0) | (val << 24);
+            break;
+
+        case 0x3c:
+            dev->int_line = val;
+            break;
+
+        case 0xe0:
+            dev->pmcsr = (dev->pmcsr & 0xff00) | (val & 0x03);
+            break;
+        case 0xe1:
+            dev->pmcsr = (dev->pmcsr & 0x00ff) | ((val & 0x01) << 8);
+            break;
+
+        default:
+            break;
     }
 }
 
@@ -2224,6 +2368,37 @@ es1371_input_sysex(void *priv, uint8_t *buffer, uint32_t len, int abort)
 }
 
 static void *
+es1370_init(const device_t *info)
+{
+    es1371_t *dev = malloc(sizeof(es1371_t));
+    memset(dev, 0x00, sizeof(es1371_t));
+
+    if (device_get_config_int("receive_input"))
+        midi_in_handler(1, es1371_input_msg, es1371_input_sysex, dev);
+
+    sound_add_handler(es1371_get_buffer, dev);
+    sound_set_cd_audio_filter(es1371_filter_cd_audio, dev);
+
+    dev->gameport = gameport_add(&gameport_pnp_device);
+    gameport_remap(dev->gameport, 0x200);
+
+    pci_add_card(info->local ? PCI_ADD_SOUND : PCI_ADD_NORMAL, es1370_pci_read, es1370_pci_write, dev, &dev->pci_slot);
+
+    timer_add(&dev->dac[1].timer, es1371_poll, dev, 1);
+
+    generate_es1371_filter();
+
+    ac97_codec       = &dev->codec;
+    ac97_codec_count = 1;
+    ac97_codec_id    = 0;
+    device_add(ac97_codec_get(AC97_CODEC_AK4531));
+
+    es1371_reset(dev);
+
+    return dev;
+}
+
+static void *
 es1371_init(const device_t *info)
 {
     es1371_t *dev = malloc(sizeof(es1371_t));
@@ -2273,6 +2448,19 @@ es1371_speed_changed(void *priv)
     dev->dac[1].latch = (uint64_t) ((double) TIMER_USEC * (1000000.0 / (double) SOUND_FREQ));
 }
 
+static const device_config_t es1370_config[] = {
+  // clang-format off
+    {
+        .name = "receive_input",
+        .description = "Receive input (MIDI)",
+        .type = CONFIG_BINARY,
+        .default_string = "",
+        .default_int = 1
+    },
+    { .name = "", .description = "", .type = CONFIG_END }
+  // clang-format on
+};
+
 static const device_config_t es1371_config[] = {
   // clang-format off
     {
@@ -2281,12 +2469,28 @@ static const device_config_t es1371_config[] = {
         .type = CONFIG_SELECTION,
         .selection = {
             {
+                .description = "Asahi Kasei AK4531",
+                .value = AC97_CODEC_AK4531
+            },
+            {
                 .description = "Asahi Kasei AK4540",
                 .value = AC97_CODEC_AK4540
             },
             {
                 .description = "TriTech TR28023 / Creative CT1297",
                 .value = AC97_CODEC_TR28023
+            },
+            {
+                .description = "Crystal CS4297A",
+                .value = AC97_CODEC_CS4297A
+            },
+            {
+                .description = "SigmaTel STAC9708",
+                .value = AC97_CODEC_STAC9708
+            },
+            {
+                .description = "SigmaTel STAC9721",
+                .value = AC97_CODEC_STAC9721
             },
             { .description = "" }
         },
@@ -2313,6 +2517,10 @@ static const device_config_t es1373_config[] = {
             {
                 .description = "Crystal CS4297A",
                 .value = AC97_CODEC_CS4297A
+            },
+            {
+                .description = "SigmaTel STAC9708",
+                .value = AC97_CODEC_STAC9708
             },
             {
                 .description = "SigmaTel STAC9721T",
@@ -2378,6 +2586,76 @@ static const device_config_t es1371_onboard_config[] = {
     },
     { .name = "", .description = "", .type = CONFIG_END }
   // clang-format on
+};
+
+const device_t es1370_device = {
+    .name          = "Ensoniq AudioPCI (ES1370)",
+    .internal_name = "es1370",
+    .flags         = DEVICE_PCI,
+    .local         = 0,
+    .init          = es1370_init,
+    .close         = es1371_close,
+    .reset         = es1371_reset,
+    { .available = NULL },
+    .speed_changed = es1371_speed_changed,
+    .force_redraw  = NULL,
+    .config        = es1370_config
+};
+
+const device_t sb_pci_64_device = {
+    .name          = "Creative Labs Sound Blaster PCI 64",
+    .internal_name = "es1370_pci64",
+    .flags         = DEVICE_PCI,
+    .local         = 0,
+    .init          = es1370_init,
+    .close         = es1371_close,
+    .reset         = es1371_reset,
+    { .available = NULL },
+    .speed_changed = es1371_speed_changed,
+    .force_redraw  = NULL,
+    .config        = es1370_config
+};
+
+const device_t sb_pci_128_device = {
+    .name          = "Creative Labs Sound Blaster PCI 128",
+    .internal_name = "es1370_pci128",
+    .flags         = DEVICE_PCI,
+    .local         = 0,
+    .init          = es1370_init,
+    .close         = es1371_close,
+    .reset         = es1371_reset,
+    { .available = NULL },
+    .speed_changed = es1371_speed_changed,
+    .force_redraw  = NULL,
+    .config        = es1370_config
+};
+
+const device_t audiopci_1000_device = {
+    .name          = "Creative Labs AudioPCI 1000",
+    .internal_name = "audiopci1000",
+    .flags         = DEVICE_PCI,
+    .local         = 0,
+    .init          = es1370_init,
+    .close         = es1371_close,
+    .reset         = es1371_reset,
+    { .available = NULL },
+    .speed_changed = es1371_speed_changed,
+    .force_redraw  = NULL,
+    .config        = es1370_config
+};
+
+const device_t audiopci_3000_device = {
+    .name          = "Creative Labs AudioPCI 3000",
+    .internal_name = "audiopci3000",
+    .flags         = DEVICE_PCI,
+    .local         = 0,
+    .init          = es1370_init,
+    .close         = es1371_close,
+    .reset         = es1371_reset,
+    { .available = NULL },
+    .speed_changed = es1371_speed_changed,
+    .force_redraw  = NULL,
+    .config        = es1370_config
 };
 
 const device_t es1371_device = {
@@ -2462,4 +2740,88 @@ const device_t ct5880_onboard_device = {
     .speed_changed = es1371_speed_changed,
     .force_redraw  = NULL,
     .config        = es1371_onboard_config
+};
+
+const device_t audiopci_5000_device = {
+    .name          = "Creative Labs AudioPCI 5000",
+    .internal_name = "audiopci5000",
+    .flags         = DEVICE_PCI,
+    .local         = 0,
+    .init          = es1371_init,
+    .close         = es1371_close,
+    .reset         = es1371_reset,
+    { .available = NULL },
+    .speed_changed = es1371_speed_changed,
+    .force_redraw  = NULL,
+    .config        = es1371_config
+};
+
+const device_t audiopci_5100_device = {
+    .name          = "Creative Labs AudioPCI 5100",
+    .internal_name = "audiopci5100",
+    .flags         = DEVICE_PCI,
+    .local         = 0,
+    .init          = es1371_init,
+    .close         = es1371_close,
+    .reset         = es1371_reset,
+    { .available = NULL },
+    .speed_changed = es1371_speed_changed,
+    .force_redraw  = NULL,
+    .config        = es1371_config
+};
+
+const device_t audiopci_5200_device = {
+    .name          = "Creative Labs AudioPCI 5200",
+    .internal_name = "audiopci5200",
+    .flags         = DEVICE_PCI,
+    .local         = 0,
+    .init          = es1371_init,
+    .close         = es1371_close,
+    .reset         = es1371_reset,
+    { .available = NULL },
+    .speed_changed = es1371_speed_changed,
+    .force_redraw  = NULL,
+    .config        = es1371_config
+};
+
+const device_t sb_pci_16_device = {
+    .name          = "Creative Labs SB16 PCI",
+    .internal_name = "audiopci5200",
+    .flags         = DEVICE_PCI,
+    .local         = AUDIOPCI_ES1371,
+    .init          = es1371_init,
+    .close         = es1371_close,
+    .reset         = es1371_reset,
+    { .available = NULL },
+    .speed_changed = es1371_speed_changed,
+    .force_redraw  = NULL,
+    .config        = es1371_config
+};
+
+const device_t sb_pci_128_digital_device = {
+    .name          = "Creative Labs Sound Blaster PCI 128 Digital",
+    .internal_name = "pci128digi",
+    .flags         = DEVICE_PCI,
+    .local         = AUDIOPCI_ES1371,
+    .init          = es1371_init,
+    .close         = es1371_close,
+    .reset         = es1371_reset,
+    { .available = NULL },
+    .speed_changed = es1371_speed_changed,
+    .force_redraw  = NULL,
+    .config        = es1371_config
+};
+
+const device_t sb_vibra_128_device = {
+    .name          = "Creative Labs Vibra 128",
+    .internal_name = "vibra128",
+    .flags         = DEVICE_PCI,
+    .local         = AUDIOPCI_ES1371,
+    .init          = es1371_init,
+    .close         = es1371_close,
+    .reset         = es1371_reset,
+    { .available = NULL },
+    .speed_changed = es1371_speed_changed,
+    .force_redraw  = NULL,
+    .config        = es1371_config
 };
