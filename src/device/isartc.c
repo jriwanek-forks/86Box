@@ -82,12 +82,13 @@
 #include <86box/pic.h>
 #include <86box/isartc.h>
 
-#define ISARTC_EV170  0
-#define ISARTC_DTK    1
-#define ISARTC_P5PAK  2
-#define ISARTC_A6PAK  3
-#define ISARTC_VENDEX 4
-#define ISARTC_MPLUS2 5
+#define ISARTC_EV170   0
+#define ISARTC_DTK     1
+#define ISARTC_P5PAK   2
+#define ISARTC_A6PAK   3
+#define ISARTC_VENDEX  4
+#define ISARTC_MPLUS2  5
+#define ISARTC_MM58167 6
 
 #define ISARTC_DEBUG  0
 
@@ -525,7 +526,8 @@ isartc_init(const device_t *info)
 
     /* Do per-board initialization. */
     switch (dev->board) {
-        case ISARTC_EV170: /* Everex EV-170 Magic I/O */
+        case ISARTC_EV170:   /* Everex EV-170 Magic I/O */
+        case ISARTC_MM58167: /* Generic MM58167 RTC */
             dev->flags |= FLAG_YEAR80;
             dev->base_addr   = device_get_config_hex16("base");
             dev->base_addrsz = 32;
@@ -770,6 +772,44 @@ static const device_t mplus2_device = {
     .config        = mplus2_config
 };
 
+static const device_config_t mm58167_config[] = {
+  // clang-format off
+    {
+        "base", "Address", CONFIG_HEX16, "", 0x02C0, "", { 0 },
+        {
+            { "240H", 0x0240 },
+            { "2C0H", 0x02c0 },
+            { ""             }
+        },
+    },
+    {
+        "irq", "IRQ", CONFIG_SELECTION, "", -1, "", { 0 },
+        {
+            { "Disabled", -1 },
+            { "IRQ2",      2 },
+            { "IRQ5",      5 },
+            { "IRQ7",      7 },
+            { ""             }
+        },
+    },
+    { "", "", -1 }
+  // clang-format on
+};
+
+static const device_t mm58167_device = {
+    .name          = "Generic MM58167 RTC",
+    .internal_name = "rtc_mm58167",
+    .flags         = DEVICE_ISA,
+    .local         = ISARTC_MM58167,
+    .init          = isartc_init,
+    .close         = isartc_close,
+    .reset         = NULL,
+    { .available = NULL },
+    .speed_changed = NULL,
+    .force_redraw  = NULL,
+    .config        = mm58167_config
+};
+
 /* Onboard RTC devices */
 const device_t vendex_xt_rtc_onboard_device = {
     .name          = "National Semiconductor MM58167 (Vendex)",
@@ -789,13 +829,14 @@ static const struct {
     const device_t *dev;
 } boards[] = {
     // clang-format off
-    { &device_none   },
-    { &ev170_device  },
-    { &pii147_device },
-    { &p5pak_device  },
-    { &a6pak_device  },
-    { &mplus2_device },
-    { NULL           },
+    { &device_none    },
+    { &ev170_device   },
+    { &pii147_device  },
+    { &p5pak_device   },
+    { &a6pak_device   },
+    { &mplus2_device  },
+    { &mm58167_device },
+    { NULL            }
     // clang-format on
 };
 
