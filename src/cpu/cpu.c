@@ -2813,7 +2813,7 @@ cpu_CPUID(void)
             } else if (EAX == 1) {
                 EAX = CPUID;
                 EBX = ECX = 0;
-                EDX       = CPUID_FPU | CPUID_VME | CPUID_PSE | CPUID_TSC | CPUID_MSR | CPUID_PAE | CPUID_MCE | CPUID_CMPXCHG8B | CPUID_MMX | CPUID_MTRR | CPUID_PGE | CPUID_MCA | CPUID_SEP | CPUID_FXSR | CPUID_CMOV | CPUID_SSE;
+                EDX       = CPUID_FPU | CPUID_VME | CPUID_DE | CPUID_PSE | CPUID_TSC | CPUID_MSR | CPUID_PAE | CPUID_MCE | CPUID_CMPXCHG8B | CPUID_MMX | CPUID_MTRR | CPUID_PGE | CPUID_MCA | CPUID_SEP | CPUID_FXSR | CPUID_CMOV | CPUID_SSE;
             } else if (EAX == 2) {
                 EAX = 0x00000001;
                 EBX = ECX = 0;
@@ -2890,7 +2890,7 @@ cpu_CPUID(void)
                 case 1:
                     EAX = CPUID;
                     EBX = ECX = 0;
-                    EDX       = CPUID_FPU | CPUID_TSC | CPUID_MSR | CPUID_MCE | CPUID_MMX | CPUID_MTRR | CPUID_CMOV | CPUID_FXSR | CPUID_SSE;
+                    EDX       = CPUID_FPU | CPUID_DE | CPUID_TSC | CPUID_MSR | CPUID_MCE | CPUID_MMX | CPUID_MTRR | CPUID_CMOV | CPUID_FXSR | CPUID_SSE;
                     if (cpu_has_feature(CPU_FEATURE_CX8))
                         EDX |= CPUID_CMPXCHG8B;
                     break;
@@ -2899,7 +2899,7 @@ cpu_CPUID(void)
                     break;
                 case 0x80000001:
                     EAX = CPUID;
-                    EDX = CPUID_FPU | CPUID_TSC | CPUID_MSR | CPUID_MCE | CPUID_MMX | CPUID_MTRR | CPUID_CMOV | CPUID_FXSR | CPUID_SSE;
+                    EDX = CPUID_FPU | CPUID_DE | CPUID_TSC | CPUID_MSR | CPUID_MCE | CPUID_MMX | CPUID_MTRR | CPUID_CMOV | CPUID_FXSR | CPUID_SSE;
                     if (cpu_has_feature(CPU_FEATURE_CX8))
                         EDX |= CPUID_CMPXCHG8B;
                     break;
