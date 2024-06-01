@@ -434,7 +434,7 @@ const machine_t machines[] = {
             .step = 128
         },
         .nvrmask = 0,
-        .kbc_device = &keyboard_xt86_device,
+        .kbc_device = &keyboard_pc_device,
         .kbc_p1 = 0xff,
         .gpio = 0xffffffff,
 		.gpio_acpi = 0xffffffff,

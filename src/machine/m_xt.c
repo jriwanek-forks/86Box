@@ -176,17 +176,17 @@ machine_pcconvertable_init(const machine_t *model)
 {
     int ret;
 
-    ret = bios_load_linear("roms/machines/ibm5140/1504037.bin",
-                           0x000f8000, 32768, 0);
+    ret = bios_load_linear("roms/machines/ibm5140/7396917.bin",
+                           0x000f0000, 32768, 0);
     if (ret) {
-        (void) bios_load_aux_linear("roms/machines/ibm5140/1504036.bin",
-                                    0x000f0000, 32768, 0);
+        (void) bios_load_aux_linear("roms/machines/ibm5140/7396918.bin",
+                                    0x000f8000, 32768, 0);
     }
 
     if (bios_only || !ret)
         return ret;
 
-    device_add(&keyboard_xt86_device);
+    device_add(&keyboard_pc_device);
 
     machine_xt_common_init(model);
 
