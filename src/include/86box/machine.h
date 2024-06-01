@@ -925,6 +925,8 @@ extern int machine_genxt_init(const machine_t *);
 
 extern int machine_xt86_init(const machine_t *);
 
+extern int machine_pcconvertable_init(const machine_t *);
+
 extern int machine_xt_americxt_init(const machine_t *);
 extern int machine_xt_amixt_init(const machine_t *);
 extern int machine_xt_ataripc3_init(const machine_t *);
