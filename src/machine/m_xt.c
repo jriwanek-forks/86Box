@@ -171,6 +171,28 @@ machine_xt86_init(const machine_t *model)
     return ret;
 }
 
+int
+machine_pcconvertable_init(const machine_t *model)
+{
+    int ret;
+
+    ret = bios_load_linear("roms/machines/ibm5140/1504037.bin",
+                           0x000f8000, 32768, 0);
+    if (ret) {
+        (void) bios_load_aux_linear("roms/machines/ibm5140/1504036.bin",
+                                    0x000f0000, 32768, 0);
+    }
+
+    if (bios_only || !ret)
+        return ret;
+
+    device_add(&keyboard_xt86_device);
+
+    machine_xt_common_init(model);
+
+    return ret;
+}
+
 static void
 machine_xt_clone_init(const machine_t *model, int fixed_floppy)
 {
