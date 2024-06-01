@@ -849,6 +849,12 @@ isamem_init(const device_t *info)
         if (dev->board == ISAMEM_LOTECH_EMS_CARD)
             io_sethandler(dev->base_addr[0], 4,
                           consecutive_ems_in, NULL, NULL, consecutive_ems_out, NULL, NULL, dev);
+
+/*
+        else if (dev->board == ISAMEM_ABOVEBOARD_CARD)
+            io_sethandler(dev->base_addr[0], 8,
+                          consecutive_ems_in, NULL, NULL, consecutive_ems_out, NULL, NULL, dev);
+*/
     }
 
     /* Let them know our device instance. */
