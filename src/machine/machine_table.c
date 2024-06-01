@@ -407,6 +407,45 @@ const machine_t machines[] = {
         .net_device = NULL
     },
     {
+        .name = "[8088] IBM PC Convertable",
+        .internal_name = "ibmpcconvertable",
+        .type = MACHINE_TYPE_8088,
+        .chipset = MACHINE_CHIPSET_DISCRETE,
+        .init = machine_pcconvertable_init,
+        .p1_handler = NULL,
+        .gpio_handler = NULL,
+        .available_flag = MACHINE_AVAILABLE,
+        .gpio_acpi_handler = NULL,
+        .cpu = {
+            .package = CPU_PKG_8088,
+            .block = CPU_BLOCK_NONE,
+            .min_bus = 0,
+            .max_bus = 0,
+            .min_voltage = 0,
+            .max_voltage = 0,
+            .min_multi = 0,
+            .max_multi = 0
+        },
+        .bus_flags = MACHINE_PC,
+        .flags = MACHINE_FLAGS_NONE,
+        .ram = {
+            .min = 256,
+            .max = 640,
+            .step = 128
+        },
+        .nvrmask = 63,
+        .kbc_device = &keyboard_pc_device,
+        .kbc_p1 = 0xff,
+        .gpio = 0xffffffff,
+		.gpio_acpi = 0xffffffff,
+        .device = NULL,
+        .fdc_device = NULL,
+        .sio_device = NULL,
+        .vid_device = NULL,
+        .snd_device = NULL,
+        .net_device = NULL
+    },
+    {
         .name = "[8088] American XT Computer",
         .internal_name = "americxt",
         .type = MACHINE_TYPE_8088,

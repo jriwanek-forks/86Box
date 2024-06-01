@@ -33,6 +33,7 @@
 #include <86box/fdc_ext.h>
 #include <86box/lpt.h>
 #include <86box/hdc.h>
+#include <86box/nvr.h>
 #include <86box/gameport.h>
 #include <86box/serial.h>
 #include <86box/sio.h>
@@ -609,6 +610,30 @@ machine_ibmxt86_init(const machine_t *model)
 
     if (enable_5161)
         device_add(&ibm_5161_device);
+
+    return ret;
+}
+
+int
+machine_pcconvertable_init(const machine_t *model)
+{
+    int ret;
+
+    ret = bios_load_linear("roms/machines/ibm5140/7396917.bin",
+                           0x000f0000, 32768, 0);
+    if (ret) {
+        (void) bios_load_aux_linear("roms/machines/ibm5140/7396918.bin",
+                                    0x000f8000, 32768, 0);
+    }
+
+    if (bios_only || !ret)
+        return ret;
+
+    device_add(&keyboard_pc_device);
+
+    machine_xt_common_init(model, 0);
+
+    device_add(&ibmat_nvr_device);
 
     return ret;
 }

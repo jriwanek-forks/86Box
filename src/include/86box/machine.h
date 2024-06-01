@@ -1348,6 +1348,7 @@ extern int             machine_xt_v20xt_init(const machine_t *);
 extern int             machine_xt_tuliptc8_init(const machine_t *);
 
 /* 8086 */
+extern int             machine_pcconvertable_init(const machine_t *);
 extern int             machine_xt_pc5086_init(const machine_t *);
 extern int             machine_xt_maz1016_init(const machine_t *);
 extern int             machine_xt_iskra3104_init(const machine_t *);
