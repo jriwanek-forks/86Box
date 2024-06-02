@@ -59,6 +59,7 @@ int   initialized = 0;
 io_t *io[NPORTS];
 io_t *io_last[NPORTS];
 
+#define ENABLE_IO_LOG 0
 #ifdef ENABLE_IO_LOG
 int io_do_log = ENABLE_IO_LOG;
 
@@ -393,7 +394,8 @@ inb(uint16_t port)
         ret = 0xfe;
 #endif
 
-    io_log("[%04X:%08X] (%i, %i, %04i) in b(%04X) = %02X\n", CS, cpu_state.pc, in_smm, found, qfound, port, ret);
+    if (!found)
+        io_log("[%04X:%08X] (%i, %i, %04i) in b(%04X) = %02X\n", CS, cpu_state.pc, in_smm, found, qfound, port, ret);
 
     return ret;
 }
@@ -447,7 +449,8 @@ outb(uint16_t port, uint8_t val)
 #endif
     }
 
-    io_log("[%04X:%08X] (%i, %i, %04i) outb(%04X, %02X)\n", CS, cpu_state.pc, in_smm, found, qfound, port, val);
+    if (!found)
+        io_log("[%04X:%08X] (%i, %i, %04i) outb(%04X, %02X)\n", CS, cpu_state.pc, in_smm, found, qfound, port, val);
 
     return;
 }
@@ -525,7 +528,8 @@ inw(uint16_t port)
     if (!found)
         cycles -= io_delay;
 
-    io_log("[%04X:%08X] (%i, %i, %04i) in w(%04X) = %04X\n", CS, cpu_state.pc, in_smm, found, qfound, port, ret);
+    if (!found)
+        io_log("[%04X:%08X] (%i, %i, %04i) in w(%04X) = %04X\n", CS, cpu_state.pc, in_smm, found, qfound, port, ret);
 
     return ret;
 }
@@ -594,7 +598,8 @@ outw(uint16_t port, uint16_t val)
 #endif
     }
 
-    io_log("[%04X:%08X] (%i, %i, %04i) outw(%04X, %04X)\n", CS, cpu_state.pc, in_smm, found, qfound, port, val);
+    if (!found)
+        io_log("[%04X:%08X] (%i, %i, %04i) outw(%04X, %04X)\n", CS, cpu_state.pc, in_smm, found, qfound, port, val);
 
     return;
 }
@@ -704,7 +709,8 @@ inl(uint16_t port)
     if (!found)
         cycles -= io_delay;
 
-    io_log("[%04X:%08X] (%i, %i, %04i) in l(%04X) = %08X\n", CS, cpu_state.pc, in_smm, found, qfound, port, ret);
+    if (!found)
+        io_log("[%04X:%08X] (%i, %i, %04i) in l(%04X) = %08X\n", CS, cpu_state.pc, in_smm, found, qfound, port, ret);
 
     return ret;
 }
@@ -791,7 +797,8 @@ outl(uint16_t port, uint32_t val)
 #endif
     }
 
-    io_log("[%04X:%08X] (%i, %i, %04i) outl(%04X, %08X)\n", CS, cpu_state.pc, in_smm, found, qfound, port, val);
+    if (!found)
+        io_log("[%04X:%08X] (%i, %i, %04i) outl(%04X, %08X)\n", CS, cpu_state.pc, in_smm, found, qfound, port, val);
 
     return;
 }
