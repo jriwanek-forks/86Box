@@ -433,7 +433,7 @@ const machine_t machines[] = {
             .max = 640,
             .step = 128
         },
-        .nvrmask = 0,
+        .nvrmask = 63,
         .kbc_device = &keyboard_pc_device,
         .kbc_p1 = 0xff,
         .gpio = 0xffffffff,

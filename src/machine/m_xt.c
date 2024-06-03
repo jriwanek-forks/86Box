@@ -12,6 +12,7 @@
 #include <86box/fdc.h>
 #include <86box/fdc_ext.h>
 #include <86box/hdc.h>
+#include <86box/nvr.h>
 #include <86box/gameport.h>
 #include <86box/ibm_5161.h>
 #include <86box/keyboard.h>
@@ -189,6 +190,8 @@ machine_pcconvertable_init(const machine_t *model)
     device_add(&keyboard_pc_device);
 
     machine_xt_common_init(model);
+
+    device_add(&ibmat_nvr_device);
 
     return ret;
 }
