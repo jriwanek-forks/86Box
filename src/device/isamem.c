@@ -145,7 +145,6 @@ typedef struct memdev_t {
     uint8_t     reserved : 2;
 
     uint8_t  flags;
-#define FLAG_CONFIG 0x01 /* card is configured */
 #define FLAG_WIDE   0x10 /* card uses 16b mode */
 #define FLAG_FAST   0x20 /* fast (<= 120ns) chips */
 #define FLAG_EMS    0x40 /* card has EMS mode enabled */
@@ -452,27 +451,24 @@ consecutive_ems_out(uint16_t port, uint8_t val, void *priv)
     dev->ems[vpage].enabled = 1;
     dev->ems[vpage].page    = val;
 
-    /* Make sure we can do that.. */
-    if (dev->flags & FLAG_CONFIG) {
-        if (dev->ems[vpage].page < dev->ems_pages[0]) {
-            /* Pre-calculate the page address in EMS RAM. */
-            dev->ems[vpage].addr = dev->ram + dev->ems_start[0] + (val * EMS_PGSIZE);
-        } else {
-            /* That page does not exist. */
-            dev->ems[vpage].enabled = 0;
-        }
+    if (dev->ems[vpage].page < dev->ems_pages[0]) {
+        /* Pre-calculate the page address in EMS RAM. */
+        dev->ems[vpage].addr = dev->ram + dev->ems_start[0] + (val * EMS_PGSIZE);
+    } else {
+        /* That page does not exist. */
+        dev->ems[vpage].enabled = 0;
+    }
 
-        if (dev->ems[vpage].enabled) {
-            /* Update the EMS RAM address for this page. */
-            mem_mapping_set_exec(&dev->ems[vpage].mapping,
-                                 dev->ems[vpage].addr);
+    if (dev->ems[vpage].enabled) {
+        /* Update the EMS RAM address for this page. */
+        mem_mapping_set_exec(&dev->ems[vpage].mapping,
+                             dev->ems[vpage].addr);
 
-            /* Enable this page. */
-            mem_mapping_enable(&dev->ems[vpage].mapping);
-        } else {
-            /* Disable this page. */
-            mem_mapping_disable(&dev->ems[vpage].mapping);
-        }
+        /* Enable this page. */
+        mem_mapping_enable(&dev->ems[vpage].mapping);
+    } else {
+        /* Disable this page. */
+        mem_mapping_disable(&dev->ems[vpage].mapping);
     }
 }
 
@@ -532,7 +528,7 @@ isamem_init(const device_t *info)
             dev->total_size    = device_get_config_int("size");
             dev->start_addr    = 0;
             dev->frame_addr[0] = 0xd0000;
-            dev->flags        |= (FLAG_EMS | FLAG_CONFIG);
+            dev->flags        |= FLAG_EMS;
             break;
 
         case ISAMEM_EV159_CARD: /* Everex EV-159 RAM 3000 */
@@ -595,8 +591,7 @@ isamem_init(const device_t *info)
             dev->total_size     = device_get_config_int("size");
             dev->start_addr     = 0;
             dev->frame_addr[0]  = device_get_config_hex20("frame");
-            dev->flags         |= (FLAG_EMS | FLAG_CONFIG);
-            break;
+            dev->flags         |= FLAG_EMS;
 
         default:
             break;
