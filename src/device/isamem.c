@@ -305,15 +305,17 @@ ems_writew(uint32_t addr, uint16_t val, void *priv)
 static uint8_t
 ems_in(uint16_t port, void *priv)
 {
-    const emsreg_t *dev           = (emsreg_t *) priv;
-    uint8_t         ret           = 0xff;
+    const emsreg_t *dev   = (emsreg_t *) priv;
+    uint8_t         ret   = 0xff;
 #ifdef ENABLE_ISAMEM_LOG
+    uint16_t        baseport;
     int             vpage;
 #endif
 
     /* Get the viewport page number. */
 #ifdef ENABLE_ISAMEM_LOG
-    vpage = (port / EMS_PGSIZE);
+    baseport = port;
+    vpage    = (port / EMS_PGSIZE);
 #endif
     port &= (EMS_PGSIZE - 1);
 
@@ -322,16 +324,17 @@ ems_in(uint16_t port, void *priv)
             ret = dev->page;
             if (dev->enabled)
                 ret |= 0x80;
+
+            isamem_log("ISAMEM: read page registers (%04x) = %02x) page=%d\n", baseport, ret, vpage);
             break;
 
         case 0x0001: /* W/O */
+            isamem_log("ISAMEM: read frame registers (%04x) = %02x) page=%d\n", baseport, ret, vpage);
             break;
 
         default:
             break;
     }
-
-    isamem_log("ISAMEM: read(%04x) = %02x) page=%d\n", port, ret, vpage);
 
     return ret;
 }
@@ -340,13 +343,13 @@ ems_in(uint16_t port, void *priv)
 static uint8_t
 consecutive_ems_in(uint16_t port, void *priv)
 {
-    const memdev_t *dev = (memdev_t *) priv;
-    uint8_t         ret = 0xff;
+    const memdev_t *dev   = (memdev_t *) priv;
+    uint8_t         ret   = 0xff;
     int             vpage;
 
     /* Get the viewport page number. */
     vpage = (port - dev->base_addr[0]);
- 
+
     ret = dev->ems[vpage].page;
     if (dev->ems[vpage].enabled)
         ret |= 0x80;
@@ -360,8 +363,9 @@ consecutive_ems_in(uint16_t port, void *priv)
 static void
 ems_out(uint16_t port, uint8_t val, void *priv)
 {
-    emsreg_t *dev           = (emsreg_t *) priv;
+    emsreg_t *dev      = (emsreg_t *) priv;
     int       vpage;
+    uint16_t  baseport = port;
 
     /* Get the viewport page number. */
     vpage = (port / EMS_PGSIZE);
@@ -394,6 +398,8 @@ ems_out(uint16_t port, uint8_t val, void *priv)
                 /* Disable this page. */
                 mem_mapping_disable(&dev->mapping);
             }
+
+            isamem_log("ISAMEM: write(%04x, %02x) to page mapping registers! page=%d\n", baseport, val, vpage);
             break;
 
         case 0x0001: /* page frame registers */
@@ -434,7 +440,7 @@ ems_out(uint16_t port, uint8_t val, void *priv)
 static void
 consecutive_ems_out(uint16_t port, uint8_t val, void *priv)
 {
-    memdev_t *dev = (memdev_t *) priv;
+    memdev_t *dev   = (memdev_t *) priv;
     int       vpage;
 
     /* Get the viewport page number. */
