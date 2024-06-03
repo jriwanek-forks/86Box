@@ -112,7 +112,7 @@
 #define ISAMEM_GENPCJR_CARD    19
 #define ISAMEM_JRIDE_CARD      20
 
-#define ISAMEM_DEBUG           0
+#define ISAMEM_DEBUG           1
 
 #define RAM_TOPMEM             (640 << 10)  /* end of low memory */
 #define RAM_UMAMEM             (384 << 10)  /* upper memory block */
@@ -184,6 +184,7 @@ typedef struct memdev_t {
     emsreg_t ems[EMS_MAXPAGE * 2]; /* EMS controller registers */
 } memdev_t;
 
+#define ENABLE_ISAMEM_LOG 1
 #ifdef ENABLE_ISAMEM_LOG
 int isamem_do_log = ENABLE_ISAMEM_LOG;
 
