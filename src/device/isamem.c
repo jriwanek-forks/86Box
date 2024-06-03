@@ -416,6 +416,19 @@ ems_out(uint16_t port, uint8_t val, void *priv)
              * 80 00 80  D8000
              * 80 80 00  DC000
              * 80 80 80  E0000
+
+             * 08 04 00  Address
+             * -----------------
+             *  X  X  X  C0000
+             *  0  0  0  C4000
+             *  0  0  1  C8000
+             *  0  1  0  CC000
+             *  0  1  1  D0000
+             *  1  0  0  D4000
+             *  1  0  1  D8000
+             *  1  1  0  DC000
+             *  1  1  1  E0000
+
              */
             dev->frame = val;
             *dev->frame_val = (*dev->frame_val & ~(1 << vpage)) | ((val >> 7) << vpage);
