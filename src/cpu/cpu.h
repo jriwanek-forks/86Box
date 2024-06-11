@@ -42,6 +42,8 @@ enum {
     CPU_186,
     CPU_286,   /* 286 class CPUs */
     CPU_386SX, /* 386 class CPUs */
+    CPU_386_INBOARD_PC,
+    CPU_386_INBOARD_AT,
     CPU_IBM386SLC,
     CPU_IBM486SLC,
     CPU_386DX,
@@ -831,5 +833,8 @@ extern int      prefetch_queue_get_size(void);
 
 #define prefetch_queue_set_suspended(s) prefetch_queue_set_prefetching(!s)
 #define prefetch_queue_get_suspended !prefetch_queue_get_prefetching
+
+extern int isinboard386pc;
+extern int isinboard386at;
 
 #endif /*EMU_CPU_H*/
