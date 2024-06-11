@@ -42,6 +42,8 @@ enum {
     CPU_186,
     CPU_286,   /* 286 class CPUs */
     CPU_386SX, /* 386 class CPUs */
+    CPU_386_INBOARD_PC,
+    CPU_386_INBOARD_AT,
     CPU_IBM386SLC,
     CPU_IBM486SLC,
     CPU_386DX,
@@ -523,6 +525,8 @@ extern int is8086;
 extern int is186;
 extern int is286;
 extern int is386;
+extern int isinboard386pc;
+extern int isinboard386at;
 extern int is6117;
 extern int is486;
 extern int is586;
