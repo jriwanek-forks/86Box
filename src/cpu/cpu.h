@@ -41,6 +41,8 @@ enum {
     CPU_186,
     CPU_286,   /* 286 class CPUs */
     CPU_386SX, /* 386 class CPUs */
+    CPU_386_INBOARD_PC,
+    CPU_386_INBOARD_AT,
     CPU_IBM386SLC,
     CPU_IBM486SLC,
     CPU_386DX,
@@ -812,5 +814,8 @@ extern int in_lock;
 extern int cpu_override_interpreter;
 
 extern int is_lock_legal(uint32_t fetchdat);
+
+extern int isinboard386pc;
+extern int isinboard386at;
 
 #endif /*EMU_CPU_H*/
