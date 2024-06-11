@@ -201,6 +201,8 @@ int is_mazovia;
 int is_nec;
 int is286;
 int is386;
+int isinboard386pc;
+int isinboard386at;
 int is6117;
 int is486 = 1;
 int is586 = 0;
@@ -291,6 +293,11 @@ uint8_t rcr[8] = { 0 };
 double exp_pow_table[0x800];
 
 static int cyrix_addr;
+
+/* Inboard 386 */
+static uint8_t inboard386_portA0;
+static uint8_t inboard386_port670;
+static uint8_t inboard386_port674;
 
 static void    cpu_write(uint16_t addr, uint8_t val, void *priv);
 static uint8_t cpu_read(uint16_t addr, void *priv);
@@ -527,18 +534,20 @@ cpu_set(void)
     cpu_alt_reset     = 0;
     unmask_a20_in_smm = 0;
 
-    CPUID       = cpu_s->cpuid_model;
-    is8086      = (cpu_s->cpu_type > CPU_8088) && (cpu_s->cpu_type != CPU_V20) && (cpu_s->cpu_type != CPU_188);
-    is_mazovia  = (cpu_s->cpu_type == CPU_8086_MAZOVIA);
-    is_nec      = (cpu_s->cpu_type == CPU_V20) || (cpu_s->cpu_type == CPU_V30);
-    is186       = (cpu_s->cpu_type == CPU_186) || (cpu_s->cpu_type == CPU_188) || (cpu_s->cpu_type == CPU_V20) || (cpu_s->cpu_type == CPU_V30);
-    is286       = (cpu_s->cpu_type >= CPU_286);
-    is386       = (cpu_s->cpu_type >= CPU_386SX);
-    israpidcad  = (cpu_s->cpu_type == CPU_RAPIDCAD);
-    isibm486    = (cpu_s->cpu_type == CPU_IBM386SLC) || (cpu_s->cpu_type == CPU_IBM486SLC) || (cpu_s->cpu_type == CPU_IBM486BL);
-    is486       = (cpu_s->cpu_type >= CPU_RAPIDCAD);
-    is_am486    = (cpu_s->cpu_type == CPU_ENH_Am486DX);
-    is_am486dxl = (cpu_s->cpu_type == CPU_Am486DXL);
+    CPUID          = cpu_s->cpuid_model;
+    is8086         = (cpu_s->cpu_type > CPU_8088) && (cpu_s->cpu_type != CPU_V20) && (cpu_s->cpu_type != CPU_188);
+    is_mazovia     = (cpu_s->cpu_type == CPU_8086_MAZOVIA);
+    is_nec         = (cpu_s->cpu_type == CPU_V20) || (cpu_s->cpu_type == CPU_V30);
+    is186          = (cpu_s->cpu_type == CPU_186) || (cpu_s->cpu_type == CPU_188) || (cpu_s->cpu_type == CPU_V20) || (cpu_s->cpu_type == CPU_V30);
+    is286          = (cpu_s->cpu_type >= CPU_286);
+    is386          = (cpu_s->cpu_type >= CPU_386SX);
+    isinboard386pc = (cpu_s->cpu_type == CPU_386_INBOARD_PC);
+    isinboard386at = (cpu_s->cpu_type == CPU_386_INBOARD_AT);
+    israpidcad     = (cpu_s->cpu_type == CPU_RAPIDCAD);
+    isibm486       = (cpu_s->cpu_type == CPU_IBM386SLC) || (cpu_s->cpu_type == CPU_IBM486SLC) || (cpu_s->cpu_type == CPU_IBM486BL);
+    is486          = (cpu_s->cpu_type >= CPU_RAPIDCAD);
+    is_am486       = (cpu_s->cpu_type == CPU_ENH_Am486DX);
+    is_am486dxl    = (cpu_s->cpu_type == CPU_Am486DXL);
 
     is6117 = !strcmp(cpu_f->manufacturer, "ALi");
 
@@ -590,6 +599,18 @@ cpu_set(void)
 
     io_handler(hasfpu, 0x00f0, 0x000f, cpu_read, NULL, NULL, cpu_write, NULL, NULL, NULL);
     io_handler(hasfpu, 0xf007, 0x0001, cpu_read, NULL, NULL, cpu_write, NULL, NULL, NULL);
+
+    if (isinboard386pc)
+        inboard386_portA0 = 0x80;
+    else if (isinboard386at) {
+        inboard386_port670 = 0x00;
+        inboard386_port674 = 0x00;
+    }
+
+    io_handler(isinboard386pc, 0xa0, 0x0001, cpu_read, NULL, NULL, cpu_write, NULL, NULL, NULL);
+
+    io_handler(isinboard386at, 0x670, 0x0001, cpu_read, NULL, NULL, cpu_write, NULL, NULL, NULL); // TODO: This might be on inboard 386/PC too
+    io_handler(isinboard386at, 0x674, 0x0001, cpu_read, NULL, NULL, cpu_write, NULL, NULL, NULL);
 
 #ifdef USE_DYNAREC
     x86_setopcodes(ops_386, ops_386_0f, dynarec_ops_386, dynarec_ops_386_0f);
@@ -947,6 +968,8 @@ cpu_set(void)
             fallthrough;
         case CPU_386SX:
         case CPU_386DX:
+        case CPU_386_INBOARD_PC:
+        case CPU_386_INBOARD_AT:
             /* In case we get Deskpro 386 emulation */
             if (fpu_type == FPU_287) {
 #ifdef USE_DYNAREC
@@ -4257,8 +4280,31 @@ i686_invalid_wrmsr:
 }
 
 static void
+cpu_recalc_inboard_mappings(void)
+{
+    if (!(inboard386_port670 & 1)) {
+        mem_mapping_disable(&bios_mapping);
+        mem_mapping_enable(&bios_high_mapping);
+    }
+    else {
+        //mem_mapping_disable(&bios_high_mapping);
+        mem_mapping_enable(&bios_mapping);
+    }
+}
+
+static void
 cpu_write(uint16_t addr, uint8_t val, UNUSED(void *priv))
 {
+    if (isinboard386at) {
+        if (addr == 0x670) {
+            inboard386_port670 = val & 0x1f;
+        }
+        else if (addr == 0x674) {
+            inboard386_port674 = val;
+        }
+        cpu_recalc_inboard_mappings();
+    }
+
     if (addr == 0xf0) {
         /* Writes to F0 clear FPU error and deassert the interrupt. */
         if (is286)
