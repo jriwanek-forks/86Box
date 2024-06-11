@@ -1161,6 +1161,34 @@ const cpu_family_t cpu_families[] = {
         }
     },
     {
+        .package       = CPU_PKG_8088,
+        .manufacturer  = "Intel",
+        .name          = "Inboard 386/PC",
+        .internal_name = "inboard386pc",
+        .cpus          = (const CPU[]) {
+            { "16", CPU_386_INBOARD_PC, fpus_80386, 16000000, 1, 5000, 0x2308, 0, 0, 0, 3, 3, 3, 3, 2 },
+            { "20", CPU_386_INBOARD_PC, fpus_80386, 20000000, 1, 5000, 0x2308, 0, 0, 0, 4, 4, 3, 3, 3 },
+            { "25", CPU_386_INBOARD_PC, fpus_80386, 25000000, 1, 5000, 0x2308, 0, 0, 0, 4, 4, 3, 3, 3 },
+            { "33", CPU_386_INBOARD_PC, fpus_80386, 33333333, 1, 5000, 0x2308, 0, 0, 0, 6, 6, 3, 3, 4 },
+            { "40", CPU_386_INBOARD_PC, fpus_80386, 40000000, 1, 5000, 0x2308, 0, 0, 0, 7, 7, 3, 3, 5 },
+            { .name = "", 0 }
+        }
+    },
+    {
+        .package       = CPU_PKG_286,
+        .manufacturer  = "Intel",
+        .name          = "Inboard 386/AT",
+        .internal_name = "inboard386at",
+        .cpus          = (const CPU[]) {
+            { "16", CPU_386_INBOARD_AT, fpus_80386, 16000000, 1, 5000, 0x2308, 0, 0, 0, 3, 3, 3, 3, 2 },
+            { "20", CPU_386_INBOARD_AT, fpus_80386, 20000000, 1, 5000, 0x2308, 0, 0, 0, 4, 4, 3, 3, 3 },
+            { "25", CPU_386_INBOARD_AT, fpus_80386, 25000000, 1, 5000, 0x2308, 0, 0, 0, 4, 4, 3, 3, 3 },
+            { "33", CPU_386_INBOARD_AT, fpus_80386, 33333333, 1, 5000, 0x2308, 0, 0, 0, 6, 6, 3, 3, 4 },
+            { "40", CPU_386_INBOARD_AT, fpus_80386, 40000000, 1, 5000, 0x2308, 0, 0, 0, 7, 7, 3, 3, 5 },
+            { .name = "", 0 }
+        }
+    },
+    {
         .package       = CPU_PKG_386SX,
         .manufacturer  = "Intel",
         .name          = "i386SX",
