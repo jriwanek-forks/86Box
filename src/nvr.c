@@ -197,7 +197,7 @@ nvr_path(char *str)
     /* Get the full prefix in place. */
     memset(temp, 0x00, sizeof(temp));
     strcpy(temp, usr_path);
-    strncat(temp, NVR_PATH, strlen(NVR_PATH));
+    strncat(temp, NVR_PATH, strlen(NVR_PATH) + 1);
 
     /* Create the directory if needed. */
     if (!plat_dir_check(temp))

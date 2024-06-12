@@ -497,9 +497,9 @@ device_get_name(const device_t *dev, int bus, char *name)
 
         if (sbus != NULL) {
             /* First concatenate [<Bus>] before the device's name. */
-            strncat(name, "[", 1);
+            strncat(name, "[", 2);
             strncat(name, sbus, strlen(sbus));
-            strncat(name, "] ", 2);
+            strncat(name, "] ", 3);
 
             /* Then change string from ISA16 to ISA if applicable. */
             if (!strcmp(sbus, "ISA16"))
@@ -511,9 +511,9 @@ device_get_name(const device_t *dev, int bus, char *name)
             }
 
             /* Generate the bus string with parentheses. */
-            strncat(pbus, "(", 1);
+            strncat(pbus, "(", 2);
             strncat(pbus, sbus, strlen(sbus));
-            strncat(pbus, ")", 1);
+            strncat(pbus, ")", 2);
 
             /* Allocate the temporary device name string and set it to all zeroes. */
             tname = (char *) malloc(strlen(dev->name) + 1);

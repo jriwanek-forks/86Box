@@ -278,11 +278,11 @@ load_machine(void)
     if (migrate_from) {
         char old_fn[256];
         strcpy(old_fn, migrate_from);
-        strncat(old_fn, ".", 1);
+        strncat(old_fn, ".", 2);
         c = strlen(old_fn);
         char new_fn[256];
         strcpy(new_fn, machines[machine].internal_name);
-        strncat(new_fn, ".", 1);
+        strncat(new_fn, ".", 2);
         i = strlen(new_fn);
 
         /* Iterate through NVR files. */
