@@ -353,7 +353,7 @@ dump_page(escp_t *dev)
     char path[1024];
 
     strcpy(path, dev->pagepath);
-    strcat(path, dev->page_fn);
+    strncat(path, dev->page_fn, strlen(dev->page_fn));
     png_write_rgb(path, dev->page->pixels, dev->page->w, dev->page->h, dev->page->pitch, dev->palcol);
 }
 

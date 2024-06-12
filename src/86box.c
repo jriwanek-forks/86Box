@@ -725,7 +725,7 @@ usage:
              * Add it to the current working directory
              * to convert it (back) to an absolute path.
              */
-            strcat(usr_path, ppath);
+            strncat(usr_path, ppath, strlen(ppath));
         } else {
             /*
              * The user-provided path seems like an
@@ -764,7 +764,7 @@ usage:
              * Add it to the current working directory
              * to convert it (back) to an absolute path.
              */
-            strcat(rom_path, rpath);
+            strncat(rom_path, rpath, strlen(rpath));
         } else {
             /*
              * The user-provided path seems like an
@@ -810,7 +810,7 @@ usage:
         if (path_abs(cfg))
             strcpy(usr_path, cfg);
         else
-            strcat(usr_path, cfg);
+            strncat(usr_path, cfg, strlen(cfg));
     }
 
     /* Make sure we have a trailing backslash. */

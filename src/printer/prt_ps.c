@@ -160,7 +160,7 @@ convert_to_pdf(ps_t *dev)
 
     strcpy(input_fn, dev->printer_path);
     path_slash(input_fn);
-    strcat(input_fn, dev->filename);
+    strncat(input_fn, dev->filename, strlen(dev->filename));
 
     strcpy(output_fn, input_fn);
     strcpy(output_fn + strlen(output_fn) - (dev->pcl ? 4 : 3), ".pdf");
@@ -217,7 +217,7 @@ write_buffer(ps_t *dev, bool finish)
 
     strcpy(path, dev->printer_path);
     path_slash(path);
-    strcat(path, dev->filename);
+    strncat(path, dev->filename, strlen(dev->filename));
 
     fp = plat_fopen(path, dev->pcl ? "ab" : "a");
     if (fp == NULL)

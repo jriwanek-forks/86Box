@@ -310,7 +310,7 @@ void
 path_slash(char *path)
 {
     if (path[strlen(path) - 1] != '/') {
-        strcat(path, "/");
+        strncat(path, "/", 1);
     }
     path_normalize(path);
 }
@@ -385,7 +385,7 @@ path_append_filename(char *dest, const char *s1, const char *s2)
 {
     strcpy(dest, s1);
     path_slash(dest);
-    strcat(dest, s2);
+    strncat(dest, s2, strlen(s2));
 }
 
 int
@@ -778,11 +778,11 @@ plat_init_rom_paths(void)
 
         strncpy(xdg_rom_path, getenv("XDG_DATA_HOME"), 1024);
         path_slash(xdg_rom_path);
-        strncat(xdg_rom_path, "86Box/", 1024);
+        strncat(xdg_rom_path, "86Box/", 6);
 
         if (!plat_dir_check(xdg_rom_path))
             plat_dir_create(xdg_rom_path);
-        strcat(xdg_rom_path, "roms/");
+        strncat(xdg_rom_path, "roms/", 5);
 
         if (!plat_dir_check(xdg_rom_path))
             plat_dir_create(xdg_rom_path);
@@ -794,7 +794,7 @@ plat_init_rom_paths(void)
 
         if (!plat_dir_check(home_rom_path))
             plat_dir_create(home_rom_path);
-        strcat(home_rom_path, "roms/");
+        strncat(home_rom_path, "roms/", 5);
 
         if (!plat_dir_check(home_rom_path))
             plat_dir_create(home_rom_path);
@@ -811,9 +811,9 @@ plat_init_rom_paths(void)
             }
             while ((cur_xdg_rom_path = local_strsep(&xdg_rom_paths, ":")) != NULL) {
                 char real_xdg_rom_path[1024] = { '\0' };
-                strcat(real_xdg_rom_path, cur_xdg_rom_path);
+                strncat(real_xdg_rom_path, cur_xdg_rom_path, strlen(cur_xdg_rom_path));
                 path_slash(real_xdg_rom_path);
-                strcat(real_xdg_rom_path, "86Box/roms/");
+                strncat(real_xdg_rom_path, "86Box/roms/", 11);
                 rom_add_path(real_xdg_rom_path);
             }
         }
@@ -879,7 +879,7 @@ process_media_commands_3(uint8_t *id, char *fn, uint8_t *wp, int cmdargc)
                 }
                 break;
             }
-            strcat(fn, " ");
+            strncat(fn, " ", 1);
         }
     } else {
         if (strlen(xargv[2]) < PATH_MAX) {
@@ -1043,7 +1043,7 @@ monitor_thread(void *param)
                                 || fn[strlen(fn) - 1] == '"') {
                                 break;
                             }
-                            strcat(fn, " ");
+                            strncat(fn, " ", 1);
                         }
                     } else {
                         if (strlen(xargv[2]) < PATH_MAX) {

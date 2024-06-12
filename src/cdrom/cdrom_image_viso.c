@@ -362,7 +362,7 @@ viso_fill_fn_short(char *data, const viso_entry_t *entry, viso_entry_t **entries
 
         /* Add extension to the filename if present. */
         if (ext[0])
-            strcat(data, ext);
+            strncat(data, ext, strlen(ext));
 
         /* Go through files in this directory to make sure this filename is unique. */
         for (size_t j = 0; entries[j] != entry; j++) {
