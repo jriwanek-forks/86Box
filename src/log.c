@@ -66,7 +66,7 @@ log_copy(log_t *log, char *dest, const char *src, size_t dest_size)
     memset(dest, 0x00, dest_size * sizeof(char));
     if (log && log->dev_name && strcmp(log->dev_name, "")) {
         strncat(dest, log->dev_name, strlen(log->dev_name));
-        strncat(dest, ": ", 2);
+        strncat(dest, ": ", 3);
     }
     strncat(dest, src, strlen(src));
 }

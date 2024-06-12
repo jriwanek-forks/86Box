@@ -398,7 +398,7 @@ video_screenshot_monitor(uint32_t *buf, int start_x, int start_y, int row_len, i
         plat_dir_create(path);
 
     path_slash(path);
-    strncat(path, "Monitor_", 8);
+    strncat(path, "Monitor_", 9);
     snprintf(&path[strlen(path)], 42, "%d_", monitor_index + 1);
 
     plat_tempfile(fn, NULL, ".png");
