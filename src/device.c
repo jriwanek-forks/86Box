@@ -497,23 +497,23 @@ device_get_name(const device_t *dev, int bus, char *name)
 
         if (sbus != NULL) {
             /* First concatenate [<Bus>] before the device's name. */
-            strcat(name, "[");
-            strcat(name, sbus);
-            strcat(name, "] ");
+            strncat(name, "[", 1);
+            strncat(name, sbus, strlen(sbus));
+            strncat(name, "] ", 2);
 
             /* Then change string from ISA16 to ISA if applicable. */
             if (!strcmp(sbus, "ISA16"))
                 sbus = "ISA";
             else if (!strcmp(sbus, "COM") || !strcmp(sbus, "LPT")) {
                 sbus = NULL;
-                strcat(name, dev->name);
+                strncat(name, dev->name, strlen(dev->name));
                 return;
             }
 
             /* Generate the bus string with parentheses. */
-            strcat(pbus, "(");
-            strcat(pbus, sbus);
-            strcat(pbus, ")");
+            strncat(pbus, "(", 1);
+            strncat(pbus, sbus, strlen(sbus));
+            strncat(pbus, ")", 1);
 
             /* Allocate the temporary device name string and set it to all zeroes. */
             tname = (char *) malloc(strlen(dev->name) + 1);
@@ -524,7 +524,7 @@ device_get_name(const device_t *dev, int bus, char *name)
             if (fbus == dev->name)
                 strcat(tname, dev->name + strlen(pbus) + 1);
             else if (fbus == NULL)
-                strcat(tname, dev->name);
+                strncat(tname, dev->name, strlen(dev->name));
             else {
                 strncat(tname, dev->name, fbus - dev->name - 1);
                 strcat(tname, fbus + strlen(pbus));
@@ -537,7 +537,7 @@ device_get_name(const device_t *dev, int bus, char *name)
             /* Special case to not strip the "oPCI" from "Ensoniq AudioPCI" or
                the "-ISA" from "AMD PCnet-ISA". */
             else if ((fbus == NULL) || (*(fbus - 1) == 'o') || (*(fbus - 1) == '-') || (*(fbus - 2) == 'r'))
-                strcat(name, tname);
+                strncat(name, tname, strlen(tname));
             else {
                 strncat(name, tname, fbus - tname - 1);
                 strcat(name, fbus + strlen(sbus));
@@ -547,9 +547,9 @@ device_get_name(const device_t *dev, int bus, char *name)
             free(tname);
             tname = NULL;
         } else
-            strcat(name, dev->name);
+            strncat(name, dev->name, strlen(dev->name));
     } else
-        strcat(name, dev->name);
+        strncat(name, dev->name, strlen(dev->name));
 }
 
 void

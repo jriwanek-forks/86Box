@@ -324,7 +324,7 @@ path_append_filename(char *dest, const char *s1, const char *s2)
 {
     strcpy(dest, s1);
     path_slash(dest);
-    strcat(dest, s2);
+    strncat(dest, s2, strlen(s2));
 }
 
 void

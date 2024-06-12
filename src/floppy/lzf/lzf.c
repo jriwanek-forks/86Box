@@ -341,7 +341,7 @@ compose_name (const char *fname, char *oname)
         }
 
       strcpy (oname, fname);
-      strcat (oname, ".lzf");
+      strncat (oname, ".lzf", 4);
     }
   else
     {

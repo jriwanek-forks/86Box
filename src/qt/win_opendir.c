@@ -58,7 +58,7 @@ opendir(const char *name)
 
     /* Add search filespec. */
     strcpy(p->dir, name);
-    strcat(p->dir, SUFFIX);
+    strncat(p->dir, SUFFIX, strlen(SUFFIX));
 
     /* Special case: flag if we are in the root directory. */
     if (strlen(p->dir) == 3)

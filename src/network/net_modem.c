@@ -844,7 +844,7 @@ modem_do_command(modem_t *modem, int repeat)
                         scanbuf = semicolon + 1;
                         break;
                     } else {
-                        strcat(modem->numberinprogress, foundstr);
+                        strncat(modem->numberinprogress, foundstr, strlen(foundstr));
                         foundstr = modem->numberinprogress;
                     }
 

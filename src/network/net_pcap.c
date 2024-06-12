@@ -368,7 +368,7 @@ net_pcap_prepare(netdev_t *list)
     /* Add the Npcap directory to the DLL search path. */
     char npcap_dir[512];
     GetSystemDirectoryA(npcap_dir, 480);
-    strcat(npcap_dir, "\\Npcap");
+    strncat(npcap_dir, "\\Npcap", 7);
     SetDllDirectoryA(npcap_dir);
     libpcap_handle = dynld_module("wpcap.dll", pcap_imports);
     SetDllDirectoryA(NULL); /* reset the DLL search path */
