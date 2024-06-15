@@ -222,7 +222,8 @@ extern const device_t mmb_device;
 /* MediaVision ThunderBoard */
 extern const device_t thunderboard_device;
 
-/* Pro Audio Spectrum Plus, 16, and 16D */
+/* Pro Audio Spectrum, Plus, 16, and 16D */
+extern const device_t pas_device;
 extern const device_t pasplus_device;
 extern const device_t pas16_device;
 extern const device_t pas16d_device;
