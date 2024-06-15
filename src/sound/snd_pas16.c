@@ -2299,6 +2299,93 @@ pas16_speed_changed(void *priv)
 }
 
 static void *
+pas_init(const device_t *info)
+{
+    pas16_t *pas = calloc(1, sizeof(pas16_t));
+
+    if (pas16_next > 3) {
+        fatal("Attempting to add a Pro Audio Spectrum instance beyond the maximum amount\n");
+
+        free(pas);
+        return NULL;
+    }
+
+    pas->type = info->local & 0xff;
+    pas->has_scsi = (!pas->type) || (pas->type == 0x0f);
+    fm_driver_get(FM_YM3812, &pas->opl);
+    sb_dsp_set_real_opl(&pas->dsp, 1);
+    sb_dsp_init(&pas->dsp, SB2, SB_SUBTYPE_DEFAULT, pas);
+    pas->mpu = (mpu_t *) malloc(sizeof(mpu_t));
+    memset(pas->mpu, 0, sizeof(mpu_t));
+    mpu401_init(pas->mpu, 0, 0, M_UART, device_get_config_int("receive_input401"));
+    sb_dsp_set_mpu(&pas->dsp, pas->mpu);
+
+    pas->sb_compat_base = 0x0000;
+
+    io_sethandler(0x9a01, 0x0001, NULL, NULL, NULL, pas16_out_base, NULL, NULL, pas);
+    pas->this_id = 0xbc + pas16_next;
+
+    if (pas->has_scsi) {
+        pas->scsi = device_add(&scsi_pas_device);
+        timer_add(&pas->scsi->timer, pas16_scsi_callback, pas, 0);
+        timer_add(&pas->scsi_timer, pas16_timeout_callback, pas, 0);
+        other_scsi_present++;
+    }
+
+    pas->pit = device_add(&i8254_ext_io_fast_device);
+    pas16_reset(pas);
+    pas->pit->dev_priv = pas;
+    pas->irq = pas->type ? 10 : 5;
+    pas->io_conf_3 = pas->type ? 0x07 : 0x04;
+    if (pas->has_scsi) {
+        pas->scsi_irq = pas->type ? 11 : 7;
+        pas->io_conf_3 |= (pas->type ? 0x80 : 0x60);
+        ncr5380_set_irq(&pas->scsi->ncr, pas->scsi_irq);
+    }
+    pas->dma = 3;
+    for (uint8_t i = 0; i < 3; i++)
+        pitf_ctr_set_gate(pas->pit, i, 0);
+
+    pitf_ctr_set_out_func(pas->pit, 0, pas16_pit_timer0);
+    pitf_ctr_set_out_func(pas->pit, 1, pas16_pit_timer1);
+    pitf_ctr_set_using_timer(pas->pit, 0, 1);
+    pitf_ctr_set_using_timer(pas->pit, 1, 0);
+    pitf_ctr_set_using_timer(pas->pit, 2, 0);
+
+    if (pas->type) {
+        sound_add_handler(pas16_get_buffer, pas);
+        music_add_handler(pas16_get_music_buffer, pas);
+        sound_set_cd_audio_filter(pas16_filter_cd_audio, pas);
+        if (device_get_config_int("control_pc_speaker"))
+            sound_set_pc_speaker_filter(pas16_filter_pc_speaker, pas);
+    } else {
+        sound_add_handler(pasplus_get_buffer, pas);
+        music_add_handler(pasplus_get_music_buffer, pas);
+        sound_set_cd_audio_filter(pasplus_filter_cd_audio, pas);
+        if (device_get_config_int("control_pc_speaker"))
+            sound_set_pc_speaker_filter(pasplus_filter_pc_speaker, pas);
+    }
+
+    if (device_get_config_int("receive_input"))
+        midi_in_handler(1, pas16_input_msg, pas16_input_sysex, pas);
+
+    for (uint8_t i = 0; i < 16; i++) {
+        if (i < 6)
+            lmc1982_bass_treble_4bits[i] = pow(10.0, (-((double) (12 - (i << 1))) / 10.0));
+        else if (i == 6)
+            lmc1982_bass_treble_4bits[i] = 0.0;
+        else if ((i > 6) && (i <= 12))
+            lmc1982_bass_treble_4bits[i] = 1.0 - pow(10.0, ((double) ((i - 6) << 1) / 10.0));
+        else
+            lmc1982_bass_treble_4bits[i] = 1.0 - pow(10.0, 1.2);
+    }
+
+    pas16_next++;
+
+    return pas;
+}
+
+static void *
 pas16_init(const device_t *info)
 {
     pas16_t *pas16 = calloc(1, sizeof(pas16_t));
@@ -2418,6 +2505,20 @@ static const device_config_t pas16_config[] = {
         .default_int = 0
     },
     { .name = "", .description = "", .type = CONFIG_END }
+};
+
+const device_t pas_device = {
+    .name          = "Pro Audio Spectrum",
+    .internal_name = "pas",
+    .flags         = DEVICE_ISA,
+    .local         = 0,
+    .init          = pas_init,
+    .close         = pas16_close,
+    .reset         = pas16_reset,
+    { .available = NULL },
+    .speed_changed = pas16_speed_changed,
+    .force_redraw  = NULL,
+    .config        = pas16_config
 };
 
 const device_t pasplus_device = {
