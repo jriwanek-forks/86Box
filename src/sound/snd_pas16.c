@@ -242,6 +242,7 @@ typedef struct pas16_t {
     mv508_mixer_t mv508_mixer;
 
     fm_drv_t opl;
+    fm_drv_t opl2;
     sb_dsp_t dsp;
 
     mpu_t *  mpu;
@@ -2173,6 +2174,59 @@ pas16_get_buffer(int32_t *buffer, int len, void *priv)
 }
 
 void
+pas_get_music_buffer(int32_t *buffer, int len, void *priv)
+{
+    pas16_t                  *pas = (pas16_t *) priv;
+    const mv508_mixer_t *mixer    = &pas->mv508_mixer;
+    const int32_t       *opl_buf  = pas->opl.update(pas->opl.priv);
+    const int32_t       *opl2_buf = pas->opl2.update(pas->opl2.priv);
+    double               bass_treble;
+
+    for (int c = 0; c < len * 2; c += 2) {
+        /* Two chips for LEFT and RIGHT channels.
+           Each chip stores data into the LEFT channel only (no sample alternating.) */
+        double out_l = (((double) opl_buf[c]) * mixer->fm_l) * 0.7171630859375;
+        double out_r = (((double) opl2_buf[c]) * mixer->fm_r) * 0.7171630859375;
+
+        /* TODO: recording CD, Mic with AGC or line in. Note: mic volume does not affect recording. */
+        out_l *= mixer->master_l;
+        out_r *= mixer->master_r;
+
+        /* This is not exactly how one does bass/treble controls, but the end result is like it.
+           A better implementation would reduce the CPU usage. */
+        if (mixer->bass != 6) {
+            bass_treble = lmc1982_bass_treble_4bits[mixer->bass];
+
+            if (mixer->bass > 6) {
+                out_l += (low_iir(1, 0, out_l) * bass_treble);
+                out_r += (low_iir(1, 1, out_r) * bass_treble);
+            } else if (mixer->bass < 6) {
+                out_l = (out_l *bass_treble + low_cut_iir(1, 0, out_l) * (1.0 - bass_treble));
+                out_r = (out_r *bass_treble + low_cut_iir(1, 1, out_r) * (1.0 - bass_treble));
+            }
+        }
+
+        if (mixer->treble != 6) {
+            bass_treble = lmc1982_bass_treble_4bits[mixer->treble];
+
+            if (mixer->treble > 6) {
+                out_l += (high_iir(1, 0, out_l) * bass_treble);
+                out_r += (high_iir(1, 1, out_r) * bass_treble);
+            } else if (mixer->treble < 6) {
+                out_l = (out_l *bass_treble + high_cut_iir(1, 0, out_l) * (1.0 - bass_treble));
+                out_r = (out_r *bass_treble + high_cut_iir(1, 1, out_r) * (1.0 - bass_treble));
+            }
+        }
+
+        buffer[c] += (int32_t) out_l;
+        buffer[c + 1] += (int32_t) out_r;
+    }
+
+    pas->opl.reset_buffer(pas->opl.priv);
+    pas->opl2.reset_buffer(pas->opl2.priv);
+}
+
+void
 pas16_get_music_buffer(int32_t *buffer, int len, void *priv)
 {
     const pas16_t *      pas16   = (const pas16_t *) priv;
@@ -2312,6 +2366,7 @@ pas_init(const device_t *info)
     pas->type = info->local & 0xff;
     pas->has_scsi = (!pas->type) || (pas->type == 0x0f);
     fm_driver_get(FM_YM3812, &pas->opl);
+    fm_driver_get(FM_YM3812, &pas->opl2);
     sb_dsp_set_real_opl(&pas->dsp, 1);
     sb_dsp_init(&pas->dsp, SB2, SB_SUBTYPE_DEFAULT, pas);
     pas->mpu = (mpu_t *) malloc(sizeof(mpu_t));
@@ -2353,7 +2408,7 @@ pas_init(const device_t *info)
 
     if (pas->type) {
         sound_add_handler(pas16_get_buffer, pas);
-        music_add_handler(pas16_get_music_buffer, pas);
+        music_add_handler(pas_get_music_buffer, pas);
         sound_set_cd_audio_filter(pas16_filter_cd_audio, pas);
         if (device_get_config_int("control_pc_speaker"))
             sound_set_pc_speaker_filter(pas16_filter_pc_speaker, pas);
