@@ -146,6 +146,7 @@ static size_t ram2_size = 0;
 static size_t ram_size = 0;
 #endif
 
+#define ENABLE_MEM_LOG 1
 #ifdef ENABLE_MEM_LOG
 int mem_do_log = ENABLE_MEM_LOG;
 
