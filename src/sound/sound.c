@@ -127,6 +127,7 @@ static const SOUND_CARD sound_cards[] = {
     { &opl2board_device             },
 #endif
     { &thunderboard_device          },
+    { &pas_device                   },
     { &pasplus_device               },
     { &sb_1_device                  },
     { &sb_15_device                 },
