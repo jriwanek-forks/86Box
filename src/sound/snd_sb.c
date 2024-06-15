@@ -2481,6 +2481,50 @@ ess_chipchat_mca_write(int port, uint8_t val, void *priv)
 }
 
 void *
+thunderboard_init(UNUSED(const device_t *info))
+{
+    /* Thunderboard port mappings, 210h to 260h in 10h steps
+       2x6, 2xA, 2xC, 2xE -> DSP chip
+       2x8, 2x9, 388 and 389 FM chip */
+    sb_t    *      sb   = malloc(sizeof(sb_t));
+    const uint16_t addr = device_get_config_hex16("base");
+    memset(sb, 0, sizeof(sb_t));
+
+    sb->opl_enabled = device_get_config_int("opl");
+    if (sb->opl_enabled)
+        fm_driver_get(FM_YM3812, &sb->opl);
+
+    sb_dsp_set_real_opl(&sb->dsp, 1);
+    sb_dsp_init(&sb->dsp, SB15, SB_SUBTYPE_DEFAULT, sb);
+    sb_dsp_setaddr(&sb->dsp, addr);
+    sb_dsp_setirq(&sb->dsp, device_get_config_int("irq"));
+    sb_dsp_setdma8(&sb->dsp, 1);
+    /* DSP I/O handler is activated in sb_dsp_setaddr */
+    if (sb->opl_enabled) {
+        io_sethandler(addr + 8, 0x0002,
+                      sb->opl.read, NULL, NULL,
+                      sb->opl.write, NULL, NULL,
+                      sb->opl.priv);
+        io_sethandler(0x0388, 0x0002,
+                      sb->opl.read, NULL, NULL,
+                      sb->opl.write, NULL, NULL,
+                      sb->opl.priv);
+    }
+
+    sb->cms_enabled = 0;
+    sb->mixer_enabled = 0;
+    sound_add_handler(sb_get_buffer_sb2, sb);
+    if (sb->opl_enabled)
+        music_add_handler(sb_get_music_buffer_sb2, sb);
+    sound_set_cd_audio_filter(sb2_filter_cd_audio, sb);
+
+    if (device_get_config_int("receive_input"))
+        midi_in_handler(1, sb_dsp_input_msg, sb_dsp_input_sysex, &sb->dsp);
+
+    return sb;
+}
+
+void *
 sb_1_init(UNUSED(const device_t *info))
 {
     /* SB1/2 port mappings, 210h to 260h in 10h steps
@@ -3779,6 +3823,89 @@ static const device_config_t sb_config[] = {
                 .value = 3
             },
             { "" }
+        }
+    },
+    {
+        .name = "opl",
+        .description = "Enable OPL",
+        .type = CONFIG_BINARY,
+        .default_string = "",
+        .default_int = 1
+    },
+    {
+        .name = "receive_input",
+        .description = "Receive input (SB MIDI)",
+        .type = CONFIG_BINARY,
+        .default_string = "",
+        .default_int = 1
+    },
+    { .name = "", .description = "", .type = CONFIG_END }
+};
+
+static const device_config_t thunderboard_config[] = {
+    {
+        .name = "base",
+        .description = "Address",
+        .type = CONFIG_HEX16,
+        .default_string = "",
+        .default_int = 0x220,
+        .file_filter = "",
+        .spinner = { 0 },
+        .selection = {
+            {
+                .description = "0x210",
+                .value = 0x210
+            },
+            {
+                .description = "0x220",
+                .value = 0x220
+            },
+            {
+                .description = "0x230",
+                .value = 0x230
+            },
+            {
+                .description = "0x240",
+                .value = 0x240
+            },
+            {
+                .description = "0x250",
+                .value = 0x250
+            },
+            {
+                .description = "0x260",
+                .value = 0x260
+            },
+            {
+                .description = "" }
+        }
+    },
+    {
+        .name = "irq",
+        .description = "IRQ",
+        .type = CONFIG_SELECTION,
+        .default_string = "",
+        .default_int = 7,
+        .file_filter = "",
+        .spinner = { 0 },
+        .selection = {
+            {
+                .description = "IRQ 2",
+                .value = 2
+            },
+            {
+                .description = "IRQ 3",
+                .value = 3
+            },
+            {
+                .description = "IRQ 5",
+                .value = 5
+            },
+            {
+                .description = "IRQ 7",
+                .value = 7
+            },
+            { .description = "" }
         }
     },
     {
@@ -5237,6 +5364,20 @@ static const device_config_t ess_1688_pnp_config[] = {
     { .name = "", .description = "", .type = CONFIG_END }
 };
 // clang-format on
+
+const device_t thunderboard_device = {
+    .name          = "MediaVision ThunderBoard",
+    .internal_name = "thunderboard",
+    .flags         = DEVICE_ISA,
+    .local         = 0,
+    .init          = thunderboard_init,
+    .close         = sb_close,
+    .reset         = NULL,
+    { .available = NULL },
+    .speed_changed = sb_speed_changed,
+    .force_redraw  = NULL,
+    .config        = thunderboard_config
+};
 
 const device_t sb_1_device = {
     .name          = "Sound Blaster v1.0",
