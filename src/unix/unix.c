@@ -1168,7 +1168,7 @@ monitor_thread(void *param)
 #endif
 }
 
-extern int gfxcard[2];
+extern int gfxcard[GFXCARD_MAX];
 int
 main(int argc, char **argv)
 {
