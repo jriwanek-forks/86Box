@@ -915,6 +915,27 @@ sermouse_init(const device_t *info)
     return dev;
 }
 
+static void
+msbusmouse_close(void *priv)
+{
+    // TODO
+    mouse_t *dev = (mouse_t *) priv;
+
+    /* Detach serial port from the mouse. */
+    if (dev && dev->serial && dev->serial->sd)
+        memset(dev->serial->sd, 0, sizeof(serial_device_t));
+
+    free(dev);
+}
+
+/* Initialize the device for use by the user. */
+static void *
+msbusmouse_init(const device_t *info)
+{
+    // TODO
+    return NULL;
+}
+
 static const device_config_t msssermouse_config[] = {
   // clang-format off
     {
@@ -958,6 +979,43 @@ static const device_config_t msssermouse_config[] = {
         .file_filter    = NULL,
         .spinner        = { 0 },
         .selection      = { { 0 } },
+        .bios           = { { 0 } }
+    },
+    { .name = "", .description = "", .type = CONFIG_END }
+  // clang-format on
+};
+
+static const device_config_t mbusmouse_config[] = {
+  // clang-format off
+    {
+        .name           = "port",
+        .description    = "Port",
+        .type           = CONFIG_SELECTION,
+        .default_string = NULL,
+        .default_int    = 0x238,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = {
+            { .description = "0x238", .value = 0x238 },
+            { .description = "0x338", .value = 0x338 },
+            { .description = ""                      }
+        },
+        .bios           = { { 0 } }
+    },
+    {
+        .name           = "buttons",
+        .description    = "Buttons",
+        .type           = CONFIG_SELECTION,
+        .default_string = NULL,
+        .default_int    = 2,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = {
+            { .description = "Two",   .value = 2 },
+            { .description = "Three", .value = 3 },
+            { .description = "Wheel", .value = 4 },
+            { .description = ""                  }
+        },
         .bios           = { { 0 } }
     },
     { .name = "", .description = "", .type = CONFIG_END }
@@ -1081,6 +1139,20 @@ const device_t mouse_mssystems_device = {
     .speed_changed = sermouse_speed_changed,
     .force_redraw  = NULL,
     .config        = msssermouse_config
+};
+
+const device_t mouse_mbusmouse_device = {
+    .name          = "Mouse Systems Bus Mouse",
+    .internal_name = "mssystemsbus",
+    .flags         = DEVICE_COM,
+    .local         = MOUSE_TYPE_MSYSTEMS,
+    .init          = msbusmouse_init,
+    .close         = msbusmouse_close,
+    .reset         = NULL,
+    .available     = NULL,
+    .speed_changed = sermouse_speed_changed,
+    .force_redraw  = NULL,
+    .config        = mbusmouse_config
 };
 
 const device_t mouse_msserial_device = {
