@@ -49,7 +49,7 @@ static void
 machine_xt_common_init(const machine_t *model, int fixed_floppy)
 {
     if ((fdc_current[0] == FDC_INTERNAL) || fixed_floppy)
-        device_add(&fdc_xt_device);
+        device_add(machine_get_fdc_device(machine));
 
     machine_common_init(model);
 
