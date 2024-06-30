@@ -110,6 +110,12 @@ SettingsStorageControllers::onCurrentMachineChanged(int machineId)
     c           = 0;
     selectedRow = 0;
     while (true) {
+        /* Skip "internal" if machine doesn't have it. */
+        if ((c == 1) && (machine_has_flags(machineId, MACHINE_FDC) == 0)) {
+            c++;
+            continue;
+        }
+
         QString name = DeviceConfig::DeviceName(fdc_card_getdevice(c), fdc_card_get_internal_name(c), 1);
         if (name.isEmpty()) {
             break;
