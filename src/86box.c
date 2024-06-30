@@ -1004,12 +1004,15 @@ pc_init_modules(void)
         }
     }
 
-    if (!video_card_available(gfxcard[1])) {
-        char tempc[512] = { 0 };
-        device_get_name(video_card_getdevice(gfxcard[1]), 0, tempc);
-        swprintf(temp, sizeof_w(temp), plat_get_string(STRING_HW_NOT_AVAILABLE_VIDEO2), tempc);
-        ui_msgbox_header(MBX_INFO, plat_get_string(STRING_HW_NOT_AVAILABLE_TITLE), temp);
-        gfxcard[1] = 0;
+    // TODO
+    for (uint8_t i = 1; i < GFXCARD_MAX; i ++) {
+        if (!video_card_available(gfxcard[i])) {
+            char tempc[512] = { 0 };
+            device_get_name(video_card_getdevice(gfxcard[i]), 0, tempc);
+            swprintf(temp, sizeof_w(temp), plat_get_string(STRING_HW_NOT_AVAILABLE_VIDEO2), tempc);
+            ui_msgbox_header(MBX_INFO, plat_get_string(STRING_HW_NOT_AVAILABLE_TITLE), temp);
+            gfxcard[i] = 0;
+        }
     }
 
     atfullspeed = 0;
