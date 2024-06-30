@@ -29,6 +29,9 @@
 #include <86box/rom.h>
 #include <86box/device.h>
 #include <86box/machine.h>
+#include <86box/timer.h>
+#include <86box/fdd.h>
+#include <86box/fdc.h>
 #include <86box/keyboard.h>
 #include <86box/sound.h>
 #include <86box/video.h>
@@ -778,7 +781,7 @@ const machine_t machines[] = {
             .max_multi = 0
         },
         .bus_flags = MACHINE_PC,
-        .flags = MACHINE_FLAGS_NONE,
+        .flags = MACHINE_FDC,
         .ram = {
             .min = 128,
             .max = 640,
@@ -790,7 +793,7 @@ const machine_t machines[] = {
         .gpio = 0xffffffff,
         .gpio_acpi = 0xffffffff,
         .device = NULL,
-        .fdc_device = NULL,
+        .fdc_device = &fdc_xt_device,
         .sio_device = NULL,
         .vid_device = NULL,
         .snd_device = NULL,
@@ -817,7 +820,7 @@ const machine_t machines[] = {
             .max_multi = 0
         },
         .bus_flags = MACHINE_PC,
-        .flags = MACHINE_FLAGS_NONE,
+        .flags = MACHINE_FDC,
         .ram = {
             .min = 128,
             .max = 640,
@@ -829,7 +832,7 @@ const machine_t machines[] = {
         .gpio = 0xffffffff,
         .gpio_acpi = 0xffffffff,
         .device = NULL,
-        .fdc_device = NULL,
+        .fdc_device = &fdc_xt_device,
         .sio_device = NULL,
         .vid_device = NULL,
         .snd_device = NULL,
@@ -856,7 +859,7 @@ const machine_t machines[] = {
             .max_multi = 0
         },
         .bus_flags = MACHINE_PC,
-        .flags = MACHINE_FLAGS_NONE,
+        .flags = MACHINE_FDC,
         .ram = {
             .min = 128,
             .max = 640,
@@ -868,7 +871,7 @@ const machine_t machines[] = {
         .gpio = 0xffffffff,
         .gpio_acpi = 0xffffffff,
         .device = NULL,
-        .fdc_device = NULL,
+        .fdc_device = &fdc_xt_device,
         .sio_device = NULL,
         .vid_device = NULL,
         .snd_device = NULL,
@@ -1402,7 +1405,7 @@ const machine_t machines[] = {
             .max_multi = 0
         },
         .bus_flags = MACHINE_PC,
-        .flags = MACHINE_FLAGS_NONE,
+        .flags = MACHINE_FDC,
         .ram = {
             .min = 256,
             .max = 640,
@@ -1414,7 +1417,7 @@ const machine_t machines[] = {
         .gpio = 0xffffffff,
         .gpio_acpi = 0xffffffff,
         .device = NULL,
-        .fdc_device = NULL,
+        .fdc_device = &fdc_xt_device,
         .sio_device = NULL,
         .vid_device = NULL,
         .snd_device = NULL,
@@ -1636,7 +1639,7 @@ const machine_t machines[] = {
             .max_multi = 0
         },
         .bus_flags = MACHINE_PC,
-        .flags = MACHINE_FLAGS_NONE,
+        .flags = MACHINE_FDC,
         .ram = {
             .min = 256,
             .max = 768,
@@ -1648,7 +1651,7 @@ const machine_t machines[] = {
         .gpio = 0xffffffff,
         .gpio_acpi = 0xffffffff,
         .device = NULL,
-        .fdc_device = NULL,
+        .fdc_device = &fdc_xt_device,
         .sio_device = NULL,
         .vid_device = NULL,
         .snd_device = NULL,
