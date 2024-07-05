@@ -311,6 +311,31 @@ vt82c49x_read(uint16_t addr, void *priv)
                 ret = pic_elcr_read(dev->index, &pic) | (dev->regs[dev->index] & 0x07);
             else if (dev->index < 0x80)
                 ret = dev->regs[dev->index];
+            else if (dev->index == 0x51)
+/*
+                // bit 7,5 read hit
+                   00: 2-1-1-1
+                   01: 2-2-2-2
+                   10: 3-1-1-1
+                   11: 3-2-2-2
+                // bit 6,4 write hit
+                   00: 2-1-1-1
+                   01: 2-2-2-2
+                   10: 3-1-1-1
+                   11: 3-2-2-2
+                // Bit 3 bank of data SRAM:
+                   0: 1 bank, 1: 2 banks
+
+                // Bit 2-0 cache size
+                ret = 0x1; // 32KB
+                ret = 0x2; // 64KB
+                ret = 0x3; // 128KB
+                ret = 0x4; // 256KB
+                ret = 0x5; // 512KB
+*/
+//                ret = 0x6; // 1MB
+//                ret = 0x7; // 2MB/Illegal
+                  ret = 0x0e; // 1MB, 2 banks
             break;
 
         default:
