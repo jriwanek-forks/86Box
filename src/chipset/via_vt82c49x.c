@@ -311,6 +311,8 @@ vt82c49x_read(uint16_t addr, void *priv)
                 ret = pic_elcr_read(dev->index, &pic) | (dev->regs[dev->index] & 0x07);
             else if (dev->index < 0x80)
                 ret = dev->regs[dev->index];
+            else if (dev->index == 0x50)
+                ret = 0xbb;
             else if (dev->index == 0x51)
 /*
                 // bit 7,5 read hit
