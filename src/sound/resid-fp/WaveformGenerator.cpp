@@ -107,15 +107,100 @@ const unsigned int shift_mask =
  * -----+-------+--------------+--------------
  * phi1 |   1   |   X --> X    |   A --> A      <- shift phase 2
  * phi2 |   1   |   X <-> X    |   A <-> A
+ *
+ *
+ * Normal cycles
+ * -------------
+ * Normally, when noise is selected along with another waveform,
+ * c1 and c2 are closed and the output bits pull down the corresponding
+ * shift register bits.
+ * 
+ *        noi_out_x             noi_out_x+1
+ *          ^                     ^
+ *          |                     |
+ *          +-------------+       +-------------+
+ *          |             |       |             |
+ *          +---o<|---+   |       +---o<|---+   |
+ *          |         |   |       |         |   |
+ *       c2 |      c1 |   |    c2 |      c1 |   |
+ *          |         |   |       |         |   |
+ *  >---/---+---|>o---+   +---/---+---|>o---+   +---/--->
+ *      LC                    LC                    LC
+ *
+ *
+ * Shift phase 1
+ * -------------
+ * During shift phase 1 c1 and c2 are open, the SR bits are floating
+ * and will be driven by the output of combined waveforms,
+ * or slowly turn high.
+ *
+ *        noi_out_x             noi_out_x+1
+ *          ^                     ^
+ *          |                     |
+ *          +-------------+       +-------------+
+ *          |             |       |             |
+ *          +---o<|---+   |       +---o<|---+   |
+ *          |         |   |       |         |   |
+ *       c2 /      c1 /   |    c2 /      c1 /   |
+ *          |         |   |       |         |   |
+ *  >-------+---|>o---+   +-------+---|>o---+   +------->
+ *      LC                    LC                    LC
+ *
+ *
+ * Shift phase 2 (phi1)
+ * --------------------
+ * During the first half cycle of shift phase 2 c1 is closed
+ * so the value from of noi_out_x-1 enters the bit.
+ *
+ *        noi_out_x             noi_out_x+1
+ *          ^                     ^
+ *          |                     |
+ *          +-------------+       +-------------+
+ *          |             |       |             |
+ *          +---o<|---+   |       +---o<|---+   |
+ *          |         |   |       |         |   |
+ *       c2 /      c1 |   |    c2 /      c1 |   |
+ *          |         |   |       |         |   |
+ *  >---/---+---|>o---+   +---/---+---|>o---+   +---/--->
+ *      LC                    LC                    LC
+ *
+ *
+ * Shift phase 2 (phi2)
+ * --------------------
+ * On the second half of shift phase 2 c2 closes and
+ * we're back to normal cycles.
  */
 
 inline bool do_writeback(unsigned int waveform_old, unsigned int waveform_new, bool is6581)
 {
     // no writeback without combined waveforms
-    if (waveform_new <= 8)
-        return false;
+
     if (waveform_old <= 8)
-        return false; // fixes SID/noisewriteback/noise_writeback_test2-{old,new}
+        // fixes SID/noisewriteback/noise_writeback_test2-{old,new}
+        return false;
+
+    if (waveform_new < 8)
+        return false;
+
+    if ((waveform_new == 8)
+        // breaks noise_writeback_check_F_to_8_old
+        // but fixes simple and scan
+        && (waveform_old != 0xf))
+    {
+        // fixes
+        // noise_writeback_check_9_to_8_old
+        // noise_writeback_check_A_to_8_old
+        // noise_writeback_check_B_to_8_old
+        // noise_writeback_check_D_to_8_old
+        // noise_writeback_check_E_to_8_old
+        // noise_writeback_check_F_to_8_old
+        // noise_writeback_check_9_to_8_new
+        // noise_writeback_check_A_to_8_new
+        // noise_writeback_check_D_to_8_new
+        // noise_writeback_check_E_to_8_new
+        // noise_writeback_test1-{old,new}
+        return false;
+    }
 
     // What's happening here?
     if (is6581 &&
@@ -190,8 +275,16 @@ void WaveformGenerator::write_shift_register()
 {
     if (unlikely(waveform > 0x8))
     {
+#if 0
+        // FIXME this breaks SID/wf12nsr/wf12nsr
         if (waveform == 0xc)
-            return; // breaks SID/wf12nsr/wf12nsr
+            // fixes
+            // noise_writeback_check_8_to_C_old
+            // noise_writeback_check_9_to_C_old
+            // noise_writeback_check_A_to_C_old
+            // noise_writeback_check_C_to_C_old
+            return;
+#endif
 
         // Write changes to the shift register output caused by combined waveforms
         // back into the shift register.

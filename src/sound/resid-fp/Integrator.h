@@ -1,9 +1,9 @@
 /*
  * This file is part of libsidplayfp, a SID player engine.
  *
- * Copyright 2011-2020 Leandro Nini <drfiemost@users.sourceforge.net>
+ * Copyright 2011-2024 Leandro Nini <drfiemost@users.sourceforge.net>
  * Copyright 2007-2010 Antti Lankila
- * Copyright 2004,2010 Dag Lem
+ * Copyright 2004, 2010 Dag Lem <resid@nimrod.no>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -20,43 +20,26 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-#ifndef FILTERMODELCONFIG8580_H
-#define FILTERMODELCONFIG8580_H
-
-#include "FilterModelConfig.h"
-
-#include <memory>
-
-#include "sidcxx11.h"
+#ifndef INTEGRATOR_H
+#define INTEGRATOR_H
 
 namespace reSIDfp
 {
 
-class Integrator8580;
-
-/**
- * Calculate parameters for 8580 filter emulation.
- */
-class FilterModelConfig8580 final : public FilterModelConfig
+class Integrator
 {
-private:
-    static std::unique_ptr<FilterModelConfig8580> instance;
-    // This allows access to the private constructor
-    friend std::unique_ptr<FilterModelConfig8580>::deleter_type;
+protected:
+    mutable int vx;
+    mutable int vc;
 
-private:
-    FilterModelConfig8580();
-    ~FilterModelConfig8580() = default;
+    Integrator() :
+        vx(0),
+        vc(0) {}
 
 public:
-    static FilterModelConfig8580* getInstance();
+    virtual int solve(int vi) const = 0;
 
-    /**
-     * Construct an integrator solver.
-     *
-     * @return the integrator
-     */
-    Integrator* buildIntegrator() override;
+    virtual ~Integrator() = default;
 };
 
 } // namespace reSIDfp
