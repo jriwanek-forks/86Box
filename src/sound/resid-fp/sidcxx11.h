@@ -41,6 +41,16 @@
 #endif
 
 #ifndef HAVE_CXX11
+#  define nullptr    0
+#  define override
+#  define final
+#  define constexpr const
+#  define unique_ptr auto_ptr
+#  define DEFAULT {}
+#  define DELETE {}
+#else
+#  define DEFAULT = default
+#  define DELETE  = delete
 #  error "This is not a C++11 compiler"
 #endif
 
