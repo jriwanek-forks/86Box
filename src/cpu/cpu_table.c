@@ -8277,8 +8277,41 @@ const cpu_family_t cpu_families[] = {
             {"1500",      CPU_PENTIUM3,  fpus_internal, 1500000000, 15.0, 1500,  0x6b4,  0x6b4, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC | CPU_FIXED_MULTIPLIER,104,104,37,37,180},
             { .name = "", 0 }
         }
-    }, 
+    },
     {
+        .package = CPU_PKG_SOCKET370,
+        .manufacturer = "VIA",
+        .name = "C3 (Samuel 2)",
+        .internal_name = "c3_samuel2",
+        .cpus = (const CPU[]) {
+            {"66",      CPU_CYRIX3S, fpus_internal,  66666666, 1.0, 1600,   0x671, 0x671, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER,  6,  6,  3,  3,  8}, /* out of multiplier range */
+            {"100",     CPU_CYRIX3S, fpus_internal, 100000000, 1.5, 1600,   0x671, 0x671, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER,  9,  9,  4,  4, 12}, /* out of multiplier range */
+            {"133",     CPU_CYRIX3S, fpus_internal, 133333333, 2.0, 1600,   0x671, 0x671, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 12, 12,  6,  6, 16}, /* out of multiplier range */
+            {"166",     CPU_CYRIX3S, fpus_internal, 166666666, 2.5, 1600,   0x671, 0x671, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 15, 15,  7,  7, 20}, /* out of multiplier range */
+            {"200",     CPU_CYRIX3S, fpus_internal, 200000000, 3.0, 1600,   0x671, 0x671, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 18, 18,  8,  8, 24}, /* out of multiplier range */
+            {"233",     CPU_CYRIX3S, fpus_internal, 233333333, 3.5, 1600,   0x671, 0x671, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 21, 21,  9,  9, 28}, /* out of multiplier range */
+            {"266",     CPU_CYRIX3S, fpus_internal, 266666666, 4.0, 1600,   0x671, 0x671, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 24, 24, 12, 12, 32}, /* out of multiplier range */
+            {"300",     CPU_CYRIX3S, fpus_internal, 300000000, 4.5, 1600,   0x671, 0x671, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 27, 27, 13, 13, 36}, /* out of spec */
+            {"333",     CPU_CYRIX3S, fpus_internal, 333333333, 5.0, 1600,   0x671, 0x671, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 30, 30, 15, 15, 40}, /* out of spec */
+            {"366",     CPU_CYRIX3S, fpus_internal, 366666666, 5.5, 1600,   0x671, 0x671, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 33, 33, 16, 16, 44}, /* out of spec */
+            {"400",     CPU_CYRIX3S, fpus_internal, 400000000, 6.0, 1600,   0x671, 0x671, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 36, 36, 17, 17, 48}, /* out of spec */
+            {"433",     CPU_CYRIX3S, fpus_internal, 433333333, 6.5, 1600,   0x671, 0x671, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 39, 39, 18, 18, 52}, /* out of spec */
+            {"450",     CPU_CYRIX3S, fpus_internal, 450000000, 4.5, 1600,   0x671, 0x671, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 41, 41, 14, 14, 54}, /* out of spec */
+            {"466",     CPU_CYRIX3S, fpus_internal, 466666666, 6.5, 1600,   0x671, 0x671, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 42, 42, 14, 14, 56}, /* out of spec */
+            {"500",     CPU_CYRIX3S, fpus_internal, 500000000, 5.0, 1600,   0x671, 0x671, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 45, 45, 15, 15, 60}, /* out of spec */
+            {"533",     CPU_CYRIX3S, fpus_internal, 533333333, 8.0, 1600,   0x671, 0x671, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 48, 48, 15, 15, 64}, /* out of spec */
+            {"550",     CPU_CYRIX3S, fpus_internal, 550000000, 5.5, 1600,   0x671, 0x671, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 50, 50, 17, 17, 66}, /* out of spec */
+            {"600/100", CPU_CYRIX3S, fpus_internal, 600000000, 6.0, 1600,   0x671, 0x671, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 54, 54, 18, 18, 72}, /* out of spec */
+            {"600/133", CPU_CYRIX3S, fpus_internal, 600000000, 4.5, 1600,   0x672, 0x672, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 54, 54, 13, 13, 72}, /* out of spec */
+            {"650",     CPU_CYRIX3S, fpus_internal, 650000000, 6.5, 1600,   0x672, 0x672, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 58, 58, 20, 20, 78}, /* out of spec */
+            {"667",     CPU_CYRIX3S, fpus_internal, 666666667, 5.0, 1600,   0x672, 0x672, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 60, 60, 16, 16, 80},
+            {"700",     CPU_CYRIX3S, fpus_internal, 700000000, 7.0, 1600,   0x671, 0x671, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 63, 63, 21, 21, 84},
+            {"733",     CPU_CYRIX3S, fpus_internal, 733333333, 5.5, 1600,   0x672, 0x672, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 66, 66, 18, 18, 88},
+            {"750",     CPU_CYRIX3S, fpus_internal, 750000000, 7.5, 1600,   0x671, 0x671, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 69, 69, 22, 22, 90},
+            {"800",     CPU_CYRIX3S, fpus_internal, 800000000, 8.0, 1600,   0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 72, 72, 24, 24, 96},
+            { .name = "", 0 }
+        }
+    }, {
         .package       = CPU_PKG_SOCKET370,
         .manufacturer  = "VIA",
         .name          = "C3 (Ezra)",
