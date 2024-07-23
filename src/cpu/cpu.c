@@ -2025,7 +2025,7 @@ cpu_set(void)
             timing_misaligned = 2;
 
             cpu_features = CPU_FEATURE_RDTSC | CPU_FEATURE_MMX | CPU_FEATURE_MSR | CPU_FEATURE_CR4 | CPU_FEATURE_SSE;
-            msr.fcr      = (1 << 8) | (1 << 9) | (1 << 12) | (1 << 16) | (1 << 18) | (1 << 19) | (1 << 20) | (1 << 21);
+            msr.fcr      = (1 << 8) | (1 << 9) | (1 << 12) | (1 << 16) | (1 << 18) | (1 << 19) | (1 << 21);
             cpu_CR4_mask = CR4_TSD | CR4_DE | CR4_MCE | CR4_PCE | CR4_OSFXSR | CR4_OSXMMEXCPT;
 
             cpu_cyrix_alignment = 1;
