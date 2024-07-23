@@ -80,7 +80,8 @@ enum {
     CPUID_MCA       = (1 << 14), /* Machine Check Architecture */
     CPUID_CMOV      = (1 << 15), /* Conditional move instructions */
     CPUID_PAT       = (1 << 16), /* Page Attribute Table */
-    CPUID_CLFLUSH   = (1 << 19),
+    CPUID_PSN       = (1 << 18), /* Processor Serial Number */
+    CPUID_CLFLUSH   = (1 << 19), /* CLFLUSH instruction */
     CPUID_MMX       = (1 << 23), /* MMX technology */
     CPUID_FXSR      = (1 << 24), /* FXSAVE and FXRSTOR instructions */
     CPUID_SSE       = (1 << 25)  /* SSE Instructions */
@@ -2806,8 +2807,8 @@ cpu_CPUID(void)
 
         case CPU_PENTIUM3:
             if (!EAX) {
-                EAX = 0x00000002;
-                EBX = 0x756e6547;
+                EAX = (((CPUID >= 0x6b0) || (msr.bbl_cr_ctl & (1 << 21))) ? 0x00000002 : 0x00000003);
+                EBX = 0x756e6547; /* GenuineIntel */
                 EDX = 0x49656e69;
                 ECX = 0x6c65746e;
             } else if (EAX == 1) {
@@ -2828,6 +2829,8 @@ cpu_CPUID(void)
                     EBX = 0;
                 ECX = 0;
                 EDX = CPUID_FPU | CPUID_VME | CPUID_DE | CPUID_PSE | CPUID_TSC | CPUID_MSR | CPUID_PAE | CPUID_MCE | CPUID_CMPXCHG8B | CPUID_MMX | CPUID_MTRR | CPUID_PGE | CPUID_MCA | CPUID_SEP | CPUID_FXSR | CPUID_CMOV | CPUID_SSE;
+                if ((CPUID < 0x6b0) && !(msr.bbl_cr_ctl & (1 << 21)))
+                    EDX |= CPUID_PSN;
             } else if (EAX == 2) {
                 EAX = 0x03020101; /* Instruction TLB: 4 KB pages, 4-way set associative, 32 entries
                                      Instruction TLB: 4 MB pages, fully associative, 2 entries
@@ -2856,6 +2859,10 @@ cpu_CPUID(void)
                     else /* Katmai */
                         EDX = 0x0c040843; /* 2nd-level cache: 512 KB, 4-way set associative, 32-byte line size */
                 }
+            } else if ((CPUID < 0x6b0) && (EAX == 3) && !(msr.bbl_cr_ctl & (1 << 21))) { /* Serial number (Katmai/Coppermine) */
+                EAX = EBX = 0;
+                ECX = 0x0000086b;
+                EDX = 0x00000000;
             } else if ((CPUID >= 0x6b0) && (EAX == 0x80000000)) {
                 EAX = 0x80000004;
                 EBX = ECX = EDX = 0;
@@ -5011,7 +5018,11 @@ pentium_invalid_wrmsr:
                     break;
                 /* BBL_CR_CTL - L2 Cache Control Register */
                 case 0x119:
-                    msr.bbl_cr_ctl = EAX | ((uint64_t) EDX << 32);
+                    /* Preserve the PSN disable bit. */
+                    if (((cpu_s->cpu_type == CPU_PENTIUM3) && (CPUID < 0x6b0) && (msr.bbl_cr_ctl & (1 << 21))))
+                        msr.bbl_cr_ctl = (1 << 21) | EAX | ((uint64_t) EDX << 32);
+                    else
+                        msr.bbl_cr_ctl = EAX | ((uint64_t) EDX << 32);
                     break;
                 /* BBL_CR_TRIG - L2 Cache Trigger Register */
                 case 0x11a:
