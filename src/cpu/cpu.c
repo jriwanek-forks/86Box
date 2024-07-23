@@ -3023,7 +3023,7 @@ cpu_CPUID(void)
                     EAX = 0xc0000001;
                     break;
                 case 0xc0000001: /* Centaur extended feature flags */
-                    EDX = 0x00000004;
+                    EDX = 0x00000014;
                     if (msr.padlock_rng & 0x40)
                         EDX |= 0x8;
                     break;
@@ -3033,6 +3033,143 @@ cpu_CPUID(void)
             }
             break;
     }
+}
+
+void
+cpu_reset_longhaul(void)
+{
+    msr.longhaul = 0x641000000000001ULL; /* RevID 1, min FSB=66MHz, max FSB=133 MHz, min voltage=1.05 V, min mult=3.0x */
+    if (cpu_s->cpu_type >= CPU_CYRIX3N)
+        msr.longhaul |= ((1ULL << 51) | (1ULL << 49)); /* raise min mult to 5x if Nehemiah */
+
+    if (cpu_dmulti == 3) {
+        msr.bcr2 = ((0 << 26) | (0 << 25) | (0 << 24) | (1 << 23)); /* curr multiplier (v1) */
+        msr.longhaul |= ((0 << 19) | (0 << 18) | (0 << 17) | (1 << 16)); /* curr multiplier (v2) */
+        msr.longhaul |= ((0ULL << 35) | (0ULL << 34) | (0ULL << 33) | (1ULL << 32)); /* max multiplier=curr */
+    } else if (cpu_dmulti == 3.5) {
+        msr.bcr2 = ((0 << 26) | (1 << 25) | (0 << 24) | (1 << 23));
+        msr.longhaul |= ((0 << 19) | (1 << 18) | (0 << 17) | (1 << 16));
+        msr.longhaul |= ((0ULL << 35) | (1ULL << 34) | (0ULL << 33) | (1ULL << 32));
+    } else if (cpu_dmulti == 4) {
+        msr.bcr2 = ((0 << 26) | (0 << 25) | (1 << 24) | (0 << 23));
+        msr.longhaul |= ((0 << 19) | (0 << 18) | (1 << 17) | (0 << 16));
+        msr.longhaul |= ((0ULL << 35) | (0ULL << 34) | (1ULL << 33) | (0ULL << 32));
+    } else if (cpu_dmulti == 4.5) {
+        msr.bcr2 = ((0 << 26) | (1 << 25) | (1 << 24) | (0 << 23));
+        msr.longhaul |= ((0 << 19) | (1 << 18) | (1 << 17) | (0 << 16));
+        msr.longhaul |= ((0ULL << 35) | (1ULL << 34) | (1ULL << 33) | (0ULL << 32));
+    } else if (cpu_dmulti == 5) {
+        msr.bcr2 = ((1 << 26) | (0 << 25) | (1 << 24) | (1 << 23));
+        msr.longhaul |= ((1 << 19) | (0 << 18) | (1 << 17) | (1 << 16));
+        msr.longhaul |= ((1ULL << 35) | (0ULL << 34) | (1ULL << 33) | (1ULL << 32));
+    } else if (cpu_dmulti == 5.5) {
+        msr.bcr2 = ((0 << 26) | (1 << 25) | (1 << 24) | (1 << 23));
+        msr.longhaul |= ((0 << 19) | (1 << 18) | (1 << 17) | (1 << 16));
+        msr.longhaul |= ((0ULL << 35) | (1ULL << 34) | (1ULL << 33) | (1ULL << 32));
+    } else if (cpu_dmulti == 6) {
+        msr.bcr2 = ((1 << 26) | (0 << 25) | (0 << 24) | (0 << 23));
+        msr.longhaul |= ((1 << 19) | (0 << 18) | (0 << 17) | (0 << 16));
+        msr.longhaul |= ((1ULL << 35) | (0ULL << 34) | (0ULL << 33) | (0ULL << 32));
+    } else if (cpu_dmulti == 6.5) {
+        msr.bcr2 = ((1 << 26) | (1 << 25) | (0 << 24) | (0 << 23));
+        msr.longhaul |= ((1 << 19) | (1 << 18) | (0 << 17) | (0 << 16));
+        msr.longhaul |= ((1ULL << 35) | (1ULL << 34) | (0ULL << 33) | (0ULL << 32));
+    } else if (cpu_dmulti == 7) {
+        msr.bcr2 = ((1 << 26) | (0 << 25) | (0 << 24) | (1 << 23));
+        msr.longhaul |= ((1 << 19) | (0 << 18) | (0 << 17) | (1 << 16));
+        msr.longhaul |= ((1ULL << 35) | (0ULL << 34) | (0ULL << 33) | (1ULL << 32));
+    } else if (cpu_dmulti == 7.5) {
+        msr.bcr2 = ((1 << 26) | (1 << 25) | (0 << 24) | (1 << 23));
+        msr.longhaul |= ((1 << 19) | (1 << 18) | (0 << 17) | (1 << 16));
+        msr.longhaul |= ((1ULL << 35) | (1ULL << 34) | (0ULL << 33) | (1ULL << 32));
+    } else if (cpu_dmulti == 8) {
+        msr.bcr2 = ((1 << 26) | (0 << 25) | (1 << 24) | (0 << 23));
+        msr.longhaul |= ((1 << 19) | (0 << 18) | (1 << 17) | (0 << 16));
+        msr.longhaul |= ((1ULL << 35) | (0ULL << 34) | (1ULL << 33) | (0ULL << 32));
+    } else if (cpu_dmulti == 8.5) {
+        msr.bcr2 = ((1 << 26) | (1 << 25) | (1 << 24) | (0 << 23));
+        msr.longhaul |= ((1 << 19) | (1 << 18) | (1 << 17) | (0 << 16));
+        msr.longhaul |= ((1ULL << 35) | (1ULL << 34) | (1ULL << 33) | (0ULL << 32));
+    } else if (cpu_dmulti == 9) {
+        msr.bcr2 = ((0 << 26) | (0 << 25) | (1 << 24) | (1 << 23));
+        msr.longhaul |= ((0 << 19) | (0 << 18) | (1 << 17) | (1 << 16));
+        msr.longhaul |= ((0ULL << 35) | (0ULL << 34) | (1ULL << 33) | (1ULL << 32));
+    } else if (cpu_dmulti == 9.5) {
+        msr.bcr2 = ((0 << 26) | (1 << 25) | (0 << 24) | (0 << 23));
+        msr.longhaul |= ((0 << 19) | (1 << 18) | (0 << 17) | (0 << 16));
+        msr.longhaul |= ((0ULL << 35) | (1ULL << 34) | (0ULL << 33) | (0ULL << 32));
+    } else if (cpu_dmulti == 10) {
+        msr.bcr2 = 0;
+        msr.longhaul |= 0;
+    } else if (cpu_dmulti == 10.5) {
+        msr.longhaul |= ((1 << 14) | (0 << 19) | (1 << 18) | (0 << 17) | (0 << 16));
+        msr.longhaul |= ((1ULL << 43) | (0ULL << 35) | (1ULL << 34) | (0ULL << 33) | (0ULL << 32));
+    } else if (cpu_dmulti == 11) {
+        msr.longhaul |= ((1 << 14) | (0 << 19) | (0 << 18) | (0 << 17) | (1 << 16));
+        msr.longhaul |= ((1ULL << 43) | (0ULL << 35) | (0ULL << 34) | (0ULL << 33) | (1ULL << 32));
+    } else if (cpu_dmulti == 11.5) {
+        msr.longhaul |= ((1 << 14) | (0 << 19) | (1 << 18) | (0 << 17) | (1 << 16));
+        msr.longhaul |= ((1ULL << 43) | (0ULL << 35) | (1ULL << 34) | (0ULL << 33) | (1ULL << 32));
+    } else if (cpu_dmulti == 12) {
+        msr.bcr2 = ((1 << 26) | (1 << 25) | (1 << 24) | (1 << 23));
+        msr.longhaul |= ((1 << 19) | (1 << 18) | (1 << 17) | (1 << 16));
+        msr.longhaul |= ((1ULL << 35) | (1ULL << 34) | (1ULL << 33) | (1ULL << 32));
+    } else if (cpu_dmulti == 12.5) {
+        msr.longhaul |= ((1 << 14) | (0 << 19) | (1 << 18) | (1 << 17) | (0 << 16));
+        msr.longhaul |= ((1ULL << 43) | (0ULL << 35) | (1ULL << 34) | (1ULL << 33) | (0ULL << 32));
+    } else if (cpu_dmulti == 13) {
+        msr.longhaul |= ((1 << 14) | (1 << 19) | (0 << 18) | (1 << 17) | (1 << 16));
+        msr.longhaul |= ((1ULL << 43) | (1ULL << 35) | (0ULL << 34) | (1ULL << 33) | (1ULL << 32));
+    } else if (cpu_dmulti == 13.5) {
+        msr.longhaul |= ((1 << 14) | (0 << 19) | (1 << 18) | (1 << 17) | (1 << 16));
+        msr.longhaul |= ((1ULL << 43) | (0ULL << 35) | (1ULL << 34) | (1ULL << 33) | (1ULL << 32));
+    } else if (cpu_dmulti == 14) {
+        msr.longhaul |= ((1 << 14) | (1 << 19) | (0 << 18) | (0 << 17) | (0 << 16));
+        msr.longhaul |= ((1ULL << 43) | (1ULL << 35) | (0ULL << 34) | (0ULL << 33) | (0ULL << 32));
+    } else if (cpu_dmulti == 14.5) {
+        msr.longhaul |= ((1 << 14) | (1 << 19) | (1 << 18) | (0 << 17) | (0 << 16));
+        msr.longhaul |= ((1ULL << 43) | (1ULL << 35) | (1ULL << 34) | (0ULL << 33) | (0ULL << 32));
+    } else if (cpu_dmulti == 15) {
+        msr.longhaul |= ((1 << 14) | (1 << 19) | (0 << 18) | (0 << 17) | (1 << 16));
+        msr.longhaul |= ((1ULL << 43) | (1ULL << 35) | (0ULL << 34) | (0ULL << 33) | (1ULL << 32));
+    } else if (cpu_dmulti == 15.5) {
+        msr.longhaul |= ((1 << 14) | (1 << 19) | (1 << 18) | (0 << 17) | (1 << 16));
+        msr.longhaul |= ((1ULL << 43) | (1ULL << 35) | (1ULL << 34) | (0ULL << 33) | (1ULL << 32));
+    } else if (cpu_dmulti == 16) {
+        msr.longhaul |= ((1 << 14) | (1 << 19) | (0 << 18) | (1 << 17) | (0 << 16));
+        msr.longhaul |= ((1ULL << 43) | (1ULL << 35) | (0ULL << 34) | (1ULL << 33) | (0ULL << 32));
+    } else {
+        msr.bcr2 = ((0 << 26) | (0 << 25) | (0 << 24) | (1 << 23));
+        msr.longhaul |= ((0 << 19) | (0 << 18) | (0 << 17) | (1 << 16));
+        msr.longhaul |= ((0ULL << 35) | (0ULL << 34) | (0ULL << 33) | (1ULL << 32));
+    }
+
+    if (cpu_s->voltage == 1050) {
+        msr.longhaul |= ((0 << 23) | (1 << 22) | (0 << 21) | (0 << 20)); /* curr voltage */
+        msr.longhaul |= ((0ULL << 39) | (0ULL << 38) | (1ULL << 37) | (1ULL << 36)); /* max voltage=curr+0.05 V */
+    } else if (cpu_s->voltage == 1200) {
+        msr.longhaul |= ((0 << 23) | (0 << 22) | (0 << 21) | (1 << 20));
+    } else if (cpu_s->voltage == 1350) {
+        msr.longhaul |= ((1 << 23) | (1 << 22) | (1 << 21) | (0 << 20));
+        msr.longhaul |= ((1ULL << 39) | (1ULL << 38) | (0ULL << 37) | (1ULL << 36));
+    } else if (cpu_s->voltage == 1400) {
+        msr.longhaul |= ((1 << 23) | (1 << 22) | (0 << 21) | (1 << 20));
+        msr.longhaul |= ((1ULL << 39) | (1ULL << 38) | (0ULL << 37) | (0ULL << 36));
+    } else if (cpu_s->voltage == 1450) {
+        msr.longhaul |= ((1 << 23) | (1 << 22) | (0 << 21) | (0 << 20));
+        msr.longhaul |= ((1ULL << 39) | (0ULL << 38) | (1ULL << 37) | (1ULL << 36));
+    } else if (cpu_s->voltage == 1600) {
+        msr.longhaul |= ((1 << 23) | (0 << 22) | (0 << 21) | (1 << 20));
+        msr.longhaul |= ((1ULL << 39) | (0ULL << 38) | (0ULL << 37) | (0ULL << 36));
+    } else {
+        msr.longhaul |= ((1 << 23) | (1 << 22) | (0 << 21) | (1 << 20));
+        msr.longhaul |= ((1ULL << 39) | (1ULL << 38) | (0ULL << 37) | (0ULL << 36));
+    }
+
+    if (cpu_busspeed < 112000000)
+        msr.longhaul |= (1 << 28);
+    if (cpu_busspeed < 84000000)
+        msr.longhaul |= (1 << 29);
 }
 
 void
@@ -3079,12 +3216,14 @@ cpu_ven_reset(void)
         case CPU_CYRIX3S:
             msr.fcr = (1 << 7) | (1 << 8) | (1 << 9) | (1 << 12) | (1 << 16) | (1 << 18) | (1 << 19) |
                       (1 << 20) | (1 << 21);
+            cpu_reset_longhaul();
             break;
 
         case CPU_CYRIX3N:
             msr.fcr         = (1 << 7) | (1 << 8) | (1 << 9) | (1 << 12) | (1 << 16) | (1 << 18) |
                               (1 << 19) | (1 << 21);
             msr.padlock_rng = 0x00000040;
+            cpu_reset_longhaul();
             break;
     }
 }
@@ -3292,12 +3431,30 @@ cpu_RDMSR(void)
                     EAX = msr.fcr2 & 0xffffffff;
                     EDX = msr.fcr2 >> 32;
                     break;
+                /* LongHaul/PowerSaver */
+                case 0x110a:
+                    if (CPUID < 0x670)
+                        x86gpf(NULL, 0);
+                    else {
+                        EAX = msr.longhaul & 0xffffffff;
+                        EDX = msr.longhaul >> 32;
+                    }
+                    break;
                 /* PadLock */
                 case 0x110b:
                     if (cpu_s->cpu_type < CPU_CYRIX3N) {
                         x86gpf(NULL, 0);
                     } else {
                         EAX = msr.padlock_rng;
+                        EDX = 0;
+                    }
+                    break;
+                /* Bus Control Register 2 */
+                case 0x1147:
+                    if (cpu_s->cpu_type >= CPU_CYRIX3N)
+                        x86gpf(NULL, 0);
+                    else {
+                        EAX = msr.bcr2;
                         EDX = 0;
                     }
                     break;
@@ -4404,12 +4561,26 @@ cpu_WRMSR(void)
                 case 0x1109:
                     msr.fcr3 = EAX | ((uint64_t) EDX << 32);
                     break;
+                /* LongHaul/PowerSaver */
+                case 0x110a:
+                    if (CPUID < 0x670)
+                        x86gpf(NULL, 0);
+                    else
+                        msr.longhaul = EAX & 0x31ff47f0;
+                    break;
                 /* PadLock */
                 case 0x110b:
                     if (cpu_s->cpu_type < CPU_CYRIX3N)
                         x86gpf(NULL, 0);
                     else
                         msr.padlock_rng = EAX & 0x3ffc40;
+                    break;
+                /* Bus Control Register 2 */
+                case 0x1147:
+                    if (cpu_s->cpu_type >= CPU_CYRIX3N)
+                        x86gpf(NULL, 0);
+                    else
+                        msr.bcr2 = EAX;
                     break;
                 /* ECX & 0: MTRRphysBase0 ... MTRRphysBase7
                    ECX & 1: MTRRphysMask0 ... MTRRphysMask7 */

@@ -255,8 +255,10 @@ typedef struct {
     uint64_t fcr3;     /* 0x00000108 (IDT), 0x00001108 (VIA) */
     uint64_t mcr[8];   /* 0x00000110 - 0x00000117 (IDT) */
     uint32_t mcr_ctrl; /* 0x00000120 (IDT) */
+    uint32_t bcr2;     /* 0x00001147 - also on C3 Samuel 2 and Ezra */
 
     /* VIA C3 MSRs */
+    uint64_t longhaul;    /* 0x0000110a - Samuel 2 and later */
     uint32_t padlock_rng; /* 0x0000110b - Nehemiah and later */
 
     /* AMD K5/K6 MSRs */
