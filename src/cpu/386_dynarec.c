@@ -25,6 +25,7 @@
 #include <86box/mem.h>
 #include <86box/nmi.h>
 #include <86box/pic.h>
+#include <86box/random.h>
 #include <86box/timer.h>
 #include <86box/fdd.h>
 #include <86box/fdc.h>

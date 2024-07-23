@@ -3023,7 +3023,9 @@ cpu_CPUID(void)
                     EAX = 0xc0000001;
                     break;
                 case 0xc0000001: /* Centaur extended feature flags */
-                    EDX = 0x00000000;
+                    EDX = 0x00000004;
+                    if (msr.padlock_rng & 0x40)
+                        EDX |= 0x8;
                     break;
                 default:
                     EAX = EBX = ECX = EDX = 0;
@@ -3082,6 +3084,7 @@ cpu_ven_reset(void)
         case CPU_CYRIX3N:
             msr.fcr         = (1 << 7) | (1 << 8) | (1 << 9) | (1 << 12) | (1 << 16) | (1 << 18) |
                               (1 << 19) | (1 << 21);
+            msr.padlock_rng = 0x00000040;
             break;
     }
 }
@@ -3288,6 +3291,15 @@ cpu_RDMSR(void)
                 case 0x1108:
                     EAX = msr.fcr2 & 0xffffffff;
                     EDX = msr.fcr2 >> 32;
+                    break;
+                /* PadLock */
+                case 0x110b:
+                    if (cpu_s->cpu_type < CPU_CYRIX3N) {
+                        x86gpf(NULL, 0);
+                    } else {
+                        EAX = msr.padlock_rng;
+                        EDX = 0;
+                    }
                     break;
                 /* ECX & 0: MTRRphysBase0 ... MTRRphysBase7
                    ECX & 1: MTRRphysMask0 ... MTRRphysMask7 */
@@ -4391,6 +4403,13 @@ cpu_WRMSR(void)
                 /* Feature Control Register 3 */
                 case 0x1109:
                     msr.fcr3 = EAX | ((uint64_t) EDX << 32);
+                    break;
+                /* PadLock */
+                case 0x110b:
+                    if (cpu_s->cpu_type < CPU_CYRIX3N)
+                        x86gpf(NULL, 0);
+                    else
+                        msr.padlock_rng = EAX & 0x3ffc40;
                     break;
                 /* ECX & 0: MTRRphysBase0 ... MTRRphysBase7
                    ECX & 1: MTRRphysMask0 ... MTRRphysMask7 */

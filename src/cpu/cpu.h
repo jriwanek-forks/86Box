@@ -256,6 +256,9 @@ typedef struct {
     uint64_t mcr[8];   /* 0x00000110 - 0x00000117 (IDT) */
     uint32_t mcr_ctrl; /* 0x00000120 (IDT) */
 
+    /* VIA C3 MSRs */
+    uint32_t padlock_rng; /* 0x0000110b - Nehemiah and later */
+
     /* AMD K5/K6 MSRs */
     uint64_t amd_aar;    /* 0x00000082 - all K5 */
     uint64_t amd_hwcr;   /* 0x00000083 - all K5 and all K6 */
