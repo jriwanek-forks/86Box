@@ -2815,9 +2815,34 @@ cpu_CPUID(void)
                 EBX = ECX = 0;
                 EDX       = CPUID_FPU | CPUID_VME | CPUID_DE | CPUID_PSE | CPUID_TSC | CPUID_MSR | CPUID_PAE | CPUID_MCE | CPUID_CMPXCHG8B | CPUID_MMX | CPUID_MTRR | CPUID_PGE | CPUID_MCA | CPUID_SEP | CPUID_FXSR | CPUID_CMOV | CPUID_SSE;
             } else if (EAX == 2) {
-                EAX = 0x00000001;
+                EAX = 0x03020101; /* Instruction TLB: 4 KB pages, 4-way set associative, 32 entries
+                                     Instruction TLB: 4 MB pages, fully associative, 2 entries
+                                     Data TLB: 4 KB pages, 4-way set associative, 64 entries */
                 EBX = ECX = 0;
-                EDX       = 0x00000000;
+                if (cpu_f->package == CPU_PKG_SLOT2) { /* Pentium III Xeon */
+                    if (CPUID >= 0x6a0) /* Cascades 2 MB */
+                        EDX = 0x0c040885; /* 2nd-level cache: 2 MB, 8-way set associative, 32-byte line size
+                                             1st-level data cache: 16 KB, 4-way set associative, 32-byte line size
+                                             Data TLB: 4 MB pages, 4-way set associative, 8 entries
+                                             1st-level instruction cache: 16 KB, 4-way set associative, 32-byte line size */
+                    else if (CPUID >= 0x680) /* Cascades */
+                        EDX = 0x0c040882; /* 2nd-level cache: 256 KB, 8-way set associative, 32-byte line size */
+                    else /* Tanner */
+                        EDX = 0x0c040845; /* 2nd-level cache: 2 MB, 4-way set associative, 32-byte line size */
+                } else if (!strncmp(cpu_f->internal_name, "celeron", 7)) { /* Celeron */
+                    if (CPUID >= 0x6b0) /* Tualatin-256 */
+                        EDX = 0x0c040882; /* 2nd-level cache: 256 KB, 8-way set associative, 32-byte line size */
+                    else /* Coppermine-128 */
+                        EDX = 0x0c040841; /* 2nd-level cache: 128 KB, 4-way set associative, 32-byte line size */
+                } else { /* Pentium III */
+                    if ((CPUID >= 0x6b0) && ((cpu_s->rspeed == 1266666666) || (cpu_s->rspeed == 1400000000))) /* Tualatin-S */
+                        EDX = 0x0c040883; /* 2nd-level cache: 512 KB, 8-way set associative, 32-byte line size */
+                    else if (CPUID >= 0x680) /* Coppermine and Tualatin */
+                        EDX = 0x0c040882; /* 2nd-level cache: 256 KB, 8-way set associative, 32-byte line size */
+                    else /* Katmai */
+                        EDX = 0x0c040843; /* 2nd-level cache: 512 KB, 4-way set associative, 32-byte line size */
+                }
+
             } else
                 EAX = EBX = ECX = EDX = 0;
             break;
