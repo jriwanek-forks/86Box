@@ -7251,19 +7251,22 @@ const cpu_family_t cpu_families[] = {
         .name          = "Pentium III (Katmai)",
         .internal_name = "pentium3_katmai",
         .cpus          = (const CPU[]) {
-            { "100",     CPU_PENTIUM3, fpus_internal, 100000000, 1.0, 1600, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 }, /* out of spec */
-            { "150",     CPU_PENTIUM3, fpus_internal, 150000000, 1.5, 1600, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 }, /* out of spec */
-            { "200",     CPU_PENTIUM3, fpus_internal, 200000000, 2.0, 1600, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 }, /* out of spec */
-            { "250",     CPU_PENTIUM3, fpus_internal, 250000000, 2.5, 1600, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 }, /* out of spec */
-            { "300",     CPU_PENTIUM3, fpus_internal, 300000000, 3.0, 1600, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 }, /* out of spec */
-            { "350",     CPU_PENTIUM3, fpus_internal, 350000000, 3.5, 1600, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 }, /* out of spec */
-            { "400",     CPU_PENTIUM3, fpus_internal, 400000000, 4.0, 1600, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 }, /* out of spec */
-            { "450",     CPU_PENTIUM3, fpus_internal, 450000000, 4.5, 2050, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 54 },
-            { "500",     CPU_PENTIUM3, fpus_internal, 500000000, 5.0, 2050, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 },
-            { "533",     CPU_PENTIUM3, fpus_internal, 533333333, 4.0, 2050, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 },
-            { "550",     CPU_PENTIUM3, fpus_internal, 550000000, 5.5, 2050, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 66 },
-            { "600",     CPU_PENTIUM3, fpus_internal, 600000000, 6.0, 2050, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
-            { "600/133", CPU_PENTIUM3, fpus_internal, 600000000, 4.5, 2050, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
+            {"66",        CPU_PENTIUM3,  fpus_internal,  66666666, 1.0, 2050,  0x672,  0x672, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC,  6, 6, 3, 3, 8},  /* out of spec */
+            {"100",       CPU_PENTIUM3,  fpus_internal, 100000000, 1.5, 2050,  0x672,  0x672, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC,  9, 9, 5, 5, 12}, /* out of spec */
+            {"133",       CPU_PENTIUM3,  fpus_internal, 133333333, 2.0, 2050,  0x672,  0x672, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 12,12, 6, 6, 16}, /* out of spec */
+            {"166",       CPU_PENTIUM3,  fpus_internal, 166666666, 2.5, 2050,  0x672,  0x672, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 15,15, 7, 7, 20}, /* out of spec */
+            {"200",       CPU_PENTIUM3,  fpus_internal, 200000000, 3.0, 2050,  0x672,  0x672, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 18,18, 9, 9, 24}, /* out of spec */
+            {"233",       CPU_PENTIUM3,  fpus_internal, 233333333, 3.5, 2050,  0x672,  0x672, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 21,21,11,11, 28}, /* out of spec */
+            {"266",       CPU_PENTIUM3,  fpus_internal, 266666666, 4.0, 2050,  0x672,  0x672, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 24,24,12,12, 32}, /* out of spec */
+            {"300",       CPU_PENTIUM3,  fpus_internal, 300000000, 4.5, 2050,  0x672,  0x672, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 25,25,12,12, 36}, /* out of spec */
+            {"333",       CPU_PENTIUM3,  fpus_internal, 333333333, 5.0, 2050,  0x672,  0x672, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 27,27,13,13, 40}, /* out of spec */
+            {"350",       CPU_PENTIUM3,  fpus_internal, 350000000, 3.5, 2050,  0x672,  0x672, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 32,32,11,11, 42}, /* out of spec */
+            {"400",       CPU_PENTIUM3,  fpus_internal, 400000000, 4.0, 2050,  0x672,  0x672, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 36,36,12,12, 48}, /* out of spec */
+            {"500",       CPU_PENTIUM3,  fpus_internal, 500000000, 5.0, 2050,  0x673,  0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 44,44,15,15, 60},
+            {"533",       CPU_PENTIUM3,  fpus_internal, 533333333, 4.0, 2050,  0x673,  0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 46,46,14,14, 64},
+            {"550",       CPU_PENTIUM3,  fpus_internal, 550000000, 5.5, 2050,  0x673,  0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 48,48,16,16, 66},
+            {"600/100",   CPU_PENTIUM3,  fpus_internal, 600000000, 6.0, 2050,  0x673,  0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 52,52,17,17, 72},
+            {"600/133",   CPU_PENTIUM3,  fpus_internal, 600000000, 4.5, 2050,  0x673,  0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 52,52,15,15, 72},
             { .name = "", 0 }
         }
     }, 
@@ -8073,6 +8076,40 @@ const cpu_family_t cpu_families[] = {
                 .cache_write_cycles = 18,
                 .atclk_div          = 88
             },
+            {
+                .name               = "750",
+                .cpu_type           = CPU_CYRIX3S,
+                .fpus               = fpus_internal,
+                .rspeed             = 750000000,
+                .multi              = 7.5,
+                .voltage            = 2050,
+                .edx_reset          = 0x663,
+                .cpuid_model        = 0x663,
+                .cyrix_id           = 0,
+                .cpu_flags          = CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER,
+                .mem_read_cycles    = 69,
+                .mem_write_cycles   = 69,
+                .cache_read_cycles  = 22,
+                .cache_write_cycles = 22,
+                .atclk_div          = 90
+            },
+            {
+                .name               = "800",
+                .cpu_type           = CPU_CYRIX3S,
+                .fpus               = fpus_internal,
+                .rspeed             = 800000000,
+                .multi              = 8.0,
+                .voltage            = 2050,
+                .edx_reset          = 0x663,
+                .cpuid_model        = 0x663,
+                .cyrix_id           = 0,
+                .cpu_flags          = CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER,
+                .mem_read_cycles    = 72,
+                .mem_write_cycles   = 72,
+                .cache_read_cycles  = 24,
+                .cache_write_cycles = 24,
+                .atclk_div          = 96
+            },
             { .name = "", 0 }
         }
     },
@@ -8082,34 +8119,38 @@ const cpu_family_t cpu_families[] = {
         .name          = "Pentium III (Coppermine)",
         .internal_name = "pentium3_coppermine",
         .cpus          = (const CPU[]) {
-            { "100",      CPU_PENTIUM3, fpus_internal,  100000000,  1.0, 1600, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 }, /* out of spec */
-            { "150",      CPU_PENTIUM3, fpus_internal,  150000000,  1.5, 1600, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 }, /* out of spec */
-            { "200",      CPU_PENTIUM3, fpus_internal,  200000000,  2.0, 1600, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 }, /* out of spec */
-            { "250",      CPU_PENTIUM3, fpus_internal,  250000000,  2.5, 1600, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 }, /* out of spec */
-            { "300",      CPU_PENTIUM3, fpus_internal,  300000000,  3.0, 1600, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 }, /* out of spec */
-            { "350",      CPU_PENTIUM3, fpus_internal,  350000000,  3.5, 1600, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 }, /* out of spec */
-            { "400",      CPU_PENTIUM3, fpus_internal,  400000000,  4.0, 1600, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 }, /* out of spec */
-            { "450",      CPU_PENTIUM3, fpus_internal,  450000000,  4.5, 1600, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 }, /* out of spec */
-            { "500",      CPU_PENTIUM3, fpus_internal,  500000000,  5.0, 1600, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 },
-            { "533",      CPU_PENTIUM3, fpus_internal,  533333333,  4.0, 1600, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 },
-            { "550",      CPU_PENTIUM3, fpus_internal,  550000000,  5.5, 1600, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 66 },
-            { "600",      CPU_PENTIUM3, fpus_internal,  600000000,  6.0, 1650, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
-            { "600/133",  CPU_PENTIUM3, fpus_internal,  600000000,  4.5, 1650, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
-            { "650",      CPU_PENTIUM3, fpus_internal,  650000000,  6.5, 1650, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
-            { "666",      CPU_PENTIUM3, fpus_internal,  666666666,  5.0, 1650, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
-            { "700",      CPU_PENTIUM3, fpus_internal,  700000000,  7.0, 1650, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
-            { "733",      CPU_PENTIUM3, fpus_internal,  733333333,  5.5, 1650, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
-            { "750",      CPU_PENTIUM3, fpus_internal,  750000000,  7.5, 1650, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
-            { "800",      CPU_PENTIUM3, fpus_internal,  800000000,  8.0, 1650, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
-            { "800/133",  CPU_PENTIUM3, fpus_internal,  800000000,  6.0, 1650, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
-            { "850",      CPU_PENTIUM3, fpus_internal,  850000000,  8.5, 1650, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
-            { "866",      CPU_PENTIUM3, fpus_internal,  866666666,  6.5, 1650, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
-            { "900",      CPU_PENTIUM3, fpus_internal,  900000000,  9.0, 1650, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
-            { "933",      CPU_PENTIUM3, fpus_internal,  933333333,  7.0, 1650, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
-            { "1000",     CPU_PENTIUM3, fpus_internal, 1000000000, 10.0, 1700, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
-            { "1000/133", CPU_PENTIUM3, fpus_internal, 1000000000,  7.5, 1700, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
-            { "1100",     CPU_PENTIUM3, fpus_internal, 1100000000, 11.0, 1750, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
-            { "1133",     CPU_PENTIUM3, fpus_internal, 1133333333,  8.5, 1750, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
+            {"66",        CPU_PENTIUM3,  fpus_internal,   66666666,  1.0, 1600,  0x683,  0x683, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC,  6, 6, 3, 3, 8},  /* out of spec */
+            {"100",       CPU_PENTIUM3,  fpus_internal,  100000000,  1.5, 1600,  0x683,  0x683, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC,  9, 9, 5, 5, 12}, /* out of spec */
+            {"133",       CPU_PENTIUM3,  fpus_internal,  133333333,  2.0, 1600,  0x683,  0x683, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 12,12, 6, 6, 16}, /* out of spec */
+            {"166",       CPU_PENTIUM3,  fpus_internal,  166666666,  2.5, 1600,  0x683,  0x683, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 15,15, 7, 7, 20}, /* out of spec */
+            {"200",       CPU_PENTIUM3,  fpus_internal,  200000000,  3.0, 1600,  0x683,  0x683, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 18,18, 9, 9, 24}, /* out of spec */
+            {"233",       CPU_PENTIUM3,  fpus_internal,  233333333,  3.5, 1600,  0x683,  0x683, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 21,21,11,11, 28}, /* out of spec */
+            {"266",       CPU_PENTIUM3,  fpus_internal,  266666666,  4.0, 1600,  0x683,  0x683, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 24,24,12,12, 32}, /* out of spec */
+            {"300",       CPU_PENTIUM3,  fpus_internal,  300000000,  4.5, 1600,  0x683,  0x683, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 25,25,12,12, 36}, /* out of spec */
+            {"333",       CPU_PENTIUM3,  fpus_internal,  333333333,  5.0, 1600,  0x683,  0x683, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 27,27,13,13, 40}, /* out of spec */
+            {"350",       CPU_PENTIUM3,  fpus_internal,  350000000,  3.5, 1600,  0x683,  0x683, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 32,32,11,11, 42}, /* out of spec */
+            {"400",       CPU_PENTIUM3,  fpus_internal,  400000000,  4.0, 1600,  0x683,  0x683, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 36,36,12,12, 48}, /* out of spec */
+            {"450",       CPU_PENTIUM3,  fpus_internal,  450000000,  4.5, 1600,  0x683,  0x683, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41,41,14,14, 54}, /* out of spec */
+            {"500",       CPU_PENTIUM3,  fpus_internal,  500000000,  5.0, 1600,  0x683,  0x683, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 44,44,15,15, 60},
+            {"533",       CPU_PENTIUM3,  fpus_internal,  533333333,  4.0, 1600,  0x683,  0x683, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 46,46,14,14, 64},
+            {"550",       CPU_PENTIUM3,  fpus_internal,  550000000,  5.5, 1600,  0x683,  0x683, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 48,48,16,16, 66},
+            {"600/100",   CPU_PENTIUM3,  fpus_internal,  600000000,  6.0, 1650,  0x686,  0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 52,52,17,17, 72},
+            {"600/133",   CPU_PENTIUM3,  fpus_internal,  600000000,  4.5, 1650,  0x686,  0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 52,52,15,15, 72},
+            {"650",       CPU_PENTIUM3,  fpus_internal,  650000000,  6.5, 1650,  0x686,  0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 56,56,18,18, 78},
+            {"667",       CPU_PENTIUM3,  fpus_internal,  666666666,  5.0, 1650,  0x686,  0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 60,60,16,16, 80},
+            {"700",       CPU_PENTIUM3,  fpus_internal,  700000000,  7.0, 1700,  0x686,  0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 64,64,19,19, 84},
+            {"733",       CPU_PENTIUM3,  fpus_internal,  733333333,  5.5, 1700,  0x686,  0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 69,69,17,17, 88},
+            {"750",       CPU_PENTIUM3,  fpus_internal,  750000000,  7.5, 1700,  0x686,  0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 72,72,21,21, 90},
+            {"800/100",   CPU_PENTIUM3,  fpus_internal,  800000000,  8.0, 1700,  0x68a,  0x68a, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 76,76,22,22, 96},
+            {"800/133",   CPU_PENTIUM3,  fpus_internal,  800000000,  6.0, 1700,  0x68a,  0x68a, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 76,76,19,19, 96},
+            {"850",       CPU_PENTIUM3,  fpus_internal,  850000000,  8.5, 1700,  0x68a,  0x68a, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 79,79,23,23,102},
+            {"866",       CPU_PENTIUM3,  fpus_internal,  866666666,  6.5, 1700,  0x68a,  0x68a, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 81,81,21,21,104},
+            {"900",       CPU_PENTIUM3,  fpus_internal,  900000000,  9.0, 1750,  0x68a,  0x68a, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 84,84,25,25,108},
+            {"933",       CPU_PENTIUM3,  fpus_internal,  933333333,  7.0, 1750,  0x68a,  0x68a, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 87,87,23,23,112},
+            {"1000/100",  CPU_PENTIUM3,  fpus_internal, 1000000000, 10.0, 1750,  0x68a,  0x68a, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 90,90,27,27,120},
+            {"1000/133",  CPU_PENTIUM3,  fpus_internal, 1000000000,  7.5, 1750,  0x68a,  0x68a, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 90,90,25,25,120},
+            {"1100",      CPU_PENTIUM3,  fpus_internal, 1100000000, 11.0, 1750,  0x68a,  0x68a, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 93,93,29,29,132},
+            {"1133",      CPU_PENTIUM3,  fpus_internal, 1133333333,  8.5, 1750,  0x68a,  0x68a, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 94,94,28,28,136},
             { .name = "", 0 }
         }
     },
@@ -8119,29 +8160,34 @@ const cpu_family_t cpu_families[] = {
         .name          = "Celeron (Coppermine)",
         .internal_name = "celeron_coppermine",
         .cpus          = (const CPU[]) {
-            { "100",  CPU_PENTIUM3, fpus_internal,  100000000,  1.0, 1500, 0x686, 0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 }, /* out of spec */
-            { "150",  CPU_PENTIUM3, fpus_internal,  150000000,  1.5, 1500, 0x686, 0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 }, /* out of spec */
-            { "200",  CPU_PENTIUM3, fpus_internal,  200000000,  2.0, 1500, 0x686, 0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 }, /* out of spec */
-            { "250",  CPU_PENTIUM3, fpus_internal,  250000000,  2.5, 1500, 0x686, 0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 }, /* out of spec */
-            { "300",  CPU_PENTIUM3, fpus_internal,  300000000,  3.0, 1500, 0x686, 0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 }, /* out of spec */
-            { "350",  CPU_PENTIUM3, fpus_internal,  350000000,  3.5, 1500, 0x686, 0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 }, /* out of spec */
-            { "400",  CPU_PENTIUM3, fpus_internal,  400000000,  4.0, 1500, 0x686, 0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 }, /* out of spec */
-            { "450",  CPU_PENTIUM3, fpus_internal,  450000000,  4.5, 1500, 0x686, 0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 }, /* out of spec */
-            { "500",  CPU_PENTIUM3, fpus_internal,  500000000,  5.0, 1500, 0x686, 0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 }, /* out of spec */
-            { "533",  CPU_PENTIUM3, fpus_internal,  533333333,  8.0, 1500, 0x686, 0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 },
-            { "566",  CPU_PENTIUM3, fpus_internal,  566666666,  8.5, 1500, 0x686, 0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 60 },
-            { "600",  CPU_PENTIUM3, fpus_internal,  600000000,  9.0, 1500, 0x686, 0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
-            { "633",  CPU_PENTIUM3, fpus_internal,  633333333,  9.5, 1500, 0x686, 0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
-            { "666",  CPU_PENTIUM3, fpus_internal,  666666666, 10.0, 1500, 0x686, 0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
-            { "700",  CPU_PENTIUM3, fpus_internal,  700000000, 10.5, 1650, 0x686, 0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
-            { "733",  CPU_PENTIUM3, fpus_internal,  733333333, 11.0, 1650, 0x686, 0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
-            { "766",  CPU_PENTIUM3, fpus_internal,  750000000, 11.5, 1650, 0x686, 0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
-            { "800",  CPU_PENTIUM3, fpus_internal,  800000000,  8.0, 1650, 0x686, 0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
-            { "850",  CPU_PENTIUM3, fpus_internal,  850000000,  8.5, 1700, 0x686, 0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
-            { "900",  CPU_PENTIUM3, fpus_internal,  900000000,  9.0, 1750, 0x686, 0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
-            { "950",  CPU_PENTIUM3, fpus_internal,  950000000,  9.5, 1750, 0x686, 0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
-            { "1000", CPU_PENTIUM3, fpus_internal, 1000000000, 10.0, 1750, 0x686, 0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
-            { "1100", CPU_PENTIUM3, fpus_internal, 1100000000, 11.0, 1750, 0x686, 0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
+            {"66",        CPU_PENTIUM3,  fpus_internal,   66666666,  1.0, 1500,  0x683,  0x683, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC | CPU_FIXED_MULTIPLIER,  6, 6, 3, 3, 8},  /* out of spec */
+            {"100",       CPU_PENTIUM3,  fpus_internal,  100000000,  1.5, 1500,  0x683,  0x683, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC | CPU_FIXED_MULTIPLIER,  8, 8, 4, 4, 12}, /* out of spec */
+            {"133",       CPU_PENTIUM3,  fpus_internal,  133333333,  2.0, 1500,  0x683,  0x683, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC | CPU_FIXED_MULTIPLIER, 11,11, 5, 5, 16}, /* out of spec */
+            {"166",       CPU_PENTIUM3,  fpus_internal,  166666666,  2.5, 1500,  0x683,  0x683, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC | CPU_FIXED_MULTIPLIER, 14,14, 7, 7, 20}, /* out of spec */
+            {"200",       CPU_PENTIUM3,  fpus_internal,  200000000,  3.0, 1500,  0x683,  0x683, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC | CPU_FIXED_MULTIPLIER, 17,17, 8, 8, 24}, /* out of spec */
+            {"233",       CPU_PENTIUM3,  fpus_internal,  233333333,  3.5, 1500,  0x683,  0x683, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC | CPU_FIXED_MULTIPLIER, 19,19, 9, 9, 28}, /* out of spec */
+            {"266",       CPU_PENTIUM3,  fpus_internal,  266666666,  4.0, 1500,  0x683,  0x683, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC | CPU_FIXED_MULTIPLIER, 22,22,11,11, 32}, /* out of spec */
+            {"300",       CPU_PENTIUM3,  fpus_internal,  300000000,  4.5, 1500,  0x683,  0x683, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC | CPU_FIXED_MULTIPLIER, 25,25,12,12, 36}, /* out of spec */
+            {"333",       CPU_PENTIUM3,  fpus_internal,  333333333,  5.0, 1500,  0x683,  0x683, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC | CPU_FIXED_MULTIPLIER, 27,27,13,13, 40}, /* out of spec */
+            {"366",       CPU_PENTIUM3,  fpus_internal,  366666666,  5.5, 1500,  0x683,  0x683, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC | CPU_FIXED_MULTIPLIER, 33,33,17,17, 44}, /* out of spec */
+            {"400",       CPU_PENTIUM3,  fpus_internal,  400000000,  6.0, 1500,  0x683,  0x683, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC | CPU_FIXED_MULTIPLIER, 36,36,12,12, 48}, /* out of spec */
+            {"433",       CPU_PENTIUM3,  fpus_internal,  433333333,  6.5, 1500,  0x683,  0x683, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC | CPU_FIXED_MULTIPLIER, 39,39,13,13, 51}, /* out of spec */
+            {"466",       CPU_PENTIUM3,  fpus_internal,  466666666,  7.0, 1500,  0x683,  0x683, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC | CPU_FIXED_MULTIPLIER, 42,42,14,14, 56}, /* out of spec */
+            {"500",       CPU_PENTIUM3,  fpus_internal,  500000000,  7.5, 1500,  0x683,  0x683, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC | CPU_FIXED_MULTIPLIER, 45,45,15,15, 60}, /* out of spec */
+            {"533A",      CPU_PENTIUM3,  fpus_internal,  533333333,  8.0, 1500,  0x683,  0x683, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC | CPU_FIXED_MULTIPLIER, 46,46,14,14, 64},
+            {"566",       CPU_PENTIUM3,  fpus_internal,  566666666,  8.5, 1500,  0x686,  0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC | CPU_FIXED_MULTIPLIER, 50,50,16,16, 68},
+            {"600",       CPU_PENTIUM3,  fpus_internal,  600000000,  9.0, 1500,  0x686,  0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC | CPU_FIXED_MULTIPLIER, 52,52,17,17, 72},
+            {"633",       CPU_PENTIUM3,  fpus_internal,  633333333,  9.5, 1500,  0x686,  0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC | CPU_FIXED_MULTIPLIER, 54,54,18,18, 76},
+            {"667",       CPU_PENTIUM3,  fpus_internal,  666666666, 10.0, 1500,  0x686,  0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC | CPU_FIXED_MULTIPLIER, 60,60,19,19, 80},
+            {"700",       CPU_PENTIUM3,  fpus_internal,  700000000, 10.5, 1650,  0x686,  0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC | CPU_FIXED_MULTIPLIER, 64,64,20,20, 84},
+            {"733",       CPU_PENTIUM3,  fpus_internal,  733333333, 11.0, 1650,  0x686,  0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC | CPU_FIXED_MULTIPLIER, 69,69,21,21, 88},
+            {"766",       CPU_PENTIUM3,  fpus_internal,  766666666, 11.5, 1650,  0x686,  0x686, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC | CPU_FIXED_MULTIPLIER, 74,74,22,22, 92},
+            {"800",       CPU_PENTIUM3,  fpus_internal,  800000000,  8.0, 1700,  0x68a,  0x68a, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC | CPU_FIXED_MULTIPLIER, 76,76,21,21, 96},
+            {"850",       CPU_PENTIUM3,  fpus_internal,  850000000,  8.5, 1700,  0x68a,  0x68a, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC | CPU_FIXED_MULTIPLIER, 79,79,23,23,102},
+            {"900",       CPU_PENTIUM3,  fpus_internal,  900000000,  9.0, 1750,  0x68a,  0x68a, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC | CPU_FIXED_MULTIPLIER, 84,84,25,25,108},
+            {"950",       CPU_PENTIUM3,  fpus_internal,  950000000,  9.5, 1750,  0x68a,  0x68a, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC | CPU_FIXED_MULTIPLIER, 88,88,26,26,114},
+            {"1000",      CPU_PENTIUM3,  fpus_internal, 1000000000, 10.0, 1750,  0x68a,  0x68a, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC | CPU_FIXED_MULTIPLIER, 90,90,27,27,120},
+            {"1100",      CPU_PENTIUM3,  fpus_internal, 1100000000, 11.0, 1750,  0x68a,  0x68a, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC | CPU_FIXED_MULTIPLIER, 93,93,29,29,132},
             { .name = "", 0 }
         }
     },
@@ -8151,17 +8197,25 @@ const cpu_family_t cpu_families[] = {
         .name          = "Pentium III (Tualatin)",
         .internal_name = "pentium3_tualatin",
         .cpus          = (const CPU[]) {
-            { "133",  CPU_PENTIUM3, fpus_internal,  133333333,  1.0, 1475, 0x6B1, 0x6B1, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 }, /* out of spec */
-            { "266",  CPU_PENTIUM3, fpus_internal,  266666666,  2.0, 1475, 0x6B1, 0x6B1, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 }, /* out of spec */
-            { "400",  CPU_PENTIUM3, fpus_internal,  400000000,  3.0, 1475, 0x6B1, 0x6B1, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 }, /* out of spec */
-            { "533",  CPU_PENTIUM3, fpus_internal,  533333333,  4.0, 1475, 0x6B1, 0x6B1, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 }, /* out of spec */
-            { "1000", CPU_PENTIUM3, fpus_internal, 1000000000,  7.5, 1475, 0x6B1, 0x6B1, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
-            { "1066", CPU_PENTIUM3, fpus_internal, 1066666666,  8.0, 1475, 0x6B1, 0x6B1, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 }, /* out of spec */
-            { "1133", CPU_PENTIUM3, fpus_internal, 1133333333,  8.5, 1475, 0x6B1, 0x6B1, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
-            { "1200", CPU_PENTIUM3, fpus_internal, 1200000000,  9.0, 1475, 0x6B1, 0x6B1, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
-            { "1266", CPU_PENTIUM3, fpus_internal, 1266666666,  9.5, 1450, 0x6B1, 0x6B1, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
-            { "1333", CPU_PENTIUM3, fpus_internal, 1333333333, 10.0, 1475, 0x6B1, 0x6B1, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
-            { "1400", CPU_PENTIUM3, fpus_internal, 1400000000, 10.5, 1450, 0x6B1, 0x6B1, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
+            {"133",       CPU_PENTIUM3,  fpus_internal,  133333333,  1.0, 1475,  0x6b1,  0x6b1, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 11, 11, 5, 5, 16}, /* out of spec */
+            {"200",       CPU_PENTIUM3,  fpus_internal,  200000000,  1.5, 1475,  0x6b1,  0x6b1, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 17, 17, 8, 8, 24}, /* out of spec */
+            {"266",       CPU_PENTIUM3,  fpus_internal,  266666666,  2.0, 1475,  0x6b1,  0x6b1, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 22, 22,10,10, 32}, /* out of spec */
+            {"333",       CPU_PENTIUM3,  fpus_internal,  333333333,  2.5, 1475,  0x6b1,  0x6b1, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 27, 27,11,11, 40}, /* out of spec */
+            {"400",       CPU_PENTIUM3,  fpus_internal,  400000000,  3.0, 1475,  0x6b1,  0x6b1, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 36, 36,12,12, 48}, /* out of spec */
+            {"466",       CPU_PENTIUM3,  fpus_internal,  466666666,  3.5, 1475,  0x6b1,  0x6b1, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 42, 42,13,13, 56}, /* out of spec */
+            {"533",       CPU_PENTIUM3,  fpus_internal,  533333333,  4.0, 1475,  0x6b1,  0x6b1, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 46, 46,14,14, 64}, /* out of spec */
+            {"600",       CPU_PENTIUM3,  fpus_internal,  600000000,  4.5, 1475,  0x6b1,  0x6b1, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 52, 52,15,15, 72}, /* out of spec */
+            {"667",       CPU_PENTIUM3,  fpus_internal,  666666666,  5.0, 1475,  0x6b1,  0x6b1, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 60, 60,16,16, 80}, /* out of spec */
+            {"733",       CPU_PENTIUM3,  fpus_internal,  733333333,  5.5, 1475,  0x6b1,  0x6b1, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 69, 69,17,17, 88}, /* out of spec */
+            {"800",       CPU_PENTIUM3,  fpus_internal,  800000000,  6.0, 1475,  0x6b1,  0x6b1, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 76, 76,19,19, 96}, /* out of spec */
+            {"866",       CPU_PENTIUM3,  fpus_internal,  866666666,  6.5, 1475,  0x6b1,  0x6b1, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 81, 81,21,21,104}, /* out of spec */
+            {"933",       CPU_PENTIUM3,  fpus_internal,  933333333,  7.0, 1475,  0x6b1,  0x6b1, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 87, 87,23,23,112}, /* out of spec */
+            {"1000",      CPU_PENTIUM3,  fpus_internal, 1000000000,  7.5, 1475,  0x6b1,  0x6b1, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 89, 89,25,25,120},
+            {"1133",      CPU_PENTIUM3,  fpus_internal, 1133333333,  8.5, 1475,  0x6b1,  0x6b1, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 91, 91,27,27,136},
+            {"1200",      CPU_PENTIUM3,  fpus_internal, 1200000000,  9.0, 1475,  0x6b1,  0x6b1, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 95, 95,29,29,144},
+            {"1266",      CPU_PENTIUM3,  fpus_internal, 1266666666,  9.5, 1450,  0x6b1,  0x6b1, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 97, 97,30,30,152}, /* -S */
+            {"1333",      CPU_PENTIUM3,  fpus_internal, 1333333333, 10.0, 1475,  0x6B4,  0x6b4, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 99, 99,31,31,160},
+            {"1400",      CPU_PENTIUM3,  fpus_internal, 1400000000, 10.5, 1450,  0x6B4,  0x6b4, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC,101,101,33,33,168}, /* -S */
             { .name = "", 0 }
         }
     },
@@ -8171,51 +8225,104 @@ const cpu_family_t cpu_families[] = {
         .name          = "Celeron (Tualatin)",
         .internal_name = "celeron_tualatin",
         .cpus          = (const CPU[]) {
-            { "100",  CPU_PENTIUM3, fpus_internal,  100000000,  1.0, 1475, 0x6B4, 0x6B4, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 }, /* out of spec */
-            { "200",  CPU_PENTIUM3, fpus_internal,  200000000,  2.0, 1475, 0x6B4, 0x6B4, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 }, /* out of spec */
-            { "300",  CPU_PENTIUM3, fpus_internal,  300000000,  3.0, 1475, 0x6B4, 0x6B4, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 }, /* out of spec */
-            { "400",  CPU_PENTIUM3, fpus_internal,  400000000,  3.0, 1475, 0x6B4, 0x6B4, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 }, /* out of spec */
-            { "500",  CPU_PENTIUM3, fpus_internal,  500000000,  3.0, 1475, 0x6B4, 0x6B4, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 }, /* out of spec */
-            { "600",  CPU_PENTIUM3, fpus_internal,  600000000,  6.0, 1475, 0x6B4, 0x6B4, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 }, /* out of spec */
-            { "700",  CPU_PENTIUM3, fpus_internal,  700000000,  7.0, 1475, 0x6B4, 0x6B4, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 }, /* out of spec */
-            { "800",  CPU_PENTIUM3, fpus_internal,  800000000,  8.0, 1475, 0x6B4, 0x6B4, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 }, /* out of spec */
-            { "900",  CPU_PENTIUM3, fpus_internal,  900000000,  9.0, 1475, 0x6B4, 0x6B4, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
-            { "1000", CPU_PENTIUM3, fpus_internal, 1000000000, 10.0, 1475, 0x6B4, 0x6B4, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
-            { "1100", CPU_PENTIUM3, fpus_internal, 1100000000, 11.0, 1500, 0x6B4, 0x6B4, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
-            { "1200", CPU_PENTIUM3, fpus_internal, 1200000000, 12.0, 1500, 0x6B4, 0x6B4, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
-            { "1300", CPU_PENTIUM3, fpus_internal, 1300000000, 13.0, 1500, 0x6B4, 0x6B4, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
-            { "1400", CPU_PENTIUM3, fpus_internal, 1400000000, 14.0, 1500, 0x6B4, 0x6B4, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
-            { "1500", CPU_PENTIUM3, fpus_internal, 1500000000, 15.0, 1500, 0x6B4, 0x6B4, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC, 41, 41, 14, 14, 72 },
+            {"100",       CPU_PENTIUM3,  fpus_internal,  100000000,  1.0, 1475,  0x6b1,  0x6b1, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC | CPU_FIXED_MULTIPLIER,  9,  9, 3, 3, 12}, /* out of spec */
+            {"150",       CPU_PENTIUM3,  fpus_internal,  150000000,  1.5, 1475,  0x6b1,  0x6b1, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC | CPU_FIXED_MULTIPLIER, 14, 14, 4, 4, 18}, /* out of spec */
+            {"200",       CPU_PENTIUM3,  fpus_internal,  200000000,  2.0, 1475,  0x6b1,  0x6b1, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC | CPU_FIXED_MULTIPLIER, 18, 18, 6, 6, 24}, /* out of spec */
+            {"250",       CPU_PENTIUM3,  fpus_internal,  250000000,  2.5, 1475,  0x6b1,  0x6b1, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC | CPU_FIXED_MULTIPLIER, 22, 22, 7, 7, 30}, /* out of spec */
+            {"300",       CPU_PENTIUM3,  fpus_internal,  300000000,  3.0, 1475,  0x6b1,  0x6b1, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC | CPU_FIXED_MULTIPLIER, 27, 27, 9, 9, 36}, /* out of spec */
+            {"350",       CPU_PENTIUM3,  fpus_internal,  350000000,  3.5, 1475,  0x6b1,  0x6b1, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC | CPU_FIXED_MULTIPLIER, 32, 32,11,11, 42}, /* out of spec */
+            {"400",       CPU_PENTIUM3,  fpus_internal,  400000000,  4.0, 1475,  0x6b1,  0x6b1, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC | CPU_FIXED_MULTIPLIER, 36, 36,12,12, 48}, /* out of spec */
+            {"450",       CPU_PENTIUM3,  fpus_internal,  450000000,  4.5, 1475,  0x6b1,  0x6b1, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC | CPU_FIXED_MULTIPLIER, 41, 41,14,14, 54}, /* out of spec */
+            {"500",       CPU_PENTIUM3,  fpus_internal,  500000000,  5.0, 1475,  0x6b1,  0x6b1, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC | CPU_FIXED_MULTIPLIER, 44, 44,15,15, 60}, /* out of spec */
+            {"550",       CPU_PENTIUM3,  fpus_internal,  550000000,  5.5, 1475,  0x6b1,  0x6b1, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC | CPU_FIXED_MULTIPLIER, 48, 48,16,16, 66}, /* out of spec */
+            {"600",       CPU_PENTIUM3,  fpus_internal,  600000000,  6.0, 1475,  0x6b1,  0x6b1, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC | CPU_FIXED_MULTIPLIER, 52, 52,17,17, 72}, /* out of spec */
+            {"650",       CPU_PENTIUM3,  fpus_internal,  650000000,  6.5, 1475,  0x6b1,  0x6b1, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC | CPU_FIXED_MULTIPLIER, 56, 56,18,18, 78}, /* out of spec */
+            {"700",       CPU_PENTIUM3,  fpus_internal,  700000000,  7.0, 1475,  0x6b1,  0x6b1, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC | CPU_FIXED_MULTIPLIER, 64, 64,19,19, 84}, /* out of spec */
+            {"750",       CPU_PENTIUM3,  fpus_internal,  750000000,  7.5, 1475,  0x6b1,  0x6b1, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC | CPU_FIXED_MULTIPLIER, 72, 72,20,20, 90}, /* out of spec */
+            {"800",       CPU_PENTIUM3,  fpus_internal,  800000000,  8.0, 1475,  0x6b1,  0x6b1, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC | CPU_FIXED_MULTIPLIER, 76, 76,21,21, 96}, /* out of spec */
+            {"850",       CPU_PENTIUM3,  fpus_internal,  850000000,  8.5, 1475,  0x6b1,  0x6b1, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC | CPU_FIXED_MULTIPLIER, 79, 79,23,23,102}, /* out of spec */
+            {"900",       CPU_PENTIUM3,  fpus_internal,  900000000,  9.0, 1475,  0x6b1,  0x6b1, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC | CPU_FIXED_MULTIPLIER, 84, 84,25,25,108},
+            {"1000",      CPU_PENTIUM3,  fpus_internal, 1000000000, 10.0, 1475,  0x6b1,  0x6b1, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC | CPU_FIXED_MULTIPLIER, 89, 89,27,27,120},
+            {"1100",      CPU_PENTIUM3,  fpus_internal, 1100000000, 11.0, 1500,  0x6b1,  0x6b1, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC | CPU_FIXED_MULTIPLIER, 92, 92,29,29,132},
+            {"1200",      CPU_PENTIUM3,  fpus_internal, 1200000000, 12.0, 1500,  0x6b1,  0x6b1, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC | CPU_FIXED_MULTIPLIER, 95, 95,31,31,144},
+            {"1300",      CPU_PENTIUM3,  fpus_internal, 1300000000, 13.0, 1500,  0x6b4,  0x6b4, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC | CPU_FIXED_MULTIPLIER, 98, 98,33,33,156},
+            {"1400",      CPU_PENTIUM3,  fpus_internal, 1400000000, 14.0, 1500,  0x6b4,  0x6b4, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC | CPU_FIXED_MULTIPLIER,101,101,35,35,168},
+            {"1500",      CPU_PENTIUM3,  fpus_internal, 1500000000, 15.0, 1500,  0x6b4,  0x6b4, 0, CPU_SUPPORTS_DYNAREC | CPU_REQUIRES_DYNAREC | CPU_FIXED_MULTIPLIER,104,104,37,37,180},
             { .name = "", 0 }
         }
     }, 
     {
         .package       = CPU_PKG_SOCKET370,
         .manufacturer  = "VIA",
-        .name          = "Cyrix III (Ezra)",
+        .name          = "C3 (Ezra)",
         .internal_name = "c3_ezra",
         .cpus          = (const CPU[]) {
-            { "800",     CPU_CYRIX3S, fpus_internal, 800000000, 8.0, 2050, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 63, 63, 21, 21, 84 },
-            { "800/133", CPU_CYRIX3S, fpus_internal, 800000000, 6.0, 2050, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 63, 63, 21, 21, 84 },
-            { "850",     CPU_CYRIX3S, fpus_internal, 850000000, 8.5, 2050, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 63, 63, 21, 21, 84 },
-            { "866",     CPU_CYRIX3S, fpus_internal, 866666666, 6.5, 2050, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 63, 63, 21, 21, 84 },
-            { "900",     CPU_CYRIX3S, fpus_internal, 900000000, 9.0, 2050, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 63, 63, 21, 21, 84 },
-            { "933",     CPU_CYRIX3S, fpus_internal, 933333333, 7.0, 2050, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 63, 63, 21, 21, 84 },
-            { "1000",    CPU_CYRIX3S, fpus_internal, 1000000000,7.5, 2050, 0x673, 0x673, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 63, 63, 21, 21, 84 },
+            {"100",     CPU_CYRIX3S, fpus_internal, 100000000, 1.5, 1350,   0x678, 0x678, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER,  9,  9,  4,  4, 12}, /* out of multiplier range */
+            {"133",     CPU_CYRIX3S, fpus_internal, 133333333, 2.0, 1350,   0x678, 0x678, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 12, 12,  6,  6, 16}, /* out of multiplier range */
+            {"166",     CPU_CYRIX3S, fpus_internal, 166666666, 2.5, 1350,   0x678, 0x678, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 15, 15,  7,  7, 20}, /* out of multiplier range */
+            {"200",     CPU_CYRIX3S, fpus_internal, 200000000, 3.0, 1350,   0x678, 0x678, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 18, 18,  8,  8, 24}, /* out of multiplier range */
+            {"233",     CPU_CYRIX3S, fpus_internal, 233333333, 3.5, 1350,   0x678, 0x678, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 21, 21,  9,  9, 28}, /* out of multiplier range */
+            {"266",     CPU_CYRIX3S, fpus_internal, 266666666, 4.0, 1350,   0x678, 0x678, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 24, 24, 12, 12, 32}, /* out of multiplier range */
+            {"300",     CPU_CYRIX3S, fpus_internal, 300000000, 4.5, 1350,   0x678, 0x678, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 27, 27, 13, 13, 36}, /* out of spec */
+            {"333",     CPU_CYRIX3S, fpus_internal, 333333333, 5.0, 1350,   0x678, 0x678, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 30, 30, 15, 15, 40}, /* out of spec */
+            {"366",     CPU_CYRIX3S, fpus_internal, 366666666, 5.5, 1350,   0x678, 0x678, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 33, 33, 16, 16, 44}, /* out of spec */
+            {"400",     CPU_CYRIX3S, fpus_internal, 400000000, 6.0, 1350,   0x678, 0x678, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 36, 36, 17, 17, 48}, /* out of spec */
+            {"433",     CPU_CYRIX3S, fpus_internal, 433333333, 6.5, 1350,   0x678, 0x678, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 39, 39, 18, 18, 52}, /* out of spec */
+            {"450",     CPU_CYRIX3S, fpus_internal, 450000000, 4.5, 1350,   0x678, 0x678, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 41, 41, 14, 14, 54}, /* out of spec */
+            {"466",     CPU_CYRIX3S, fpus_internal, 466666666, 6.5, 1350,   0x678, 0x678, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 42, 42, 14, 14, 56}, /* out of spec */
+            {"500",     CPU_CYRIX3S, fpus_internal, 500000000, 5.0, 1350,   0x678, 0x678, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 45, 45, 15, 15, 60}, /* out of spec */
+            {"533",     CPU_CYRIX3S, fpus_internal, 533333333, 8.0, 1350,   0x678, 0x678, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 48, 48, 15, 15, 64}, /* out of spec */
+            {"550",     CPU_CYRIX3S, fpus_internal, 550000000, 5.5, 1350,   0x678, 0x678, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 50, 50, 17, 17, 66}, /* out of spec */
+            {"600/100", CPU_CYRIX3S, fpus_internal, 600000000, 6.0, 1350,   0x678, 0x678, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 54, 54, 18, 18, 72}, /* out of spec */
+            {"600/133", CPU_CYRIX3S, fpus_internal, 600000000, 4.5, 1350,   0x678, 0x678, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 54, 54, 13, 13, 72}, /* out of spec */
+            {"650",     CPU_CYRIX3S, fpus_internal, 650000000, 6.5, 1350,   0x678, 0x678, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 58, 58, 20, 20, 78}, /* out of spec */
+            {"667",     CPU_CYRIX3S, fpus_internal, 666666667, 5.0, 1350,   0x678, 0x678, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 60, 60, 16, 16, 80}, /* out of spec */
+            {"700",     CPU_CYRIX3S, fpus_internal, 700000000, 7.0, 1350,   0x678, 0x678, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 63, 63, 21, 21, 84}, /* out of spec */
+            {"733",     CPU_CYRIX3S, fpus_internal, 733333333, 5.5, 1350,   0x678, 0x678, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 66, 66, 18, 18, 88}, /* out of spec */
+            {"750",     CPU_CYRIX3S, fpus_internal, 750000000, 7.5, 1350,   0x678, 0x678, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 69, 69, 22, 22, 90},
+            {"800/100", CPU_CYRIX3S, fpus_internal, 800000000, 8.0, 1350,   0x678, 0x678, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 72, 72, 24, 24, 96},
+            {"800/133", CPU_CYRIX3S, fpus_internal, 800000000, 6.0, 1350,   0x678, 0x678, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 72, 72, 20, 20, 96},
+            {"850",     CPU_CYRIX3S, fpus_internal, 850000000, 8.5, 1350,   0x678, 0x678, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 76, 76, 26, 26,102},
+            {"866",     CPU_CYRIX3S, fpus_internal, 866666666, 6.5, 1350,   0x678, 0x678, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 79, 79, 22, 22,104},
+            {"900",     CPU_CYRIX3S, fpus_internal, 900000000, 9.0, 1350,   0x678, 0x678, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 81, 81, 29, 29,108},
+            {"933",     CPU_CYRIX3S, fpus_internal, 933333333, 7.0, 1350,   0x678, 0x678, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 84, 84, 25, 25,112},
+            {"1000",    CPU_CYRIX3S, fpus_internal,1000000000, 7.5, 1350,   0x678, 0x678, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 88, 88, 27, 27,120},
             { .name = "", 0 }
         }
     },
     {
         .package       = CPU_PKG_SOCKET370,
         .manufacturer  = "VIA",
-        .name          = "Cyrix III (Nehemiah)",
+        .name          = "C3 (Nehemiah)",
         .internal_name = "c3_nehemiah",
         .cpus          = (const CPU[]) {
-            { "1000", CPU_CYRIX3N, fpus_internal, 1000000000,  7.5, 2050, 0x693, 0x693, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 63, 63, 21, 21, 84 },
-            { "1133", CPU_CYRIX3N, fpus_internal, 1133333333,  8.5, 2050, 0x693, 0x693, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 63, 63, 21, 21, 84 },
-            { "1200", CPU_CYRIX3N, fpus_internal, 1200000000,  9.0, 2050, 0x693, 0x693, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 63, 63, 21, 21, 84 },
-            { "1300", CPU_CYRIX3N, fpus_internal, 1300000000, 10.0, 2050, 0x693, 0x693, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 63, 63, 21, 21, 84 },
-            { "1400", CPU_CYRIX3N, fpus_internal, 1400000000, 10.5, 2050, 0x693, 0x693, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 63, 63, 21, 21, 84 },
+            {"100",     CPU_CYRIX3N, fpus_internal, 100000000, 1.5, 1400,   0x693, 0x693, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER,  9,  9,  4,  4, 12}, /* out of multiplier range */
+            {"200",     CPU_CYRIX3N, fpus_internal, 200000000, 3.0, 1400,   0x693, 0x693, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 18, 18,  8,  8, 24}, /* out of multiplier range */
+            {"300",     CPU_CYRIX3N, fpus_internal, 300000000, 4.5, 1400,   0x693, 0x693, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 27, 27, 13, 13, 36}, /* out of multiplier range */
+            {"333",     CPU_CYRIX3N, fpus_internal, 333333333, 5.0, 1400,   0x693, 0x693, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 30, 30, 15, 15, 40}, /* out of spec */
+            {"400",     CPU_CYRIX3N, fpus_internal, 400000000, 6.0, 1400,   0x693, 0x693, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 36, 36, 17, 17, 48}, /* out of spec */
+            {"433",     CPU_CYRIX3N, fpus_internal, 433333333, 6.5, 1400,   0x693, 0x693, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 39, 39, 18, 18, 52}, /* out of spec */
+            {"466",     CPU_CYRIX3N, fpus_internal, 466666666, 6.5, 1400,   0x693, 0x693, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 42, 42, 14, 14, 56}, /* out of spec */
+            {"500",     CPU_CYRIX3N, fpus_internal, 500000000, 5.0, 1400,   0x693, 0x693, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 45, 45, 15, 15, 60}, /* out of spec */
+            {"533",     CPU_CYRIX3N, fpus_internal, 533333333, 8.0, 1400,   0x693, 0x693, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 48, 48, 15, 15, 64}, /* out of spec */
+            {"550",     CPU_CYRIX3N, fpus_internal, 550000000, 5.5, 1400,   0x693, 0x693, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 50, 50, 17, 17, 66}, /* out of spec */
+            {"600",     CPU_CYRIX3N, fpus_internal, 600000000, 6.0, 1400,   0x693, 0x693, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 54, 54, 18, 18, 72}, /* out of spec */
+            {"650",     CPU_CYRIX3N, fpus_internal, 650000000, 6.5, 1400,   0x693, 0x693, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 58, 58, 20, 20, 78}, /* out of spec */
+            {"667",     CPU_CYRIX3N, fpus_internal, 666666667, 5.0, 1400,   0x693, 0x693, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 60, 60, 16, 16, 80}, /* out of spec */
+            {"700",     CPU_CYRIX3N, fpus_internal, 700000000, 7.0, 1400,   0x693, 0x693, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 63, 63, 21, 21, 84}, /* out of spec */
+            {"733",     CPU_CYRIX3N, fpus_internal, 733333333, 5.5, 1400,   0x693, 0x693, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 66, 66, 18, 18, 88}, /* out of spec */
+            {"750",     CPU_CYRIX3N, fpus_internal, 750000000, 7.5, 1400,   0x693, 0x693, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 69, 69, 22, 22, 90}, /* out of spec */
+            {"800/100", CPU_CYRIX3N, fpus_internal, 800000000, 8.0, 1400,   0x693, 0x693, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 72, 72, 24, 24, 96}, /* out of spec */
+            {"800/133", CPU_CYRIX3N, fpus_internal, 800000000, 6.0, 1400,   0x693, 0x693, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 72, 72, 20, 20, 96}, /* out of spec */
+            {"850",     CPU_CYRIX3N, fpus_internal, 850000000, 8.5, 1400,   0x693, 0x693, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 76, 76, 26, 26,102}, /* out of spec */
+            {"866",     CPU_CYRIX3N, fpus_internal, 866666666, 6.5, 1400,   0x693, 0x693, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 79, 79, 22, 22,104}, /* out of spec */
+            {"900",     CPU_CYRIX3N, fpus_internal, 900000000, 9.0, 1400,   0x693, 0x693, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 81, 81, 29, 29,108}, /* out of spec */
+            {"933",     CPU_CYRIX3N, fpus_internal, 933333333, 7.0, 1400,   0x693, 0x693, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 84, 84, 25, 25,112}, /* out of spec */
+            {"1000",    CPU_CYRIX3N, fpus_internal,1000000000, 7.5, 1400,   0x693, 0x693, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 88, 88, 27, 27,120},
+            {"1133",    CPU_CYRIX3N, fpus_internal,1133333333, 8.5, 1400,   0x693, 0x693, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 92, 92, 29, 29,136},
+            {"1200",    CPU_CYRIX3N, fpus_internal,1200000000, 9.0, 1400,   0x693, 0x693, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 95, 95, 31, 31,144},
+            {"1333",    CPU_CYRIX3N, fpus_internal,1333333333,10.0, 1400,   0x693, 0x693, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER, 99, 99, 33, 33,160},
+            {"1400",    CPU_CYRIX3N, fpus_internal,1400000000,10.5, 1400,   0x693, 0x693, 0, CPU_SUPPORTS_DYNAREC | CPU_FIXED_MULTIPLIER,102,102, 35, 35,168},
             { .name = "", 0 }
         }
     },
