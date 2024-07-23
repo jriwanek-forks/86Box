@@ -2812,8 +2812,22 @@ cpu_CPUID(void)
                 ECX = 0x6c65746e;
             } else if (EAX == 1) {
                 EAX = CPUID;
-                EBX = ECX = 0;
-                EDX       = CPUID_FPU | CPUID_VME | CPUID_DE | CPUID_PSE | CPUID_TSC | CPUID_MSR | CPUID_PAE | CPUID_MCE | CPUID_CMPXCHG8B | CPUID_MMX | CPUID_MTRR | CPUID_PGE | CPUID_MCA | CPUID_SEP | CPUID_FXSR | CPUID_CMOV | CPUID_SSE;
+                if (CPUID >= 0x680) { /* Brand ID (Coppermine+) */
+                    if (!strncmp(cpu_f->internal_name, "celeron", 7)) {
+                        if (CPUID == 0x6b1) /* Tualatin-256 stepping 1 */
+                            EBX = 0x3;
+                        else /* Other Celeron */
+                            EBX = 0x1;
+                    } else if ((CPUID >= 0x6b0) && ((cpu_s->rspeed == 1266666666) || (cpu_s->rspeed == 1400000000))) /* Tualatin-S */
+                        EBX = 0x4;
+                    else if (cpu_f->package == CPU_PKG_SLOT2) /* Pentium III Xeon */
+                        EBX = 0x3;
+                    else /* Other Pentium III's */
+                        EBX = 0x2;
+                } else
+                    EBX = 0;
+                ECX = 0;
+                EDX = CPUID_FPU | CPUID_VME | CPUID_DE | CPUID_PSE | CPUID_TSC | CPUID_MSR | CPUID_PAE | CPUID_MCE | CPUID_CMPXCHG8B | CPUID_MMX | CPUID_MTRR | CPUID_PGE | CPUID_MCA | CPUID_SEP | CPUID_FXSR | CPUID_CMOV | CPUID_SSE;
             } else if (EAX == 2) {
                 EAX = 0x03020101; /* Instruction TLB: 4 KB pages, 4-way set associative, 32 entries
                                      Instruction TLB: 4 MB pages, fully associative, 2 entries
@@ -2842,7 +2856,48 @@ cpu_CPUID(void)
                     else /* Katmai */
                         EDX = 0x0c040843; /* 2nd-level cache: 512 KB, 4-way set associative, 32-byte line size */
                 }
-
+            } else if ((CPUID >= 0x6b0) && (EAX == 0x80000000)) {
+                EAX = 0x80000004;
+                EBX = ECX = EDX = 0;
+            } else if ((CPUID >= 0x6b0) && (EAX == 0x80000002)) { /* Brand string (Tualatin+) */
+                EAX = 0x65746e49; /*Intel(R)*/
+                EBX = 0x2952286c;
+                if (!strncmp(cpu_f->internal_name, "celeron", 7)) {
+                    ECX = 0x6c654320; /* Celeron*/
+                    EDX = 0x6e6f7265;
+                } else {
+                    ECX = 0x6e655020; /* Pentium*/
+                    EDX = 0x6d756974;
+                }
+            } else if ((CPUID >= 0x6b0) && (EAX == 0x80000003)) { /* Brand string, continued */
+                if (!strncmp(cpu_f->internal_name, "celeron", 7)) {
+                    EAX = 0x294d5428; /*(TM) CPU        */
+                    EBX = 0x55504320;
+                    ECX = EDX = 0x20202020;
+                } else {
+                    EAX = 0x20295228; /*(R) III CPU */
+                    EBX = 0x20494949;
+                    ECX = 0x20555043;
+                    if (!((cpu_s->rspeed == 1266666666) || (cpu_s->rspeed == 1400000000)))
+                        EDX = 0x20202020; /*    */
+                    else if (CPUID < 0x6b4)
+                        EDX = 0x696d6166; /*fami*/
+                    else 
+                        EDX = 0x2053202d; /*- S */
+                }
+            } else if ((CPUID >= 0x6b0) && (EAX == 0x80000004)) { /* Brand string, continued */
+                if (((cpu_s->rspeed == 1266666666) || (cpu_s->rspeed == 1400000000)) && (CPUID < 0x6b4))
+                    EAX = 0x2020796c; /*ly  */
+                else
+                    EAX = 0x20202020; /*    */
+                EBX = 0x20202020; /*    */
+                ECX = 0x20303030;
+                uint32_t mhz = cpu_s->rspeed / 1000000;
+                if (mhz < 1000)
+                    ECX |= (((mhz % 10) << 16) | (((mhz / 10) % 10) << 8) | ((mhz / 100) % 10));
+                else
+                    ECX |= ((1 << 28) | ((mhz % 10) << 24) | (((mhz / 10) % 10) << 16) | (((mhz / 100) % 10) << 8) | (mhz / 1000));
+                EDX = 0x007a484d; /*MHz*/
             } else
                 EAX = EBX = ECX = EDX = 0;
             break;
