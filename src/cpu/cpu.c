@@ -2846,7 +2846,7 @@ cpu_CPUID(void)
                         EDX |= CPUID_PGE;
                     break;
                 case 0x80000000:
-                    EAX = 0x80000005;
+                    EAX = ((CPUID >= 0x670) ? 0x80000006 : 0x80000005);
                     break;
                 case 0x80000001:
                     EAX = CPUID;
@@ -2857,15 +2857,26 @@ cpu_CPUID(void)
                         EDX |= CPUID_PGE;
                     break;
                 case 0x80000002:      /* Processor name string */
-                    EAX = 0x20414956; /* VIA Samuel */
-                    EBX = 0x756d6153;
-                    ECX = 0x00006c65;
-                    EDX = 0x00000000;
+                    EAX = 0x20414956;
+                    if (CPUID >= 0x678) {
+                        EBX = 0x61727a45; /* VIA Ezra */
+                        ECX = 0x00000000;
+                    } else if (CPUID >= 0x670) {
+                        EBX = 0x756d6153; /* VIA Samuel 2 */
+                        ECX = 0x32206c65;
+                    } else {
+                        EBX = 0x756d6153; /* VIA Samuel */
+                        ECX = 0x00006c65;
+                    }
                     break;
                 case 0x80000005:      /* Cache information */
                     EBX = 0x08800880; /* TLBs */
                     ECX = 0x40040120; /* L1 data cache */
                     EDX = 0x40020120; /* L1 instruction cache */
+                    break;
+                case 0x80000006:
+                    if (CPUID >= 0x670)
+                        ECX = 0x40040120; /* L2 data cache */
                     break;
                 default:
                     EAX = EBX = ECX = EDX = 0;
