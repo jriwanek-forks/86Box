@@ -2026,7 +2026,7 @@ cpu_set(void)
 
             cpu_features = CPU_FEATURE_RDTSC | CPU_FEATURE_MMX | CPU_FEATURE_MSR | CPU_FEATURE_CR4 | CPU_FEATURE_SSE;
             msr.fcr      = (1 << 8) | (1 << 9) | (1 << 12) | (1 << 16) | (1 << 18) | (1 << 19) | (1 << 21);
-            cpu_CR4_mask = CR4_TSD | CR4_DE | CR4_MCE | CR4_PCE | CR4_OSFXSR | CR4_OSXMMEXCPT;
+            cpu_CR4_mask = CR4_TSD | CR4_DE | CR4_MCE | CR4_PCE | CR4_PGE | CR4_OSFXSR | CR4_OSXMMEXCPT;
 
             cpu_cyrix_alignment = 1;
 
@@ -2899,31 +2899,44 @@ cpu_CPUID(void)
                     }
                     break;
                 case 1:
-                    EAX = CPUID;
+                    EAX = ((msr.fcr2 & 0x0ff0) ? ((msr.fcr2 & 0x0ff0) | (CPUID & 0xf00f)) : CPUID);
                     EBX = ECX = 0;
                     EDX       = CPUID_FPU | CPUID_DE | CPUID_TSC | CPUID_MSR | CPUID_MCE | CPUID_MMX | CPUID_MTRR | CPUID_CMOV | CPUID_FXSR | CPUID_SSE;
                     if (cpu_has_feature(CPU_FEATURE_CX8))
                         EDX |= CPUID_CMPXCHG8B;
+                    if (msr.fcr & (1 << 7))
+                        EDX |= CPUID_PGE;
                     break;
                 case 0x80000000:
-                    EAX = 0x80000005;
+                    EAX = 0x80000006;
                     break;
                 case 0x80000001:
                     EAX = CPUID;
                     EDX = CPUID_FPU | CPUID_DE | CPUID_TSC | CPUID_MSR | CPUID_MCE | CPUID_MMX | CPUID_MTRR | CPUID_CMOV | CPUID_FXSR | CPUID_SSE;
                     if (cpu_has_feature(CPU_FEATURE_CX8))
                         EDX |= CPUID_CMPXCHG8B;
+                    if (msr.fcr & (1 << 7))
+                        EDX |= CPUID_PGE;
                     break;
                 case 0x80000002:      /* Processor name string */
-                    EAX = 0x20414956; /* VIA Samuel */
-                    EBX = 0x756d6153;
-                    ECX = 0x00006c65;
-                    EDX = 0x00000000;
+                    EAX = 0x20414956; /* VIA C3 Nehemiah */
+                    EBX = 0x4e203343;
+                    ECX = 0x6d656865;
+                    EDX = 0x00686169;
                     break;
                 case 0x80000005:      /* Cache information */
                     EBX = 0x08800880; /* TLBs */
                     ECX = 0x40040120; /* L1 data cache */
                     EDX = 0x40020120; /* L1 instruction cache */
+                    break;
+                case 0x80000006:
+                    ECX = 0x00408120; /* L2 data cache */
+                    break;
+                case 0xc0000000:
+                    EAX = 0xc0000001;
+                    break;
+                case 0xc0000001: /* Centaur extended feature flags */
+                    EDX = 0x00000000;
                     break;
                 default:
                     EAX = EBX = ECX = EDX = 0;
@@ -2975,9 +2988,13 @@ cpu_ven_reset(void)
             break;
 
         case CPU_CYRIX3S:
-        case CPU_CYRIX3N:
             msr.fcr = (1 << 7) | (1 << 8) | (1 << 9) | (1 << 12) | (1 << 16) | (1 << 18) | (1 << 19) |
                       (1 << 20) | (1 << 21);
+            break;
+
+        case CPU_CYRIX3N:
+            msr.fcr         = (1 << 7) | (1 << 8) | (1 << 9) | (1 << 12) | (1 << 16) | (1 << 18) |
+                              (1 << 19) | (1 << 21);
             break;
     }
 }
