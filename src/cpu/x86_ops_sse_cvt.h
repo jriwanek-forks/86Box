@@ -4,6 +4,7 @@ opCVTPI2PS_xmm_mm_a16(uint32_t fetchdat)
 {
     MMX_REG src;
 
+    feclearexcept(FE_ALL_EXCEPT);
     MMX_ENTER();
     fetch_ea_16(fetchdat);
     MMX_GETSRC();
@@ -23,6 +24,7 @@ opCVTPI2PS_xmm_mm_a32(uint32_t fetchdat)
 {
     MMX_REG src;
 
+    feclearexcept(FE_ALL_EXCEPT);
     MMX_ENTER();
     fetch_ea_32(fetchdat);
     MMX_GETSRC();
@@ -40,6 +42,7 @@ opCVTPI2PS_xmm_mm_a32(uint32_t fetchdat)
 static int
 opCVTSI2SS_xmm_l_a16(uint32_t fetchdat)
 {
+    feclearexcept(FE_ALL_EXCEPT);
     fetch_ea_16(fetchdat);
     if (cpu_mod == 3) {
         fesetround(rounding_modes[(mxcsr >> 13) & 3]);
@@ -67,6 +70,7 @@ opCVTSI2SS_xmm_l_a16(uint32_t fetchdat)
 static int
 opCVTSI2SS_xmm_l_a32(uint32_t fetchdat)
 {
+    feclearexcept(FE_ALL_EXCEPT);
     fetch_ea_32(fetchdat);
     if (cpu_mod == 3) {
         fesetround(rounding_modes[(mxcsr >> 13) & 3]);
@@ -97,6 +101,7 @@ opCVTTPS2PI_mm_xmm_a16(uint32_t fetchdat)
     SSE_REG  src;
     MMX_REG *dst;
 
+    feclearexcept(FE_ALL_EXCEPT);
     MMX_ENTER();
     fetch_ea_16(fetchdat);
 
@@ -118,6 +123,7 @@ opCVTTPS2PI_mm_xmm_a32(uint32_t fetchdat)
     SSE_REG  src;
     MMX_REG *dst;
 
+    feclearexcept(FE_ALL_EXCEPT);
     MMX_ENTER();
     fetch_ea_32(fetchdat);
     dst = MMX_GETREGP(cpu_reg);
@@ -135,6 +141,7 @@ opCVTTPS2PI_mm_xmm_a32(uint32_t fetchdat)
 static int
 opCVTTSS2SI_l_xmm_a16(uint32_t fetchdat)
 {
+    feclearexcept(FE_ALL_EXCEPT);
     fetch_ea_16(fetchdat);
     if (cpu_mod == 3) {
         setr32(cpu_reg, trunc(XMM[cpu_rm].f[0]));
@@ -160,6 +167,7 @@ opCVTTSS2SI_l_xmm_a16(uint32_t fetchdat)
 static int
 opCVTTSS2SI_l_xmm_a32(uint32_t fetchdat)
 {
+    feclearexcept(FE_ALL_EXCEPT);
     fetch_ea_32(fetchdat);
     if (cpu_mod == 3) {
         setr32(cpu_reg, trunc(XMM[cpu_rm].f[0]));
@@ -188,6 +196,7 @@ opCVTPS2PI_mm_xmm_a16(uint32_t fetchdat)
     SSE_REG  src;
     MMX_REG *dst;
 
+    feclearexcept(FE_ALL_EXCEPT);
     MMX_ENTER();
     fetch_ea_16(fetchdat);
     dst = MMX_GETREGP(cpu_reg);
@@ -218,6 +227,7 @@ opCVTPS2PI_mm_xmm_a32(uint32_t fetchdat)
     SSE_REG  src;
     MMX_REG *dst;
 
+    feclearexcept(FE_ALL_EXCEPT);
     MMX_ENTER();
     fetch_ea_32(fetchdat);
     dst = MMX_GETREGP(cpu_reg);
@@ -245,6 +255,7 @@ opCVTPS2PI_mm_xmm_a32(uint32_t fetchdat)
 static int
 opCVTSS2SI_l_xmm_a16(uint32_t fetchdat)
 {
+    feclearexcept(FE_ALL_EXCEPT);
     fetch_ea_16(fetchdat);
     if (cpu_mod == 3) {
         fesetround(rounding_modes[(mxcsr >> 13) & 3]);
@@ -274,6 +285,7 @@ opCVTSS2SI_l_xmm_a16(uint32_t fetchdat)
 static int
 opCVTSS2SI_l_xmm_a32(uint32_t fetchdat)
 {
+    feclearexcept(FE_ALL_EXCEPT);
     fetch_ea_32(fetchdat);
     if (cpu_mod == 3) {
         fesetround(rounding_modes[(mxcsr >> 13) & 3]);
