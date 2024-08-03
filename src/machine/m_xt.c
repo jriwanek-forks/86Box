@@ -36,13 +36,66 @@ machine_xt_common_init(const machine_t *model, int fixed_floppy)
     standalone_gameport_type = &gameport_device;
 }
 
+static const device_config_t ibmpc_config[] = {
+    // clang-format off
+    {
+        .name = "bios_rev",
+        .description = "BIOS Revision",
+        .type = CONFIG_BIOS,
+        .default_string = "april_24_81",
+        .default_int = 0,
+        .file_filter = "",
+        .spinner = { 0 },
+        .bios = {
+            { .name = "04/24/81", .internal_name = "april_24_81", .bios_type = BIOS_NORMAL,
+              .files_no = 1, .local = 0, .size = 40960, .files = { "roms/machines/ibmpc/BIOS_5150_24APR81_U33.BIN", "" } },
+            { .name = "10/19/81", .internal_name = "october_19_81", .bios_type = BIOS_NORMAL,
+              .files_no = 1, .local = 0, .size = 40960, .files = { "roms/machines/ibmpc/BIOS_5150_19OCT81_U33.BIN", "" } },
+            { .name = "08/16/82", .internal_name = "august_16_82", .bios_type = BIOS_NORMAL,
+              .files_no = 1, .local = 0, .size = 40960, .files = { "roms/machines/ibmpc/BIOS_5150_16AUG82_U33.BIN", "" } },
+            { .name = "10/27/82", .internal_name = "october_27_82", .bios_type = BIOS_NORMAL,
+              .files_no = 1, .local = 0, .size = 40960, .files = { "roms/machines/ibmpc82/BIOS_5150_27OCT82_U33.BIN", "" } },
+            { .files_no = 0, 0 }
+        },
+    },
+    { .name = "", .description = "", .type = CONFIG_END }
+    // clang-format on
+};
+
+const device_t ibmpc_device = {
+    .name          = "PC",
+    .internal_name = "pc",
+    .flags         = 0,
+    .local         = 0,
+    .init          = NULL,
+    .close         = NULL,
+    .reset         = NULL,
+    { .available = NULL },
+    .speed_changed = NULL,
+    .force_redraw  = NULL,
+    .config        = &ibmpc_config[0]
+};
+
 int
 machine_pc_init(const machine_t *model)
 {
     int ret;
+    const char* fn;
 
-    ret = bios_load_linear("roms/machines/ibmpc/BIOS_5150_24APR81_U33.BIN",
+    if (!device_available(model->device)) {
+        /* No ROMs available. */
+        return 0;
+    }
+
+    fn = device_get_bios_file(model->device, device_get_config_bios("bios_rev"), 0);
+
+    if (!fn)
+        fn = device_get_bios_file(model->device, "april_24_81", 0);
+
+    ret = bios_load_linear(fn,
                            0x000fe000, 40960, 0);
+    device_context_restore();
+
     if (ret) {
         bios_load_aux_linear("roms/machines/ibmpc/IBM 5150 - Cassette BASIC version C1.00 - U29 - 5700019.bin",
                              0x000f6000, 8192, 0);
@@ -64,14 +117,69 @@ machine_pc_init(const machine_t *model)
     return ret;
 }
 
+static const device_config_t ibmpc82_config[] = {
+    // clang-format off
+    {
+        .name = "bios_rev",
+        .description = "BIOS Revision",
+        .type = CONFIG_BIOS,
+        .default_string = "october_27_82",
+        .default_int = 0,
+        .file_filter = "",
+        .spinner = { 0 },
+        .bios = {
+            { .name = "08/16/82", .internal_name = "august_16_82", .bios_type = BIOS_NORMAL,
+              .files_no = 1, .local = 0, .size = 40960, .files = { "roms/machines/ibmpc/BIOS_5150_16AUG82_U33.BIN", "" } },
+            { .name = "10/27/82", .internal_name = "october_27_82", .bios_type = BIOS_NORMAL,
+              .files_no = 1, .local = 0, .size = 40960, .files = { "roms/machines/ibmpc82/BIOS_5150_27OCT82_U33.BIN", "" } },
+            { .files_no = 0, 0 }
+        },
+    },
+    { .name = "", .description = "", .type = CONFIG_END }
+    // clang-format on
+};
+
+const device_t ibmpc82_device = {
+    .name          = "PC 82",
+    .internal_name = "pc82",
+    .flags         = 0,
+    .local         = 0,
+    .init          = NULL,
+    .close         = NULL,
+    .reset         = NULL,
+    { .available = NULL },
+    .speed_changed = NULL,
+    .force_redraw  = NULL,
+    .config        = &ibmpc82_config[0]
+};
+
+
 int
 machine_pc82_init(const machine_t *model)
 {
     int ret;
     int ret2;
+    const char* fn;
 
+    if (!device_available(model->device)) {
+        /* No ROMs available. */
+        return 0;
+    }
+
+    fn = device_get_bios_file(model->device, device_get_config_bios("bios_rev"), 0);
+
+    if (!fn)
+        fn = device_get_bios_file(model->device, "october_27_82", 0);
+
+    ret = bios_load_linear(fn,
+                           0x000fe000, 40960, 0);
+    device_context_restore();
+
+#if 0
     ret = bios_load_linear("roms/machines/ibmpc82/pc102782.bin",
                            0x000fe000, 40960, 0);
+#endif
+
     if (ret) {
         ret2 = bios_load_aux_linear("roms/machines/ibmpc82/ibm-basic-1.10.rom",
                                     0x000f6000, 32768, 0);
@@ -98,13 +206,66 @@ machine_pc82_init(const machine_t *model)
     return ret;
 }
 
+static const device_config_t ibmxt_config[] = {
+    // clang-format off
+    {
+        .name = "bios_rev",
+        .description = "BIOS Revision",
+        .type = CONFIG_BIOS,
+        .default_string = "october_27_82",
+        .default_int = 0,
+        .file_filter = "",
+        .spinner = { 0 },
+        .bios = {
+            { .name = "08/16/82", .internal_name = "august_16_82", .bios_type = BIOS_NORMAL,
+              .files_no = 1, .local = 0, .size = 40960, .files = { "roms/machines/ibmpc/BIOS_5150_16AUG82_U33.BIN", "" } },
+            { .name = "10/27/82", .internal_name = "october_27_82", .bios_type = BIOS_NORMAL,
+              .files_no = 1, .local = 0, .size = 40960, .files = { "roms/machines/ibmpc82/BIOS_5150_27OCT82_U33.BIN", "" } },
+            { .files_no = 0, 0 }
+        },
+    },
+    { .name = "", .description = "", .type = CONFIG_END }
+    // clang-format on
+};
+
+const device_t ibmxt_device = {
+    .name          = "XT",
+    .internal_name = "ibmxt",
+    .flags         = 0,
+    .local         = 0,
+    .init          = NULL,
+    .close         = NULL,
+    .reset         = NULL,
+    { .available = NULL },
+    .speed_changed = NULL,
+    .force_redraw  = NULL,
+    .config        = &ibmxt_config[0]
+};
+
 int
 machine_xt_init(const machine_t *model)
 {
     int ret;
+    const char* fn;
 
+    if (!device_available(model->device)) {
+        /* No ROMs available. */
+        return 0;
+    }
+
+    fn = device_get_bios_file(model->device, device_get_config_bios("bios_rev"), 0);
+
+    if (!fn)
+        fn = device_get_bios_file(model->device, "april_24_81", 0);
+
+    ret = bios_load_linear(fn,
+                           0x000fe000, 65536, 0);
+    device_context_restore();
+
+#if 0
     ret = bios_load_linear("roms/machines/ibmxt/xt.rom",
                            0x000f0000, 65536, 0);
+#endif
     if (!ret) {
         ret = bios_load_linear("roms/machines/ibmxt/1501512.u18",
                                0x000fe000, 65536, 0x6000);
@@ -146,13 +307,66 @@ machine_genxt_init(const machine_t *model)
     return ret;
 }
 
+static const device_config_t ibmxt86_config[] = {
+    // clang-format off
+    {
+        .name = "bios_rev",
+        .description = "BIOS Revision",
+        .type = CONFIG_BIOS,
+        .default_string = "october_27_82",
+        .default_int = 0,
+        .file_filter = "",
+        .spinner = { 0 },
+        .bios = {
+            { .name = "08/16/82", .internal_name = "august_16_82", .bios_type = BIOS_NORMAL,
+              .files_no = 1, .local = 0, .size = 40960, .files = { "roms/machines/ibmpc/BIOS_5150_16AUG82_U33.BIN", "" } },
+            { .name = "10/27/82", .internal_name = "october_27_82", .bios_type = BIOS_NORMAL,
+              .files_no = 1, .local = 0, .size = 40960, .files = { "roms/machines/ibmpc82/BIOS_5150_27OCT82_U33.BIN", "" } },
+            { .files_no = 0, 0 }
+        },
+    },
+    { .name = "", .description = "", .type = CONFIG_END }
+    // clang-format on
+};
+
+const device_t ibmxt86_device = {
+    .name          = "XT 86",
+    .internal_name = "ibmxt86",
+    .flags         = 0,
+    .local         = 0,
+    .init          = NULL,
+    .close         = NULL,
+    .reset         = NULL,
+    { .available = NULL },
+    .speed_changed = NULL,
+    .force_redraw  = NULL,
+    .config        = &ibmxt86_config[0]
+};
+
 int
 machine_xt86_init(const machine_t *model)
 {
     int ret;
+    const char* fn;
 
+    if (!device_available(model->device)) {
+        /* No ROMs available. */
+        return 0;
+    }
+
+    fn = device_get_bios_file(model->device, device_get_config_bios("bios_rev"), 0);
+
+    if (!fn)
+        fn = device_get_bios_file(model->device, "april_24_81", 0);
+
+    ret = bios_load_linear(fn,
+                           0x000fe000, 65536, 0x6000);
+    device_context_restore();
+
+#if 0
     ret = bios_load_linear("roms/machines/ibmxt86/BIOS_5160_09MAY86_U18_59X7268_62X0890_27256_F800.BIN",
                            0x000fe000, 65536, 0x6000);
+#endif
     if (ret) {
         (void) bios_load_aux_linear("roms/machines/ibmxt86/BIOS_5160_09MAY86_U18_59X7268_62X0890_27256_F800.BIN",
                                     0x000f8000, 24576, 0);
