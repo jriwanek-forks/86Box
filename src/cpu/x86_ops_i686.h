@@ -86,6 +86,10 @@ sf_fx_save_stor_common(uint32_t fetchdat, int bits)
             x86gpf(NULL, 0);
             return cpu_state.abrt;
         }
+        if (cpu_mod == 3) {
+            x86illegal();
+            return cpu_state.abrt;
+        }
         fpu_state.cwd = readmemw(easeg, cpu_state.eaaddr);
         fpu_state.swd = readmemw(easeg, cpu_state.eaaddr + 2);
         fpu_state.tos = (fpu_state.swd >> 11) & 7;
