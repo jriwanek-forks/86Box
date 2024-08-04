@@ -80,7 +80,8 @@ enum {
     CPUID_MCA       = (1 << 14), /* Machine Check Architecture */
     CPUID_CMOV      = (1 << 15), /* Conditional move instructions */
     CPUID_PAT       = (1 << 16), /* Page Attribute Table */
-    CPUID_CLFLUSH   = (1 << 19),
+    CPUID_PSN       = (1 << 18), /* Processor Serial Number */
+    CPUID_CLFLUSH   = (1 << 19), /* CLFLUSH instruction */
     CPUID_MMX       = (1 << 23), /* MMX technology */
     CPUID_FXSR      = (1 << 24), /* FXSAVE and FXRSTOR instructions */
     CPUID_SSE       = (1 << 25)  /* SSE Instructions */
@@ -608,9 +609,11 @@ cpu_set(void)
     x86_2386_opcodes_REPNE = ops_2386_REPNE;
     x86_opcodes_3DNOW      = ops_3DNOW;
 #ifdef USE_DYNAREC
-    x86_dynarec_opcodes_REPE  = dynarec_ops_REPE;
-    x86_dynarec_opcodes_REPNE = dynarec_ops_REPNE;
-    x86_dynarec_opcodes_3DNOW = dynarec_ops_3DNOW;
+    x86_dynarec_opcodes_REPE     = dynarec_ops_REPE;
+    x86_dynarec_opcodes_REPE_0f  = NULL;
+    x86_dynarec_opcodes_REPNE    = dynarec_ops_REPNE;
+    x86_dynarec_opcodes_REPNE_0f = NULL;
+    x86_dynarec_opcodes_3DNOW    = dynarec_ops_3DNOW;
 #endif /* USE_DYNAREC */
 
     if (hasfpu) {
@@ -1827,7 +1830,7 @@ cpu_set(void)
             cpu_features = CPU_FEATURE_RDTSC | CPU_FEATURE_MSR | CPU_FEATURE_CR4 | CPU_FEATURE_VME | CPU_FEATURE_MMX | CPU_FEATURE_SSE;
             msr.fcr      = (1 << 8) | (1 << 9) | (1 << 12) | (1 << 16) | (1 << 19) | (1 << 21);
             cpu_CR4_mask = CR4_VME | CR4_PVI | CR4_TSD | CR4_DE | CR4_PSE | CR4_MCE | CR4_PAE | CR4_PCE | CR4_PGE;
-            cpu_CR4_mask |= CR4_OSFXSR;
+            cpu_CR4_mask |= CR4_OSFXSR | CR4_OSXMMEXCPT;
 
 #ifdef USE_DYNAREC
             codegen_timing_set(&codegen_timing_p6);
@@ -2023,8 +2026,8 @@ cpu_set(void)
             timing_misaligned = 2;
 
             cpu_features = CPU_FEATURE_RDTSC | CPU_FEATURE_MMX | CPU_FEATURE_MSR | CPU_FEATURE_CR4 | CPU_FEATURE_SSE;
-            msr.fcr      = (1 << 8) | (1 << 9) | (1 << 12) | (1 << 16) | (1 << 18) | (1 << 19) | (1 << 20) | (1 << 21);
-            cpu_CR4_mask = CR4_TSD | CR4_DE | CR4_MCE | CR4_PCE;
+            msr.fcr      = (1 << 8) | (1 << 9) | (1 << 12) | (1 << 16) | (1 << 18) | (1 << 19) | (1 << 21);
+            cpu_CR4_mask = CR4_TSD | CR4_DE | CR4_MCE | CR4_PCE | CR4_PGE | CR4_OSFXSR | CR4_OSXMMEXCPT;
 
             cpu_cyrix_alignment = 1;
 
@@ -2804,18 +2807,104 @@ cpu_CPUID(void)
 
         case CPU_PENTIUM3:
             if (!EAX) {
-                EAX = 0x00000002;
-                EBX = 0x756e6547;
+                EAX = (((CPUID >= 0x6b0) || (msr.bbl_cr_ctl & (1 << 21))) ? 0x00000002 : 0x00000003);
+                EBX = 0x756e6547; /* GenuineIntel */
                 EDX = 0x49656e69;
                 ECX = 0x6c65746e;
             } else if (EAX == 1) {
                 EAX = CPUID;
-                EBX = ECX = 0;
-                EDX       = CPUID_FPU | CPUID_VME | CPUID_PSE | CPUID_TSC | CPUID_MSR | CPUID_PAE | CPUID_MCE | CPUID_CMPXCHG8B | CPUID_MMX | CPUID_MTRR | CPUID_PGE | CPUID_MCA | CPUID_SEP | CPUID_FXSR | CPUID_CMOV | CPUID_SSE;
+                if (CPUID >= 0x680) { /* Brand ID (Coppermine+) */
+                    if (!strncmp(cpu_f->internal_name, "celeron", 7)) {
+                        if (CPUID == 0x6b1) /* Tualatin-256 stepping 1 */
+                            EBX = 0x3;
+                        else /* Other Celeron */
+                            EBX = 0x1;
+                    } else if ((CPUID >= 0x6b0) && ((cpu_s->rspeed == 1266666666) || (cpu_s->rspeed == 1400000000))) /* Tualatin-S */
+                        EBX = 0x4;
+                    else if (cpu_f->package == CPU_PKG_SLOT2) /* Pentium III Xeon */
+                        EBX = 0x3;
+                    else /* Other Pentium III's */
+                        EBX = 0x2;
+                } else
+                    EBX = 0;
+                ECX = 0;
+                EDX = CPUID_FPU | CPUID_VME | CPUID_DE | CPUID_PSE | CPUID_TSC | CPUID_MSR | CPUID_PAE | CPUID_MCE | CPUID_CMPXCHG8B | CPUID_MMX | CPUID_MTRR | CPUID_PGE | CPUID_MCA | CPUID_SEP | CPUID_FXSR | CPUID_CMOV | CPUID_SSE;
+                if ((CPUID < 0x6b0) && !(msr.bbl_cr_ctl & (1 << 21)))
+                    EDX |= CPUID_PSN;
             } else if (EAX == 2) {
-                EAX = 0x00000001;
+                EAX = 0x03020101; /* Instruction TLB: 4 KB pages, 4-way set associative, 32 entries
+                                     Instruction TLB: 4 MB pages, fully associative, 2 entries
+                                     Data TLB: 4 KB pages, 4-way set associative, 64 entries */
                 EBX = ECX = 0;
-                EDX       = 0x00000000;
+                if (cpu_f->package == CPU_PKG_SLOT2) { /* Pentium III Xeon */
+                    if (CPUID >= 0x6a0) /* Cascades 2 MB */
+                        EDX = 0x0c040885; /* 2nd-level cache: 2 MB, 8-way set associative, 32-byte line size
+                                             1st-level data cache: 16 KB, 4-way set associative, 32-byte line size
+                                             Data TLB: 4 MB pages, 4-way set associative, 8 entries
+                                             1st-level instruction cache: 16 KB, 4-way set associative, 32-byte line size */
+                    else if (CPUID >= 0x680) /* Cascades */
+                        EDX = 0x0c040882; /* 2nd-level cache: 256 KB, 8-way set associative, 32-byte line size */
+                    else /* Tanner */
+                        EDX = 0x0c040845; /* 2nd-level cache: 2 MB, 4-way set associative, 32-byte line size */
+                } else if (!strncmp(cpu_f->internal_name, "celeron", 7)) { /* Celeron */
+                    if (CPUID >= 0x6b0) /* Tualatin-256 */
+                        EDX = 0x0c040882; /* 2nd-level cache: 256 KB, 8-way set associative, 32-byte line size */
+                    else /* Coppermine-128 */
+                        EDX = 0x0c040841; /* 2nd-level cache: 128 KB, 4-way set associative, 32-byte line size */
+                } else { /* Pentium III */
+                    if ((CPUID >= 0x6b0) && ((cpu_s->rspeed == 1266666666) || (cpu_s->rspeed == 1400000000))) /* Tualatin-S */
+                        EDX = 0x0c040883; /* 2nd-level cache: 512 KB, 8-way set associative, 32-byte line size */
+                    else if (CPUID >= 0x680) /* Coppermine and Tualatin */
+                        EDX = 0x0c040882; /* 2nd-level cache: 256 KB, 8-way set associative, 32-byte line size */
+                    else /* Katmai */
+                        EDX = 0x0c040843; /* 2nd-level cache: 512 KB, 4-way set associative, 32-byte line size */
+                }
+            } else if ((CPUID < 0x6b0) && (EAX == 3) && !(msr.bbl_cr_ctl & (1 << 21))) { /* Serial number (Katmai/Coppermine) */
+                EAX = EBX = 0;
+                ECX = 0x0000086b;
+                EDX = 0x00000000;
+            } else if ((CPUID >= 0x6b0) && (EAX == 0x80000000)) {
+                EAX = 0x80000004;
+                EBX = ECX = EDX = 0;
+            } else if ((CPUID >= 0x6b0) && (EAX == 0x80000002)) { /* Brand string (Tualatin+) */
+                EAX = 0x65746e49; /*Intel(R)*/
+                EBX = 0x2952286c;
+                if (!strncmp(cpu_f->internal_name, "celeron", 7)) {
+                    ECX = 0x6c654320; /* Celeron*/
+                    EDX = 0x6e6f7265;
+                } else {
+                    ECX = 0x6e655020; /* Pentium*/
+                    EDX = 0x6d756974;
+                }
+            } else if ((CPUID >= 0x6b0) && (EAX == 0x80000003)) { /* Brand string, continued */
+                if (!strncmp(cpu_f->internal_name, "celeron", 7)) {
+                    EAX = 0x294d5428; /*(TM) CPU        */
+                    EBX = 0x55504320;
+                    ECX = EDX = 0x20202020;
+                } else {
+                    EAX = 0x20295228; /*(R) III CPU */
+                    EBX = 0x20494949;
+                    ECX = 0x20555043;
+                    if (!((cpu_s->rspeed == 1266666666) || (cpu_s->rspeed == 1400000000)))
+                        EDX = 0x20202020; /*    */
+                    else if (CPUID < 0x6b4)
+                        EDX = 0x696d6166; /*fami*/
+                    else 
+                        EDX = 0x2053202d; /*- S */
+                }
+            } else if ((CPUID >= 0x6b0) && (EAX == 0x80000004)) { /* Brand string, continued */
+                if (((cpu_s->rspeed == 1266666666) || (cpu_s->rspeed == 1400000000)) && (CPUID < 0x6b4))
+                    EAX = 0x2020796c; /*ly  */
+                else
+                    EAX = 0x20202020; /*    */
+                EBX = 0x20202020; /*    */
+                ECX = 0x20303030;
+                uint32_t mhz = cpu_s->rspeed / 1000000;
+                if (mhz < 1000)
+                    ECX |= (((mhz % 10) << 16) | (((mhz / 10) % 10) << 8) | ((mhz / 100) % 10));
+                else
+                    ECX |= ((1 << 28) | ((mhz % 10) << 24) | (((mhz / 10) % 10) << 16) | (((mhz / 100) % 10) << 8) | (mhz / 1000));
+                EDX = 0x007a484d; /*MHz*/
             } else
                 EAX = EBX = ECX = EDX = 0;
             break;
@@ -2844,7 +2933,7 @@ cpu_CPUID(void)
                         EDX |= CPUID_PGE;
                     break;
                 case 0x80000000:
-                    EAX = 0x80000005;
+                    EAX = ((CPUID >= 0x670) ? 0x80000006 : 0x80000005);
                     break;
                 case 0x80000001:
                     EAX = CPUID;
@@ -2855,15 +2944,26 @@ cpu_CPUID(void)
                         EDX |= CPUID_PGE;
                     break;
                 case 0x80000002:      /* Processor name string */
-                    EAX = 0x20414956; /* VIA Samuel */
-                    EBX = 0x756d6153;
-                    ECX = 0x00006c65;
-                    EDX = 0x00000000;
+                    EAX = 0x20414956;
+                    if (CPUID >= 0x678) {
+                        EBX = 0x61727a45; /* VIA Ezra */
+                        ECX = 0x00000000;
+                    } else if (CPUID >= 0x670) {
+                        EBX = 0x756d6153; /* VIA Samuel 2 */
+                        ECX = 0x32206c65;
+                    } else {
+                        EBX = 0x756d6153; /* VIA Samuel */
+                        ECX = 0x00006c65;
+                    }
                     break;
                 case 0x80000005:      /* Cache information */
                     EBX = 0x08800880; /* TLBs */
                     ECX = 0x40040120; /* L1 data cache */
                     EDX = 0x40020120; /* L1 instruction cache */
+                    break;
+                case 0x80000006:
+                    if (CPUID >= 0x670)
+                        ECX = 0x40040120; /* L2 data cache */
                     break;
                 default:
                     EAX = EBX = ECX = EDX = 0;
@@ -2886,31 +2986,46 @@ cpu_CPUID(void)
                     }
                     break;
                 case 1:
-                    EAX = CPUID;
+                    EAX = ((msr.fcr2 & 0x0ff0) ? ((msr.fcr2 & 0x0ff0) | (CPUID & 0xf00f)) : CPUID);
                     EBX = ECX = 0;
-                    EDX       = CPUID_FPU | CPUID_TSC | CPUID_MSR | CPUID_MCE | CPUID_MMX | CPUID_MTRR | CPUID_CMOV | CPUID_FXSR | CPUID_SSE;
+                    EDX       = CPUID_FPU | CPUID_DE | CPUID_TSC | CPUID_MSR | CPUID_MCE | CPUID_MMX | CPUID_MTRR | CPUID_CMOV | CPUID_FXSR | CPUID_SSE;
                     if (cpu_has_feature(CPU_FEATURE_CX8))
                         EDX |= CPUID_CMPXCHG8B;
+                    if (msr.fcr & (1 << 7))
+                        EDX |= CPUID_PGE;
                     break;
                 case 0x80000000:
-                    EAX = 0x80000005;
+                    EAX = 0x80000006;
                     break;
                 case 0x80000001:
                     EAX = CPUID;
-                    EDX = CPUID_FPU | CPUID_TSC | CPUID_MSR | CPUID_MCE | CPUID_MMX | CPUID_MTRR | CPUID_CMOV | CPUID_FXSR | CPUID_SSE;
+                    EDX = CPUID_FPU | CPUID_DE | CPUID_TSC | CPUID_MSR | CPUID_MCE | CPUID_MMX | CPUID_MTRR | CPUID_CMOV | CPUID_FXSR | CPUID_SSE;
                     if (cpu_has_feature(CPU_FEATURE_CX8))
                         EDX |= CPUID_CMPXCHG8B;
+                    if (msr.fcr & (1 << 7))
+                        EDX |= CPUID_PGE;
                     break;
                 case 0x80000002:      /* Processor name string */
-                    EAX = 0x20414956; /* VIA Samuel */
-                    EBX = 0x756d6153;
-                    ECX = 0x00006c65;
-                    EDX = 0x00000000;
+                    EAX = 0x20414956; /* VIA C3 Nehemiah */
+                    EBX = 0x4e203343;
+                    ECX = 0x6d656865;
+                    EDX = 0x00686169;
                     break;
                 case 0x80000005:      /* Cache information */
                     EBX = 0x08800880; /* TLBs */
                     ECX = 0x40040120; /* L1 data cache */
                     EDX = 0x40020120; /* L1 instruction cache */
+                    break;
+                case 0x80000006:
+                    ECX = 0x00408120; /* L2 data cache */
+                    break;
+                case 0xc0000000:
+                    EAX = 0xc0000001;
+                    break;
+                case 0xc0000001: /* Centaur extended feature flags */
+                    EDX = 0x00000014;
+                    if (msr.padlock_rng & 0x40)
+                        EDX |= 0x8;
                     break;
                 default:
                     EAX = EBX = ECX = EDX = 0;
@@ -2918,6 +3033,143 @@ cpu_CPUID(void)
             }
             break;
     }
+}
+
+void
+cpu_reset_longhaul(void)
+{
+    msr.longhaul = 0x641000000000001ULL; /* RevID 1, min FSB=66MHz, max FSB=133 MHz, min voltage=1.05 V, min mult=3.0x */
+    if (cpu_s->cpu_type >= CPU_CYRIX3N)
+        msr.longhaul |= ((1ULL << 51) | (1ULL << 49)); /* raise min mult to 5x if Nehemiah */
+
+    if (cpu_dmulti == 3) {
+        msr.bcr2 = ((0 << 26) | (0 << 25) | (0 << 24) | (1 << 23)); /* curr multiplier (v1) */
+        msr.longhaul |= ((0 << 19) | (0 << 18) | (0 << 17) | (1 << 16)); /* curr multiplier (v2) */
+        msr.longhaul |= ((0ULL << 35) | (0ULL << 34) | (0ULL << 33) | (1ULL << 32)); /* max multiplier=curr */
+    } else if (cpu_dmulti == 3.5) {
+        msr.bcr2 = ((0 << 26) | (1 << 25) | (0 << 24) | (1 << 23));
+        msr.longhaul |= ((0 << 19) | (1 << 18) | (0 << 17) | (1 << 16));
+        msr.longhaul |= ((0ULL << 35) | (1ULL << 34) | (0ULL << 33) | (1ULL << 32));
+    } else if (cpu_dmulti == 4) {
+        msr.bcr2 = ((0 << 26) | (0 << 25) | (1 << 24) | (0 << 23));
+        msr.longhaul |= ((0 << 19) | (0 << 18) | (1 << 17) | (0 << 16));
+        msr.longhaul |= ((0ULL << 35) | (0ULL << 34) | (1ULL << 33) | (0ULL << 32));
+    } else if (cpu_dmulti == 4.5) {
+        msr.bcr2 = ((0 << 26) | (1 << 25) | (1 << 24) | (0 << 23));
+        msr.longhaul |= ((0 << 19) | (1 << 18) | (1 << 17) | (0 << 16));
+        msr.longhaul |= ((0ULL << 35) | (1ULL << 34) | (1ULL << 33) | (0ULL << 32));
+    } else if (cpu_dmulti == 5) {
+        msr.bcr2 = ((1 << 26) | (0 << 25) | (1 << 24) | (1 << 23));
+        msr.longhaul |= ((1 << 19) | (0 << 18) | (1 << 17) | (1 << 16));
+        msr.longhaul |= ((1ULL << 35) | (0ULL << 34) | (1ULL << 33) | (1ULL << 32));
+    } else if (cpu_dmulti == 5.5) {
+        msr.bcr2 = ((0 << 26) | (1 << 25) | (1 << 24) | (1 << 23));
+        msr.longhaul |= ((0 << 19) | (1 << 18) | (1 << 17) | (1 << 16));
+        msr.longhaul |= ((0ULL << 35) | (1ULL << 34) | (1ULL << 33) | (1ULL << 32));
+    } else if (cpu_dmulti == 6) {
+        msr.bcr2 = ((1 << 26) | (0 << 25) | (0 << 24) | (0 << 23));
+        msr.longhaul |= ((1 << 19) | (0 << 18) | (0 << 17) | (0 << 16));
+        msr.longhaul |= ((1ULL << 35) | (0ULL << 34) | (0ULL << 33) | (0ULL << 32));
+    } else if (cpu_dmulti == 6.5) {
+        msr.bcr2 = ((1 << 26) | (1 << 25) | (0 << 24) | (0 << 23));
+        msr.longhaul |= ((1 << 19) | (1 << 18) | (0 << 17) | (0 << 16));
+        msr.longhaul |= ((1ULL << 35) | (1ULL << 34) | (0ULL << 33) | (0ULL << 32));
+    } else if (cpu_dmulti == 7) {
+        msr.bcr2 = ((1 << 26) | (0 << 25) | (0 << 24) | (1 << 23));
+        msr.longhaul |= ((1 << 19) | (0 << 18) | (0 << 17) | (1 << 16));
+        msr.longhaul |= ((1ULL << 35) | (0ULL << 34) | (0ULL << 33) | (1ULL << 32));
+    } else if (cpu_dmulti == 7.5) {
+        msr.bcr2 = ((1 << 26) | (1 << 25) | (0 << 24) | (1 << 23));
+        msr.longhaul |= ((1 << 19) | (1 << 18) | (0 << 17) | (1 << 16));
+        msr.longhaul |= ((1ULL << 35) | (1ULL << 34) | (0ULL << 33) | (1ULL << 32));
+    } else if (cpu_dmulti == 8) {
+        msr.bcr2 = ((1 << 26) | (0 << 25) | (1 << 24) | (0 << 23));
+        msr.longhaul |= ((1 << 19) | (0 << 18) | (1 << 17) | (0 << 16));
+        msr.longhaul |= ((1ULL << 35) | (0ULL << 34) | (1ULL << 33) | (0ULL << 32));
+    } else if (cpu_dmulti == 8.5) {
+        msr.bcr2 = ((1 << 26) | (1 << 25) | (1 << 24) | (0 << 23));
+        msr.longhaul |= ((1 << 19) | (1 << 18) | (1 << 17) | (0 << 16));
+        msr.longhaul |= ((1ULL << 35) | (1ULL << 34) | (1ULL << 33) | (0ULL << 32));
+    } else if (cpu_dmulti == 9) {
+        msr.bcr2 = ((0 << 26) | (0 << 25) | (1 << 24) | (1 << 23));
+        msr.longhaul |= ((0 << 19) | (0 << 18) | (1 << 17) | (1 << 16));
+        msr.longhaul |= ((0ULL << 35) | (0ULL << 34) | (1ULL << 33) | (1ULL << 32));
+    } else if (cpu_dmulti == 9.5) {
+        msr.bcr2 = ((0 << 26) | (1 << 25) | (0 << 24) | (0 << 23));
+        msr.longhaul |= ((0 << 19) | (1 << 18) | (0 << 17) | (0 << 16));
+        msr.longhaul |= ((0ULL << 35) | (1ULL << 34) | (0ULL << 33) | (0ULL << 32));
+    } else if (cpu_dmulti == 10) {
+        msr.bcr2 = 0;
+        msr.longhaul |= 0;
+    } else if (cpu_dmulti == 10.5) {
+        msr.longhaul |= ((1 << 14) | (0 << 19) | (1 << 18) | (0 << 17) | (0 << 16));
+        msr.longhaul |= ((1ULL << 43) | (0ULL << 35) | (1ULL << 34) | (0ULL << 33) | (0ULL << 32));
+    } else if (cpu_dmulti == 11) {
+        msr.longhaul |= ((1 << 14) | (0 << 19) | (0 << 18) | (0 << 17) | (1 << 16));
+        msr.longhaul |= ((1ULL << 43) | (0ULL << 35) | (0ULL << 34) | (0ULL << 33) | (1ULL << 32));
+    } else if (cpu_dmulti == 11.5) {
+        msr.longhaul |= ((1 << 14) | (0 << 19) | (1 << 18) | (0 << 17) | (1 << 16));
+        msr.longhaul |= ((1ULL << 43) | (0ULL << 35) | (1ULL << 34) | (0ULL << 33) | (1ULL << 32));
+    } else if (cpu_dmulti == 12) {
+        msr.bcr2 = ((1 << 26) | (1 << 25) | (1 << 24) | (1 << 23));
+        msr.longhaul |= ((1 << 19) | (1 << 18) | (1 << 17) | (1 << 16));
+        msr.longhaul |= ((1ULL << 35) | (1ULL << 34) | (1ULL << 33) | (1ULL << 32));
+    } else if (cpu_dmulti == 12.5) {
+        msr.longhaul |= ((1 << 14) | (0 << 19) | (1 << 18) | (1 << 17) | (0 << 16));
+        msr.longhaul |= ((1ULL << 43) | (0ULL << 35) | (1ULL << 34) | (1ULL << 33) | (0ULL << 32));
+    } else if (cpu_dmulti == 13) {
+        msr.longhaul |= ((1 << 14) | (1 << 19) | (0 << 18) | (1 << 17) | (1 << 16));
+        msr.longhaul |= ((1ULL << 43) | (1ULL << 35) | (0ULL << 34) | (1ULL << 33) | (1ULL << 32));
+    } else if (cpu_dmulti == 13.5) {
+        msr.longhaul |= ((1 << 14) | (0 << 19) | (1 << 18) | (1 << 17) | (1 << 16));
+        msr.longhaul |= ((1ULL << 43) | (0ULL << 35) | (1ULL << 34) | (1ULL << 33) | (1ULL << 32));
+    } else if (cpu_dmulti == 14) {
+        msr.longhaul |= ((1 << 14) | (1 << 19) | (0 << 18) | (0 << 17) | (0 << 16));
+        msr.longhaul |= ((1ULL << 43) | (1ULL << 35) | (0ULL << 34) | (0ULL << 33) | (0ULL << 32));
+    } else if (cpu_dmulti == 14.5) {
+        msr.longhaul |= ((1 << 14) | (1 << 19) | (1 << 18) | (0 << 17) | (0 << 16));
+        msr.longhaul |= ((1ULL << 43) | (1ULL << 35) | (1ULL << 34) | (0ULL << 33) | (0ULL << 32));
+    } else if (cpu_dmulti == 15) {
+        msr.longhaul |= ((1 << 14) | (1 << 19) | (0 << 18) | (0 << 17) | (1 << 16));
+        msr.longhaul |= ((1ULL << 43) | (1ULL << 35) | (0ULL << 34) | (0ULL << 33) | (1ULL << 32));
+    } else if (cpu_dmulti == 15.5) {
+        msr.longhaul |= ((1 << 14) | (1 << 19) | (1 << 18) | (0 << 17) | (1 << 16));
+        msr.longhaul |= ((1ULL << 43) | (1ULL << 35) | (1ULL << 34) | (0ULL << 33) | (1ULL << 32));
+    } else if (cpu_dmulti == 16) {
+        msr.longhaul |= ((1 << 14) | (1 << 19) | (0 << 18) | (1 << 17) | (0 << 16));
+        msr.longhaul |= ((1ULL << 43) | (1ULL << 35) | (0ULL << 34) | (1ULL << 33) | (0ULL << 32));
+    } else {
+        msr.bcr2 = ((0 << 26) | (0 << 25) | (0 << 24) | (1 << 23));
+        msr.longhaul |= ((0 << 19) | (0 << 18) | (0 << 17) | (1 << 16));
+        msr.longhaul |= ((0ULL << 35) | (0ULL << 34) | (0ULL << 33) | (1ULL << 32));
+    }
+
+    if (cpu_s->voltage == 1050) {
+        msr.longhaul |= ((0 << 23) | (1 << 22) | (0 << 21) | (0 << 20)); /* curr voltage */
+        msr.longhaul |= ((0ULL << 39) | (0ULL << 38) | (1ULL << 37) | (1ULL << 36)); /* max voltage=curr+0.05 V */
+    } else if (cpu_s->voltage == 1200) {
+        msr.longhaul |= ((0 << 23) | (0 << 22) | (0 << 21) | (1 << 20));
+    } else if (cpu_s->voltage == 1350) {
+        msr.longhaul |= ((1 << 23) | (1 << 22) | (1 << 21) | (0 << 20));
+        msr.longhaul |= ((1ULL << 39) | (1ULL << 38) | (0ULL << 37) | (1ULL << 36));
+    } else if (cpu_s->voltage == 1400) {
+        msr.longhaul |= ((1 << 23) | (1 << 22) | (0 << 21) | (1 << 20));
+        msr.longhaul |= ((1ULL << 39) | (1ULL << 38) | (0ULL << 37) | (0ULL << 36));
+    } else if (cpu_s->voltage == 1450) {
+        msr.longhaul |= ((1 << 23) | (1 << 22) | (0 << 21) | (0 << 20));
+        msr.longhaul |= ((1ULL << 39) | (0ULL << 38) | (1ULL << 37) | (1ULL << 36));
+    } else if (cpu_s->voltage == 1600) {
+        msr.longhaul |= ((1 << 23) | (0 << 22) | (0 << 21) | (1 << 20));
+        msr.longhaul |= ((1ULL << 39) | (0ULL << 38) | (0ULL << 37) | (0ULL << 36));
+    } else {
+        msr.longhaul |= ((1 << 23) | (1 << 22) | (0 << 21) | (1 << 20));
+        msr.longhaul |= ((1ULL << 39) | (1ULL << 38) | (0ULL << 37) | (0ULL << 36));
+    }
+
+    if (cpu_busspeed < 112000000)
+        msr.longhaul |= (1 << 28);
+    if (cpu_busspeed < 84000000)
+        msr.longhaul |= (1 << 29);
 }
 
 void
@@ -2962,9 +3214,16 @@ cpu_ven_reset(void)
             break;
 
         case CPU_CYRIX3S:
-        case CPU_CYRIX3N:
             msr.fcr = (1 << 7) | (1 << 8) | (1 << 9) | (1 << 12) | (1 << 16) | (1 << 18) | (1 << 19) |
                       (1 << 20) | (1 << 21);
+            cpu_reset_longhaul();
+            break;
+
+        case CPU_CYRIX3N:
+            msr.fcr         = (1 << 7) | (1 << 8) | (1 << 9) | (1 << 12) | (1 << 16) | (1 << 18) |
+                              (1 << 19) | (1 << 21);
+            msr.padlock_rng = 0x00000040;
+            cpu_reset_longhaul();
             break;
     }
 }
@@ -3097,10 +3356,48 @@ cpu_RDMSR(void)
                         EAX |= ((1 << 25) | (1 << 24) | (1 << 23) | (1 << 22));
                     else if (cpu_dmulti == 7)
                         EAX |= ((1 << 25) | (0 << 24) | (0 << 23) | (1 << 22));
+                    else if (cpu_dmulti == 7.5)
+                        EAX |= ((1 << 25) | (1 << 24) | (0 << 23) | (1 << 22));
+                    else if (cpu_dmulti == 8)
+                        EAX |= ((1 << 25) | (0 << 24) | (1 << 23) | (0 << 22));
+                    else if (cpu_dmulti == 8.5)
+                        EAX |= ((1 << 25) | (1 << 24) | (1 << 23) | (0 << 22));
+                    else if (cpu_dmulti == 9)
+                        EAX |= ((1 << 25) | (0 << 24) | (0 << 23) | (0 << 22));
+                    else if (cpu_dmulti == 9.5)
+                        EAX |= ((0 << 25) | (1 << 24) | (1 << 23) | (1 << 22));
+                    else if (cpu_dmulti == 10)
+                        EAX |= ((0 << 25) | (0 << 24) | (1 << 23) | (1 << 22));
+                    else if (cpu_dmulti == 10.5)
+                        EAX |= ((1 << 27) | (0 << 25) | (1 << 24) | (1 << 23) | (1 << 22));
+                    else if (cpu_dmulti == 11)
+                        EAX |= ((1 << 27) | (0 << 25) | (0 << 24) | (0 << 23) | (1 << 22));
+                    else if (cpu_dmulti == 11.5)
+                        EAX |= ((1 << 27) | (0 << 25) | (1 << 24) | (0 << 23) | (1 << 22));
+                    else if (cpu_dmulti == 12)
+                        EAX |= ((1 << 25) | (1 << 24) | (0 << 23) | (0 << 22));
+                    else if (cpu_dmulti == 12.5)
+                        EAX |= ((1 << 27) | (0 << 25) | (1 << 24) | (1 << 23) | (0 << 22));
+                    else if (cpu_dmulti == 13)
+                        EAX |= ((1 << 27) | (1 << 25) | (0 << 24) | (0 << 23) | (0 << 22));
+                    else if (cpu_dmulti == 13.5)
+                        EAX |= ((1 << 27) | (0 << 25) | (1 << 24) | (0 << 23) | (0 << 22));
+                    else if (cpu_dmulti == 14)
+                        EAX |= ((1 << 27) | (1 << 25) | (0 << 24) | (1 << 23) | (1 << 22));
+                    else if (cpu_dmulti == 14.5)
+                        EAX |= ((1 << 27) | (1 << 25) | (1 << 24) | (1 << 23) | (1 << 22));
+                    else if (cpu_dmulti == 15)
+                        EAX |= ((1 << 27) | (1 << 25) | (0 << 24) | (0 << 23) | (1 << 22));
+                    else if (cpu_dmulti == 15.5)
+                        EAX |= ((1 << 27) | (1 << 25) | (1 << 24) | (0 << 23) | (1 << 22));
+                    else if (cpu_dmulti == 16)
+                        EAX |= ((1 << 27) | (1 << 25) | (0 << 24) | (1 << 23) | (0 << 22));
                     else
                         EAX |= ((0 << 25) | (0 << 24) | (0 << 23) | (1 << 22));
                     if (cpu_busspeed >= 84000000)
                         EAX |= (1 << 19);
+                    else if (cpu_busspeed >= 112000000)
+                        EAX |= (1 << 18);
                     break;
                 /* PERFCTR0 - Performance Counter Register 0 - aliased to TSC */
                 case 0xc1:
@@ -3133,6 +3430,33 @@ cpu_RDMSR(void)
                 case 0x1108:
                     EAX = msr.fcr2 & 0xffffffff;
                     EDX = msr.fcr2 >> 32;
+                    break;
+                /* LongHaul/PowerSaver */
+                case 0x110a:
+                    if (CPUID < 0x670)
+                        x86gpf(NULL, 0);
+                    else {
+                        EAX = msr.longhaul & 0xffffffff;
+                        EDX = msr.longhaul >> 32;
+                    }
+                    break;
+                /* PadLock */
+                case 0x110b:
+                    if (cpu_s->cpu_type < CPU_CYRIX3N) {
+                        x86gpf(NULL, 0);
+                    } else {
+                        EAX = msr.padlock_rng;
+                        EDX = 0;
+                    }
+                    break;
+                /* Bus Control Register 2 */
+                case 0x1147:
+                    if (cpu_s->cpu_type >= CPU_CYRIX3N)
+                        x86gpf(NULL, 0);
+                    else {
+                        EAX = msr.bcr2;
+                        EDX = 0;
+                    }
                     break;
                 /* ECX & 0: MTRRphysBase0 ... MTRRphysBase7
                    ECX & 1: MTRRphysMask0 ... MTRRphysMask7 */
@@ -3747,7 +4071,11 @@ pentium_invalid_rdmsr:
                 case 0x2a:
                     EAX = 0xc4000000;
                     EDX = 0;
-                    if (cpu_dmulti == 2.5)
+                    if (cpu_dmulti == 1.5)
+                        EAX |= ((1 << 25) | (1 << 24) | (1 << 23) | (0 << 22));
+                    else if (cpu_dmulti == 2)
+                        EAX |= ((0 << 25) | (0 << 24) | (1 << 23) | (1 << 22));
+                    else if (cpu_dmulti == 2.5)
                         EAX |= ((0 << 25) | (1 << 24) | (1 << 23) | (1 << 22));
                     else if (cpu_dmulti == 3)
                         EAX |= ((0 << 25) | (0 << 24) | (0 << 23) | (1 << 22));
@@ -3771,11 +4099,37 @@ pentium_invalid_rdmsr:
                         EAX |= ((1 << 25) | (1 << 24) | (0 << 23) | (1 << 22));
                     else if (cpu_dmulti == 8)
                         EAX |= ((1 << 25) | (0 << 24) | (1 << 23) | (0 << 22));
+                    else if (cpu_dmulti == 8.5)
+                        EAX |= ((1 << 27) | (0 << 25) | (1 << 24) | (1 << 23) | (0 << 22));
+                    else if (cpu_dmulti == 9)
+                        EAX |= ((1 << 27) | (0 << 25) | (0 << 24) | (0 << 23) | (0 << 22));
+                    else if (cpu_dmulti == 9.5)
+                        EAX |= ((1 << 27) | (0 << 25) | (1 << 24) | (0 << 23) | (0 << 22));
+                    else if (cpu_dmulti == 10)
+                        EAX |= ((1 << 27) | (1 << 25) | (0 << 24) | (1 << 23) | (1 << 22));
+                    else if (cpu_dmulti == 10.5)
+                        EAX |= ((1 << 27) | (1 << 25) | (1 << 24) | (1 << 23) | (1 << 22));
+                    else if (cpu_dmulti == 11)
+                        EAX |= ((1 << 27) | (0 << 25) | (0 << 24) | (0 << 23) | (1 << 22));
+                    else if (cpu_dmulti == 11.5)
+                        EAX |= ((1 << 27) | (0 << 25) | (1 << 24) | (0 << 23) | (1 << 22));
+                    else if (cpu_dmulti == 12)
+                        EAX |= ((1 << 27) | (0 << 25) | (0 << 24) | (1 << 23) | (0 << 22));
+                    else if (cpu_dmulti == 13)
+                        EAX |= ((1 << 27) | (1 << 25) | (0 << 24) | (1 << 23) | (0 << 22));
+                    else if (cpu_dmulti == 14)
+                        EAX |= ((1 << 27) | (1 << 25) | (1 << 24) | (0 << 23) | (0 << 22));
+                    else if (cpu_dmulti == 15)
+                        EAX |= ((1 << 27) | (1 << 25) | (1 << 24) | (1 << 23) | (0 << 22));
+                    else if (cpu_dmulti == 16)
+                        EAX |= ((1 << 27) | (0 << 25) | (0 << 24) | (1 << 23) | (1 << 22));
                     else
-                        EAX |= ((0 << 25) | (1 << 24) | (1 << 23) | (1 << 22));
+                        EAX |= ((1 << 25) | (1 << 24) | (1 << 23) | (0 << 22));
                     if (cpu_s->cpu_type != CPU_PENTIUMPRO) {
                         if (cpu_busspeed >= 84000000)
                             EAX |= (1 << 19);
+                        else if (cpu_busspeed >= 112000000)
+                            EAX |= (1 << 18);
                     }
                     break;
                 /* Unknown */
@@ -4206,6 +4560,27 @@ cpu_WRMSR(void)
                 /* Feature Control Register 3 */
                 case 0x1109:
                     msr.fcr3 = EAX | ((uint64_t) EDX << 32);
+                    break;
+                /* LongHaul/PowerSaver */
+                case 0x110a:
+                    if (CPUID < 0x670)
+                        x86gpf(NULL, 0);
+                    else
+                        msr.longhaul = EAX & 0x31ff47f0;
+                    break;
+                /* PadLock */
+                case 0x110b:
+                    if (cpu_s->cpu_type < CPU_CYRIX3N)
+                        x86gpf(NULL, 0);
+                    else
+                        msr.padlock_rng = EAX & 0x3ffc40;
+                    break;
+                /* Bus Control Register 2 */
+                case 0x1147:
+                    if (cpu_s->cpu_type >= CPU_CYRIX3N)
+                        x86gpf(NULL, 0);
+                    else
+                        msr.bcr2 = EAX;
                     break;
                 /* ECX & 0: MTRRphysBase0 ... MTRRphysBase7
                    ECX & 1: MTRRphysMask0 ... MTRRphysMask7 */
@@ -4833,7 +5208,11 @@ pentium_invalid_wrmsr:
                     break;
                 /* BBL_CR_CTL - L2 Cache Control Register */
                 case 0x119:
-                    msr.bbl_cr_ctl = EAX | ((uint64_t) EDX << 32);
+                    /* Preserve the PSN disable bit. */
+                    if (((cpu_s->cpu_type == CPU_PENTIUM3) && (CPUID < 0x6b0) && (msr.bbl_cr_ctl & (1 << 21))))
+                        msr.bbl_cr_ctl = (1 << 21) | EAX | ((uint64_t) EDX << 32);
+                    else
+                        msr.bbl_cr_ctl = EAX | ((uint64_t) EDX << 32);
                     break;
                 /* BBL_CR_TRIG - L2 Cache Trigger Register */
                 case 0x11a:

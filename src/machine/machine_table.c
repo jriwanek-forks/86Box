@@ -15251,7 +15251,7 @@ const machine_t machines[] = {
             .min_voltage = 1300,
             .max_voltage = 3500,
             .min_multi = 1.5,
-            .max_multi = 8.0 /* limits assumed */
+            .max_multi = 15.0 /* limits assumed */
         },
         .bus_flags = MACHINE_PS2_PCI | MACHINE_BUS_USB, /* Machine has EISA, possibly for a riser? */
                                                         /* Yes, that's a rise slot, not EISA. */
@@ -15293,7 +15293,7 @@ const machine_t machines[] = {
             .min_voltage = 1300,
             .max_voltage = 3500,
             .min_multi = 1.5,
-            .max_multi = 8.0
+            .max_multi = 15.0
         },
         .bus_flags = MACHINE_PS2_AGP | MACHINE_BUS_USB,
         .flags = MACHINE_IDE_DUAL | MACHINE_APM | MACHINE_ACPI | MACHINE_USB, /* Machine has quad channel IDE with internal controller: CMD PCI-0648 */
@@ -15334,7 +15334,7 @@ const machine_t machines[] = {
             .min_voltage = 1300,
             .max_voltage = 3500,
             .min_multi = 1.5,
-            .max_multi = 8.0 /* limits assumed */
+            .max_multi = 15.0 /* limits assumed */
         },
         .bus_flags = MACHINE_PS2_AGP | MACHINE_BUS_USB,
         .flags = MACHINE_IDE_DUAL | MACHINE_APM | MACHINE_ACPI | MACHINE_USB,
@@ -15664,7 +15664,7 @@ const machine_t machines[] = {
         .gpio_acpi_handler = NULL,
         .cpu = {
             .package = CPU_PKG_SLOT1,
-            .block = CPU_BLOCK(CPU_PENTIUM2, CPU_CYRIX3S),
+            .block = CPU_BLOCK(CPU_PENTIUM2, CPU_CYRIX3S, CPU_CYRIX3N),
             .min_bus = 0,
             .max_bus = 66666667,
             .min_voltage = 0,
@@ -15711,7 +15711,7 @@ const machine_t machines[] = {
             .min_voltage = 1300,
             .max_voltage = 3500,
             .min_multi = 1.5,
-            .max_multi = 8.0
+            .max_multi = 15.0
         },
         .bus_flags = MACHINE_PS2_NOISA,
         .flags = MACHINE_IDE_DUAL,
@@ -15722,8 +15722,9 @@ const machine_t machines[] = {
         },
         .nvrmask = 255,
         .kbc_device = NULL,
-        .kbc_p1 = 0,
-        .gpio = 0,
+        .kbc_p1 = 0xff,
+        .gpio = 0xffffffff,
+        .gpio_acpi = 0xffffffff,
         .device = NULL,
         .fdc_device = NULL,
         .sio_device = &it8702_device,
@@ -15749,7 +15750,7 @@ const machine_t machines[] = {
             .min_voltage = 1300,
             .max_voltage = 3500,
             .min_multi = 1.5,
-            .max_multi = 8.0
+            .max_multi = 15.0
         },
         .bus_flags = MACHINE_PS2_NOISA,
         .flags = MACHINE_IDE_DUAL,
@@ -15760,8 +15761,9 @@ const machine_t machines[] = {
         },
         .nvrmask = 255,
         .kbc_device = NULL,
-        .kbc_p1 = 0,
-        .gpio = 0,
+        .kbc_p1 = 0xff,
+        .gpio = 0xffffffff,
+        .gpio_acpi = 0xffffffff,
         .device = NULL,
         .fdc_device = NULL,
         .sio_device = &w83627hf_device,
@@ -15788,7 +15790,7 @@ const machine_t machines[] = {
             .min_voltage = 1300,
             .max_voltage = 3500,
             .min_multi = 1.5,
-            .max_multi = 8.0
+            .max_multi = 15.0
         },
         .bus_flags = MACHINE_PS2_NOISA,
         .flags = MACHINE_IDE_DUAL | MACHINE_SOUND,
@@ -15799,8 +15801,9 @@ const machine_t machines[] = {
         },
         .nvrmask = 255,
         .kbc_device = NULL,
-        .kbc_p1 = 0,
-        .gpio = 0,
+        .kbc_p1 = 0xff,
+        .gpio = 0xffffffff,
+        .gpio_acpi = 0xffffffff,
         .device = NULL,
         .fdc_device = NULL,
         .sio_device = &nsc366_device,
@@ -15826,7 +15829,7 @@ const machine_t machines[] = {
             .min_voltage = 1300,
             .max_voltage = 3500,
             .min_multi = 1.5,
-            .max_multi = 8.0
+            .max_multi = 15.0
         },
         .bus_flags = MACHINE_PS2_AGP,
         .flags = MACHINE_IDE_DUAL,
@@ -15837,8 +15840,9 @@ const machine_t machines[] = {
         },
         .nvrmask = 255,
         .kbc_device = NULL,
-        .kbc_p1 = 0,
-        .gpio = 0,
+        .kbc_p1 = 0xff,
+        .gpio = 0xffffffff,
+        .gpio_acpi = 0xffffffff,
         .device = NULL,
         .fdc_device = NULL,
         .sio_device = &nsc366_device,
@@ -15864,7 +15868,7 @@ const machine_t machines[] = {
             .min_voltage = 1300,
             .max_voltage = 3500,
             .min_multi = 1.5,
-            .max_multi = 8.0
+            .max_multi = 15.0
         },
         .bus_flags = MACHINE_PS2_NOISA,
         .flags = MACHINE_IDE_DUAL,
@@ -15875,8 +15879,9 @@ const machine_t machines[] = {
         },
         .nvrmask = 255,
         .kbc_device = NULL,
-        .kbc_p1 = 0,
-        .gpio = 0,
+        .kbc_p1 = 0xff,
+        .gpio = 0xffffffff,
+        .gpio_acpi = 0xffffffff,
         .device = NULL,
         .fdc_device = NULL,
         .sio_device = &nsc366_device,
