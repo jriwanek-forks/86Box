@@ -1455,7 +1455,7 @@ svga_write_common(uint32_t addr, uint8_t val, uint8_t linear, void *priv)
     if (svga->adv_flags & FLAG_ADDR_BY8)
         writemask2 = svga->seqregs[2];
 
-    cycles -= svga->monitor->mon_video_timing_write_b;
+    cycles -= svga->monitor->mon_video_timing_write_b * 4;
 
     if (!linear) {
         if (xga_active && xga) {
@@ -1676,7 +1676,7 @@ svga_read_common(uint32_t addr, uint8_t linear, void *priv)
     if (svga->adv_flags & FLAG_ADDR_BY8)
         readplane = svga->gdcreg[4] & 7;
 
-    cycles -= svga->monitor->mon_video_timing_read_b;
+    cycles -= svga->monitor->mon_video_timing_read_b * 4;
 
     if (!linear) {
         if (xga_active && xga) {
@@ -1932,7 +1932,7 @@ svga_writew_common(uint32_t addr, uint16_t val, uint8_t linear, void *priv)
         return;
     }
 
-    cycles -= svga->monitor->mon_video_timing_write_w;
+    cycles -= svga->monitor->mon_video_timing_write_w * 4;
 
     if (!linear) {
         addr = svga_decode_addr(svga, addr, 1);
@@ -1988,7 +1988,7 @@ svga_writel_common(uint32_t addr, uint32_t val, uint8_t linear, void *priv)
         return;
     }
 
-    cycles -= svga->monitor->mon_video_timing_write_l;
+    cycles -= svga->monitor->mon_video_timing_write_l * 4;
 
     if (!linear) {
         addr = svga_decode_addr(svga, addr, 1);
@@ -2064,7 +2064,7 @@ svga_readw_common(uint32_t addr, uint8_t linear, void *priv)
     if (!svga->fast)
         return svga_read_common(addr, linear, priv) | (svga_read_common(addr + 1, linear, priv) << 8);
 
-    cycles -= svga->monitor->mon_video_timing_read_w;
+    cycles -= svga->monitor->mon_video_timing_read_w * 4;
 
     if (!linear) {
         addr = svga_decode_addr(svga, addr, 0);
@@ -2111,7 +2111,7 @@ svga_readl_common(uint32_t addr, uint8_t linear, void *priv)
     if (!svga->fast)
         return svga_read_common(addr, linear, priv) | (svga_read_common(addr + 1, linear, priv) << 8) | (svga_read_common(addr + 2, linear, priv) << 16) | (svga_read_common(addr + 3, linear, priv) << 24);
 
-    cycles -= svga->monitor->mon_video_timing_read_l;
+    cycles -= svga->monitor->mon_video_timing_read_l * 4;
 
     if (!linear) {
         addr = svga_decode_addr(svga, addr, 0);
