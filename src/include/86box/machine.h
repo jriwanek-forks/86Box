@@ -944,6 +944,7 @@ extern int machine_ps55_model_50v_init(const machine_t*);
 
 /* m_tandy.c */
 extern int tandy1k_eeprom_read(void);
+extern int machine_tandy1000a_init(const machine_t *);
 extern int machine_tandy1000sx_init(const machine_t *);
 extern int machine_tandy1000hx_init(const machine_t *);
 extern int machine_tandy1000sl2_init(const machine_t *);
