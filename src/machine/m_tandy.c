@@ -1007,6 +1007,22 @@ tandy1k_eeprom_read(void)
 }
 
 int
+machine_tandy1000a_init(const machine_t *model)
+{
+    int ret;
+
+    ret = bios_load_linearr("roms/machines/tandy/tandy1t1.010",
+                            0x000f0000, 131072, 0);
+
+    if (bios_only || !ret)
+        return ret;
+
+    machine_tandy1k_init(model, TYPE_TANDY);
+
+    return ret;
+}
+
+int
 machine_tandy1000sx_init(const machine_t *model)
 {
     int ret;
