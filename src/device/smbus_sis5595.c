@@ -31,6 +31,7 @@
 #include <86box/smbus.h>
 #include <86box/plat_fallthrough.h>
 
+#define ENABLE_SMBUS_SIS5595_LOG 1
 #ifdef ENABLE_SMBUS_SIS5595_LOG
 int smbus_sis5595_do_log = ENABLE_SMBUS_SIS5595_LOG;
 

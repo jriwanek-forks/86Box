@@ -184,6 +184,7 @@ enum {
     AMS_PC3086
 };
 
+#define ENABLE_AMSTRAD_LOG 1
 #ifdef ENABLE_AMSTRAD_LOG
 int amstrad_do_log = ENABLE_AMSTRAD_LOG;
 

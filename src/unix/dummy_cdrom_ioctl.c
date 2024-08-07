@@ -37,6 +37,7 @@
 
 static int toc_valid             = 0;
 
+#define ENABLE_DUMMY_CDROM_IOCTL_LOG 1
 #ifdef ENABLE_DUMMY_CDROM_IOCTL_LOG
 int dummy_cdrom_ioctl_do_log = ENABLE_DUMMY_CDROM_IOCTL_LOG;
 

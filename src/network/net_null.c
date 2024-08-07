@@ -64,6 +64,7 @@ typedef struct net_null_t {
     netpkt_t   pktv[NULL_PKT_BATCH];
 } net_null_t;
 
+#define ENABLE_NET_NULL_LOG 1
 #ifdef ENABLE_NET_NULL_LOG
 int net_null_do_log = ENABLE_NET_NULL_LOG;
 

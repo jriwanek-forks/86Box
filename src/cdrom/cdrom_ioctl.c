@@ -32,6 +32,7 @@
 #include <86box/scsi_device.h>
 #include <86box/cdrom.h>
 
+#define ENABLE_CDROM_IOCTL_LOG 1
 #ifdef ENABLE_CDROM_IOCTL_LOG
 int cdrom_ioctl_do_log = ENABLE_CDROM_IOCTL_LOG;
 

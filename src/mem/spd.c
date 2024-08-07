@@ -36,6 +36,7 @@ spd_t  *spd_modules[SPD_MAX_SLOTS];
 
 static const device_t spd_device;
 
+#define ENABLE_SPD_LOG 1
 #ifdef ENABLE_SPD_LOG
 int spd_do_log = ENABLE_SPD_LOG;
 

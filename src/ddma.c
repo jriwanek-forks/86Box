@@ -36,6 +36,7 @@
 #include <86box/ddma.h>
 #include <86box/plat_unused.h>
 
+#define ENABLE_DDMA_LOG 1
 #ifdef ENABLE_DDMA_LOG
 int ddma_do_log = ENABLE_DDMA_LOG;
 

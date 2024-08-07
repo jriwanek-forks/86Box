@@ -59,6 +59,7 @@ int   initialized = 0;
 io_t *io[NPORTS];
 io_t *io_last[NPORTS];
 
+#define ENABLE_IO_LOG 1
 #ifdef ENABLE_IO_LOG
 int io_do_log = ENABLE_IO_LOG;
 

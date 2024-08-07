@@ -66,6 +66,7 @@ static int8_t    days_in_month[12] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 3
 static struct tm intclk;
 static nvr_t    *saved_nvr = NULL;
 
+#define ENABLE_NVR_LOG 1
 #ifdef ENABLE_NVR_LOG
 int nvr_do_log = ENABLE_NVR_LOG;
 

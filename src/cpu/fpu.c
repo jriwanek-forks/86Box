@@ -25,6 +25,7 @@
 #include <86box/86box.h>
 #include "cpu.h"
 
+#define ENABLE_FPU_LOG 1
 #ifdef ENABLE_FPU_LOG
 int fpu_do_log = ENABLE_FPU_LOG;
 

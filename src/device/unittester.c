@@ -128,6 +128,7 @@ static bitmap_t *unittester_screen_buffer = NULL;
 
 static bool unittester_exit_enabled = true;
 
+#define ENABLE_UNITTESTER_LOG 1
 #ifdef ENABLE_UNITTESTER_LOG
 int unittester_do_log = ENABLE_UNITTESTER_LOG;
 

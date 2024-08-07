@@ -96,6 +96,7 @@ static dllimp_t vde_imports[] = {
     { NULL,             NULL}
 };
 
+#define ENABLE_VDE_LOG 1
 #ifdef ENABLE_VDE_LOG
 #include <stdarg.h>
 int vde_do_log = ENABLE_VDE_LOG;

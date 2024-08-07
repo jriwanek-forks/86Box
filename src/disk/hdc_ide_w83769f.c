@@ -51,6 +51,7 @@ typedef struct w83769f_t {
 
 static int next_id = 0;
 
+#define ENABLE_W83769F_LOG 1
 #ifdef ENABLE_W83769F_LOG
 int w83769f_do_log = ENABLE_W83769F_LOG;
 

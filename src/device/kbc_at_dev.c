@@ -40,6 +40,7 @@
 #include <86box/keyboard.h>
 #include <86box/plat_fallthrough.h>
 
+#define ENABLE_KBC_AT_DEV_LOG 1
 #ifdef ENABLE_KBC_AT_DEV_LOG
 int kbc_at_dev_do_log = ENABLE_KBC_AT_DEV_LOG;
 

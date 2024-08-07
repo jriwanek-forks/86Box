@@ -129,6 +129,7 @@ typedef int (*OpFn)(uint32_t fetchdat);
 
 static int tempc_fpu = 0;
 
+#define ENABLE_808X_LOG 1
 #ifdef ENABLE_808X_LOG
 #if 0
 void dumpregs(int);

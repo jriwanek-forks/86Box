@@ -85,6 +85,7 @@ static int   cw;
 static int   ch;
 static ini_t config;
 
+#define ENABLE_CONFIG_LOG 1
 #ifdef ENABLE_CONFIG_LOG
 int config_do_log = ENABLE_CONFIG_LOG;
 

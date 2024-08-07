@@ -28,6 +28,7 @@
 #include <86box/fifo.h>
 #endif
 
+#define ENABLE_FIFO_LOG 1
 #ifdef ENABLE_FIFO_LOG
 int fifo_do_log = ENABLE_FIFO_LOG;
 
