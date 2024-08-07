@@ -409,10 +409,10 @@ opPMULLW_a16(uint32_t fetchdat)
             return 0;
         CLOCK_CYCLES(1);
     }
-    dst->w[0] *= src.w[0];
-    dst->w[1] *= src.w[1];
-    dst->w[2] *= src.w[2];
-    dst->w[3] *= src.w[3];
+    dst->sw[0] *= src.sw[0];
+    dst->sw[1] *= src.sw[1];
+    dst->sw[2] *= src.sw[2];
+    dst->sw[3] *= src.sw[3];
     CLOCK_CYCLES(1);
 
     MMX_SETEXP(cpu_reg);
@@ -440,10 +440,10 @@ opPMULLW_a32(uint32_t fetchdat)
             return 0;
         CLOCK_CYCLES(1);
     }
-    dst->w[0] *= src.w[0];
-    dst->w[1] *= src.w[1];
-    dst->w[2] *= src.w[2];
-    dst->w[3] *= src.w[3];
+    dst->sw[0] *= src.sw[0];
+    dst->sw[1] *= src.sw[1];
+    dst->sw[2] *= src.sw[2];
+    dst->sw[3] *= src.sw[3];
     CLOCK_CYCLES(1);
 
     MMX_SETEXP(cpu_reg);
@@ -472,10 +472,10 @@ opPMULHW_a16(uint32_t fetchdat)
             return 0;
         CLOCK_CYCLES(1);
     }
-    dst->w[0] = ((int32_t) dst->sw[0] * (int32_t) src.sw[0]) >> 16;
-    dst->w[1] = ((int32_t) dst->sw[1] * (int32_t) src.sw[1]) >> 16;
-    dst->w[2] = ((int32_t) dst->sw[2] * (int32_t) src.sw[2]) >> 16;
-    dst->w[3] = ((int32_t) dst->sw[3] * (int32_t) src.sw[3]) >> 16;
+    dst->sw[0] = ((int32_t) dst->sw[0] * (int32_t) src.sw[0]) >> 16;
+    dst->sw[1] = ((int32_t) dst->sw[1] * (int32_t) src.sw[1]) >> 16;
+    dst->sw[2] = ((int32_t) dst->sw[2] * (int32_t) src.sw[2]) >> 16;
+    dst->sw[3] = ((int32_t) dst->sw[3] * (int32_t) src.sw[3]) >> 16;
     CLOCK_CYCLES(1);
 
     MMX_SETEXP(cpu_reg);
@@ -503,10 +503,10 @@ opPMULHW_a32(uint32_t fetchdat)
             return 0;
         CLOCK_CYCLES(1);
     }
-    dst->w[0] = ((int32_t) dst->sw[0] * (int32_t) src.sw[0]) >> 16;
-    dst->w[1] = ((int32_t) dst->sw[1] * (int32_t) src.sw[1]) >> 16;
-    dst->w[2] = ((int32_t) dst->sw[2] * (int32_t) src.sw[2]) >> 16;
-    dst->w[3] = ((int32_t) dst->sw[3] * (int32_t) src.sw[3]) >> 16;
+    dst->sw[0] = ((int32_t) dst->sw[0] * (int32_t) src.sw[0]) >> 16;
+    dst->sw[1] = ((int32_t) dst->sw[1] * (int32_t) src.sw[1]) >> 16;
+    dst->sw[2] = ((int32_t) dst->sw[2] * (int32_t) src.sw[2]) >> 16;
+    dst->sw[3] = ((int32_t) dst->sw[3] * (int32_t) src.sw[3]) >> 16;
     CLOCK_CYCLES(1);
 
     MMX_SETEXP(cpu_reg);
