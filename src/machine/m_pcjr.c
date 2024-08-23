@@ -63,7 +63,18 @@
 #define STAT_IFULL     0x02
 #define STAT_OFULL     0x01
 
-typedef struct pcjr_t {
+typedef struct pcjr_kbd_t {
+    /* Keyboard Controller stuff. */
+    int        latched;
+    int        data;
+    int        serial_data[44];
+    int        serial_pos;
+    uint8_t    pa;
+    uint8_t    pb;
+    pc_timer_t send_delay_timer;
+} pcjr_kbd_t;
+
+typedef struct pcjr_vid_t {
     /* Video Controller stuff. */
     mem_mapping_t mapping;
     uint8_t       crtc[32];
@@ -97,16 +108,8 @@ typedef struct pcjr_t {
     int           lastline;
     int           composite;
     int           apply_hd;
-
-    /* Keyboard Controller stuff. */
-    int        latched;
-    int        data;
-    int        serial_data[44];
-    int        serial_pos;
-    uint8_t    pa;
-    uint8_t    pb;
-    pc_timer_t send_delay_timer;
-} pcjr_t;
+    pcjr_kbd_t    *kbd; /* Hack for now */
+} pcjr_vid_t;
 
 /*PCjr keyboard has no escape scancodes, and no scancodes beyond 54
   Map right alt to 54h (FN) */
@@ -627,7 +630,7 @@ const scancode scancode_pcjr[512] = {
   // clang-format on
 };
 
-static video_timings_t timing_dram = { VIDEO_BUS, 0, 0, 0, 0, 0, 0 }; /*No additional waitstates*/
+static video_timings_t timing_pcjr_dram = { VIDEO_BUS, 0, 0, 0, 0, 0, 0 }; /*No additional waitstates*/
 
 static uint8_t crtcmask[32] = {
     0xff, 0xff, 0xff, 0xff, 0x7f, 0x1f, 0x7f, 0x7f,
@@ -640,7 +643,7 @@ static int     key_queue_start = 0;
 static int     key_queue_end   = 0;
 
 static void
-recalc_address(pcjr_t *pcjr)
+recalc_address(pcjr_vid_t *pcjr)
 {
     uint8_t masked_memctrl = pcjr->memctrl;
 
@@ -660,7 +663,7 @@ recalc_address(pcjr_t *pcjr)
 }
 
 static void
-recalc_timings(pcjr_t *pcjr)
+pcjr_vid_recalc_timings(pcjr_vid_t *pcjr)
 {
     double _dispontime;
     double _dispofftime;
@@ -682,7 +685,7 @@ recalc_timings(pcjr_t *pcjr)
 }
 
 static int
-vid_get_h_overscan_size(pcjr_t *pcjr)
+pcjr_vid_get_h_overscan_size(pcjr_vid_t *pcjr)
 {
     int ret;
 
@@ -695,9 +698,9 @@ vid_get_h_overscan_size(pcjr_t *pcjr)
 }
 
 static void
-vid_out(uint16_t addr, uint8_t val, void *priv)
+pcjr_vid_out(uint16_t addr, uint8_t val, void *priv)
 {
-    pcjr_t *pcjr = (pcjr_t *) priv;
+    pcjr_vid_t *pcjr = (pcjr_vid_t *) priv;
     uint8_t old;
 
     switch (addr) {
@@ -715,11 +718,11 @@ vid_out(uint16_t addr, uint8_t val, void *priv)
             old                       = pcjr->crtc[pcjr->crtcreg];
             pcjr->crtc[pcjr->crtcreg] = val & crtcmask[pcjr->crtcreg];
             if (pcjr->crtcreg == 2)
-                overscan_x = vid_get_h_overscan_size(pcjr);
+                overscan_x = pcjr_vid_get_h_overscan_size(pcjr);
             if (old != val) {
                 if (pcjr->crtcreg < 0xe || pcjr->crtcreg > 0x10) {
                     pcjr->fullchange = changeframecount;
-                    recalc_timings(pcjr);
+                    pcjr_vid_recalc_timings(pcjr);
                 }
             }
             return;
@@ -739,8 +742,8 @@ vid_out(uint16_t addr, uint8_t val, void *priv)
 
         case 0x3df:
             pcjr->memctrl   = val;
-            pcjr->pa        = val; /* The PCjr BIOS expects the value written to 3DF to
-                                      then be readable from port 60, others it errors out
+            pcjr->kbd->pa   = val; /* The PCjr BIOS expects the value written to 3DF to
+                                      then be readable from port 60, otherwise it errors out
                                       with only 64k RAM set (but somehow, still works with
                                       128k or more RAM). */
             pcjr->addr_mode = val >> 6;
@@ -753,9 +756,9 @@ vid_out(uint16_t addr, uint8_t val, void *priv)
 }
 
 static uint8_t
-vid_in(uint16_t addr, void *priv)
+pcjr_vid_in(uint16_t addr, void *priv)
 {
-    pcjr_t *pcjr = (pcjr_t *) priv;
+    pcjr_vid_t *pcjr = (pcjr_vid_t *) priv;
     uint8_t ret  = 0xff;
 
     switch (addr) {
@@ -787,9 +790,9 @@ vid_in(uint16_t addr, void *priv)
 }
 
 static void
-vid_write(uint32_t addr, uint8_t val, void *priv)
+pcjr_vid_write(uint32_t addr, uint8_t val, void *priv)
 {
-    pcjr_t *pcjr = (pcjr_t *) priv;
+    pcjr_vid_t *pcjr = (pcjr_vid_t *) priv;
 
     if (pcjr->memctrl == -1)
         return;
@@ -798,9 +801,9 @@ vid_write(uint32_t addr, uint8_t val, void *priv)
 }
 
 static uint8_t
-vid_read(uint32_t addr, void *priv)
+pcjr_vid_read(uint32_t addr, void *priv)
 {
-    const pcjr_t *pcjr = (pcjr_t *) priv;
+    const pcjr_vid_t *pcjr = (pcjr_vid_t *) priv;
 
     if (pcjr->memctrl == -1)
         return 0xff;
@@ -809,7 +812,7 @@ vid_read(uint32_t addr, void *priv)
 }
 
 static int
-vid_get_h_overscan_delta(pcjr_t *pcjr)
+pcjr_vid_get_h_overscan_delta(pcjr_vid_t *pcjr)
 {
     int def;
     int coef;
@@ -859,12 +862,12 @@ vid_get_h_overscan_delta(pcjr_t *pcjr)
 }
 
 static void
-vid_blit_h_overscan(pcjr_t *pcjr)
+pcjr_vid_blit_h_overscan(pcjr_vid_t *pcjr)
 {
     int      cols = (pcjr->array[2] & 0xf) + 16;;
     int      y0   = pcjr->firstline << 1;
     int      y    = (pcjr->lastline << 1) + 16;
-    int      ho_s = vid_get_h_overscan_size(pcjr);
+    int      ho_s = pcjr_vid_get_h_overscan_size(pcjr);
     int      i;
     int      x;
 
@@ -888,9 +891,9 @@ vid_blit_h_overscan(pcjr_t *pcjr)
 }
 
 static void
-vid_poll(void *priv)
+pcjr_vid_poll(void *priv)
 {
-    pcjr_t  *pcjr = (pcjr_t *) priv;
+    pcjr_vid_t  *pcjr = (pcjr_vid_t *) priv;
     uint16_t ca   = (pcjr->crtc[15] | (pcjr->crtc[14] << 8)) & 0x3fff;
     int      drawcursor;
     int      x;
@@ -903,8 +906,8 @@ vid_poll(void *priv)
     int      cols[4];
     int      oldsc;
     int      l = (pcjr->displine << 1) + 16;
-    int      ho_s = vid_get_h_overscan_size(pcjr);
-    int      ho_d = vid_get_h_overscan_delta(pcjr) + (ho_s / 2);
+    int      ho_s = pcjr_vid_get_h_overscan_size(pcjr);
+    int      ho_d = pcjr_vid_get_h_overscan_delta(pcjr) + (ho_s / 2);
 
     if (!pcjr->linepos) {
         timer_advance_u64(&pcjr->timer, pcjr->dispofftime);
@@ -1234,7 +1237,7 @@ vid_poll(void *priv)
                                 video_force_resize_set(0);
                         }
 
-                        vid_blit_h_overscan(pcjr);
+                        pcjr_vid_blit_h_overscan(pcjr);
 
                         if (enable_overscan) {
                             video_blit_memtoscreen(0, pcjr->firstline << 1,
@@ -1267,23 +1270,23 @@ vid_poll(void *priv)
 }
 
 static void
-kbd_write(uint16_t port, uint8_t val, void *priv)
+pcjr_kbd_write(uint16_t port, uint8_t val, void *priv)
 {
-    pcjr_t *pcjr = (pcjr_t *) priv;
+    pcjr_kbd_t *pcjr_kbd = (pcjr_kbd_t *) priv;
 
     if ((port >= 0xa0) && (port <= 0xa7))
         port = 0xa0;
 
     switch (port) {
         case 0x60:
-            pcjr->pa = val;
+            pcjr_kbd->pa = val;
             break;
 
         case 0x61:
-            pcjr->pb = val;
+            pcjr_kbd->pb = val;
 
             if (cassette != NULL)
-                pc_cas_set_motor(cassette, (pcjr->pb & 0x08) == 0);
+                pc_cas_set_motor(cassette, (pcjr_kbd->pb & 0x08) == 0);
 
             speaker_update();
             speaker_gated  = val & 1;
@@ -1317,9 +1320,9 @@ kbd_write(uint16_t port, uint8_t val, void *priv)
 }
 
 static uint8_t
-kbd_read(uint16_t port, void *priv)
+pcjr_kbd_read(uint16_t port, void *priv)
 {
-    pcjr_t *pcjr = (pcjr_t *) priv;
+    pcjr_kbd_t *pcjr_kbd = (pcjr_kbd_t *) priv;
     uint8_t ret  = 0xff;
 
     if ((port >= 0xa0) && (port <= 0xa7))
@@ -1327,32 +1330,32 @@ kbd_read(uint16_t port, void *priv)
 
     switch (port) {
         case 0x60:
-            ret = pcjr->pa;
+            ret = pcjr_kbd->pa;
             break;
 
         case 0x61:
-            ret = pcjr->pb;
+            ret = pcjr_kbd->pb;
             break;
 
         case 0x62:
-            ret = (pcjr->latched ? 1 : 0);
+            ret = (pcjr_kbd->latched ? 1 : 0);
             ret |= 0x02; /* Modem card not installed */
             if (mem_size < 128)
                 ret |= 0x08; /* 64k expansion card not installed */
-            if ((pcjr->pb & 0x08) || (cassette == NULL))
+            if ((pcjr_kbd->pb & 0x08) || (cassette == NULL))
                 ret |= (ppispeakon ? 0x10 : 0);
             else
                 ret |= (pc_cas_get_inp(cassette) ? 0x10 : 0);
             ret |= (ppispeakon ? 0x10 : 0);
             ret |= (ppispeakon ? 0x20 : 0);
-            ret |= (pcjr->data ? 0x40 : 0);
-            if (pcjr->data)
+            ret |= (pcjr_kbd->data ? 0x40 : 0);
+            if (pcjr_kbd->data)
                 ret |= 0x40;
             break;
 
         case 0xa0:
-            pcjr->latched = 0;
-            ret           = 0;
+            pcjr_kbd->latched = 0;
+            ret               = 0;
             break;
 
         default:
@@ -1363,57 +1366,57 @@ kbd_read(uint16_t port, void *priv)
 }
 
 static void
-kbd_poll(void *priv)
+pcjr_kbd_poll(void *priv)
 {
-    pcjr_t *pcjr = (pcjr_t *) priv;
-    int     c;
+    pcjr_kbd_t *pcjr_kbd = (pcjr_kbd_t *) priv;
+    uint8_t     c;
     int     p = 0;
     int     key;
 
-    timer_advance_u64(&pcjr->send_delay_timer, 220 * TIMER_USEC);
+    timer_advance_u64(&pcjr_kbd->send_delay_timer, 220 * TIMER_USEC);
 
-    if (key_queue_start != key_queue_end && !pcjr->serial_pos && !pcjr->latched) {
+    if (key_queue_start != key_queue_end && !pcjr_kbd->serial_pos && !pcjr_kbd->latched) {
         key = key_queue[key_queue_start];
 
         key_queue_start = (key_queue_start + 1) & 0xf;
 
-        pcjr->latched        = 1;
-        pcjr->serial_data[0] = 1; /*Start bit*/
-        pcjr->serial_data[1] = 0;
+        pcjr_kbd->latched        = 1;
+        pcjr_kbd->serial_data[0] = 1; /*Start bit*/
+        pcjr_kbd->serial_data[1] = 0;
 
         for (c = 0; c < 8; c++) {
             if (key & (1 << c)) {
-                pcjr->serial_data[(c + 1) * 2]     = 1;
-                pcjr->serial_data[(c + 1) * 2 + 1] = 0;
+                pcjr_kbd->serial_data[(c + 1) * 2]     = 1;
+                pcjr_kbd->serial_data[(c + 1) * 2 + 1] = 0;
                 p++;
             } else {
-                pcjr->serial_data[(c + 1) * 2]     = 0;
-                pcjr->serial_data[(c + 1) * 2 + 1] = 1;
+                pcjr_kbd->serial_data[(c + 1) * 2]     = 0;
+                pcjr_kbd->serial_data[(c + 1) * 2 + 1] = 1;
             }
         }
 
         if (p & 1) { /*Parity*/
-            pcjr->serial_data[9 * 2]     = 1;
-            pcjr->serial_data[9 * 2 + 1] = 0;
+            pcjr_kbd->serial_data[9 * 2]     = 1;
+            pcjr_kbd->serial_data[9 * 2 + 1] = 0;
         } else {
-            pcjr->serial_data[9 * 2]     = 0;
-            pcjr->serial_data[9 * 2 + 1] = 1;
+            pcjr_kbd->serial_data[9 * 2]     = 0;
+            pcjr_kbd->serial_data[9 * 2 + 1] = 1;
         }
 
         for (c = 0; c < 11; c++) { /*11 stop bits*/
-            pcjr->serial_data[(c + 10) * 2]     = 0;
-            pcjr->serial_data[(c + 10) * 2 + 1] = 0;
+            pcjr_kbd->serial_data[(c + 10) * 2]     = 0;
+            pcjr_kbd->serial_data[(c + 10) * 2 + 1] = 0;
         }
 
-        pcjr->serial_pos++;
+        pcjr_kbd->serial_pos++;
     }
 
-    if (pcjr->serial_pos) {
-        pcjr->data = pcjr->serial_data[pcjr->serial_pos - 1];
-        nmi        = pcjr->data;
-        pcjr->serial_pos++;
-        if (pcjr->serial_pos == 42 + 1)
-            pcjr->serial_pos = 0;
+    if (pcjr_kbd->serial_pos) {
+        pcjr_kbd->data = pcjr_kbd->serial_data[pcjr_kbd->serial_pos - 1];
+        nmi        = pcjr_kbd->data;
+        pcjr_kbd->serial_pos++;
+        if (pcjr_kbd->serial_pos == 42 + 1)
+            pcjr_kbd->serial_pos = 0;
     }
 }
 
@@ -1431,36 +1434,36 @@ kbd_adddata_ex(uint16_t val)
 }
 
 static void
-speed_changed(void *priv)
+pcjr_vid_speed_changed(void *priv)
 {
-    pcjr_t *pcjr = (pcjr_t *) priv;
+    pcjr_vid_t *pcjr_vid = (pcjr_vid_t *) priv;
 
-    recalc_timings(pcjr);
+    pcjr_vid_recalc_timings(pcjr_vid);
 }
 
 static void
-pcjr_vid_init(pcjr_t *pcjr)
+pcjr_vid_init(pcjr_vid_t *pcjr_vid)
 {
     int     display_type;
 
-    video_inform(VIDEO_FLAG_TYPE_CGA, &timing_dram);
+    video_inform(VIDEO_FLAG_TYPE_CGA, &timing_pcjr_dram);
 
-    pcjr->memctrl   = -1;
+    pcjr_vid->memctrl   = -1;
     if (mem_size < 128)
-        pcjr->memctrl &= ~0x24;
+        pcjr_vid->memctrl &= ~0x24;
 
     display_type    = device_get_config_int("display_type");
-    pcjr->composite = (display_type != PCJR_RGB);
-    pcjr->apply_hd  = device_get_config_int("apply_hd");
+    pcjr_vid->composite = (display_type != PCJR_RGB);
+    pcjr_vid->apply_hd  = device_get_config_int("apply_hd");
     overscan_x = 256;
     overscan_y = 32;
 
-    mem_mapping_add(&pcjr->mapping, 0xb8000, 0x08000,
-                    vid_read, NULL, NULL,
-                    vid_write, NULL, NULL, NULL, 0, pcjr);
+    mem_mapping_add(&pcjr_vid->mapping, 0xb8000, 0x08000,
+                    pcjr_vid_read, NULL, NULL,
+                    pcjr_vid_write, NULL, NULL, NULL, 0, pcjr_vid);
     io_sethandler(0x03d0, 16,
-                  vid_in, NULL, NULL, vid_out, NULL, NULL, pcjr);
-    timer_add(&pcjr->timer, vid_poll, pcjr, 1);
+                  pcjr_vid_in, NULL, NULL, pcjr_vid_out, NULL, NULL, pcjr_vid);
+    timer_add(&pcjr_vid->timer, pcjr_vid_poll, pcjr_vid, 1);
 
     cga_palette = 0;
     cgapal_rebuild();
@@ -1478,7 +1481,7 @@ pit_irq0_timer_pcjr(int new_out, int old_out, UNUSED(void *priv))
         picintc(1);
 }
 
-static const device_config_t pcjr_config[] = {
+static const device_config_t pcjr_vid_config[] = {
   // clang-format off
     {
         .name = "display_type",
@@ -1505,7 +1508,7 @@ static const device_config_t pcjr_config[] = {
   // clang-format on
 };
 
-const device_t pcjr_device = {
+const device_t pcjr_vid_device = {
     .name          = "IBM PCjr",
     .internal_name = "pcjr",
     .flags         = 0,
@@ -1514,15 +1517,16 @@ const device_t pcjr_device = {
     .close         = NULL,
     .reset         = NULL,
     .available     = NULL,
-    .speed_changed = speed_changed,
+    .speed_changed = pcjr_vid_speed_changed,
     .force_redraw  = NULL,
-    .config        = pcjr_config
+    .config        = pcjr_vid_config
 };
 
 int
 machine_pcjr_init(UNUSED(const machine_t *model))
 {
-    pcjr_t *pcjr;
+    pcjr_vid_t *pcjr_vid;
+    pcjr_kbd_t *pcjr_kbd;
 
     int ret;
 
@@ -1532,7 +1536,9 @@ machine_pcjr_init(UNUSED(const machine_t *model))
     if (bios_only || !ret)
         return ret;
 
-    pcjr = calloc(1, sizeof(pcjr_t));
+    pcjr_vid = calloc(1, sizeof(pcjr_vid_t));
+    pcjr_kbd = calloc(1, sizeof(pcjr_kbd_t));
+    pcjr_vid->kbd = pcjr_kbd;
 
     pic_init_pcjr();
     pit_common_init(0, pit_irq0_timer_pcjr, NULL);
@@ -1542,19 +1548,23 @@ machine_pcjr_init(UNUSED(const machine_t *model))
     /* Initialize the video controller. */
     video_reset(gfxcard[0]);
     loadfont("roms/video/mda/mda.rom", 0);
-    device_context(&pcjr_device);
-    pcjr_vid_init(pcjr);
+    device_context(&pcjr_vid_device);
+    pcjr_vid_init(pcjr_vid);
     device_context_restore();
-    device_add_ex(&pcjr_device, pcjr);
+    device_add_ex(&pcjr_vid_device, pcjr_vid);
 
     /* Initialize the keyboard. */
     keyboard_scan   = 1;
     key_queue_start = key_queue_end = 0;
     io_sethandler(0x0060, 4,
-                  kbd_read, NULL, NULL, kbd_write, NULL, NULL, pcjr);
+                  pcjr_kbd_read, NULL, NULL,
+                  pcjr_kbd_write, NULL, NULL,
+                  pcjr_kbd);
     io_sethandler(0x00a0, 8,
-                  kbd_read, NULL, NULL, kbd_write, NULL, NULL, pcjr);
-    timer_add(&pcjr->send_delay_timer, kbd_poll, pcjr, 1);
+                  pcjr_kbd_read, NULL, NULL,
+                  pcjr_kbd_write, NULL, NULL,
+                  pcjr_kbd);
+    timer_add(&pcjr_kbd->send_delay_timer, pcjr_kbd_poll, pcjr_kbd, 1);
     keyboard_set_table(scancode_pcjr);
     keyboard_send = kbd_adddata_ex;
 

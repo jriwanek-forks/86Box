@@ -42,7 +42,7 @@
 #include <86box/network.h>
 
 // Temporarily here till we move everything out into the right files
-extern const device_t pcjr_device;
+extern const device_t pcjr_vid_device;
 extern const device_t m19_vid_device;
 extern const device_t vid_device;
 extern const device_t vid_device_hx;
@@ -338,7 +338,7 @@ const machine_t machines[] = {
         .device = NULL,
         .fdc_device = NULL,
         .sio_device = NULL,
-        .vid_device = &pcjr_device,
+        .vid_device = &pcjr_vid_device,
         .snd_device = NULL,
         .net_device = NULL
     },
