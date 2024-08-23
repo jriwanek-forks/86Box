@@ -73,6 +73,7 @@ add_library(vid OBJECT
     vid_ogc.c
     vid_mga.c
     vid_nga.c
+    vid_tandy.c
     vid_tvp3026_ramdac.c
     vid_att2xc498_ramdac.c
     vid_xga.c
