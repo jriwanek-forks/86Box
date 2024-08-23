@@ -40,8 +40,9 @@
 // Temporarily here till we move everything out into the right files
 extern const device_t pcjr_device;
 extern const device_t m19_vid_device;
-extern const device_t vid_device;
-extern const device_t vid_device_hx;
+extern const device_t tandy_vid_device;
+extern const device_t tandy_vid_device_hx;
+extern const device_t tandy_vid_device_sl;
 extern const device_t t1000_video_device;
 extern const device_t xi8088_device;
 extern const device_t cga_device;
@@ -51,7 +52,6 @@ extern const device_t vid_pc2086_device;
 extern const device_t vid_pc3086_device;
 extern const device_t vid_200_device;
 extern const device_t vid_ppc512_device;
-extern const device_t vid_device_sl;
 extern const device_t t1200_video_device;
 extern const device_t compaq_plasma_device;
 extern const device_t ps1_2011_device;
@@ -1533,7 +1533,7 @@ const machine_t machines[] = {
         .device = NULL,
         .fdc_device = NULL,
         .sio_device = NULL,
-        .vid_device = &vid_device,
+        .vid_device = &tandy_vid_device,
         .snd_device = NULL,
         .net_device = NULL
     },
@@ -1572,7 +1572,7 @@ const machine_t machines[] = {
         .device = NULL,
         .fdc_device = NULL,
         .sio_device = NULL,
-        .vid_device = &vid_device,
+        .vid_device = &tandy_vid_device,
         .snd_device = NULL,
         .net_device = NULL
     },
@@ -1611,7 +1611,7 @@ const machine_t machines[] = {
         .device = NULL,
         .fdc_device = NULL,
         .sio_device = NULL,
-        .vid_device = &vid_device_hx,
+        .vid_device = &tandy_vid_device_hx,
         .snd_device = NULL,
         .net_device = NULL
     },
@@ -2475,7 +2475,7 @@ const machine_t machines[] = {
         .device = NULL,
         .fdc_device = NULL,
         .sio_device = NULL,
-        .vid_device = &vid_device_sl,
+        .vid_device = &tandy_vid_device_sl,
         .snd_device = NULL,
         .net_device = NULL
     },
