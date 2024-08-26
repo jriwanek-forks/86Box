@@ -107,6 +107,7 @@
 #define ISAMEM_BRAT_CARD       14
 #define ISAMEM_EV165A_CARD     15
 #define ISAMEM_LOTECH_EMS_CARD 16
+#define ISAMEM_LOTECH_1MB_CARD 20
 
 #define ISAMEM_DEBUG           0
 
@@ -2094,6 +2095,168 @@ static const device_t iab_device = {
 };
 #endif /* USE_ISAMEM_IAB */
 
+static const device_config_t lotech_1mb_config[] = {
+  // clang-format off
+    {
+        .name           = "jp1-1",
+        .description    = "Enable Page 0000h",
+        .type           = CONFIG_BINARY,
+        .default_string = "",
+        .default_int    = 0
+    },
+    {
+        .name           = "jp1-2",
+        .description    = "Enable Page 1000h",
+        .type           = CONFIG_BINARY,
+        .default_string = "",
+        .default_int    = 0
+    },
+    {
+        .name           = "jp1-3",
+        .description    = "Enable Page 2000h",
+        .type           = CONFIG_BINARY,
+        .default_string = "",
+        .default_int    = 0
+    },
+    {
+        .name           = "jp1-4",
+        .description    = "Enable Page 3000h",
+        .type           = CONFIG_BINARY,
+        .default_string = "",
+        .default_int    = 0
+    },
+    {
+        .name           = "jp1-5",
+        .description    = "Enable Page 4000h",
+        .type           = CONFIG_BINARY,
+        .default_string = "",
+        .default_int    = 0
+    },
+    {
+        .name           = "jp1-6",
+        .description    = "Enable Page 5000h",
+        .type           = CONFIG_BINARY,
+        .default_string = "",
+        .default_int    = 0
+    },
+    {
+        .name           = "jp1-7",
+        .description    = "Enable Page 6000h",
+        .type           = CONFIG_BINARY,
+        .default_string = "",
+        .default_int    = 0
+    },
+    {
+        .name           = "jp1-8",
+        .description    = "Enable Page 7000h",
+        .type           = CONFIG_BINARY,
+        .default_string = "",
+        .default_int    = 0
+    },
+    {
+        .name           = "jp2-1",
+        .description    = "Enable Page 8000h",
+        .type           = CONFIG_BINARY,
+        .default_string = "",
+        .default_int    = 0
+    },
+    {
+        .name           = "jp2-2",
+        .description    = "Enable Page 9000h",
+        .type           = CONFIG_BINARY,
+        .default_string = "",
+        .default_int    = 0
+    },
+    {
+        .name           = "jp2-3",
+        .description    = "Enable Page A000h",
+        .type           = CONFIG_BINARY,
+        .default_string = "",
+        .default_int    = 0
+    },
+    {
+        .name           = "jp2-4",
+        .description    = "Enable Page B000h",
+        .type           = CONFIG_BINARY,
+        .default_string = "",
+        .default_int    = 0
+    },
+    {
+        .name           = "jp2-5",
+        .description    = "Enable Page C000h",
+        .type           = CONFIG_BINARY,
+        .default_string = "",
+        .default_int    = 0
+    },
+    {
+        .name           = "jp2-6",
+        .description    = "Enable Page D000h",
+        .type           = CONFIG_BINARY,
+        .default_string = "",
+        .default_int    = 0
+    },
+    {
+        .name           = "jp2-7",
+        .description    = "Enable Page E000h",
+        .type           = CONFIG_BINARY,
+        .default_string = "",
+        .default_int    = 0
+    },
+    {
+        .name           = "jp2-8",
+        .description    = "Disable 0-16KB",
+        .type           = CONFIG_BINARY,
+        .default_string = "",
+        .default_int    = 0
+    },
+#if 0
+    {
+        .name           = "size",
+        .description    = "Memory Size",
+        .type           = CONFIG_SPINNER,
+        .default_string = "",
+        .default_int    = 64,
+        .file_filter    = "",
+        .spinner        = {
+            .min  = 0,
+            .max  = 1024,
+            .step = 64
+        },
+        .selection      = { { 0 } }
+    },
+    {
+        .name = "start",
+        .description    = "Start Address",
+        .type           = CONFIG_SPINNER,
+        .default_string = "",
+        .default_int    = 0,
+        .file_filter    = "",
+        .spinner        = {
+            .min  = 0,
+            .max  = 1024,
+            .step = 64
+        },
+        .selection      = { { 0 } }
+    },
+#endif
+    { .name = "", .description = "", .type = CONFIG_END }
+  // clang-format on
+};
+
+static const device_t lotech_1mb_device = {
+    .name          = "Lo-tech 1MB RAM Board",
+    .internal_name = "lotech1mb",
+    .flags         = DEVICE_ISA,
+    .local         = ISAMEM_LOTECH_1MB_CARD,
+    .init          = isamem_init,
+    .close         = isamem_close,
+    .reset         = NULL,
+    .available     = NULL,
+    .speed_changed = NULL,
+    .force_redraw  = NULL,
+    .config        = lotech_1mb_config
+};
+
 static const struct {
     const device_t *dev;
 } boards[] = {
@@ -2127,6 +2290,7 @@ static const struct {
     { &iab_device          },
 #endif /* USE_ISAMEM_IAB */
     { &lotech_ems_device   },
+    { &lotech_1mb_device   },
     { NULL                 }
     // clang-format on
 };
