@@ -89,6 +89,8 @@ static const device_t *net_cards[] = {
     &ne1000_device,
     &ne2000_device,
     &pcnet_am79c960_eb_device,
+    &rtl8019as_pnp_device,
+    &rtl8019as_jumperless_device,
     &rtl8019as_device,
     &wd8003e_device,
     &wd8003eb_device,
