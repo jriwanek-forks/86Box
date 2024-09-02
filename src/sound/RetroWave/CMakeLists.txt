@@ -15,6 +15,10 @@ file(GLOB_RECURSE RETROWAVE_PLATFORM_HEADERS "RetroWaveLib/Platform/*.h")
 file(GLOB_RECURSE RETROWAVE_PROTOCOL_SOURCES "RetroWaveLib/Protocol/*.c")
 file(GLOB_RECURSE RETROWAVE_PROTOCOL_HEADERS "RetroWaveLib/Protocol/*.h")
 
+if(DEFINED RETROWAVE)
+    file(GLOB RETROWAVE_86BOX "RetroWaveLib/RetroWave_86Box.c")
+endif()
+
 add_library(
         RetroWave
 
@@ -26,6 +30,7 @@ add_library(
         ${RETROWAVE_PLATFORM_HEADERS}
         ${RETROWAVE_PROTOCOL_SOURCES}
         ${RETROWAVE_PROTOCOL_HEADERS}
+        ${RETROWAVE_86BOX}
 )
 
 target_include_directories(RetroWave INTERFACE .)
