@@ -22,6 +22,7 @@
 extern "C" {
 #include <86box/timer.h>
 #include <86box/scsi_device.h>
+#include <86box/86box.h>
 #include <86box/mo.h>
 #include <86box/zip.h>
 }
