@@ -13,7 +13,7 @@
 #          Copyright 2020-2021 David Hrdlička.
 #
 
-add_library(snd OBJECT sound.c snd_opl.c snd_opl_nuked.c snd_opl_ymfm.cpp snd_resid.cpp
+add_library(snd OBJECT sound.c snd_opl.c snd_opl_nuked.c snd_opl_retrowave.c snd_opl_ymfm.cpp snd_resid.cpp
     midi.c snd_speaker.c snd_pssj.c snd_lpt_dac.c snd_ac97_codec.c snd_ac97_via.c
     snd_lpt_dss.c snd_ps1.c snd_adlib.c snd_adlibgold.c snd_ad1848.c snd_audiopci.c
     snd_azt2316a.c snd_cms.c snd_cmi8x38.c snd_cs423x.c snd_gus.c snd_sb.c snd_sb_dsp.c
@@ -131,6 +131,9 @@ if(OPL4ML)
     target_compile_definitions(snd PRIVATE USE_OPL4ML)
     target_sources(snd PRIVATE midi_opl4.c midi_opl4_yrw801.c)
 endif()
+
+add_subdirectory(RetroWave)
+target_link_libraries(86Box RetroWave)
 
 add_subdirectory(resid-fp)
 target_link_libraries(86Box resid-fp)
