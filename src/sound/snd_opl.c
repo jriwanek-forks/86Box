@@ -58,6 +58,9 @@ fm_driver_get(int chip_id, fm_drv_t *drv)
             if (fm_driver == FM_DRV_NUKED) {
                 *drv      = nuked_opl_drv;
                 drv->priv = device_add_inst(&ym3812_nuked_device, fm_dev_inst[fm_driver][chip_id]++);
+            } else if (fm_driver == FM_DRV_RETROWAVE) {
+                *drv      = retrowave_opl_drv;
+                drv->priv = device_add_inst(&ym3812_retrowave_device, fm_dev_inst[fm_driver][chip_id]++);
             } else {
                 *drv      = ymfm_drv;
                 drv->priv = device_add_inst(&ym3812_ymfm_device, fm_dev_inst[fm_driver][chip_id]++);
@@ -68,6 +71,9 @@ fm_driver_get(int chip_id, fm_drv_t *drv)
             if (fm_driver == FM_DRV_NUKED) {
                 *drv      = nuked_opl_drv;
                 drv->priv = device_add_inst(&ymf262_nuked_device, fm_dev_inst[fm_driver][chip_id]++);
+            } else if (fm_driver == FM_DRV_RETROWAVE) {
+                *drv      = retrowave_opl_drv;
+                drv->priv = device_add_inst(&ymf262_retrowave_device, fm_dev_inst[fm_driver][chip_id]++);
             } else {
                 *drv      = ymfm_drv;
                 drv->priv = device_add_inst(&ymf262_ymfm_device, fm_dev_inst[fm_driver][chip_id]++);
