@@ -228,8 +228,8 @@ typedef struct cdrom {
 
     void *priv;
 
-    char image_path[1024];
-    char prev_image_path[1024];
+    char image_path[MAX_IMAGE_PATH_LEN];
+    char prev_image_path[MAX_IMAGE_PATH_LEN];
 
     char *image_history[CD_IMAGE_HISTORY];
 
