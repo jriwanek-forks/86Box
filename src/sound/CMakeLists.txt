@@ -19,6 +19,7 @@ add_library(snd OBJECT
     sound.c
     snd_opl.c
     snd_opl_nuked.c
+    snd_opl_retrowave.c
     snd_opl_ymfm.cpp
     snd_resid.cpp
     midi.c
@@ -212,6 +213,9 @@ if(SERIALPORT_FOUND OR DEFINED LIBSERIALPORT_ROOT)
     snd_opl_opl2board.cpp
 )
 endif()
+
+add_subdirectory(RetroWave)
+target_link_libraries(86Box RetroWave)
 
 add_subdirectory(resid-fp)
 target_link_libraries(86Box resid-fp)

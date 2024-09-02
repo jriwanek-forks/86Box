@@ -50,9 +50,10 @@ enum fm_type {
 };
 
 enum fm_driver {
-    FM_DRV_NUKED = 0,
-    FM_DRV_YMFM  = 1,
-    FM_DRV_MAX   = 2
+    FM_DRV_NUKED     = 0,
+    FM_DRV_YMFM      = 1,
+    FM_DRV_RETROWAVE = 2,
+    FM_DRV_MAX       = 3
 };
 
 typedef struct fm_drv_t {
@@ -68,14 +69,21 @@ typedef struct fm_drv_t {
 extern uint8_t fm_driver_get(int chip_id, fm_drv_t *drv);
 
 extern const fm_drv_t nuked_opl_drv;
+extern const fm_drv_t retrowave_opl_drv;
 extern const fm_drv_t ymfm_drv;
 extern const fm_drv_t esfmu_opl_drv;
 extern const fm_drv_t ymfm_opl2board_drv;
 
 #ifdef EMU_DEVICE_H
+/* NukedOPL*/
 extern const device_t ym3812_nuked_device;
 extern const device_t ymf262_nuked_device;
 
+/* Retrowave */
+extern const device_t ym3812_retrowave_device;
+extern const device_t ymf262_retrowave_device;
+
+/* YMFM */
 extern const device_t ym2149_ymfm_device;
 
 /* OPL Series */
