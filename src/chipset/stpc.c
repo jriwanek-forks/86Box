@@ -999,17 +999,17 @@ stpc_lpt_handlers(stpc_lpt_t *dev, uint8_t val)
     switch (new_addr) {
         case 0x1:
             stpc_log("STPC: Remapping parallel port to LPT3\n");
-            lpt3_init(0x3bc);
+            lpt3_setup(0x3bc);
             break;
 
         case 0x2:
             stpc_log("STPC: Remapping parallel port to LPT1\n");
-            lpt1_init(0x378);
+            lpt1_setup(0x378);
             break;
 
         case 0x3:
             stpc_log("STPC: Remapping parallel port to LPT2\n");
-            lpt2_init(0x278);
+            lpt2_setup(0x278);
             break;
 
         default:

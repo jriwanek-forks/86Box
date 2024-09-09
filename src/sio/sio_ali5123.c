@@ -93,7 +93,7 @@ ali5123_lpt_handler(ali5123_t *dev)
     if (global_enable && local_enable) {
         ld_port = make_port(dev, 3) & 0xFFFC;
         if ((ld_port >= 0x0100) && (ld_port <= 0x0FFC))
-            lpt1_init(ld_port);
+            lpt1_setup(ld_port);
     }
     lpt1_irq(lpt_irq);
 }

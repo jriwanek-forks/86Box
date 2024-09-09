@@ -154,7 +154,7 @@ lpt1_handler(pc87306_t *dev)
         lpt_irq = (dev->regs[0x1b] & 0x20) ? 7 : 5;
 
     if (lpt_port)
-        lpt1_init(lpt_port);
+        lpt1_setup(lpt_port);
 
     lpt1_irq(lpt_irq);
 }
