@@ -43,19 +43,20 @@
 #include <86box/snd_sb.h>
 #include <86box/plat_unused.h>
 
-#define PNP_ROM_SB_16_PNP      "roms/sound/creative/CTL0024A.BIN"
-#define PNP_ROM_SB_VIBRA16XV   "roms/sound/creative/CT4170 PnP.BIN"
-#define PNP_ROM_SB_VIBRA16C    "roms/sound/creative/CT4180 PnP.BIN"
-#define PNP_ROM_SB_32_PNP      "roms/sound/creative/CT3600 PnP.BIN"
-#define PNP_ROM_SB_AWE32_PNP   "roms/sound/creative/CT3980 PnP.BIN"
-#define PNP_ROM_SB_AWE64_VALUE "roms/sound/creative/CT4520 PnP.BIN"
-#define PNP_ROM_SB_AWE64       "roms/sound/creative/CTL009DA.BIN"
-#define PNP_ROM_SB_AWE64_NOIDE "roms/sound/creative/CT4380-noIDE PnP.BIN"
-#define PNP_ROM_SB_AWE64_GOLD  "roms/sound/creative/CT4540 PnP.BIN"
+#define PNP_ROM_SB_16_PNP       "roms/sound/creative/CTL0024A.BIN" /* CT2940 */
+#define PNP_ROM_SB_16_PNP_NOIDE "roms/sound/creative/CTL0025A.BIN" /* CT2941? */
+#define PNP_ROM_SB_VIBRA16XV    "roms/sound/creative/CT4170 PnP.BIN"
+#define PNP_ROM_SB_VIBRA16C     "roms/sound/creative/CT4180 PnP.BIN"
+#define PNP_ROM_SB_32_PNP       "roms/sound/creative/CT3600 PnP.BIN"
+#define PNP_ROM_SB_AWE32_PNP    "roms/sound/creative/CT3980 PnP.BIN"
+#define PNP_ROM_SB_AWE64_VALUE  "roms/sound/creative/CT4520 PnP.BIN"
+#define PNP_ROM_SB_AWE64        "roms/sound/creative/CTL009DA.BIN"
+#define PNP_ROM_SB_AWE64_NOIDE  "roms/sound/creative/CT4380-noIDE PnP.BIN"
+#define PNP_ROM_SB_AWE64_GOLD   "roms/sound/creative/CT4540 PnP.BIN"
 /* TODO: Find real ESS PnP ROM dumps. */
-#define PNP_ROM_ESS0100        "roms/sound/ess/ESS0100.BIN"
-#define PNP_ROM_ESS0102        "roms/sound/ess/ESS0102.BIN"
-#define PNP_ROM_ESS0968        "roms/sound/ess/ESS0968.BIN"
+#define PNP_ROM_ESS0100         "roms/sound/ess/ESS0100.BIN"
+#define PNP_ROM_ESS0102         "roms/sound/ess/ESS0102.BIN"
+#define PNP_ROM_ESS0968         "roms/sound/ess/ESS0968.BIN"
 
 /* 0 to 7 -> -14dB to 0dB i 2dB steps. 8 to 15 -> 0 to +14dB in 2dB steps.
    Note that for positive dB values, this is not amplitude, it is amplitude - 1. */
@@ -3283,6 +3284,12 @@ sb_16_pnp_available(void)
     return rom_present(PNP_ROM_SB_16_PNP);
 }
 
+static int
+sb_16_pnp_noide_available(void)
+{
+    return rom_present(PNP_ROM_SB_16_PNP_NOIDE);
+}
+
 static void *
 sb_16_pnp_init(UNUSED(const device_t *info))
 {
@@ -5749,6 +5756,20 @@ const device_t sb_16_pnp_device = {
     .close         = sb_close,
     .reset         = NULL,
     { .available = sb_16_pnp_available },
+    .speed_changed = sb_speed_changed,
+    .force_redraw  = NULL,
+    .config        = sb_16_pnp_config
+};
+
+const device_t sb_16_pnp_noide_device = {
+    .name          = "Sound Blaster 16 PnP (No IDE)",
+    .internal_name = "sb16_pnp_noide",
+    .flags         = DEVICE_ISA | DEVICE_AT,
+    .local         = 1,
+    .init          = sb_16_pnp_init,
+    .close         = sb_close,
+    .reset         = NULL,
+    { .available = sb_16_pnp_noide_available },
     .speed_changed = sb_speed_changed,
     .force_redraw  = NULL,
     .config        = sb_16_pnp_config
