@@ -43,19 +43,23 @@
 #include <86box/snd_sb.h>
 #include <86box/plat_unused.h>
 
-#define PNP_ROM_SB_16_PNP      "roms/sound/creative/CTL0024A.BIN"
-#define PNP_ROM_SB_VIBRA16XV   "roms/sound/creative/CT4170 PnP.BIN"
-#define PNP_ROM_SB_VIBRA16C    "roms/sound/creative/CT4180 PnP.BIN"
-#define PNP_ROM_SB_32_PNP      "roms/sound/creative/CT3600 PnP.BIN"
-#define PNP_ROM_SB_AWE32_PNP   "roms/sound/creative/CT3980 PnP.BIN"
-#define PNP_ROM_SB_AWE64_VALUE "roms/sound/creative/CT4520 PnP.BIN"
-#define PNP_ROM_SB_AWE64       "roms/sound/creative/CTL009DA.BIN"
-#define PNP_ROM_SB_AWE64_NOIDE "roms/sound/creative/CT4380-noIDE PnP.BIN"
-#define PNP_ROM_SB_AWE64_GOLD  "roms/sound/creative/CT4540 PnP.BIN"
+#define SB_16_PNP_NOIDE 0
+#define SB_16_PNP_IDE   1
+
+#define PNP_ROM_SB_16_PNP_IDE   "roms/sound/creative/CTL0024A.BIN"   /* CT2940 */
+#define PNP_ROM_SB_16_PNP_NOIDE "roms/sound/creative/CTL0025A.BIN"   /* CT2941? */
+#define PNP_ROM_SB_VIBRA16XV    "roms/sound/creative/CT4170 PnP.BIN"
+#define PNP_ROM_SB_VIBRA16C     "roms/sound/creative/CT4180 PnP.BIN"
+#define PNP_ROM_SB_32_PNP       "roms/sound/creative/CT3600 PnP.BIN"
+#define PNP_ROM_SB_AWE32_PNP    "roms/sound/creative/CT3980 PnP.BIN"
+#define PNP_ROM_SB_AWE64_VALUE  "roms/sound/creative/CT4520 PnP.BIN"
+#define PNP_ROM_SB_AWE64        "roms/sound/creative/CTL009DA.BIN"
+#define PNP_ROM_SB_AWE64_NOIDE  "roms/sound/creative/CT4380-noIDE PnP.BIN"
+#define PNP_ROM_SB_AWE64_GOLD   "roms/sound/creative/CT4540 PnP.BIN"
 /* TODO: Find real ESS PnP ROM dumps. */
-#define PNP_ROM_ESS0100        "roms/sound/ess/ESS0100.BIN"
-#define PNP_ROM_ESS0102        "roms/sound/ess/ESS0102.BIN"
-#define PNP_ROM_ESS0968        "roms/sound/ess/ESS0968.BIN"
+#define PNP_ROM_ESS0100         "roms/sound/ess/ESS0100.BIN"
+#define PNP_ROM_ESS0102         "roms/sound/ess/ESS0102.BIN"
+#define PNP_ROM_ESS0968         "roms/sound/ess/ESS0968.BIN"
 
 /* 0 to 7 -> -14dB to 0dB i 2dB steps. 8 to 15 -> 0 to +14dB in 2dB steps.
    Note that for positive dB values, this is not amplitude, it is amplitude - 1. */
@@ -3283,6 +3287,12 @@ sb_16_pnp_available(void)
     return rom_present(PNP_ROM_SB_16_PNP);
 }
 
+static int
+sb_16_pnp_noide_available(void)
+{
+    return rom_present(PNP_ROM_SB_16_PNP_NOIDE);
+}
+
 static void *
 sb_16_pnp_init(UNUSED(const device_t *info))
 {
@@ -3316,17 +3326,33 @@ sb_16_pnp_init(UNUSED(const device_t *info))
 
     sb->gameport = gameport_add(&gameport_pnp_device);
 
-    device_add(&ide_qua_pnp_device);
-    other_ide_present++;
+    if (info->local) {
+        device_add(&ide_qua_pnp_device);
+        other_ide_present++;
+    }
+
+    const char *pnp_rom_file = NULL;
+    switch (info->local) {
+        case SB_16_PNP_IDE:
+            pnp_rom_file = PNP_ROM_SB_16_PNP_IDE;
+            break;
+
+        case SB_16_PNP_NOIDE:
+            pnp_rom_file = PNP_ROM_SB_16_PNP_NOIDE;
+            break;
+
+        default:
+            break;
+    }
 
     uint8_t *pnp_rom = NULL;
-
-    /* TODO: Add no IDE ROM here */
-    FILE *fp = rom_fopen(PNP_ROM_SB_16_PNP, "rb");
-    if (fp) {
-        if (fread(sb->pnp_rom, 1, 390, fp) == 390)
-            pnp_rom = sb->pnp_rom;
-        fclose(fp);
+    if (pnp_rom_file) {
+        FILE *fp = rom_fopen(pnp_rom_file, "rb");
+        if (fp) {
+            if (fread(sb->pnp_rom, 1, 390, fp) == 390)
+                pnp_rom = sb->pnp_rom;
+            fclose(fp);
+        }
     }
 
     isapnp_add_card(pnp_rom, 390, sb_16_pnp_config_changed,
@@ -3339,7 +3365,9 @@ sb_16_pnp_init(UNUSED(const device_t *info))
     sb_dsp_setdma16(&sb->dsp, ISAPNP_DMA_DISABLED);
 
     mpu401_change_addr(sb->mpu, 0);
-    ide_remove_handlers(3);
+
+    if (info->local)
+        ide_remove_handlers(3);
 
     sb->gameport_addr = 0;
     gameport_remap(sb->gameport, 0);
@@ -5740,15 +5768,29 @@ const device_t sb_16_reply_mca_device = {
     .config        = sb_16_pnp_config
 };
 
-const device_t sb_16_pnp_device = {
-    .name          = "Sound Blaster 16 PnP",
-    .internal_name = "sb16_pnp",
+const device_t sb_16_pnp_ide_device = {
+    .name          = "Sound Blaster 16 PnP (IDE)",
+    .internal_name = "sb16_pnp_ide",
     .flags         = DEVICE_ISA | DEVICE_AT,
-    .local         = 0,
+    .local         = SB_16_PNP_IDE,
     .init          = sb_16_pnp_init,
     .close         = sb_close,
     .reset         = NULL,
     .available     = sb_16_pnp_available,
+    .speed_changed = sb_speed_changed,
+    .force_redraw  = NULL,
+    .config        = sb_16_pnp_config
+};
+
+const device_t sb_16_pnp_noide_device = {
+    .name          = "Sound Blaster 16 PnP",
+    .internal_name = "sb16_pnp",
+    .flags         = DEVICE_ISA | DEVICE_AT,
+    .local         = SB_16_PNP_NOIDE,
+    .init          = sb_16_pnp_init,
+    .close         = sb_close,
+    .reset         = NULL,
+    { .available = sb_16_pnp_noide_available },
     .speed_changed = sb_speed_changed,
     .force_redraw  = NULL,
     .config        = sb_16_pnp_config
