@@ -34,8 +34,9 @@ sid_init(void)
 #endif
     psid->sid = new SID;
 
-    psid->sid->setChipModel(reSIDfp::MOS8580);
-    psid->sid->enableFilter(true);
+    psid->sid->setChipModel(reSIDfp::MOS6581);
+//    psid->sid->setChipModel(reSIDfp::MOS8580);
+//    psid->sid->enableFilter(true);
 
     psid->sid->reset();
 
@@ -50,7 +51,7 @@ sid_init(void)
 #endif
     }
 
-    psid->sid->setChipModel(reSIDfp::MOS6581);
+//    psid->sid->setChipModel(reSIDfp::MOS6581);
     psid->sid->input(0);
 
     return (void *) psid;
