@@ -766,6 +766,15 @@ load_ports(void)
         p                   = ini_section_get_string(cat, temp, "none");
         lpt_ports[c].device = lpt_device_get_from_internal_name(p);
     }
+
+    for (c = 0; c < GAMEPORT_MAX; c++) {
+        sprintf(temp, "gameport%d_enabled", c + 1);
+        gameports[c].enabled = !!ini_section_get_int(cat, temp, (c == 0) ? 1 : 0);
+
+        sprintf(temp, "gameport%d_device", c + 1);
+        p                   = ini_section_get_string(cat, temp, "none");
+        gameports[c].device = gameport_device_get_from_internal_name(p);
+    }
 }
 
 /* Load "Storage Controllers" section. */
@@ -2372,6 +2381,22 @@ save_ports(void)
         else
             ini_section_set_string(cat, temp,
                                    lpt_device_get_internal_name(lpt_ports[c].device));
+    }
+
+    for (c = 0; c < GAMEPORT_MAX; c++) {
+        sprintf(temp, "gameport%d_enabled", c + 1);
+        d = (c == 0) ? 1 : 0;
+        if (gameports[c].enabled == d)
+            ini_section_delete_var(cat, temp);
+        else
+            ini_section_set_int(cat, temp, gameports[c].enabled);
+
+        sprintf(temp, "gameport%d_device", c + 1);
+        if (gameports[c].device == 0)
+            ini_section_delete_var(cat, temp);
+        else
+            ini_section_set_string(cat, temp,
+                                   gameport_device_get_internal_name(gameports[c].device));
     }
 
     ini_delete_section_if_empty(config, cat);
