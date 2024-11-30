@@ -172,6 +172,16 @@ extern const joystick_if_t joystick_ch_flightstick_pro;
 extern const joystick_if_t joystick_sw_pad;
 
 extern const joystick_if_t joystick_tm_fcs;
+
+
+extern int             gameport_available(int);
+extern int             gameport_has_config(int);
+extern const char     *gameport_get_internal_name(int);
+extern int             gampeport_get_from_internal_name(char *);
+#ifdef EMU_DEVICE_H
+extern const device_t *gameport_getdevice(int);
+#endif
+
 #ifdef __cplusplus
 }
 #endif

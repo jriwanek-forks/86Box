@@ -715,3 +715,61 @@ const device_t gameport_sio_1io_device = {
     .force_redraw  = NULL,
     .config        = NULL
 };
+
+static const device_t *gameports[] = {
+    &device_none,
+    &device_internal,
+    &gameport_device,
+    &gameport_208_device,
+    &gameport_pnp_device,
+    &gameport_tm_acm_device
+};
+
+/* UI */
+int
+gameport_available(int port)
+{
+    if (gameports[port])
+        return (device_available(gameports[port]));
+
+    return 1;
+}
+
+/* UI */
+const device_t *
+gameports_getdevice(int port)
+{
+    return (gameports[port]);
+}
+
+/* UI */
+int
+gameport_has_config(int port)
+{
+    if (!gameports[port])
+        return 0;
+
+    return (device_has_config(gameports[port]) ? 1 : 0);
+}
+
+/* UI */
+const char *
+gameport_get_internal_name(int port)
+{
+    return device_get_internal_name(gameports[port]);
+}
+
+/* UI */
+int
+gameport_get_from_internal_name(char *s)
+{
+    int c = 0;
+
+    while (gameports[c] != NULL) {
+        if (!strcmp(gameports[c]->internal_name, s))
+            return c;
+        c++;
+    }
+
+    return 0;
+}
