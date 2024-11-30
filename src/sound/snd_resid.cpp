@@ -25,7 +25,7 @@ sid_init(void)
 #if 0
     psid_t *psid;
 #endif
-    reSIDfp::SamplingMethod method         = reSIDfp::DECIMATE;
+    reSIDfp::SamplingMethod method         = reSIDfp::RESAMPLE;
     float                   cycles_per_sec = 14318180.0 / 16.0;
 
     psid = new psid_t;
