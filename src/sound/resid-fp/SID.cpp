@@ -147,7 +147,7 @@ SID::SID() :
     muted[0] = muted[1] = muted[2] = false;
 
     reset();
-    setChipModel(MOS8580);
+    setChipModel(MOS6581);
 }
 
 SID::~SID()
