@@ -1524,6 +1524,76 @@ static const device_config_t gus_config[] = {
 // clang-format off
 };
 
+static const device_config_t gus_ace_config[] = {
+    // clang-format off
+    {
+        .name = "base",
+        .description = "Address",
+        .type = CONFIG_HEX16,
+        .default_string = "",
+        .default_int = 0x260,
+        .file_filter = "",
+        .spinner = { 0 },
+        .selection = {
+            {
+                .description = "210H",
+                .value = 0x210
+            },
+            {
+                .description = "220H",
+                .value = 0x220
+            },
+            {
+                .description = "230H",
+                .value = 0x230
+            },
+            {
+                .description = "240H",
+                .value = 0x240
+            },
+            {
+                .description = "250H",
+                .value = 0x250
+            },
+            {
+                .description = "260H",
+                .value = 0x260
+            },
+        },
+    },
+    {
+        .name = "gus_ram",
+        "Memory size",
+        .type = CONFIG_SELECTION,
+        .default_string = "",
+        .default_int = 0,
+        .file_filter = "",
+        .spinner = { 0 },
+        .selection = {
+            {
+                .description = "512 KB",
+                .value = 1
+            },
+            {
+                .description = "1 MB",
+                .value = 2
+            },
+            { NULL }
+        }
+    },
+/*
+    {
+        .name = "receive_input",
+        .description = "Receive MIDI input",
+        .type = CONFIG_BINARY,
+        .default_string = "",
+        .default_int = 1
+    },
+*/
+    { .name = "", .description = "", .type = CONFIG_END }
+// clang-format off
+};
+
 const device_t gus_device = {
     .name = "Gravis UltraSound",
     .internal_name = "gus",
@@ -1536,4 +1606,18 @@ const device_t gus_device = {
     .speed_changed = gus_speed_changed,
     .force_redraw = NULL,
     .config = gus_config
+};
+
+const device_t gus_ace_device = {
+    .name = "Gravis UltraSound ACE",
+    .internal_name = "gusace",
+    .flags = DEVICE_ISA | DEVICE_AT,
+    .local = 0,
+    .init = gus_init,
+    .close = gus_close,
+    .reset = gus_reset,
+    { .available = NULL },
+    .speed_changed = gus_speed_changed,
+    .force_redraw = NULL,
+    .config = gus_ace_config
 };
