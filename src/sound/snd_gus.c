@@ -10,10 +10,13 @@
 #include <86box/86box.h>
 #include <86box/device.h>
 #include <86box/dma.h>
+#include <86box/isapnp.h>
 #include <86box/io.h>
+#include <86box/mem.h>
 #include <86box/midi.h>
 #include <86box/nmi.h>
 #include <86box/pic.h>
+#include <86box/rom.h>
 #include <86box/sound.h>
 #include <86box/timer.h>
 #ifdef USE_GUSMAX
@@ -21,6 +24,10 @@
 #endif /*USE_GUSMAX */
 #include <86box/plat_fallthrough.h>
 #include <86box/plat_unused.h>
+
+#define PNP_ROM_OLD   "roms/sound/gravis/OLDGRAV.ROM"
+#define PNP_ROM_NOIDE "roms/sound/gravis/GRAVNOCD.ROM"
+#define PNP_ROM_NEW   "roms/sound/gravis/GRAVIS.ROM"
 
 enum {
     MIDI_INT_RECEIVE  = 0x01,
@@ -1430,6 +1437,137 @@ gus_speed_changed(void *priv)
 #endif /*USE_GUSMAX */
 }
 
+static void
+gus_pnp_config_changed(const uint8_t ld, isapnp_device_config_t *config, void *priv)
+{
+    gus_t   *gus  = (gus_t *) priv;
+    uint16_t addr = gus->dsp.gus_addr;
+
+#if 0
+    switch (ld) {
+        default:
+        case 4: /* StereoEnhance (32) */
+            break;
+
+        case 0: /* Audio */
+            io_removehandler(addr, 0x0004,
+                             gus->opl.read, NULL, NULL,
+                             gus->opl.write, NULL, NULL,
+                             gus->opl.priv);
+            io_removehandler(addr + 8, 0x0002,
+                             gus->opl.read, NULL, NULL,
+                             gus->opl.write, NULL, NULL,
+                             gus->opl.priv);
+            io_removehandler(addr + 4, 0x0002,
+                             gus_ct1745_mixer_read, NULL, NULL,
+                             gus_ct1745_mixer_write, NULL, NULL,
+                             gus);
+
+            addr = gus->opl_pnp_addr;
+            if (addr) {
+                gus->opl_pnp_addr = 0;
+                io_removehandler(addr, 0x0004,
+                                 gus->opl.read, NULL, NULL,
+                                 gus->opl.write, NULL, NULL,
+                                 gus->opl.priv);
+            }
+
+            gus_dsp_setaddr(&gus->dsp, 0);
+            gus_dsp_setirq(&gus->dsp, 0);
+            gus_dsp_setdma8(&gus->dsp, ISAPNP_DMA_DISABLED);
+            gus_dsp_setdma16(&gus->dsp, ISAPNP_DMA_DISABLED);
+
+            mpu401_change_addr(gus->mpu, 0);
+
+            if (config->activate) {
+                uint8_t  val = config->irq[0].irq;
+
+                addr = config->io[0].base;
+                if (addr != ISAPNP_IO_DISABLED) {
+                    io_sethandler(addr, 0x0004,
+                                  gus->opl.read, NULL, NULL,
+                                  gus->opl.write, NULL, NULL,
+                                  gus->opl.priv);
+                    io_sethandler(addr + 8, 0x0002,
+                                  gus->opl.read, NULL, NULL,
+                                  gus->opl.write, NULL, NULL,
+                                  gus->opl.priv);
+                    io_sethandler(addr + 4, 0x0002,
+                                  gus_ct1745_mixer_read, NULL, NULL,
+                                  gus_ct1745_mixer_write, NULL, NULL,
+                                  gus);
+
+                    gus_dsp_setaddr(&gus->dsp, addr);
+                }
+
+                addr = config->io[1].base;
+                if (addr != ISAPNP_IO_DISABLED)
+                    mpu401_change_addr(gus->mpu, addr);
+
+                addr = config->io[2].base;
+                if (addr != ISAPNP_IO_DISABLED) {
+                    gus->opl_pnp_addr = addr;
+                    io_sethandler(addr, 0x0004,
+                                  gus->opl.read, NULL, NULL,
+                                  gus->opl.write, NULL, NULL,
+                                  gus->opl.priv);
+                }
+
+                if (val != ISAPNP_IRQ_DISABLED)
+                    gus_dsp_setirq(&gus->dsp, val);
+
+                val = config->dma[0].dma;
+                if (val != ISAPNP_DMA_DISABLED)
+                    gus_dsp_setdma8(&gus->dsp, val);
+
+                val = config->dma[1].dma;
+                gus_dsp_setdma16_enabled(&gus->dsp, val != ISAPNP_DMA_DISABLED);
+                gus_dsp_setdma16_translate(&gus->dsp, val < ISAPNP_DMA_DISABLED);
+                if (val != ISAPNP_DMA_DISABLED) {
+                    if (gus->dsp.sb_16_dma_supported)
+                        gus_dsp_setdma16(&gus->dsp, val);
+                    else
+                        gus_dsp_setdma16_8(&gus->dsp, val);
+                }
+            }
+
+            break;
+
+        case 1: /* IDE */
+            ide_pnp_config_changed(0, config, (void *) 3);
+            break;
+
+        case 2: /* Reserved (16) / WaveTable (32+) */
+            break;
+
+        case 3: /* Game */
+            gameport_remap(gus->gameport, (config->activate && (config->io[0].base != ISAPNP_IO_DISABLED)) ? config->io[0].base : 0);
+            break;
+    }
+#endif
+}
+
+void *
+gus_pnp_init(UNUSED(const device_t *info))
+{
+    gus_t  *gus     = malloc(sizeof(gus_t));
+    memset(gus, 0x00, sizeof(gus_t));
+
+	// TODO
+    uint8_t *pnp_rom = NULL;
+
+    FILE *fp = rom_fopen(PNP_ROM_NEW, "rb");
+    if (fp) {
+        if (fread(gus->pnp_rom, 1, 512, fp) == 512)
+            pnp_rom = gus->pnp_rom;
+        fclose(fp);
+    }
+
+    isapnp_add_card(pnp_rom, 512, gus_pnp_config_changed,
+                    NULL, NULL, NULL, gus);
+
+}
+
 static const device_config_t gus_config[] = {
     // clang-format off
     {
@@ -1594,6 +1732,53 @@ static const device_config_t gus_ace_config[] = {
 // clang-format off
 };
 
+static const device_config_t gus_pnp_config[] = {
+    // clang-format off
+    {
+        .name = "gus_ram",
+        "Memory size",
+        .type = CONFIG_SELECTION,
+        .default_string = "",
+        .default_int = 0,
+        .file_filter = "",
+        .spinner = { 0 },
+        .selection = {
+            {
+                .description = "512 KB",
+                .value = 1
+            },
+            {
+                .description = "1 MB",
+                .value = 2
+            },
+            {
+                .description = "2 MB",
+                .value = 2
+            },
+            {
+                .description = "4 MB",
+                .value = 2
+            },
+            {
+                .description = "8 MB",
+                .value = 2
+            },
+            { NULL }
+        }
+    },
+/*
+    {
+        .name = "receive_input",
+        .description = "Receive MIDI input",
+        .type = CONFIG_BINARY,
+        .default_string = "",
+        .default_int = 1
+    },
+*/
+    { .name = "", .description = "", .type = CONFIG_END }
+// clang-format off
+};
+
 const device_t gus_device = {
     .name = "Gravis UltraSound",
     .internal_name = "gus",
@@ -1621,3 +1806,21 @@ const device_t gus_ace_device = {
     .force_redraw = NULL,
     .config = gus_ace_config
 };
+
+// TODO: Has Joystick
+const device_t gus_pnp_device = {
+    .name = "Gravis UltraSound PNP",
+    .internal_name = "guspnp",
+    .flags = DEVICE_ISA | DEVICE_AT,
+    .local = 0,
+    .init = gus_pnp_init,
+    .close = gus_close,
+    .reset = gus_reset,
+    { .available = NULL },
+    .speed_changed = gus_speed_changed,
+    .force_redraw = NULL,
+    .config = gus_pnp_config
+};
+
+// TODO: Gravis UltraSound VIP, ViperMAX & Extreme
+// Has ESS1688
