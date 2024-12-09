@@ -38,8 +38,8 @@
 
 typedef struct
 {
-    rom_t bios_rom;
-    fdc_t *fdc;
+    rom_t   bios_rom;
+    fdc_t  *fdc;
     uint8_t regs[1];
 } compaticard_t;
 
@@ -55,7 +55,7 @@ static uint8_t
 compaticard_in(uint16_t port, void *priv)
 {
     compaticard_t *dev = (compaticard_t *) priv;
-    uint8_t     ret = 0xff;
+    uint8_t        ret = 0xff;
 
     ret = dev->regs[1];
 
@@ -65,7 +65,7 @@ compaticard_in(uint16_t port, void *priv)
 static void
 compaticard_close(void *priv)
 {
-    compaticard_t *dev = (compaticard_t *)priv;
+    compaticard_t *dev = (compaticard_t *) priv;
 
     free(dev);
 }
@@ -75,7 +75,7 @@ compaticard_init(const device_t *info)
 {
     compaticard_t *dev;
 
-    dev = (compaticard_t *)malloc(sizeof(compaticard_t));
+    dev = (compaticard_t *) malloc(sizeof(compaticard_t));
     memset(dev, 0, sizeof(compaticard_t));
 
     dev->fdc = device_add(&fdc_at_device);
@@ -371,43 +371,43 @@ static const device_config_t compaticard_iv_config[] = {
 };
 
 const device_t fdc_compaticard_i_device = {
-    .name = "Micro Solutions CompatiCard I",
+    .name          = "Micro Solutions CompatiCard I",
     .internal_name = "compaticard_i",
-    .flags = DEVICE_ISA,
-    .local = 0,
-    .init = compaticard_init,
-    .close = compaticard_close,
-    .reset = NULL,
+    .flags         = DEVICE_ISA,
+    .local         = 0,
+    .init          = compaticard_init,
+    .close         = compaticard_close,
+    .reset         = NULL,
     { .available = NULL },
     .speed_changed = NULL,
-    .force_redraw = NULL,
-    .config = compaticard_i_config
+    .force_redraw  = NULL,
+    .config        = compaticard_i_config
 };
 
 const device_t fdc_compaticard_ii_device = {
-    .name = "Micro Solutions CompatiCard II",
+    .name          = "Micro Solutions CompatiCard II",
     .internal_name = "compaticard_ii",
-    .flags = DEVICE_ISA,
-    .local = 1,
-    .init = compaticard_init,
-    .close = compaticard_close,
-    .reset = NULL,
+    .flags         = DEVICE_ISA,
+    .local         = 1,
+    .init          = compaticard_init,
+    .close         = compaticard_close,
+    .reset         = NULL,
     { .available = NULL },
     .speed_changed = NULL,
-    .force_redraw = NULL,
-    .config = compaticard_ii_config
+    .force_redraw  = NULL,
+    .config        = compaticard_ii_config
 };
 
 const device_t fdc_compaticard_iv_device = {
-    .name = "Micro Solutions CompatiCard IV",
+    .name          = "Micro Solutions CompatiCard IV",
     .internal_name = "compaticard_iv",
-    .flags = DEVICE_ISA,
-    .local = 2,
-    .init = compaticard_init,
-    .close = compaticard_close,
-    .reset = NULL,
+    .flags         = DEVICE_ISA,
+    .local         = 2,
+    .init          = compaticard_init,
+    .close         = compaticard_close,
+    .reset         = NULL,
     { .available = compaticard_iv_available },
     .speed_changed = NULL,
-    .force_redraw = NULL,
-    .config = compaticard_iv_config
+    .force_redraw  = NULL,
+    .config        = compaticard_iv_config
 };
