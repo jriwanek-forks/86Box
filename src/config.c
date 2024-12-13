@@ -739,11 +739,12 @@ load_sound(void)
         sound_is_float = 0;
 
     p = ini_section_get_string(cat, "fm_driver", "nuked");
-    if (!strcmp(p, "ymfm")) {
+    if (!strcmp(p, "retrowave"))
+        fm_driver = FM_DRV_RETROWAVE;
+    else if (!strcmp(p, "ymfm"))
         fm_driver = FM_DRV_YMFM;
-    } else {
+    else
         fm_driver = FM_DRV_NUKED;
-    }
 }
 
 /* Load "Network" section. */
@@ -2808,10 +2809,12 @@ save_sound(void)
     else
         ini_section_set_string(cat, "sound_type", (sound_is_float == 1) ? "float" : "int16");
 
-    if (fm_driver == FM_DRV_NUKED)
-        ini_section_delete_var(cat, "fm_driver");
-    else
+    if (fm_driver == FM_DRV_RETROWAVE)
+        ini_section_set_string(cat, "fm_driver", "retrowave");
+    else if (fm_driver == FM_DRV_YMFM)
         ini_section_set_string(cat, "fm_driver", "ymfm");
+    else
+        ini_section_delete_var(cat, "fm_driver");
 
     ini_delete_section_if_empty(config, cat);
 }
