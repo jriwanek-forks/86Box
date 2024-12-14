@@ -754,7 +754,8 @@ usage:
             if ((c + 1) == argc)
                 goto usage;
 
-            strcpy(log_path, argv[++c]);
+            strncpy(log_path, argv[++c], sizeof(log_path) - 1);
+            log_path[sizeof(log_path) - 1] = '\0';
         } else if (!strcasecmp(argv[c], "--vmpath") || !strcasecmp(argv[c], "-P")) {
             if ((c + 1) == argc)
                 goto usage;
@@ -912,13 +913,14 @@ usage:
              * Add it to the current working directory
              * to convert it (back) to an absolute path.
              */
-            strcat(usr_path, ppath);
+            strncat(usr_path, ppath, sizeof(usr_path) - strlen(usr_path) - 1);
         } else {
             /*
              * The user-provided path seems like an
              * absolute path, so just use that.
              */
-            strcpy(usr_path, ppath);
+            strncpy(usr_path, ppath, sizeof(usr_path) - 1);
+            usr_path[sizeof(usr_path) - 1] = '\0'; // Ensure null-termination
         }
 
         /* If the specified path does not yet exist,
@@ -951,13 +953,14 @@ usage:
              * Add it to the current working directory
              * to convert it (back) to an absolute path.
              */
-            strcat(rom_path, rpath);
+            strncat(rom_path, rpath, sizeof(rom_path) - strlen(rom_path) - 1);
         } else {
             /*
              * The user-provided path seems like an
              * absolute path, so just use that.
              */
-            strcpy(rom_path, rpath);
+            strncpy(rom_path, rpath, sizeof(rom_path) - 1);
+            rom_path[sizeof(rom_path) - 1] = '\0';
         }
 
         /* If the specified path does not yet exist,
@@ -994,10 +997,11 @@ usage:
          * Otherwise, assume the pathname given is
          * relative to whatever the usr_path is.
          */
-        if (path_abs(cfg))
-            strcpy(usr_path, cfg);
-        else
-            strcat(usr_path, cfg);
+        if (path_abs(cfg)) {
+            strncpy(usr_path, cfg, sizeof(usr_path) - 1);
+            usr_path[sizeof(usr_path) - 1] = '\0';
+        } else
+            strncat(usr_path, cfg, sizeof(usr_path) - strlen(usr_path) - 1);
     }
 
     /* Make sure we have a trailing backslash. */
