@@ -115,7 +115,7 @@ void retrowave_flush(RetroWaveContext *ctx) {
 }
 
 uint8_t retrowave_invert_byte(uint8_t val) {
-	uint8_t ret;
+	uint8_t ret = 0x00;
 
 	for (uint8_t i=0; i<8; i++) {
 		uint8_t bit = (val >> i) & 1U;
