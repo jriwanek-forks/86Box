@@ -56,8 +56,6 @@ extern "C" {
 typedef enum {
 	RetroWave_Board_Unknown = 0,
 	RetroWave_Board_OPL3 = 0x21 << 1,
-	RetroWave_Board_MiniBlaster = 0x20 << 1,
-	RetroWave_Board_MasterGear = 0x24 << 1
 } RetroWaveBoardType;
 
 typedef struct {
