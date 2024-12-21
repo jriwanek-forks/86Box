@@ -43,13 +43,20 @@
 #include <86box/snd_sb.h>
 #include <86box/plat_unused.h>
 
+#define SB_32_PNP      0
+#define SB_AWE32_PNP   1
+#define SB_AWE64_VALUE 2
+#define SB_AWE64_IDE   3
+#define SB_AWE64_NOIDE 5
+#define SB_AWE64_GOLD  4
+
 #define PNP_ROM_SB_16_PNP      "roms/sound/creative/CTL0024A.BIN"
 #define PNP_ROM_SB_VIBRA16XV   "roms/sound/creative/CT4170 PnP.BIN"
 #define PNP_ROM_SB_VIBRA16C    "roms/sound/creative/CT4180 PnP.BIN"
 #define PNP_ROM_SB_32_PNP      "roms/sound/creative/CT3600 PnP.BIN"
 #define PNP_ROM_SB_AWE32_PNP   "roms/sound/creative/CT3980 PnP.BIN"
 #define PNP_ROM_SB_AWE64_VALUE "roms/sound/creative/CT4520 PnP.BIN"
-#define PNP_ROM_SB_AWE64       "roms/sound/creative/CTL009DA.BIN"
+#define PNP_ROM_SB_AWE64_IDE   "roms/sound/creative/CTL009DA.BIN"
 #define PNP_ROM_SB_AWE64_NOIDE "roms/sound/creative/CT4380-noIDE PnP.BIN"
 #define PNP_ROM_SB_AWE64_GOLD  "roms/sound/creative/CT4540 PnP.BIN"
 /* TODO: Find real ESS PnP ROM dumps. */
@@ -2221,7 +2228,7 @@ sb_awe32_pnp_config_changed(const uint8_t ld, isapnp_device_config_t *config, vo
 }
 
 static void
-sb_awe64_pnp_config_changed(const uint8_t ld, isapnp_device_config_t *config, void *priv)
+sb_awe64_pnp_ide_config_changed(const uint8_t ld, isapnp_device_config_t *config, void *priv)
 {
     sb_t *sb = (sb_t *) priv;
 
@@ -2242,7 +2249,7 @@ sb_awe64_pnp_config_changed(const uint8_t ld, isapnp_device_config_t *config, vo
 }
 
 static void
-sb_awe64_gold_pnp_config_changed(const uint8_t ld, isapnp_device_config_t *config, void *priv)
+sb_awe64_pnp_noide_config_changed(const uint8_t ld, isapnp_device_config_t *config, void *priv)
 {
     sb_t *sb = (sb_t *) priv;
 
@@ -3500,7 +3507,7 @@ sb_awe64_value_available(void)
 static int
 sb_awe64_available(void)
 {
-    return sb_awe32_available() && rom_present(PNP_ROM_SB_AWE64);
+    return sb_awe32_available() && rom_present(PNP_ROM_SB_AWE64_IDE);
 }
 
 static int
@@ -3601,7 +3608,7 @@ sb_awe32_pnp_init(const device_t *info)
     sb->opl_enabled = 1;
     fm_driver_get(FM_YMF262, &sb->opl);
 
-    sb_dsp_init(&sb->dsp, ((info->local == 2) || (info->local == 3) || (info->local == 4) || (info->local == 5)) ?
+    sb_dsp_init(&sb->dsp, (info->local >= SB_AWE64_VALUE) ?
                 SBAWE64 : SBAWE32PNP, SB_SUBTYPE_DEFAULT, sb);
     sb_dsp_setdma16_supported(&sb->dsp, 1);
     sb_ct1745_mixer_reset(sb);
@@ -3628,35 +3635,36 @@ sb_awe32_pnp_init(const device_t *info)
 
     sb->gameport = gameport_add(&gameport_pnp_device);
 
-    if ((info->local != 2) && (info->local != 4) && (info->local != 5)) {
+    // Does it have IDE?
+    if ((info->local != SB_AWE64_VALUE) && (info->local != SB_AWE64_GOLD) && (info->local != SB_AWE64_NOIDE)) {
         device_add(&ide_qua_pnp_device);
         other_ide_present++;
     }
 
     const char *pnp_rom_file = NULL;
     switch (info->local) {
-        case 0:
+        case SB_32_PNP:
             pnp_rom_file = PNP_ROM_SB_32_PNP;
             break;
 
-        case 1:
+        case SB_AWE32_PNP:
             pnp_rom_file = PNP_ROM_SB_AWE32_PNP;
             break;
 
-        case 2:
+        case SB_AWE64_VALUE:
             pnp_rom_file = PNP_ROM_SB_AWE64_VALUE;
             break;
 
-        case 3:
-            pnp_rom_file = PNP_ROM_SB_AWE64;
-            break;
-
-        case 4:
-            pnp_rom_file = PNP_ROM_SB_AWE64_GOLD;
-            break;
-
-        case 5:
+        case SB_AWE64_NOIDE:
             pnp_rom_file = PNP_ROM_SB_AWE64_NOIDE;
+            break;
+
+        case SB_AWE64_IDE:
+            pnp_rom_file = PNP_ROM_SB_AWE64_IDE;
+            break;
+
+        case SB_AWE64_GOLD:
+            pnp_rom_file = PNP_ROM_SB_AWE64_GOLD;
             break;
 
         default:
@@ -3674,22 +3682,22 @@ sb_awe32_pnp_init(const device_t *info)
     }
 
     switch (info->local) {
-        case 0:
+        case SB_32_PNP:
             isapnp_add_card(pnp_rom, sizeof(sb->pnp_rom), sb_16_pnp_config_changed, NULL, NULL, NULL, sb);
             break;
 
-        case 1:
+        case SB_AWE32_PNP:
             isapnp_add_card(pnp_rom, sizeof(sb->pnp_rom), sb_awe32_pnp_config_changed, NULL, NULL, NULL, sb);
             break;
 
-        case 3:
-        case 5:
-            isapnp_add_card(pnp_rom, sizeof(sb->pnp_rom), sb_awe64_pnp_config_changed, NULL, NULL, NULL, sb);
+        case SB_AWE64_IDE:
+        case SB_AWE64_NOIDE:
+            isapnp_add_card(pnp_rom, sizeof(sb->pnp_rom), sb_awe64_pnp_ide_config_changed, NULL, NULL, NULL, sb);
             break;
 
-        case 2:
-        case 4:
-            isapnp_add_card(pnp_rom, sizeof(sb->pnp_rom), sb_awe64_gold_pnp_config_changed, NULL, NULL, NULL, sb);
+        case SB_AWE64_VALUE:
+        case SB_AWE64_GOLD:
+            isapnp_add_card(pnp_rom, sizeof(sb->pnp_rom), sb_awe64_pnp_noide_config_changed, NULL, NULL, NULL, sb);
             break;
 
         default:
@@ -5786,7 +5794,7 @@ const device_t sb_32_pnp_device = {
     .name          = "Sound Blaster 32 PnP",
     .internal_name = "sb32_pnp",
     .flags         = DEVICE_ISA | DEVICE_AT,
-    .local         = 0,
+    .local         = SB_32_PNP,
     .init          = sb_awe32_pnp_init,
     .close         = sb_awe32_close,
     .reset         = NULL,
@@ -5814,7 +5822,7 @@ const device_t sb_awe32_pnp_device = {
     .name          = "Sound Blaster AWE32 PnP",
     .internal_name = "sbawe32_pnp",
     .flags         = DEVICE_ISA | DEVICE_AT,
-    .local         = 1,
+    .local         = SB_AWE32_PNP,
     .init          = sb_awe32_pnp_init,
     .close         = sb_awe32_close,
     .reset         = NULL,
@@ -5828,7 +5836,7 @@ const device_t sb_awe64_value_device = {
     .name          = "Sound Blaster AWE64 Value",
     .internal_name = "sbawe64_value",
     .flags         = DEVICE_ISA | DEVICE_AT,
-    .local         = 2,
+    .local         = SB_AWE64_VALUE,
     .init          = sb_awe32_pnp_init,
     .close         = sb_awe32_close,
     .reset         = NULL,
@@ -5842,7 +5850,7 @@ const device_t sb_awe64_device = {
     .name          = "Sound Blaster AWE64",
     .internal_name = "sbawe64",
     .flags         = DEVICE_ISA | DEVICE_AT,
-    .local         = 3,
+    .local         = SB_AWE64_IDE,
     .init          = sb_awe32_pnp_init,
     .close         = sb_awe32_close,
     .reset         = NULL,
@@ -5856,7 +5864,7 @@ const device_t sb_awe64_noide_device = {
     .name          = "Sound Blaster AWE64 (No IDE)",
     .internal_name = "sbawe64_noide",
     .flags         = DEVICE_ISA | DEVICE_AT,
-    .local         = 5,
+    .local         = SB_AWE64_NOIDE,
     .init          = sb_awe32_pnp_init,
     .close         = sb_awe32_close,
     .reset         = NULL,
@@ -5870,7 +5878,7 @@ const device_t sb_awe64_gold_device = {
     .name          = "Sound Blaster AWE64 Gold",
     .internal_name = "sbawe64_gold",
     .flags         = DEVICE_ISA | DEVICE_AT,
-    .local         = 4,
+    .local         = SB_AWE64_GOLD,
     .init          = sb_awe32_pnp_init,
     .close         = sb_awe32_close,
     .reset         = NULL,
