@@ -13,9 +13,11 @@
  * Authors: Sarah Walker, <https://pcem-emulator.co.uk/>
  *          Miran Grca, <mgrca8@gmail.com>
  *          Fred N. van Kempen, <decwiz@yahoo.com>
+ *          Cacodemon345
  *
  *          Copyright 2008-2019 Sarah Walker.
  *          Copyright 2016-2025 Miran Grca.
+ *          Copyright 2024      Cacodemon345.
  */
 #include <stdarg.h>
 #include <stdio.h>
@@ -60,6 +62,9 @@ int   initialized = 0;
 io_t *io[NPORTS];
 io_t *io_last[NPORTS];
 
+io_range_t io_ranges[256];
+uint32_t   io_ranges_num = 0;
+
 #ifdef ENABLE_IO_LOG
 int io_do_log = ENABLE_IO_LOG;
 
@@ -84,6 +89,8 @@ io_init(void)
     int   c;
     io_t *p;
     io_t *q;
+	
+    io_ranges_num = 0;
 
     if (!initialized) {
         for (c = 0; c < NPORTS; c++)
@@ -107,6 +114,35 @@ io_init(void)
         /* io[c] should be NULL. */
         io[c] = io_last[c] = NULL;
     }
+}
+
+io_range_t*
+io_range_addhandler(uint16_t start, uint16_t end,
+                                 uint8_t (*inb)(uint16_t addr, void *priv),
+                                 uint16_t (*inw)(uint16_t addr, void *priv),
+                                 uint32_t (*inl)(uint16_t addr, void *priv),
+                                 void (*outb)(uint16_t addr, uint8_t val, void *priv),
+                                 void (*outw)(uint16_t addr, uint16_t val, void *priv),
+                                 void (*outl)(uint16_t addr, uint32_t val, void *priv),
+                                 uint8_t enable,
+                                 void *priv)
+{
+    io_range_t* io_range = NULL;
+    if (io_ranges_num >= 256)
+        return NULL;
+
+    io_range = &io_ranges[io_ranges_num];
+    io_range->inb = inb;
+    io_range->inw = inw;
+    io_range->inl = inl;
+    io_range->outb = outb;
+    io_range->outw = outw;
+    io_range->outl = outl;
+    io_range->priv = priv;
+    io_range->enable = enable;
+    io_ranges_num++;
+
+    return io_range;
 }
 
 void
@@ -376,6 +412,15 @@ inb(uint16_t port)
             }
             p = q;
         }
+
+        if (UNLIKELY(io_ranges_num)) {
+            for (uint32_t i = 0; i < io_ranges_num; i++) {
+                if (io_ranges[i].start >= port && port <= io_ranges[i].end && io_ranges[i].enable && io_ranges[i].inb) {
+                    ret &= io_ranges[i].inb(port, io_ranges[i].priv);
+                    found |= 1;
+                }
+            }
+        }
     }
 
     if (amstrad_latch & 0x80000000) {
@@ -442,6 +487,15 @@ outb(uint16_t port, uint8_t val)
 #endif
             }
             p = q;
+        }
+
+        if (UNLIKELY(io_ranges_num)) {
+            for (uint32_t i = 0; i < io_ranges_num; i++) {
+                if (io_ranges[i].start >= port && port <= io_ranges[i].end && io_ranges[i].enable && io_ranges[i].outb) {
+                    io_ranges[i].outb(port, val, io_ranges[i].priv);
+                    found |= 1;
+                }
+            }
         }
     }
 
@@ -519,6 +573,18 @@ inw(uint16_t port)
             }
         }
         ret = (ret8[1] << 8) | ret8[0];
+
+        if (UNLIKELY(io_ranges_num)) {
+            for (uint32_t i = 0; i < io_ranges_num; i++) {
+                if (io_ranges[i].start >= port && port <= io_ranges[i].end && io_ranges[i].enable) {
+                    if (io_ranges[i].inw)
+                        ret &= io_ranges[i].inw(port, io_ranges[i].priv);
+                    else
+                        ret &= (io_ranges[i].inb(port, io_ranges[i].priv)) | (io_ranges[i].inb(port + 1, io_ranges[i].priv) << 8);
+                    found |= 1;
+                }
+            }
+        }
     }
 
     if (amstrad_latch & 0x80000000) {
@@ -593,6 +659,20 @@ outw(uint16_t port, uint16_t val)
 #endif
                 }
                 p = q;
+            }
+        }
+
+        if (UNLIKELY(io_ranges_num)) {
+            for (uint32_t i = 0; i < io_ranges_num; i++) {
+                if (io_ranges[i].start >= port && port <= io_ranges[i].end && io_ranges[i].enable) {
+                    if (io_ranges[i].outw)
+                        io_ranges[i].outw(port, val, io_ranges[i].priv);
+                    else {
+                        io_ranges[i].outb(port, val & 0xFF, io_ranges[i].priv);
+                        io_ranges[i].outb(port + 1, val >> 8, io_ranges[i].priv);
+                    }
+                    found |= 1;
+                }
             }
         }
     }
@@ -703,6 +783,23 @@ inl(uint16_t port)
             }
         }
         ret = (ret8[3] << 24) | (ret8[2] << 16) | (ret8[1] << 8) | ret8[0];
+
+        if (UNLIKELY(io_ranges_num)) {
+            for (uint32_t i = 0; i < io_ranges_num; i++) {
+                if (io_ranges[i].start >= port && port <= io_ranges[i].end && io_ranges[i].enable) {
+                    if (io_ranges[i].inl)
+                        ret &= io_ranges[i].inl(port, io_ranges[i].priv);
+                    else if (io_ranges[i].inw)
+                        ret &= io_ranges[i].inw(port, io_ranges[i].priv) | (io_ranges[i].inw(port + 2, io_ranges[i].priv) << 16);
+                    else
+                        ret &= io_ranges[i].inb(port, io_ranges[i].priv)
+                            | (io_ranges[i].inb(port + 1, io_ranges[i].priv) << 8)
+                            | (io_ranges[i].inb(port + 2, io_ranges[i].priv) << 16)
+                            | (io_ranges[i].inb(port + 3, io_ranges[i].priv) << 24);
+                    found |= 1;
+                }
+            }
+        }
     }
 
     if (amstrad_latch & 0x80000000) {
@@ -795,6 +892,27 @@ outl(uint16_t port, uint32_t val)
 #endif
                 }
                 p = q;
+            }
+        }
+
+        if (UNLIKELY(io_ranges_num)) {
+            for (uint32_t i = 0; i < io_ranges_num; i++) {
+                if (io_ranges[i].start >= port && port <= io_ranges[i].end && io_ranges[i].enable) {
+                    if (io_ranges[i].outl) {
+                        io_ranges[i].outl(port, val, io_ranges[i].priv);
+                    }
+                    else if (io_ranges[i].outw) {
+                        io_ranges[i].outw(port, val, io_ranges[i].priv);
+                        io_ranges[i].outw(port + 2, val >> 16, io_ranges[i].priv);
+                    }
+                    else {
+                        io_ranges[i].outb(port, val & 0xFF, io_ranges[i].priv);
+                        io_ranges[i].outb(port + 1, val >> 8, io_ranges[i].priv);
+                        io_ranges[i].outb(port + 2, val >> 16, io_ranges[i].priv);
+                        io_ranges[i].outb(port + 3, val >> 24, io_ranges[i].priv);
+                    }
+                    found |= 1;
+                }
             }
         }
     }

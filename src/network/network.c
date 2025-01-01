@@ -83,46 +83,47 @@ typedef struct {
 
 static const NETWORK_CARD net_cards[] = {
     // clang-format off
-    { &device_none                },
-    { &device_internal            },
+    { &device_none                 },
+    { &device_internal             },
     /* ISA */
-    { &threec501_device           },
-    { &threec503_device           },
-    { &ne1000_compat_device       },
-    { &ne2000_compat_8bit_device  },
-    { &ne1000_device              },
-    { &wd8003e_device             },
-    { &wd8003eb_device            },
-    { &wd8013ebt_device           },
+    { &threec501_device            },
+    { &threec503_device            },
+    { &ne1000_compat_device        },
+    { &ne2000_compat_8bit_device   },
+    { &ne2000_compat_pcmcia_device },
+    { &ne1000_device               },
+    { &wd8003e_device              },
+    { &wd8003eb_device             },
+    { &wd8013ebt_device            },
     /* COM */
-    { &modem_device               },
+    { &modem_device                },
     /* LPT */
-    { &plip_device                },
+    { &plip_device                 },
     /* ISA16 */
-    { &pcnet_am79c960_device      },
-    { &pcnet_am79c961_device      },
-    { &de220p_device              },
-    { &ne2000_compat_device       },
-    { &ne2000_device              },
-    { &pcnet_am79c960_eb_device   },
-    { &rtl8019as_pnp_device       },
+    { &pcnet_am79c960_device       },
+    { &pcnet_am79c961_device       },
+    { &de220p_device               },
+    { &ne2000_compat_device        },
+    { &ne2000_device               },
+    { &pcnet_am79c960_eb_device    },
+    { &rtl8019as_pnp_device        },
     /* MCA */
-    { &ethernext_mc_device        },
-    { &wd8003eta_device           },
-    { &wd8003ea_device            },
-    { &wd8013epa_device           },
+    { &ethernext_mc_device         },
+    { &wd8003eta_device            },
+    { &wd8003ea_device             },
+    { &wd8013epa_device            },
     /* VLB */
-    { &pcnet_am79c960_vlb_device  },
+    { &pcnet_am79c960_vlb_device   },
     /* PCI */
-    { &pcnet_am79c973_device      },
-    { &pcnet_am79c970a_device     },
-    { &dec_tulip_21140_device     },
-    { &dec_tulip_21040_device     },
-    { &dec_tulip_device           },
-    { &dec_tulip_21140_vpc_device },
-    { &rtl8029as_device           },
-    { &rtl8139c_plus_device       },
-    { NULL                        }
+    { &pcnet_am79c973_device       },
+    { &pcnet_am79c970a_device      },
+    { &dec_tulip_21140_device      },
+    { &dec_tulip_21040_device      },
+    { &dec_tulip_device            },
+    { &dec_tulip_21140_vpc_device  },
+    { &rtl8029as_device            },
+    { &rtl8139c_plus_device        },
+    { NULL                         }
     // clang-format on
 };
 
