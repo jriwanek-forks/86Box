@@ -85,48 +85,49 @@ typedef struct net_card_migrate_t {
 
 static const NETWORK_CARD net_cards[] = {
     // clang-format off
-    { &device_none                },
-    { &device_internal            },
+    { &device_none                 },
+    { &device_internal             },
     /* ISA */
-    { &threec501_device           },
-    { &threec503_device           },
-    { &ne1000_compat_device       },
-    { &ne2000_compat_8bit_device  },
-    { &ne1000_device              },
-    { &ne2000_device              },
-    { &rtl8019as_pnp_device       },
-    { &wd8003e_device             },
-    { &wd8003eb_device            },
-    { &wd8013ebt_device           },
+    { &threec501_device            },
+    { &threec503_device            },
+    { &ne1000_compat_device        },
+    { &ne2000_compat_8bit_device   },
+    { &ne2000_compat_pcmcia_device },
+    { &ne1000_device               },
+    { &ne2000_device               },
+    { &rtl8019as_pnp_device        },
+    { &wd8003e_device              },
+    { &wd8003eb_device             },
+    { &wd8013ebt_device            },
     /* COM */
-    { &modem_device               },
+    { &modem_device                },
     /* LPT */
-    { &plip_device                },
-    /* ISA16 */
-    { &pcnet_am79c960_device      },
-    { &pcnet_am79c961_device      },
-    { &de220p_device              },
-    { &ne2000_compat_device       },
-    { &pcnet_am79c960_eb_device   },
+    { &plip_device                 },
+    /* ISA16 */ 
+    { &pcnet_am79c960_device       },
+    { &pcnet_am79c961_device       },
+    { &de220p_device               },
+    { &ne2000_compat_device        },
+    { &pcnet_am79c960_eb_device    },
     /* MCA */
-    { &ethernext_mc_device        },
-    { &wd8003ea_device            },
-    { &wd8003eta_device           },
-    { &wd8013epa_device           },
+    { &ethernext_mc_device         },
+    { &wd8003ea_device             },
+    { &wd8003eta_device            },
+    { &wd8013epa_device            },
     /* VLB */
-    { &pcnet_am79c960_vlb_device  },
+    { &pcnet_am79c960_vlb_device   },
     /* PCI */
-    { &pcnet_am79c973_device      },
-    { &pcnet_am79c970a_device     },
-    { &dec_tulip_21040_device     },
-    { &dec_tulip_21140_device     },
-    { &dec_tulip_device           },
-    { &i82557_device              },
-    { &i82558_device              },
-    { &rtl8029as_device           },
-    { &rtl8139c_plus_device       },
-    { &smc_epic100_device         },
-    { NULL                        }
+    { &pcnet_am79c973_device       },
+    { &pcnet_am79c970a_device      },
+    { &dec_tulip_21040_device      },
+    { &dec_tulip_21140_device      },
+    { &dec_tulip_device            },
+    { &i82557_device               },
+    { &i82558_device               },
+    { &rtl8029as_device            },
+    { &rtl8139c_plus_device        },
+    { &smc_epic100_device          },
+    { NULL                         }
     // clang-format on
 };
 
@@ -134,18 +135,18 @@ static const net_card_migrate_t
 net_cards_migrate[] = {
   // clang-format off
     /* DECchip 21140 "Tulip FasterNet" */
-    { .device = &dec_tulip_21140_device,                        .old_internal_name = "dec_21140_tulip"                },
-    { .device = &dec_tulip_21140_device,                        .old_internal_name = "dec_21140_tulip_vpc"            },
+    { .device = &dec_tulip_21140_device,                        .old_internal_name = "dec_21140_tulip"     },
+    { .device = &dec_tulip_21140_device,                        .old_internal_name = "dec_21140_tulip_vpc" },
     /* Intel 8255x (PRO/100 family) */
-    { .device = &i82557_device,                                 .old_internal_name = "i82557b"                       },
-    { .device = &i82557_device,                                 .old_internal_name = "i82557c"                       },
-    { .device = &i82558_device,                                 .old_internal_name = "i82558b"                       },
-    { .device = &i82558_device,                                 .old_internal_name = "i82559a"                       },
-    { .device = &i82558_device,                                 .old_internal_name = "i82559b"                       },
-    { .device = &i82558_device,                                 .old_internal_name = "i82559c"                       },
-    { .device = &i82558_device,                                 .old_internal_name = "i82559er"                      },
+    { .device = &i82557_device,                                 .old_internal_name = "i82557b"             },
+    { .device = &i82557_device,                                 .old_internal_name = "i82557c"             },
+    { .device = &i82558_device,                                 .old_internal_name = "i82558b"             },
+    { .device = &i82558_device,                                 .old_internal_name = "i82559a"             },
+    { .device = &i82558_device,                                 .old_internal_name = "i82559b"             },
+    { .device = &i82558_device,                                 .old_internal_name = "i82559c"             },
+    { .device = &i82558_device,                                 .old_internal_name = "i82559er"            },
     /* End of table */
-    { .device = NULL,                                           .old_internal_name = ""                               }
+    { .device = NULL,                                           .old_internal_name = ""                    }
   // clang-format on
 };
 

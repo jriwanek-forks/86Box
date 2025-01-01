@@ -102,7 +102,15 @@
 #include <86box/machine_status.h>
 #include <86box/acpi.h>
 #include <86box/nv/vid_nv_rivatimer.h>
+#include <86box/pcmcia.h>
 #include <86box/vfio.h>
+
+// Disable c99-designator to avoid the warnings about int ng
+#ifdef __clang__
+#    if __has_warning("-Wunused-but-set-variable")
+#        pragma clang diagnostic ignored "-Wunused-but-set-variable"
+#    endif
+#endif
 
 /* Stuff that used to be globally declared in plat.h but is now extern there
    and declared here instead. */
@@ -1762,6 +1770,9 @@ pc_reset_hard_init(void)
     /* Reset the general machine support modules. */
     io_init();
 
+    /* Reset PCMCIA socket list. */
+    pcmcia_reset();
+
     /* Turn on and (re)initialize timer processing. */
     timer_init();
 
@@ -1781,6 +1792,9 @@ pc_reset_hard_init(void)
 
     /* Reset some basic devices. */
     shadowbios = 0;
+
+    /* Add CL-PD6710 device (Temporary) */
+    device_add(&pd6710_device);
 
     /*
      * Once the machine has been initialized, all that remains
