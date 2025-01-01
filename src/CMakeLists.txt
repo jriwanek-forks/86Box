@@ -50,6 +50,7 @@ add_executable(86Box
     machine_status.c
     ini.c
     cJSON.c
+    pcmcia.c
 )
 
 if(CMAKE_SYSTEM_NAME MATCHES "Linux")
@@ -106,7 +107,7 @@ if(INSTRUMENT)
 endif()
 
 target_link_libraries(86Box cpu chipset mch dev mem fdd game cdrom zip mo hdd
-    net print scsi sio snd vid voodoo plat ui)
+    net print scsi sio snd vid voodoo pcmcia plat ui)
 
 if(WIN32 AND ARCH STREQUAL "i386")
     if(MINGW)
@@ -248,6 +249,7 @@ add_subdirectory(game)
 add_subdirectory(machine)
 add_subdirectory(mem)
 add_subdirectory(network)
+add_subdirectory(pcmcia)
 add_subdirectory(printer)
 add_subdirectory(sio)
 add_subdirectory(scsi)
