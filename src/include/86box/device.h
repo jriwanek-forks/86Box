@@ -105,9 +105,10 @@ enum {
     DEVICE_LPT        = 0x400000,   /* requires a parallel port */
 
     DEVICE_KBC        = 0x800000,   /* is a keyboard controller */
-    DEVICE_SOFTRESET  = 0x1000000,  /* requires to be reset on soft reset */
-    DEVICE_HOTPLUG_IN = 0x2000000,  /* can be safely added without a hard reset */
-    DEVICE_HOTPLUG_OUT= 0x4000000,  /* can be safely closed without a hard reset */
+    DEVICE_IRDA       = 0x1000000,  /* requires the IrDA bus */
+    DEVICE_SOFTRESET  = 0x2000000,  /* requires to be reset on soft reset */
+    DEVICE_HOTPLUG_IN = 0x4000000,  /* can be safely added without a hard reset */
+    DEVICE_HOTPLUG_OUT= 0x8000000,  /* can be safely closed without a hard reset */
     DEVICE_HOTPLUG    = DEVICE_HOTPLUG_IN | DEVICE_HOTPLUG_OUT,
 
     DEVICE_BIOS_ALIAS = 0x8000000,  /* use only BIOS names for aliases */
