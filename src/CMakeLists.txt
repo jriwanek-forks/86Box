@@ -50,6 +50,7 @@ add_executable(86Box
     machine_status.c
     ini.c
     cJSON.c
+    irda.c
 )
 
 if(CMAKE_SYSTEM_NAME MATCHES "Linux")
