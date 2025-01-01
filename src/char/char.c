@@ -30,6 +30,7 @@
 #include <86box/prt_devs.h>
 #include <86box/thread.h>
 #include <86box/network.h>
+#include <86box/irda.h>
 
 static const device_t char_none_device = {
     .name          = "None",
@@ -77,6 +78,7 @@ static const struct {
     { &char_stdio_com_device },
     { &char_loopback_com_device },
     { &char_fujinet_com_device },
+    { &esi9680_device },
 #ifdef USE_AUTOMATION
     { &char_automation_com_device },
 #endif

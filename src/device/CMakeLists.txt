@@ -38,6 +38,8 @@ add_library(dev OBJECT
     inboard386.c
     ibm_xma.c
     mcamem.c
+    ir_esi9680.c
+    irda_obex.c
     isamem.c
     isarom.c
     isartc.c

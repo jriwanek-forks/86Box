@@ -57,6 +57,28 @@ if(BUILD_TESTING)
 endif()
 
 if(BUILD_TESTING)
+    add_executable(irda_tests
+        irda_test.cpp
+        ../../src/irda.c
+        ../../src/device/ir_esi9680.c
+        ../../src/device/irda_obex.c
+        ../../src/device/serial_backend.c
+        ../../src/device/serial_host.c
+        ../../src/utils/fifo8.c
+    )
+
+    target_include_directories(irda_tests PRIVATE
+        ${PROJECT_SOURCE_DIR}/src/include
+        ${PROJECT_SOURCE_DIR}/src/cpu
+        ${PROJECT_BINARY_DIR}/src/include
+    )
+    target_link_libraries(irda_tests PRIVATE GTest::gtest_main)
+
+    include(GoogleTest)
+    gtest_discover_tests(irda_tests)
+endif()
+
+if(BUILD_TESTING)
     add_executable(kbc_vectra_tests kbc_vectra_test.cpp)
     target_link_libraries(kbc_vectra_tests PRIVATE GTest::gtest_main)
     include(GoogleTest)

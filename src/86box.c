@@ -114,7 +114,15 @@
 #include <86box/machine_status.h>
 #include <86box/acpi.h>
 #include <86box/nv/vid_nv_rivatimer.h>
+#include <86box/irda.h>
 #include <86box/vfio.h>
+
+// Disable c99-designator to avoid the warnings about int ng
+#ifdef __clang__
+#    if __has_warning("-Wunused-but-set-variable")
+#        pragma clang diagnostic ignored "-Wunused-but-set-variable"
+#    endif
+#endif
 
 /* Stuff that used to be globally declared in plat.h but is now extern there
    and declared here instead. */
@@ -1920,6 +1928,8 @@ pc_reset_hard_close(void)
 
     lpt_set_3bc_used(0);
     lpt_set_next_inst(0);
+
+    irda_reset();
 }
 
 /*
@@ -1947,6 +1957,9 @@ pc_reset_hard_init(void)
 
     /* Mark ACPI as unavailable */
     acpi_enabled = 0;
+
+    /* Make sure no IrDA devices have been added. */
+    irda_reset();
 
     /* Reset the general machine support modules. */
     io_init();
