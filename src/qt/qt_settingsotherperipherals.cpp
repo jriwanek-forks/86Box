@@ -25,6 +25,7 @@ extern "C" {
 #include <86box/isartc.h>
 #include <86box/unittester.h>
 #include <86box/novell_cardkey.h>
+#include <86box/irda.h>
 }
 
 #include "qt_deviceconfig.hpp"
@@ -54,6 +55,8 @@ SettingsOtherPeripherals::onCurrentMachineChanged(int machineId)
     ui->pushButtonConfigureUT->setEnabled(unittester_enabled > 0);
     ui->comboBoxRTC->setEnabled(machineHasIsa);
     ui->pushButtonConfigureRTC->setEnabled(machineHasIsa);
+    ui->checkBoxInfraredDongle->setChecked(esi9680_ir_dongle_enabled > 0 ? true : false);
+    ui->pushButtonConfigureInfraredDongle->setEnabled(esi9680_ir_dongle_enabled > 0 ? true : false);
 
     ui->comboBoxCard1->clear();
     ui->comboBoxCard2->clear();
@@ -120,11 +123,12 @@ void
 SettingsOtherPeripherals::save()
 {
     /* Other peripherals category */
-    bugger_enabled         = ui->checkBoxISABugger->isChecked() ? 1 : 0;
-    postcard_enabled       = ui->checkBoxPOSTCard->isChecked() ? 1 : 0;
-    unittester_enabled     = ui->checkBoxUnitTester->isChecked() ? 1 : 0;
-    novell_keycard_enabled = ui->checkBoxKeyCard->isChecked() ? 1 : 0;
-    isartc_type            = ui->comboBoxRTC->currentData().toInt();
+    bugger_enabled            = ui->checkBoxISABugger->isChecked() ? 1 : 0;
+    postcard_enabled          = ui->checkBoxPOSTCard->isChecked() ? 1 : 0;
+    unittester_enabled        = ui->checkBoxUnitTester->isChecked() ? 1 : 0;
+    novell_keycard_enabled    = ui->checkBoxKeyCard->isChecked() ? 1 : 0;
+    isartc_type               = ui->comboBoxRTC->currentData().toInt();
+    esi9680_ir_dongle_enabled = ui->checkBoxInfraredDongle->isChecked() ? 1 : 0;
 
     /* ISA memory boards. */
     for (int i = 0; i < ISAMEM_MAX; i++) {
@@ -230,3 +234,12 @@ void SettingsOtherPeripherals::on_checkBoxKeyCard_stateChanged(int arg1)
     ui->pushButtonConfigureKeyCard->setEnabled(arg1 != 0);
 }
 
+void SettingsOtherPeripherals::on_pushButtonConfigureInfraredDongle_clicked()
+{
+    DeviceConfig::ConfigureDevice(&esi9680_device);
+}
+
+void SettingsOtherPeripherals::on_checkBoxInfraredDongle_stateChanged(int arg1)
+{
+    ui->pushButtonConfigureInfraredDongle->setEnabled(arg1 != 0);
+}

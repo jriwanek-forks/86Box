@@ -31,6 +31,8 @@ add_library(dev OBJECT
     i2c.c
     i2c_gpio.c
     ibm_5161.c
+    ir_esi9680.c
+    irda_obex.c
     isamem.c
     isartc.c
     isapnp.c
