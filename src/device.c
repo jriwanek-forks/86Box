@@ -493,6 +493,8 @@ device_get_name(const device_t *dev, int bus, char *name)
             sbus = (dev->flags & DEVICE_AT) ? "ISA16" : "ISA";
         else if (dev->flags & DEVICE_CBUS)
             sbus = "C-BUS";
+        else if (dev->flags & DEVICE_PCMCIA)
+            sbus = "PCMCIA";
         else if (dev->flags & DEVICE_MCA)
             sbus = "MCA";
         else if (dev->flags & DEVICE_EISA)
@@ -773,7 +775,7 @@ device_is_valid(const device_t *device, int m)
     if ((device->flags & DEVICE_CBUS) && !machine_has_bus(m, MACHINE_BUS_CBUS))
         return 0;
 
-    if ((device->flags & DEVICE_PCMCIA) && !machine_has_bus(m, MACHINE_BUS_PCMCIA))
+    if ((device->flags & DEVICE_PCMCIA) && !machine_has_bus(m, MACHINE_BUS_PCMCIA) && !machine_has_bus(m, MACHINE_BUS_ISA))
         return 0;
 
     if ((device->flags & DEVICE_MCA) && !machine_has_bus(m, MACHINE_BUS_MCA))
