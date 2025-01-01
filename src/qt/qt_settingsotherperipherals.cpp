@@ -28,6 +28,7 @@ extern "C" {
 #include <86box/isartc.h>
 #include <86box/unittester.h>
 #include <86box/novell_cardkey.h>
+#include <86box/irda.h>
 }
 
 #include "qt_deviceconfig.hpp"
@@ -59,6 +60,9 @@ SettingsOtherPeripherals::onCurrentMachineChanged(int machineId)
     ui->checkBoxPOSTCard->setChecked(postcard_enabled > 0 ? true : false);
     ui->checkBoxUnitTester->setChecked(unittester_enabled > 0 ? true : false);
     ui->checkBoxKeyCard->setChecked((machineHasIsa && (novell_keycard_enabled > 0)) ? true : false);
+
+    ui->checkBoxInfraredDongle->setChecked(esi9680_ir_dongle_enabled > 0 ? true : false);
+    ui->pushButtonConfigureInfraredDongle->setEnabled(esi9680_ir_dongle_enabled > 0 ? true : false);
 
     ui->comboBoxRTC->clear();
 
@@ -189,6 +193,7 @@ SettingsOtherPeripherals::save()
     postcard_enabled       = ui->checkBoxPOSTCard->isChecked() ? 1 : 0;
     unittester_enabled     = ui->checkBoxUnitTester->isChecked() ? 1 : 0;
     novell_keycard_enabled = ui->checkBoxKeyCard->isChecked() ? 1 : 0;
+    esi9680_ir_dongle_enabled = ui->checkBoxInfraredDongle->isChecked() ? 1 : 0;
 
     /* ISA memory boards. */
     for (int i = 0; i < ISAMEM_MAX; i++) {
@@ -358,4 +363,14 @@ void SettingsOtherPeripherals::on_checkBoxKeyCard_stateChanged(int arg1)
 void SettingsOtherPeripherals::on_pushButtonConfigureKeyCard_clicked()
 {
     DeviceConfig::ConfigureDevice(&novell_keycard_device);
+}
+
+void SettingsOtherPeripherals::on_pushButtonConfigureInfraredDongle_clicked()
+{
+    DeviceConfig::ConfigureDevice(&esi9680_device);
+}
+
+void SettingsOtherPeripherals::on_checkBoxInfraredDongle_stateChanged(int arg1)
+{
+    ui->pushButtonConfigureInfraredDongle->setEnabled(arg1 != 0);
 }

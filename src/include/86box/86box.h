@@ -144,6 +144,7 @@ extern double   video_gl_input_scale;       /* (C) OpenGL 3.x input scale */
 extern int      video_gl_input_scale_mode;  /* (C) OpenGL 3.x input stretch mode */
 extern int      gfxcard[GFXCARD_MAX];       /* (C) graphics/video card */
 extern int      bugger_enabled;             /* (C) enable ISAbugger */
+extern int      esi9680_ir_dongle_enabled;  /* (C) ESI-9680 JetEye PC dongle enabled. */
 extern int      novell_keycard_enabled;     /* (C) enable Novell NetWare 2.x key card emulation. */
 extern int      postcard_enabled;           /* (C) enable POST card */
 extern int      unittester_enabled;         /* (C) enable unit tester device */

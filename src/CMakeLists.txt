@@ -29,6 +29,7 @@ add_executable(86Box
     config.c
     timer.c
     io.c
+    irda.c
     acpi.c
     apm.c
     dma.c

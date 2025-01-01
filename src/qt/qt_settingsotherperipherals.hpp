@@ -47,6 +47,10 @@ private slots:
     void on_checkBoxKeyCard_stateChanged(int arg1);
     void on_pushButtonConfigureKeyCard_clicked();
 
+    void on_pushButtonConfigureInfraredDongle_clicked();
+
+    void on_checkBoxInfraredDongle_stateChanged(int arg1);
+
 private:
     Ui::SettingsOtherPeripherals *ui;
     int                           machineId { 0 };

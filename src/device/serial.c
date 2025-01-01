@@ -610,6 +610,8 @@ serial_write(uint16_t addr, uint8_t val, void *priv)
                 serial_do_irq(dev, 0);
             if ((val ^ dev->mctrl) & 0x10)
                 serial_reset_fifo(dev);
+            if (dev->sd && dev->sd->rts_callback && (val ^ dev->mctrl) & 2)
+                dev->sd->rts_callback(dev, !!(val & 2), dev->sd->priv);
             if (dev->sd && dev->sd->dtr_callback && (val ^ dev->mctrl) & 1)
                 dev->sd->dtr_callback(dev, val & 1, dev->sd->priv);
             dev->mctrl = val & 0x1f;
@@ -876,6 +878,24 @@ serial_attach_ex_2(int port,
     serial_device_t *sd = &serial_devices[port];
 
     sd->rcr_callback             = rcr_callback;
+    sd->dtr_callback             = dtr_callback;
+    sd->dev_write                = dev_write;
+    sd->transmit_period_callback = NULL;
+    sd->lcr_callback             = NULL;
+    sd->priv                     = priv;
+
+    return sd->serial;
+}
+
+serial_t *serial_attach_ex_3(int port,
+                                  void (*rts_callback)(struct serial_s *serial, int status, void *priv),
+                                  void (*dev_write)(struct serial_s *serial, void *priv, uint8_t data),
+                                  void (*dtr_callback)(struct serial_s *serial, int status, void *priv),
+                                  void *priv)
+{
+    serial_device_t *sd = &serial_devices[port];
+
+    sd->rts_callback             = rts_callback;
     sd->dtr_callback             = dtr_callback;
     sd->dev_write                = dev_write;
     sd->transmit_period_callback = NULL;

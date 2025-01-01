@@ -107,6 +107,7 @@
 #include <86box/apm.h>
 #include <86box/acpi.h>
 #include <86box/nv/vid_nv_rivatimer.h>
+#include <86box/irda.h>
 
 // Disable c99-designator to avoid the warnings about int ng
 #ifdef __clang__
@@ -177,6 +178,7 @@ int      video_framerate                        = -1;             /* (C) video *
 bool     serial_passthrough_enabled[SERIAL_MAX - 1] = { 0, 0, 0, 0, 0, 0, 0 }; /* (C) activation and kind of
                                                                                   pass-through for serial ports */
 int      bugger_enabled                         = 0;              /* (C) enable ISAbugger */
+int      esi9680_ir_dongle_enabled              = 0;              /* (C) ESI-9680 JetEye PC dongle enabled. */
 int      novell_keycard_enabled                 = 0;              /* (C) enable Novell NetWare 2.x key card emulation. */
 int      postcard_enabled                       = 0;              /* (C) enable POST card */
 int      unittester_enabled                     = 0;              /* (C) enable unit tester device */
@@ -1533,6 +1535,8 @@ pc_reset_hard_close(void)
 
     lpt_set_3bc_used(0);
     lpt_set_next_inst(0);
+
+    irda_reset();
 }
 
 /*
@@ -1557,6 +1561,9 @@ pc_reset_hard_init(void)
 
     /* Mark ACPI as unavailable */
     acpi_enabled = 0;
+
+   /* Make sure no IrDA devices have been added. */
+    irda_reset();
 
     /* Reset the general machine support modules. */
     io_init();
@@ -1665,6 +1672,9 @@ pc_reset_hard_init(void)
 
     if (novell_keycard_enabled)
         device_add(&novell_keycard_device);
+
+    if (esi9680_ir_dongle_enabled)
+        device_add(&esi9680_device);
 
     if (IS_ARCH(machine, MACHINE_BUS_PCI)) {
         pci_register_cards();

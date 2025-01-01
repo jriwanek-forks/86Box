@@ -1954,10 +1954,11 @@ load_other_peripherals(void)
     char         *p;
     char          temp[512];
 
-    bugger_enabled         = !!ini_section_get_int(cat, "bugger_enabled", 0);
-    postcard_enabled       = !!ini_section_get_int(cat, "postcard_enabled", 0);
-    unittester_enabled     = !!ini_section_get_int(cat, "unittester_enabled", 0);
-    novell_keycard_enabled = !!ini_section_get_int(cat, "novell_keycard_enabled", 0);
+    bugger_enabled            = !!ini_section_get_int(cat, "bugger_enabled", 0);
+    postcard_enabled          = !!ini_section_get_int(cat, "postcard_enabled", 0);
+    unittester_enabled        = !!ini_section_get_int(cat, "unittester_enabled", 0);
+    novell_keycard_enabled    = !!ini_section_get_int(cat, "novell_keycard_enabled", 0);
+    esi9680_ir_dongle_enabled = !!ini_section_get_int(cat, "esi9680_ir_dongle_enabled", 0);
 
     if (!bugger_enabled)
         ini_section_delete_var(cat, "bugger_enabled");
@@ -1970,6 +1971,11 @@ load_other_peripherals(void)
 
     if (!novell_keycard_enabled)
         ini_section_delete_var(cat, "novell_keycard_enabled");
+
+    if (esi9680_ir_dongle_enabled == 0)
+        ini_section_delete_var(cat, "esi9680_ir_dongle_enabled");
+    else
+        ini_section_set_int(cat, "esi9680_ir_dongle_enabled", esi9680_ir_dongle_enabled);
 
     // ISA RAM Boards
     for (uint8_t c = 0; c < ISAMEM_MAX; c++) {

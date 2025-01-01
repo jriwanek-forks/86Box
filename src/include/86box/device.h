@@ -106,7 +106,8 @@ enum {
     DEVICE_LPT       = 0x400000,   /* requires a parallel port */
 
     DEVICE_KBC       = 0x800000,   /* is a keyboard controller */
-    DEVICE_SOFTRESET = 0x1000000,  /* requires to be reset on soft reset */
+    DEVICE_IRDA      = 0x1000000,  /* requires the IrDA bus */
+    DEVICE_SOFTRESET = 0x2000000,  /* requires to be reset on soft reset */
 
     DEVICE_ONBOARD   = 0x40000000, /* is on-board */
     DEVICE_PIT       = 0x80000000, /* device is a PIT */
