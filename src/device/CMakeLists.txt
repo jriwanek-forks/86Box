@@ -27,6 +27,8 @@ add_library(dev OBJECT
     hwm_gl518sm.c
     hwm_vt82c686.c
     ibm_5161.c
+    ir_esi9680.c
+    irda_obex.c
     isamem.c
     isartc.c
     ../lpt.c
