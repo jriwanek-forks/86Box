@@ -93,6 +93,7 @@
 
 /* Codec IDs. */
 #define AC97_CODEC_AD1881   AC97_VENDOR_ID('A', 'D', 'S', 0x40)
+#define AC97_CODEC_AK4531   AC97_VENDOR_ID('A', 'D', 'S', 0x40)
 #define AC97_CODEC_AK4540   AC97_VENDOR_ID('A', 'D', 'S', 0x40)
 #define AC97_CODEC_ALC100   AC97_VENDOR_ID('A', 'L', 'C', 0x20)
 #define AC97_CODEC_CS4297   AC97_VENDOR_ID('C', 'R', 'Y', 0x03)
@@ -143,6 +144,7 @@ extern int            ac97_modem_codec_id;
 
 #ifdef EMU_DEVICE_H
 extern const device_t ad1881_device;
+#    define ak4531_device ak4540_device
 extern const device_t ak4540_device;
 extern const device_t alc100_device;
 extern const device_t cs4297_device;
