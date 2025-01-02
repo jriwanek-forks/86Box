@@ -209,6 +209,7 @@ jobs:
           -D NEW_DYNAREC=${{ matrix.dynarec.new }}
           -D CMAKE_INSTALL_PREFIX=./build/artifacts
           -D QT=${{ matrix.ui.qt }}
+          -D ARCH=arm64
 
       - name: Build
         run: |
