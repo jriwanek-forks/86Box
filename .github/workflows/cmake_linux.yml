@@ -130,6 +130,7 @@ jobs:
 
     env:
       BUILD_WRAPPER_OUT_DIR: build_wrapper_output_directory # Directory where build-wrapper output will be placed
+      CROSS_COMPILE: aarch64-linux-gnu-
 
     strategy:
       fail-fast: true
@@ -170,6 +171,11 @@ jobs:
         run: >-
           sudo apt update && sudo apt install
           build-essential
+          gcc-multilib
+          binutils-multiarch
+          binutils-aarch64-linux-gnu
+          cpp-aarch64-linux-gnu
+          linux-libc-dev-arm64-cross
           ninja-build
           libfreetype-dev
           libsdl2-dev
@@ -187,6 +193,11 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+
+      - name: Setup cross-toolchain
+        uses: taiki-e/setup-cross-toolchain-action@v1
+        with:
+          target: aarch64-unknown-linux-gnu  
 
       - name: Install sonar-scanner and build-wrapper
         uses: SonarSource/sonarcloud-github-c-cpp@v3
