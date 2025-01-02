@@ -2766,9 +2766,13 @@ static const device_config_t es1371_config[] = {
         .file_filter    = NULL,
         .spinner        = { 0 },
         .selection      = {
-            { .description = "Asahi Kasei AK4540",                .value = AC97_CODEC_AK4540  },
-            { .description = "TriTech TR28023 / Creative CT1297", .value = AC97_CODEC_TR28023 },
-            { .description = ""                                                               }
+            { .description = "Asahi Kasei AK4531",                .value = AC97_CODEC_AK4531   },
+            { .description = "Asahi Kasei AK4540",                .value = AC97_CODEC_AK4540   },
+            { .description = "TriTech TR28023 / Creative CT1297", .value = AC97_CODEC_TR28023  },
+            { .description = "Crystal CS4297A",                   .value = AC97_CODEC_CS4297A  },
+            { .description = "SigmaTel STAC9708",                 .value = AC97_CODEC_STAC9708 },
+            { .description = "SigmaTel STAC9721",                 .value = AC97_CODEC_STAC9721 },
+            { .description = ""                                                                }
         },
         .bios           = { { 0 } }
     },
@@ -2799,6 +2803,7 @@ static const device_config_t es1373_config[] = {
         .spinner        = { 0 },
         .selection      = {
             { .description = "Crystal CS4297A",                   .value = AC97_CODEC_CS4297A  },
+            { .description = "SigmaTel STAC9708",                 .value = AC97_CODEC_STAC9708 },
             { .description = "SigmaTel STAC9721T",                .value = AC97_CODEC_STAC9721 },
             { .description = "TriTech TR28023 / Creative CT1297", .value = AC97_CODEC_TR28023  },
             { .description = "" }
@@ -2883,6 +2888,62 @@ const device_t es1370_device = {
     .config        = es1370_config
 };
 
+const device_t sb_pci_64_device = {
+    .name          = "Creative Labs Sound Blaster PCI 64",
+    .internal_name = "es1370_pci64",
+    .flags         = DEVICE_PCI,
+    .local         = AUDIOPCI_ES1370,
+    .init          = es1370_init,
+    .close         = es137x_close,
+    .reset         = es137x_reset,
+    .available     = NULL,
+    .speed_changed = es137x_speed_changed,
+    .force_redraw  = NULL,
+    .config        = es1370_config
+};
+
+const device_t sb_pci_128_device = {
+    .name          = "Creative Labs Sound Blaster PCI 128",
+    .internal_name = "es1370_pci128",
+    .flags         = DEVICE_PCI,
+    .local         = AUDIOPCI_ES1370,
+    .init          = es1370_init,
+    .close         = es137x_close,
+    .reset         = es137x_reset,
+    .available     = NULL,
+    .speed_changed = es137x_speed_changed,
+    .force_redraw  = NULL,
+    .config        = es1370_config
+};
+
+const device_t audiopci_1000_device = {
+    .name          = "Creative Labs AudioPCI 1000",
+    .internal_name = "audiopci1000",
+    .flags         = DEVICE_PCI,
+    .local         = AUDIOPCI_ES1370,
+    .init          = es1370_init,
+    .close         = es137x_close,
+    .reset         = es137x_reset,
+    .available     = NULL,
+    .speed_changed = es137x_speed_changed,
+    .force_redraw  = NULL,
+    .config        = es1370_config
+};
+
+const device_t audiopci_3000_device = {
+    .name          = "Creative Labs AudioPCI 3000",
+    .internal_name = "audiopci3000",
+    .flags         = DEVICE_PCI,
+    .local         = AUDIOPCI_ES1370,
+    .init          = es1370_init,
+    .close         = es137x_close,
+    .reset         = es137x_reset,
+    .available     = NULL,
+    .speed_changed = es137x_speed_changed,
+    .force_redraw  = NULL,
+    .config        = es1370_config
+};
+
 const device_t es1371_device = {
     .name          = "Ensoniq AudioPCI (ES1371)",
     .internal_name = "es1371",
@@ -2909,6 +2970,77 @@ const device_t es1371_onboard_device = {
     .speed_changed = es137x_speed_changed,
     .force_redraw  = NULL,
     .config        = es1371_onboard_config
+};
+
+const device_t audiopci_5000_device = {
+    .name          = "Creative Labs AudioPCI 5000",
+    .internal_name = "audiopci5000",
+    .flags         = DEVICE_PCI,
+    .local         = AUDIOPCI_ES1371,
+    .init          = es1371_init,
+    .close         = es137x_close,
+    .reset         = es137x_reset,
+    .available     = NULL,
+    .speed_changed = es137x_speed_changed,
+    .force_redraw  = NULL,
+    .config        = es1371_config
+};
+
+// HP Ensoniq
+const device_t audiopci_5100_device = {
+    .name          = "Creative Labs AudioPCI 5100",
+    .internal_name = "audiopci5100",
+    .flags         = DEVICE_PCI,
+    .local         = AUDIOPCI_ES1371,
+    .init          = es1371_init,
+    .close         = es137x_close,
+    .reset         = es137x_reset,
+    .available     = NULL,
+    .speed_changed = es137x_speed_changed,
+    .force_redraw  = NULL,
+    .config        = es1371_config
+};
+
+const device_t sb_pci_16_device = {
+    .name          = "Creative Labs SB16 PCI",
+    .internal_name = "audiopci_sb_16_pci",
+    .flags         = DEVICE_PCI,
+    .local         = AUDIOPCI_ES1371,
+    .init          = es1371_init,
+    .close         = es137x_close,
+    .reset         = es137x_reset,
+    .available     = NULL,
+    .speed_changed = es137x_speed_changed,
+    .force_redraw  = NULL,
+    .config        = es1371_config
+};
+
+const device_t sb_pci_128_digital_device = {
+    .name          = "Creative Labs Sound Blaster PCI 128 Digital",
+    .internal_name = "pci128digi",
+    .flags         = DEVICE_PCI,
+    .local         = AUDIOPCI_ES1371,
+    .init          = es1371_init,
+    .close         = es137x_close,
+    .reset         = es137x_reset,
+    .available     = NULL,
+    .speed_changed = es137x_speed_changed,
+    .force_redraw  = NULL,
+    .config        = es1371_config
+};
+
+const device_t sb_vibra_128_device = {
+    .name          = "Creative Labs Vibra 128",
+    .internal_name = "vibra128",
+    .flags         = DEVICE_PCI,
+    .local         = AUDIOPCI_ES1371,
+    .init          = es1371_init,
+    .close         = es137x_close,
+    .reset         = es137x_reset,
+    .available     = NULL,
+    .speed_changed = es137x_speed_changed,
+    .force_redraw  = NULL,
+    .config        = es1371_config
 };
 
 const device_t es1373_device = {
@@ -2965,4 +3097,33 @@ const device_t ct5880_onboard_device = {
     .speed_changed = es137x_speed_changed,
     .force_redraw  = NULL,
     .config        = es1371_onboard_config
+};
+
+// Compaq
+const device_t audiopci_5200_device = {
+    .name          = "Creative Labs AudioPCI 5200",
+    .internal_name = "audiopci5200",
+    .flags         = DEVICE_PCI,
+    .local         = AUDIOPCI_ES1373, // Actually EV1938/EV1958 (Latter has modem)
+    .init          = es1371_init,
+    .close         = es137x_close,
+    .reset         = es137x_reset,
+    .available     = NULL,
+    .speed_changed = es137x_speed_changed,
+    .force_redraw  = NULL,
+    .config        = es1371_config
+};
+
+const device_t audiopci_64v_device = {
+    .name          = "Creative Labs AudioPCI 64V",
+    .internal_name = "audiopci64v",
+    .flags         = DEVICE_PCI,
+    .local         = AUDIOPCI_ES1373, // Actually EV1938/EV1958 (Latter has modem)
+    .init          = es1371_init,
+    .close         = es137x_close,
+    .reset         = es137x_reset,
+    .available     = NULL,
+    .speed_changed = es137x_speed_changed,
+    .force_redraw  = NULL,
+    .config        = es1371_config
 };
