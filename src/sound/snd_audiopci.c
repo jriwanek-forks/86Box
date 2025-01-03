@@ -461,6 +461,7 @@ es137x_reset(void *priv)
        Addressable as longword only */
     if (dev->type == AUDIOPCI_ES1370)
         dev->int_status = 0x00000060;
+        // dev->int_status = 0x05010004;// TODO ES1370
     else if (dev->type == AUDIOPCI_CT5880)
         dev->int_status = 0x52080ec0;
     else if (dev->type == AUDIOPCI_ES1373)
@@ -468,9 +469,14 @@ es137x_reset(void *priv)
     else /* AUDIOPCI_ES1371 */
         dev->int_status = 0x7ffffec0;
 
+    // Address 05H
+    //if (dev->type == AUDIOPCI_ES1370)
+	//	dev->pci_serr = 0x01; // TODO ES1370
+
     /* UART Status Register, Address 09H
        Addressable as byte only */
     dev->uart_status = 0xff;
+    // dev->uart_status = 0x00; // TODO ES1370, ES1373
 
     /* UART Control Register, Address 09H
        Addressable as byte only */
@@ -1938,15 +1944,15 @@ es1370_pci_read(int func, int addr, void *priv)
         case 0x03:
             return dev->type >> 24;
 
-        case 0x04: /* Command TODO */
+        case 0x04: /* Command */
             return dev->pci_command;
         case 0x05:
             return dev->pci_serr;
 
-        case 0x06:       /* Status TODO */
-            return 0x10; /* Supports ACPI */
+        case 0x06:       /* Status */
+            return 0x00; /* Does not support ACPI */
         case 0x07:
-            return 0x00;
+            return 0x04; // TODO ES1370
 
         case 0x08:       /* Class Code & Revision ID */
             return dev->type >> 8; /* Revision ID - 0x00 is actual Ensoniq-branded ES1370 */
@@ -1957,8 +1963,12 @@ es1370_pci_read(int func, int addr, void *priv)
         case 0x0b:
             return 0x04;
 
-//        case 0x0c: /* Cache Line Size TODO */
-//        case 0x0d: /* Latency Timer TODO */
+        case 0x0c:
+            return 0x00; /* Cache Line Size */
+
+        case 0x0d:
+            return 0x40; /* Latency Timer */
+
 //        case 0x0e: /* Header Type TODO */
 //        case 0x0f: /* BIST TODO */
 
@@ -1974,10 +1984,8 @@ es1370_pci_read(int func, int addr, void *priv)
         case 0x2c ... 0x2f:
             return dev->subsys_id[addr & 3]; /* Subsystem vendor ID */
 
-#if 0
-        case 0x34: // TODO
-            return 0xdc; /* Capabilites pointer */
-#endif
+        case 0x34:
+            return 0x00; /* Capabilites pointer */
 
         case 0x3c:
             return dev->int_line;
@@ -1988,22 +1996,6 @@ es1370_pci_read(int func, int addr, void *priv)
             return 0xc; /* Minimum grant */
         case 0x3f:
             return 0x80; /* Maximum latency */
-
-#if 0
-        case 0xdc:
-            return 0x01; /* Capabilities identifier */
-        case 0xdd:
-            return 0x00; /* Next item pointer */
-        case 0xde:
-            return 0x31; /* Power management capabilities */
-        case 0xdf:
-            return 0x6c;
-
-        case 0xe0:
-            return dev->pmcsr & 0xff;
-        case 0xe1:
-            return dev->pmcsr >> 8;
-#endif
 
         default:
             break;
@@ -2042,9 +2034,11 @@ es1371_pci_read(int func, int addr, void *priv)
         case 0x06:
             return 0x10; /* Supports ACPI */
         case 0x07:
-            return 0x00;
+            return 0x04; // TODO ES1371, ES1373
 
         case 0x08:
+            // CT5801: (1373): 0x09
+            // CT5803: (1373): 0x06
             return dev->type >> 8; /* Revision ID */
         case 0x09:
             return 0x00; /* Multimedia audio device */
@@ -2052,6 +2046,12 @@ es1371_pci_read(int func, int addr, void *priv)
             return 0x01;
         case 0x0b:
             return 0x04;
+
+        case 0x0c:
+            return 0x00; /* Cache Line Size */
+
+        case 0x0d:
+            return 0x40; /* Latency Timer */
 
         case 0x10:
             return 0x01 | (dev->base_addr & 0xc0); /* memBaseAddr */
@@ -2088,8 +2088,12 @@ es1371_pci_read(int func, int addr, void *priv)
         case 0xdd:
             return 0x00; /* Next item pointer */
         case 0xde:
+            // CT5801: (1373): 0x22
+            // CT5803: (1373): 0x31
             return 0x31; /* Power management capabilities */
         case 0xdf:
+            // CT5801: (1373): 0x06
+            // CT5803: (1373): 0x6c
             return 0x6c;
 
         case 0xe0:
