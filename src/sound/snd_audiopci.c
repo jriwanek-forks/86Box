@@ -1902,7 +1902,7 @@ es1370_pci_read(int func, int addr, void *priv)
             return 0x00;
 
         case 0x08:       /* Class Code & Revision ID */
-            return dev->type >> 8; /* Revision ID - 0x00 is actual Ensoniq-branded ES1370 */
+            return 0x01; /* Revision ID - 0x00 is actual Ensoniq-branded ES1370 */
         case 0x09:
             return 0x00; /* Multimedia audio device */
         case 0x0a:
