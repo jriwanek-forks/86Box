@@ -1247,7 +1247,7 @@ es137x_outb(uint16_t port, uint8_t val, void *priv)
             Addressable as byte, word, longword */
         case 0x20:
             if (dev->type == AUDIOPCI_ES1370)
-                dev->si_cr = (dev->si_cr & 0xfff00) | val;
+                dev->si_cr = (dev->si_cr & 0xffff00) | val;
             else
                 dev->si_cr = (dev->si_cr & 0xffffff00) | val;
             break;
@@ -1447,7 +1447,7 @@ es137x_outl(uint16_t port, uint32_t val, void *priv)
             audiopci_log("[W] STATUS = %08X\n", val);
             if (dev->type == AUDIOPCI_CT5880)
                 dev->int_status = (dev->int_status & 0xd208ffff) | (val & 0x2df70000);
-            else if ((dev->type == AUDIOPCI_ES1373) || (dev->type == AUDIOPCI_CT5880))
+            else if (dev->type == AUDIOPCI_ES1373)
                 dev->int_status = (dev->int_status & 0xff08ffff) | (val & 0x00f70000);
             break;
 
