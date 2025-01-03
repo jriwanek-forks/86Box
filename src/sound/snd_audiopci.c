@@ -446,11 +446,13 @@ es137x_reset(void *priv)
 
     /* Interrupt/Chip Select Status Register, Address 04H
        Addressable as longword only */
-    if (dev->type >= AUDIOPCI_CT5880)
+    if (dev->type == AUDIOPCI_ES1370)
+        dev->int_status = 0x00000060;
+    else if (dev->type == AUDIOPCI_CT5880)
         dev->int_status = 0x52080ec0;
-    else if ((dev->type >= AUDIOPCI_ES1373) && (dev->type != AUDIOPCI_ES1370))
+    else if (dev->type == AUDIOPCI_ES1373)
         dev->int_status = 0x7f080ec0;
-    else
+    else /* AUDIOPCI_ES1371 */
         dev->int_status = 0x7ffffec0;
 
     /* UART Status Register, Address 09H
@@ -882,10 +884,15 @@ es137x_inb(uint16_t port, void *priv)
             ret = dev->si_cr >> 8;
             break;
         case 0x22:
-            ret = (dev->si_cr >> 16) | 0x80;
+            ret = dev->si_cr >> 16;
+            if (dev->type != AUDIOPCI_ES1370)
+                ret |= 0x80;
             break;
         case 0x23:
-            ret = 0xff;
+            if (dev->type == AUDIOPCI_ES1370)
+                ret = 0x00;
+            else
+                ret = 0xff;
             break;
 
         default:
@@ -949,7 +956,9 @@ es137x_inw(uint16_t port, void *priv)
             ret = dev->si_cr & 0xffff;
             break;
         case 0x22:
-            ret = (dev->si_cr >> 16) | 0xff80;
+            ret = dev->si_cr >> 16;
+            if (dev->type != AUDIOPCI_ES1370)
+                ret |= 0xff80;
             break;
 
         /* DAC1 Channel Sample Count Register, Address 24H
@@ -1056,14 +1065,16 @@ es137x_inl(uint16_t port, void *priv)
         /* S/PDIF Channel Status Control Register, Address 1CH
            Addressable as byte, word, longword */
         case 0x1c:
-            if ((dev->type >= AUDIOPCI_ES1373) || (dev->type != AUDIOPCI_ES1370))
+            if ((dev->type == AUDIOPCI_ES1373) || dev->type == AUDIOPCI_CT5880))
                 ret = dev->spdif_chstatus;
             break;
 
         /* Serial Interface Control Register, Address 20H
             Addressable as byte, word, longword */
         case 0x20:
-            ret = dev->si_cr | 0xff800000;
+            ret = dev->si_cr;
+            if (dev->type != AUDIOPCI_ES1370)
+                ret |= 0xff800000;
             break;
 
         /* DAC1 Channel Sample Count Register, Address 24H
@@ -1148,11 +1159,11 @@ es137x_outb(uint16_t port, uint8_t val, void *priv)
            Addressable as longword only, but PCem implements byte access, which
            must be for a reason */
         case 0x06:
-            if ((dev->type >= AUDIOPCI_ES1373) || (dev->type != AUDIOPCI_ES1370))
+            if ((dev->type == AUDIOPCI_ES1373) || (dev->type == AUDIOPCI_CT5880))
                 dev->int_status = (dev->int_status & 0xff08ffff) | (val << 16);
             break;
         case 0x07:
-            if ((dev->type >= AUDIOPCI_CT5880) || (dev->type != AUDIOPCI_ES1370))
+            if (dev->type == AUDIOPCI_CT5880)
                 dev->int_status = (dev->int_status & 0xd2ffffff) | (val << 24);
             break;
 
