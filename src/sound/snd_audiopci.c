@@ -786,7 +786,7 @@ es137x_inb(uint16_t port, void *priv)
             break;
         case 0x03:
             ret = dev->int_ctrl >> 24;
-            if ((dev->type < AUDIOPCI_ES1373) && (dev->type != AUDIOPCI_ES1370))
+            if (dev->type == AUDIOPCI_ES1371)
                 ret |= 0xfc;
             break;
 
@@ -859,19 +859,19 @@ es137x_inb(uint16_t port, void *priv)
         /* S/PDIF Channel Status Control Register, Address 1CH
            Addressable as byte, word, longword */
         case 0x1c:
-            if ((dev->type >= AUDIOPCI_ES1373) && (dev->type != AUDIOPCI_ES1370))
+            if ((dev->type == AUDIOPCI_ES1373) || (dev->type == AUDIOPCI_CT5880))
                 ret = dev->spdif_chstatus & 0xff;
             break;
         case 0x1d:
-            if ((dev->type >= AUDIOPCI_ES1373) && (dev->type != AUDIOPCI_ES1370))
+            if ((dev->type == AUDIOPCI_ES1373) || (dev->type == AUDIOPCI_CT5880))
                 ret = dev->spdif_chstatus >> 8;
             break;
         case 0x1e:
-            if ((dev->type >= AUDIOPCI_ES1373) && (dev->type != AUDIOPCI_ES1370))
+            if ((dev->type == AUDIOPCI_ES1373) || (dev->type == AUDIOPCI_CT5880))
                 ret = dev->spdif_chstatus >> 16;
             break;
         case 0x1f:
-            if ((dev->type >= AUDIOPCI_ES1373) && (dev->type != AUDIOPCI_ES1370))
+            if ((dev->type == AUDIOPCI_ES1373) || (dev->type == AUDIOPCI_CT5880))
                 ret = dev->spdif_chstatus >> 24;
             break;
 
@@ -917,7 +917,7 @@ es137x_inw(uint16_t port, void *priv)
             break;
         case 0x02:
             ret = (dev->int_ctrl >> 16) & 0xff0f;
-            if ((dev->type < AUDIOPCI_ES1373) && (dev->type != AUDIOPCI_ES1370))
+            if (dev->type == AUDIOPCI_ES1371)
                 ret |= 0xfc00;
             break;
 
@@ -942,11 +942,11 @@ es137x_inw(uint16_t port, void *priv)
         /* S/PDIF Channel Status Control Register, Address 1CH
            Addressable as byte, word, longword */
         case 0x1c:
-            if ((dev->type >= AUDIOPCI_ES1373) && (dev->type != AUDIOPCI_ES1370))
+            if ((dev->type == AUDIOPCI_ES1373) || (dev->type == AUDIOPCI_CT5880))
                 ret = dev->spdif_chstatus & 0xffff;
             break;
         case 0x1e:
-            if ((dev->type >= AUDIOPCI_ES1373) && (dev->type != AUDIOPCI_ES1370))
+            if ((dev->type == AUDIOPCI_ES1373) || (dev->type == AUDIOPCI_CT5880))
                 ret = dev->spdif_chstatus >> 16;
             break;
 
@@ -1065,7 +1065,7 @@ es137x_inl(uint16_t port, void *priv)
         /* S/PDIF Channel Status Control Register, Address 1CH
            Addressable as byte, word, longword */
         case 0x1c:
-            if ((dev->type == AUDIOPCI_ES1373) || dev->type == AUDIOPCI_CT5880))
+            if ((dev->type == AUDIOPCI_ES1373) || (dev->type == AUDIOPCI_CT5880))
                 ret = dev->spdif_chstatus;
             break;
 
@@ -1428,9 +1428,9 @@ es137x_outl(uint16_t port, uint32_t val, void *priv)
            Addressable as longword only */
         case 0x04:
             audiopci_log("[W] STATUS = %08X\n", val);
-            if (dev->type >= AUDIOPCI_CT5880)
+            if (dev->type == AUDIOPCI_CT5880)
                 dev->int_status = (dev->int_status & 0xd208ffff) | (val & 0x2df70000);
-            else if ((dev->type >= AUDIOPCI_ES1373) && (dev->type != AUDIOPCI_ES1370))
+            else if ((dev->type == AUDIOPCI_ES1373) || (dev->type == AUDIOPCI_CT5880))
                 dev->int_status = (dev->int_status & 0xff08ffff) | (val & 0x00f70000);
             break;
 
@@ -2043,7 +2043,7 @@ es1371_pci_read(int func, int addr, void *priv)
             return 0x80; /* Maximum latency */
 
         case 0x40:
-            if ((dev->type >= AUDIOPCI_ES1373) && (dev->type != AUDIOPCI_ES1370))
+            if ((dev->type == AUDIOPCI_ES1373) || (dev->type == AUDIOPCI_CT5880))
                 return dev->subsys_lock;
             break;
 
@@ -2174,7 +2174,7 @@ es1371_pci_write(int func, int addr, uint8_t val, void *priv)
             break;
 
         case 0x40:
-            if ((dev->type >= AUDIOPCI_ES1373) && (dev->type != AUDIOPCI_ES1370))
+            if ((dev->type == AUDIOPCI_ES1373) || (dev->type == AUDIOPCI_CT5880))
                 dev->subsys_lock = val;
             break;
 
@@ -2397,7 +2397,7 @@ es137x_poll(void *priv)
     es137x_update(dev);
 
     if (dev->int_ctrl & INT_DAC1_EN) {
-        if (((dev->type >= AUDIOPCI_ES1373) && (dev->int_ctrl & INT_DAC1_BYPASS)) || (dev->type == AUDIOPCI_ES1370)) {
+        if ((((dev->type == AUDIOPCI_ES1373) || (dev->type == AUDIOPCI_CT5880)) && (dev->int_ctrl & INT_DAC1_BYPASS)) || (dev->type == AUDIOPCI_ES1370)) {
             if ((dev->calc_sample_rate_synth != 44100) && (dev->type == AUDIOPCI_ES1370)) {
                 if ((dev->dac[0].buffer_pos - dev->dac[0].buffer_pos_end) >= 0 && dev->step_synth >= dev->interp_step_synth)
                     es137x_fetch(dev, 0);
@@ -2455,7 +2455,7 @@ dac0_count:
     }
 
     if (dev->int_ctrl & INT_DAC2_EN) {
-        if (((dev->type >= AUDIOPCI_ES1373) && (dev->int_ctrl & INT_DAC2_BYPASS)) || (dev->type == AUDIOPCI_ES1370)) {
+        if ((((dev->type == AUDIOPCI_ES1373) || (dev->type == AUDIOPCI_CT5880)) && (dev->int_ctrl & INT_DAC2_BYPASS)) || (dev->type == AUDIOPCI_ES1370)) {
             if ((dev->calc_sample_rate != 44100) && (dev->type == AUDIOPCI_ES1370)) {
                 if ((dev->dac[1].buffer_pos - dev->dac[1].buffer_pos_end) >= 0 && dev->step_pcm >= dev->interp_step)
                     es137x_fetch(dev, 1);
