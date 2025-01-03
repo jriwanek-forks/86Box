@@ -1246,18 +1246,28 @@ es137x_outb(uint16_t port, uint8_t val, void *priv)
         /* Serial Interface Control Register, Address 20H
             Addressable as byte, word, longword */
         case 0x20:
-            dev->si_cr = (dev->si_cr & 0xffffff00) | val;
+            if (dev->type == AUDIOPCI_ES1370)
+                dev->si_cr = (dev->si_cr & 0xfff00) | val;
+            else
+                dev->si_cr = (dev->si_cr & 0xffffff00) | val;
             break;
         case 0x21:
-            dev->si_cr = (dev->si_cr & 0xffff00ff) | (val << 8);
+            if (dev->type == AUDIOPCI_ES1370)
+                dev->si_cr = (dev->si_cr & 0xff00ff) | (val << 8);
+            else
+                dev->si_cr = (dev->si_cr & 0xffff00ff) | (val << 8);
             if (!(dev->si_cr & SI_P1_INTR_EN))
                 dev->int_status &= ~INT_STATUS_DAC1;
             if (!(dev->si_cr & SI_P2_INTR_EN))
                 dev->int_status &= ~INT_STATUS_DAC2;
+
             es137x_update_irqs(dev);
             break;
         case 0x22:
-            dev->si_cr = (dev->si_cr & 0xff80ffff) | ((val & 0x7f) << 16);
+            if (dev->type == AUDIOPCI_ES1370)
+                dev->si_cr = (dev->si_cr & 0xc0ffff) | ((val & 0x3f) << 16);
+            else
+                dev->si_cr = (dev->si_cr & 0xff80ffff) | ((val & 0x7f) << 16);
             break;
 
         default:
@@ -1345,7 +1355,11 @@ es137x_outw(uint16_t port, uint16_t val, void *priv)
         /* Serial Interface Control Register, Address 20H
             Addressable as byte, word, longword */
         case 0x20:
-            dev->si_cr = (dev->si_cr & 0xffff0000) | val;
+            if (dev->type == AUDIOPCI_ES1370)
+                dev->si_cr = (dev->si_cr & 0xff0000) | val;
+            else
+                dev->si_cr = (dev->si_cr & 0xffff0000) | val;
+
             if (!(dev->si_cr & SI_P1_INTR_EN))
                 dev->int_status &= ~INT_STATUS_DAC1;
             if (!(dev->si_cr & SI_P2_INTR_EN))
@@ -1353,7 +1367,10 @@ es137x_outw(uint16_t port, uint16_t val, void *priv)
             es137x_update_irqs(dev);
             break;
         case 0x22:
-            dev->si_cr = (dev->si_cr & 0xff80ffff) | ((val & 0x007f) << 16);
+            if (dev->type == AUDIOPCI_ES1370)
+                dev->si_cr = (dev->si_cr & 0xc0ffff) | ((val & 0x3f) << 16);
+            else
+                dev->si_cr = (dev->si_cr & 0xff80ffff) | ((val & 0x007f) << 16);
             break;
 
         /* DAC1 Channel Sample Count Register, Address 24H
@@ -1534,7 +1551,10 @@ es137x_outl(uint16_t port, uint32_t val, void *priv)
         /* Serial Interface Control Register, Address 20H
             Addressable as byte, word, longword */
         case 0x20:
-            dev->si_cr = (val & 0x007fffff) | 0xff800000;
+            if (dev->type == AUDIOPCI_ES1370)
+                dev->si_cr = val & 0x3fffff;
+            else
+                dev->si_cr = (val & 0x007fffff) | 0xff800000;
             if (!(dev->si_cr & SI_P1_INTR_EN))
                 dev->int_status &= ~INT_STATUS_DAC1;
             if (!(dev->si_cr & SI_P2_INTR_EN))
