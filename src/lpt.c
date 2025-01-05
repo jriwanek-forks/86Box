@@ -34,19 +34,20 @@ static const struct {
     const lpt_device_t *device;
 } lpt_devices[] = {
   // clang-format off
-    { &lpt_none_device          },
-    { &dss_device               },
-    { &lpt_dac_device           },
-    { &lpt_dac_stereo_device    },
-    { &lpt_prt_text_device      },
-    { &lpt_prt_escp_device      },
-    { &lpt_prt_ps_device        },
+    { &lpt_none_device           },
+    { &dss_device                },
+    { &lpt_dac_device            },
+    { &lpt_dac_stereo_device     },
+    { &lpt_prt_text_device       },
+    { &lpt_prt_escp_device       },
+    { &lpt_prt_ps_device         },
 #ifdef USE_PCL
-    { &lpt_prt_pcl_device       },
+    { &lpt_prt_pcl_device        },
 #endif
-    { &lpt_plip_device          },
-    { &lpt_hasp_savquest_device },
-    { NULL                      }
+    { &lpt_prt_epsonlx810_device },
+    { &lpt_plip_device           },
+    { &lpt_hasp_savquest_device  },
+    { NULL                       }
   // clang-format on
 };
 
