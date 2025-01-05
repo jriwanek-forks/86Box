@@ -473,5 +473,6 @@ const lpt_device_t lpt_prt_text_device = {
     .write_ctrl    = write_ctrl,
     .read_data     = NULL,
     .read_status   = read_status,
-    .read_ctrl     = NULL
+    .read_ctrl     = NULL,
+    .config        = NULL
 };

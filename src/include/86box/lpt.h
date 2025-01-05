@@ -21,13 +21,18 @@ typedef struct lpt_device_t {
     const char *name;
     const char *internal_name;
 
-    void   *(*init)(void *lpt);
-    void    (*close)(void *priv);
-    void    (*write_data)(uint8_t val, void *priv);
-    void    (*write_ctrl)(uint8_t val, void *priv);
-    uint8_t (*read_data)(void *priv);
-    uint8_t (*read_status)(void *priv);
-    uint8_t (*read_ctrl)(void *priv);
+    void                  *(*init)(void *lpt);
+    void                   (*close)(void *priv);
+    void                   (*write_data)(uint8_t val, void *priv);
+    void                   (*write_ctrl)(uint8_t val, void *priv);
+    uint8_t                (*read_data)(void *priv);
+    uint8_t                (*read_status)(void *priv);
+    uint8_t                (*read_ctrl)(void *priv);
+#ifdef EMU_DEVICE_H
+    const device_config_t *config;
+#else
+    const void *config;
+#endif
 } lpt_device_t;
 
 extern void lpt_init(void);
