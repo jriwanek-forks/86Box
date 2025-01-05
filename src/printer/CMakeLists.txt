@@ -18,6 +18,7 @@
 add_library(print OBJECT
     png.c
     prt_cpmap.c
+    prt_epsonlx810.c
     prt_escp.c
     prt_text.c
     prt_ps.c
