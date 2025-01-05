@@ -133,6 +133,86 @@ SettingsPorts::onCurrentMachineChanged(int machineId)
 }
 
 void
+SettingsPorts::on_comboBoxLpt1_currentIndexChanged(int index)
+{
+    if (index < 0)
+        return;
+
+    int lptDevice = ui->comboBoxLpt1->currentData().toInt();
+
+    ui->pushButtonConfigureLpt1->setEnabled(lpt_device_has_config(lptDevice));
+}
+
+void
+SettingsPorts::on_pushButtonConfigureLpt1_clicked()
+{
+    int   lptDevice = ui->comboBoxLpt1->currentData().toInt();
+    auto *device    = lpt_device_getdevice(lptDevice);
+
+    DeviceConfig::ConfigureLptDevice(device, 1);
+}
+
+void
+SettingsPorts::on_comboBoxLpt2_currentIndexChanged(int index)
+{
+    if (index < 0)
+        return;
+
+    int lptDevice = ui->comboBoxLpt2->currentData().toInt();
+
+    ui->pushButtonConfigureLpt2->setEnabled(lpt_device_has_config(lptDevice));
+}
+
+void
+SettingsPorts::on_pushButtonConfigureLpt2_clicked()
+{
+    int   lptDevice = ui->comboBoxLpt2->currentData().toInt();
+    auto *device    = lpt_device_getdevice(lptDevice);
+
+    DeviceConfig::ConfigureLptDevice(device, 1);
+}
+
+void
+SettingsPorts::on_comboBoxLpt3_currentIndexChanged(int index)
+{
+    if (index < 0)
+        return;
+
+    int lptDevice = ui->comboBoxLpt3->currentData().toInt();
+
+    ui->pushButtonConfigureLpt3->setEnabled(lpt_device_has_config(lptDevice));
+}
+
+void
+SettingsPorts::on_pushButtonConfigureLpt3_clicked()
+{
+    int   lptDevice = ui->comboBoxLpt3->currentData().toInt();
+    auto *device    = lpt_device_getdevice(lptDevice);
+
+    DeviceConfig::ConfigureLptDevice(device, 1);
+}
+
+void
+SettingsPorts::on_comboBoxLpt4_currentIndexChanged(int index)
+{
+    if (index < 0)
+        return;
+
+    int lptDevice = ui->comboBoxLpt4->currentData().toInt();
+
+    ui->pushButtonConfigureLpt1->setEnabled(lpt_device_has_config(lptDevice));
+}
+
+void
+SettingsPorts::on_pushButtonConfigureLpt4_clicked()
+{
+    int   lptDevice = ui->comboBoxLpt4->currentData().toInt();
+    auto *device    = lpt_device_getdevice(lptDevice);
+
+    DeviceConfig::ConfigureLptDevice(device, 1);
+}
+
+void
 SettingsPorts::on_checkBoxParallel1_stateChanged(int state)
 {
     ui->comboBoxLpt1->setEnabled(state == Qt::Checked);

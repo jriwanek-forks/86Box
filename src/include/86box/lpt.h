@@ -17,7 +17,7 @@
 #define LPT6_IRQ  5
 #endif
 
-typedef struct lpt_device_t {
+typedef struct lpt_device_s {
     const char *name;
     const char *internal_name;
 
@@ -31,6 +31,11 @@ typedef struct lpt_device_t {
     uint8_t (*read_ctrl)(void *priv);
     void    (*epp_write_data)(uint8_t is_addr, uint8_t val, void *priv);
     void    (*epp_request_read)(uint8_t is_addr, void *priv);
+#ifdef EMU_DEVICE_H
+    const device_config_t *config;
+#else
+    const void *config;
+#endif
 } lpt_device_t;
 
 extern void lpt_set_ext(int port, uint8_t ext);
@@ -76,6 +81,7 @@ extern void lpt1_remove_ams(void);
 void lpt_devices_init(void);
 void lpt_devices_close(void);
 
+#ifdef _TIMER_H_
 typedef struct lpt_port_t {
     uint8_t       enabled;
     uint8_t       irq;
@@ -109,7 +115,9 @@ typedef struct lpt_port_t {
     void         *priv;
 
     pc_timer_t    fifo_out_timer;
+
 } lpt_port_t;
+#endif /* _TIMER_H_ */
 
 typedef enum {
     LPT_STATE_IDLE = 0,
@@ -117,7 +125,7 @@ typedef enum {
     LPT_STATE_WRITE_FIFO
 } lpt_state_t;
 
-extern lpt_port_t lpt_ports[PARALLEL_MAX];
+extern lpt_port_t  lpt_ports[PARALLEL_MAX];
 
 extern void        lpt_write(uint16_t port, uint8_t val, void *priv);
 
@@ -130,7 +138,11 @@ extern uint8_t     lpt_read_port(int port, uint16_t reg);
 extern uint8_t     lpt_read_status(int port);
 extern void        lpt_irq(void *priv, int raise);
 
-extern int         lpt_device_get_from_internal_name(const char *s);
+extern const       lpt_device_t *lpt_device_getdevice(const int id);
+
+extern int         lpt_device_has_config(const int id);
+
+extern int         lpt_device_get_from_internal_name(const char *str);
 
 extern const char *lpt_device_get_name(int id);
 extern const char *lpt_device_get_internal_name(int id);

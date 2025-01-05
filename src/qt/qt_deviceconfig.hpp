@@ -24,6 +24,10 @@ public:
 
     static void    ConfigureDevice(const _device_ *device, int instance = 0,
                                    Settings *settings = qobject_cast<Settings *>(Settings::settings));
+#ifdef EMU_LPT_H
+    static void    ConfigureLptDevice(const lpt_device_t *lpt_device, int instance = 0,
+                                      Settings *settings = qobject_cast<Settings *>(Settings::settings));
+#endif /* EMU_LPT_H */
     static QString DeviceName(const _device_ *device, const char *internalName, int bus);
 
 private:

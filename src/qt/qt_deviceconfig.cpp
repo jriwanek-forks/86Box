@@ -16,6 +16,7 @@
  *          Copyright 2021 Joakim L. Gilje
  *          Copyright 2022 Cacodemon345
  */
+#define EMU_LPT_H
 #include "qt_deviceconfig.hpp"
 #include "ui_qt_deviceconfig.h"
 #include "qt_settings.hpp"
@@ -38,6 +39,8 @@ extern "C" {
 #include <86box/ini.h>
 #include <86box/config.h>
 #include <86box/device.h>
+#include <86box/timer.h>
+#include <86box/lpt.h>
 #include <86box/midi_rtmidi.h>
 #include <86box/mem.h>
 #include <86box/random.h>
@@ -393,6 +396,115 @@ DeviceConfig::ConfigureDevice(const _device_ *device, int instance, Settings *se
     dc.ui->formLayout->addRow(line);
     const _device_config_ *config = device->config;
 
+    // HERE
+    dc.ProcessConfig(&device_context, config, false);
+
+    dc.setFixedSize(dc.minimumSizeHint());
+
+    if (dc.exec() == QDialog::Accepted) {
+        if (config == NULL)
+            return;
+
+        config = device->config;
+        while (config->type != CONFIG_END) {
+            switch (config->type) {
+                default:
+                    break;
+                case CONFIG_BINARY:
+                    {
+                        const auto *cbox = dc.findChild<QCheckBox *>(config->name);
+                        config_set_int(device_context.name, const_cast<char *>(config->name), cbox->isChecked() ? 1 : 0);
+                        break;
+                    }
+                case CONFIG_MIDI_OUT:
+                case CONFIG_MIDI_IN:
+                case CONFIG_INT:
+                case CONFIG_SELECTION:
+                    {
+                        auto *cbox = dc.findChild<QComboBox *>(config->name);
+                        config_set_int(device_context.name, const_cast<char *>(config->name), cbox->currentData().toInt());
+                        break;
+                    }
+                case CONFIG_BIOS:
+                    {
+                        auto *cbox = dc.findChild<QComboBox *>(config->name);
+                        int   idx  = cbox->currentData().toInt();
+                        config_set_string(device_context.name, const_cast<char *>(config->name), const_cast<char *>(config->bios[idx].internal_name));
+                        break;
+                    }
+                case CONFIG_SERPORT:
+                    {
+                        auto *cbox = dc.findChild<QComboBox *>(config->name);
+                        auto  path = cbox->currentText().toUtf8();
+                        if (cbox->currentData().toInt() == -1)
+                            path = "";
+                        config_set_string(device_context.name, const_cast<char *>(config->name), path);
+                        break;
+                    }
+                case CONFIG_STRING:
+                    {
+                        auto *lineEdit = dc.findChild<QLineEdit *>(config->name);
+                        config_set_string(device_context.name, const_cast<char *>(config->name), lineEdit->text().toUtf8());
+                        break;
+                    }
+                case CONFIG_HEX16:
+                    {
+                        auto *cbox = dc.findChild<QComboBox *>(config->name);
+                        config_set_hex16(device_context.name, const_cast<char *>(config->name), cbox->currentData().toInt());
+                        break;
+                    }
+                case CONFIG_HEX20:
+                    {
+                        auto *cbox = dc.findChild<QComboBox *>(config->name);
+                        config_set_hex20(device_context.name, const_cast<char *>(config->name), cbox->currentData().toInt());
+                        break;
+                    }
+                case CONFIG_FNAME:
+                    {
+                        auto *fbox     = dc.findChild<FileField *>(config->name);
+                        auto  fileName = fbox->fileName().toUtf8();
+                        config_set_string(device_context.name, const_cast<char *>(config->name), fileName.data());
+                        break;
+                    }
+                case CONFIG_SPINNER:
+                    {
+                        auto *spinBox = dc.findChild<QSpinBox *>(config->name);
+                        config_set_int(device_context.name, const_cast<char *>(config->name), spinBox->value());
+                        break;
+                    }
+                case CONFIG_MAC:
+                    {
+                        const auto *lineEdit = dc.findChild<QLineEdit *>(config->name);
+                        // Store the mac address as lowercase
+                        auto macText = lineEdit->displayText().toLower();
+                        config_set_string(device_context.name, config->name, macText.toUtf8().constData());
+                        break;
+                    }
+            }
+            config++;
+        }
+    }
+}
+
+void
+DeviceConfig::ConfigureLptDevice(const lpt_device_t *lpt_device, int instance, Settings *settings)
+{
+    DeviceConfig dc(settings);
+    dc.setWindowTitle(tr("%1 Device Configuration").arg(tr(lpt_device->name)));
+
+    device_context_t device_context;
+//    device_set_context(&device_context, lpt_device, instance);
+
+    const auto device_label = new QLabel(tr(lpt_device->name));
+    device_label->setAlignment(Qt::AlignCenter);
+    dc.ui->formLayout->addRow(device_label);
+    const auto line = new QFrame;
+    line->setFrameShape(QFrame::HLine);
+    line->setFrameShadow(QFrame::Sunken);
+    dc.ui->formLayout->addRow(line);
+    const _device_config_ *config = lpt_device->config;
+
+    // HERE
     dc.ProcessConfig(&device_context, config, false);
 
     dc.setFixedSize(dc.minimumSizeHint());

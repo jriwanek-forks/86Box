@@ -57,6 +57,7 @@
 #include FT_FREETYPE_H
 #define HAVE_STDARG_H
 #include <86box/86box.h>
+#include <86box/device.h>
 #include "cpu.h"
 #include <86box/machine.h>
 #include <86box/timer.h>
@@ -2108,5 +2109,6 @@ const lpt_device_t lpt_prt_escp_device = {
     .read_status      = read_status,
     .read_ctrl        = read_ctrl,
     .epp_write_data   = NULL,
-    .epp_request_read = NULL
+    .epp_request_read = NULL,
+    .config           = NULL
 };
