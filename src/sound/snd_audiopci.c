@@ -205,6 +205,7 @@ static double akm4531_gain_2dbstep_5bits[0x20];
 
 #define INT_DAC1_BYPASS           (1 << 31)
 #define INT_DAC2_BYPASS           (1 << 30)
+#define INT_CT5880_AC97_RESET     (1 << 29)
 #define INT_DAC1_EN               (1 << 6)
 #define INT_DAC2_EN               (1 << 5)
 #define INT_UART_EN               (1 << 3)
@@ -215,12 +216,23 @@ static double akm4531_gain_2dbstep_5bits[0x20];
 #define SI_P1_INTR_EN             (1 << 8)
 
 #define INT_STATUS_INTR           (1 << 31)
-#define INT_STATUS_REAR_B27       (1 << 27)
-#define INT_STATUS_REAR_B26       (1 << 26)
-#define INT_STATUS_REAR_B24       (1 << 24)
+#define INT_STATUS_REAR_B27       (1 << 27) /* Not ES1371 */
+#define INT_STATUS_REAR_B26       (1 << 26) /* Not ES1371 */
+#define INT_STATUS_REAR_B24       (1 << 24) /* Not ES1371 */
+//#define INT_STATUS_GPIO_INT_ENABLE (1 << 23) through (1 << 20) /* Not ES1371 */
+#define INT_STATUS_ENABLE_SPDIF   (1 << 18) /* Not ES1371 */
+#define INT_STATUS_TEST_SPDIF     (1 << 17) /* Not ES1371 */
+#define INT_STATUS_TEST_MODE      (1 << 16) /* Not ES1371 */
+//#define INT_STATUS_GPIO_INT     (1 << 12) through (1 << 15) /* Not ES1371 */
+#define INT_STATUS_SYNC_ERR       (1 << 8) /* Not currently used */
+#define INT_STATUS_VC7            (1 << 7) /* Not currently used */
+#define INT_STATUS_VC0            (1 << 6) /* Not currently used */
+#define INT_STATUS_MPWR           (1 << 5) /* Not currently used */
+#define INT_STATUS_MCCB           (1 << 4) /* Not currently used */
 #define INT_STATUS_UART           (1 << 3)
 #define INT_STATUS_DAC1           (1 << 2)
 #define INT_STATUS_DAC2           (1 << 1)
+#define INT_STATUS_ADC            (1 << 0) /* Not currently used */
 
 #define UART_CTRL_RXINTEN         (1 << 7)
 #define UART_CTRL_TXINTEN         (3 << 5)
@@ -2403,6 +2415,7 @@ es137x_update(es137x_t *dev)
     }
 }
 
+// TODO INT_CT5880_AC97_RESET (1373_8(0x08), CT5880_A(0x07) || PID=0x5880
 static void
 es137x_poll(void *priv)
 {
@@ -2420,6 +2433,11 @@ es137x_poll(void *priv)
 
     es137x_update(dev);
 
+    // TODO Simplify this:
+	//    ES1370 in it's own block.
+    //    CT5880 only if rev 0x07 or 0x08
+    //    1373 only if rev = 0x04 or 0x06
+	//    Find out about rev 0x09
     if (dev->int_ctrl & INT_DAC1_EN) {
         if ((((dev->type == AUDIOPCI_ES1373) || (dev->type == AUDIOPCI_CT5880)) && (dev->int_ctrl & INT_DAC1_BYPASS)) || (dev->type == AUDIOPCI_ES1370)) {
             if ((dev->calc_sample_rate_synth != 44100) && (dev->type == AUDIOPCI_ES1370)) {
@@ -2478,6 +2496,11 @@ dac0_count:
         }
     }
 
+    // TODO Simplify this:
+	//    ES1370 in it's own block.
+    //    CT5880 only if rev 0x07 or 0x08
+    //    1373 only if rev = 0x04 or 0x06
+	//    Find out about rev 0x09
     if (dev->int_ctrl & INT_DAC2_EN) {
         if ((((dev->type == AUDIOPCI_ES1373) || (dev->type == AUDIOPCI_CT5880)) && (dev->int_ctrl & INT_DAC2_BYPASS)) || (dev->type == AUDIOPCI_ES1370)) {
             if ((dev->calc_sample_rate != 44100) && (dev->type == AUDIOPCI_ES1370)) {
@@ -2535,6 +2558,11 @@ dac1_count:
             }
         }
     }
+
+#if ENABLE_AUDIOPCI_LOG
+	if (dev->int_ctrl & INT_DAC2_ENINT_CT5880_AC97_RESET)
+       audiopci_log("INT_DAC2_ENINT_CT5880_AC97_RESET was set\n");
+#endif
 }
 
 static void
