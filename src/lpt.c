@@ -31,42 +31,41 @@ const lpt_device_t lpt_none_device = {
 };
 
 static const struct {
-    const char         *internal_name;
     const lpt_device_t *device;
 } lpt_devices[] = {
   // clang-format off
-    {"none",            &lpt_none_device          },
-    {"dss",             &dss_device               },
-    {"lpt_dac",         &lpt_dac_device           },
-    {"lpt_dac_stereo",  &lpt_dac_stereo_device    },
-    {"text_prt",        &lpt_prt_text_device      },
-    {"dot_matrix",      &lpt_prt_escp_device      },
-    {"postscript",      &lpt_prt_ps_device        },
+    { &lpt_none_device          },
+    { &dss_device               },
+    { &lpt_dac_device           },
+    { &lpt_dac_stereo_device    },
+    { &lpt_prt_text_device      },
+    { &lpt_prt_escp_device      },
+    { &lpt_prt_ps_device        },
 #ifdef USE_PCL
-    {"pcl",             &lpt_prt_pcl_device       },
+    { &lpt_prt_pcl_device       },
 #endif
-    {"plip",            &lpt_plip_device          },
-    {"dongle_savquest", &lpt_hasp_savquest_device },
-    {"",                NULL                      }
+    { &lpt_plip_device          },
+    { &lpt_hasp_savquest_device },
+    { NULL                      }
   // clang-format on
 };
 
 const char *
 lpt_device_get_name(int id)
 {
-    if (strlen(lpt_devices[id].internal_name) == 0)
-        return NULL;
     if (!lpt_devices[id].device)
-        return "None";
+        return NULL;
+
     return lpt_devices[id].device->name;
 }
 
 const char *
 lpt_device_get_internal_name(int id)
 {
-    if (strlen(lpt_devices[id].internal_name) == 0)
-        return NULL;
-    return lpt_devices[id].internal_name;
+    if (lpt_devices[id].device == NULL)
+        return "";
+
+    return lpt_devices[id].device->internal_name;
 }
 
 int
@@ -74,8 +73,8 @@ lpt_device_get_from_internal_name(char *s)
 {
     int c = 0;
 
-    while (strlen(lpt_devices[c].internal_name) != 0) {
-        if (strcmp(lpt_devices[c].internal_name, s) == 0)
+    while (lpt_devices[c].device != NULL) {
+        if (!(strcmp(lpt_devices[c].device->internal_name, s)))
             return c;
         c++;
     }

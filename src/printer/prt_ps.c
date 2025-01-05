@@ -26,6 +26,8 @@
 #include <string.h>
 #include <wchar.h>
 #include <86box/86box.h>
+#include <86box/device.h>
+#include <86box/lpt.h>
 #include <86box/timer.h>
 #include <86box/lpt.h>
 #include <86box/pit.h>
@@ -487,7 +489,8 @@ const lpt_device_t lpt_prt_ps_device = {
     .write_ctrl    = ps_write_ctrl,
     .read_data     = NULL,
     .read_status   = ps_read_status,
-    .read_ctrl     = NULL
+    .read_ctrl     = NULL,
+    .config        = NULL
 };
 
 #ifdef USE_PCL
@@ -500,6 +503,7 @@ const lpt_device_t lpt_prt_pcl_device = {
     .write_ctrl    = ps_write_ctrl,
     .read_data     = NULL,
     .read_status   = ps_read_status,
-    .read_ctrl     = NULL
+    .read_ctrl     = NULL,
+    .config        = NULL
 };
 #endif
