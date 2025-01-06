@@ -8923,6 +8923,46 @@ const machine_t machines[] = {
     },
     /* Has a VIA VT82C42N KBC. */
     {
+        .name = "[VIA VT82C496G] FIC VIP-IO",
+        .internal_name = "486vipio",
+        .type = MACHINE_TYPE_486_S3,
+        .chipset = MACHINE_CHIPSET_VLSI_VL82C486,
+        .init = machine_at_486vipio_init,
+        .p1_handler = NULL,
+        .gpio_handler = NULL,
+        .available_flag = MACHINE_AVAILABLE,
+        .gpio_acpi_handler = NULL,
+        .cpu = {
+            .package = CPU_PKG_SOCKET3,
+            .block = CPU_BLOCK_NONE,
+            .min_bus = 0,
+            .max_bus = 0,
+            .min_voltage = 0,
+            .max_voltage = 0,
+            .min_multi = 0,
+            .max_multi = 0
+        },
+        .bus_flags = MACHINE_PS2_PCIV,
+        .flags = MACHINE_IDE_DUAL | MACHINE_APM | MACHINE_GAMEPORT,
+        .ram = {
+            .min = 1024,
+            .max = 131072,
+            .step = 1024
+        },
+        .nvrmask = 255,
+        .kbc_device = NULL,
+        .kbc_p1 = 0xff,
+        .gpio = 0xffffffff,
+        .gpio_acpi = 0xffffffff,
+        .device = NULL,
+        .fdc_device = NULL,
+        .sio_device = NULL,
+        .vid_device = NULL,
+        .snd_device = NULL,
+        .net_device = NULL
+    },
+    /* Has a VIA VT82C42N KBC. */
+    {
         .name = "[VIA VT82C496G] FIC VIP-IO2",
         .internal_name = "486vipio2",
         .type = MACHINE_TYPE_486_S3_PCI,
