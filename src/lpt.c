@@ -53,18 +53,18 @@ static const struct {
 const char *
 lpt_device_get_name(int id)
 {
-    if (strlen(lpt_devices[id].device->internal_name) == 0)
-        return NULL;
     if (!lpt_devices[id].device)
-        return "None";
+        return NULL;
+
     return lpt_devices[id].device->name;
 }
 
 const char *
 lpt_device_get_internal_name(int id)
 {
-    if (strlen(lpt_devices[id].device->internal_name) == 0)
-        return NULL;
+    if (lpt_devices[id].device == NULL)
+        return "";
+
     return lpt_devices[id].device->internal_name;
 }
 
@@ -73,8 +73,8 @@ lpt_device_get_from_internal_name(char *s)
 {
     int c = 0;
 
-    while (strlen(lpt_devices[c].device->internal_name) != 0) {
-        if (strcmp(lpt_devices[c].device->internal_name, s) == 0)
+    while (lpt_devices[c].device != NULL) {
+        if (!(strcmp(lpt_devices[c].device->internal_name, s)))
             return c;
         c++;
     }
