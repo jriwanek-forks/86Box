@@ -211,7 +211,9 @@ extern void  device_speed_changed(void);
 extern void  device_force_redraw(void);
 extern void  device_get_name(const device_t *dev, int bus, char *name);
 extern int   device_has_config(const device_t *dev);
+
 extern const char *device_get_bios_file(const device_t *dev, const char *internal_name, int file_no);
+extern int         device_get_bios_file_size(const device_t *dev, const char *internal_name, int file_no);
 
 extern int device_is_valid(const device_t *, int mch);
 
@@ -229,11 +231,14 @@ extern void        device_set_config_mac(const char *str, int val);
 extern const char *device_get_config_string(const char *name);
 extern int         device_get_instance(void);
 #define device_get_config_bios device_get_config_string
+#define device_get_config_bios_size device_get_config_int
 
 extern const char *device_get_internal_name(const device_t *dev);
 
 extern int         machine_get_config_int(char *str);
 extern const char *machine_get_config_string(char *str);
+#define            machine_get_config_bios machine_get_config_string
+#define            machine_get_config_bios_size machine_get_config_string
 
 extern const device_t device_none;
 extern const device_t device_internal;
