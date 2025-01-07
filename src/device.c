@@ -441,6 +441,34 @@ device_get_bios_file(const device_t *dev, const char *internal_name, int file_no
 }
 
 int
+device_get_bios_file_size(const device_t *dev, const char *internal_name, int file_no)
+{
+    const device_config_t      *config = NULL;
+    const device_config_bios_t *bios   = NULL;
+
+    if (dev != NULL) {
+        config = dev->config;
+        if (config != NULL) {
+            while (config->type != CONFIG_END) {
+                if (config->type == CONFIG_BIOS) {
+                    bios = config->bios;
+
+                    /* Go through the ROM's in the device configuration. */
+                    while (bios->files_no != 0) {
+                        if (!strcmp(internal_name, bios->internal_name))
+                            return bios->size;
+                        bios++;
+                    }
+                }
+                config++;
+            }
+        }
+    }
+
+    return 0;
+}
+
+int
 device_has_config(const device_t *dev)
 {
     int                    c = 0;
