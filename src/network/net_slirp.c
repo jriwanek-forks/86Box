@@ -422,8 +422,7 @@ net_slirp_init(const netcard_t *card, const uint8_t *mac_addr, UNUSED(void *priv
 
 #ifndef _WIN32
     slirp->pfd_size = 16 * sizeof(struct pollfd);
-    slirp->pfd      = malloc(slirp->pfd_size);
-    memset(slirp->pfd, 0, slirp->pfd_size);
+    slirp->pfd      = calloc(1, slirp->pfd_size);
 #endif
 
     /* Set the IP addresses to use. */

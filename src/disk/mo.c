@@ -2103,8 +2103,7 @@ mo_drive_reset(int c)
     uint8_t        scsi_id  = mo_drives[c].scsi_device_id & 0x0f;
 
     if (!mo_drives[c].priv) {
-        mo_drives[c].priv = (mo_t *) malloc(sizeof(mo_t));
-        memset(mo_drives[c].priv, 0, sizeof(mo_t));
+        mo_drives[c].priv = (mo_t *) calloc(1, sizeof(mo_t));
     }
 
     dev = (mo_t *) mo_drives[c].priv;

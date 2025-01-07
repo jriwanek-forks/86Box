@@ -2347,7 +2347,7 @@ zip_drive_reset(int c)
     uint8_t        scsi_id  = zip_drives[c].scsi_device_id & 0x0f;
 
     if (!zip_drives[c].priv) {
-        zip_drives[c].priv = (zip_t *) malloc(sizeof(zip_t));
+        zip_drives[c].priv = (zip_t *) calloc(1, sizeof(zip_t));
         memset(zip_drives[c].priv, 0, sizeof(zip_t));
     }
 
