@@ -248,6 +248,8 @@ machine_pc82_init(const machine_t *model)
     enable_5161  = machine_get_config_int("enable_5161");
     enable_basic = machine_get_config_int("enable_basic");
     fn           = device_get_bios_file(model->device, device_get_config_bios("bios"), 0);
+    int len      = device_get_bios_file_size(model->device, device_get_config_bios("bios"), 0);
+    pclog("BIOS size was %d\n", len);
     ret          = bios_load_linear(fn, 0x000fe000, 40960, 0);
     device_context_restore();
 
