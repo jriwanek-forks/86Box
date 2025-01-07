@@ -660,13 +660,15 @@ device_get_config_string(const char *str)
 int
 device_get_config_int(const char *str)
 {
-    const device_config_t *cfg = device_current.dev->config;
+    if (device_current.dev != NULL) {
+        const device_config_t *cfg = device_current.dev->config;
 
-    while (cfg && cfg->type != CONFIG_END) {
-        if (!strcmp(str, cfg->name))
-            return (config_get_int((char *) device_current.name, (char *) str, cfg->default_int));
+        while ((cfg != NULL) && (cfg->type != CONFIG_END)) {
+            if (!strcmp(str, cfg->name))
+                return (config_get_int((char *) device_current.name, (char *) str, cfg->default_int));
 
-        cfg++;
+            cfg++;
+        }
     }
 
     return 0;
@@ -675,13 +677,15 @@ device_get_config_int(const char *str)
 int
 device_get_config_int_ex(const char *str, int def)
 {
-    const device_config_t *cfg = device_current.dev->config;
+    if (device_current.dev != NULL) {
+        const device_config_t *cfg = device_current.dev->config;
 
-    while (cfg && cfg->type != CONFIG_END) {
-        if (!strcmp(str, cfg->name))
-            return (config_get_int((char *) device_current.name, (char *) str, def));
+        while ((cfg != NULL) && (cfg->type != CONFIG_END)) {
+            if (!strcmp(str, cfg->name))
+                return (config_get_int((char *) device_current.name, (char *) str, def));
 
-        cfg++;
+            cfg++;
+        }
     }
 
     return def;
@@ -690,13 +694,15 @@ device_get_config_int_ex(const char *str, int def)
 int
 device_get_config_hex16(const char *str)
 {
-    const device_config_t *cfg = device_current.dev->config;
+    if (device_current.dev != NULL) {
+        const device_config_t *cfg = device_current.dev->config;
 
-    while (cfg && cfg->type != CONFIG_END) {
-        if (!strcmp(str, cfg->name))
-            return (config_get_hex16((char *) device_current.name, (char *) str, cfg->default_int));
+        while ((cfg != NULL) && (cfg->type != CONFIG_END)) {
+            if (!strcmp(str, cfg->name))
+                return (config_get_hex16((char *) device_current.name, (char *) str, cfg->default_int));
 
-        cfg++;
+            cfg++;
+        }
     }
 
     return 0;
@@ -705,13 +711,15 @@ device_get_config_hex16(const char *str)
 int
 device_get_config_hex20(const char *str)
 {
+    if (device_current.dev != NULL) {
     const device_config_t *cfg = device_current.dev->config;
 
-    while (cfg && cfg->type != CONFIG_END) {
-        if (!strcmp(str, cfg->name))
-            return (config_get_hex20((char *) device_current.name, (char *) str, cfg->default_int));
+        while ((cfg != NULL) && cfg->type != CONFIG_END)) {
+            if (!strcmp(str, cfg->name))
+                return (config_get_hex20((char *) device_current.name, (char *) str, cfg->default_int));
 
-        cfg++;
+            cfg++;
+        }
     }
 
     return 0;
@@ -720,13 +728,15 @@ device_get_config_hex20(const char *str)
 int
 device_get_config_mac(const char *str, int def)
 {
-    const device_config_t *cfg = device_current.dev->config;
+    if (device_current.dev != NULL) {
+        const device_config_t *cfg = device_current.dev->config;
 
-    while (cfg && cfg->type != CONFIG_END) {
-        if (!strcmp(str, cfg->name))
-            return (config_get_mac((char *) device_current.name, (char *) str, def));
+        while ((cfg != NULL) && (cfg->type != CONFIG_END)) {
+            if (!strcmp(str, cfg->name))
+                return (config_get_mac((char *) device_current.name, (char *) str, def));
 
-        cfg++;
+            cfg++;
+        }
     }
 
     return def;
@@ -735,125 +745,132 @@ device_get_config_mac(const char *str, int def)
 void
 device_set_config_int(const char *str, int val)
 {
-    const device_config_t *cfg = device_current.dev->config;
+    if (device_current.dev != NULL) {
+        const device_config_t *cfg = device_current.dev->config;
 
-    while (cfg && cfg->type != CONFIG_END) {
-        if (!strcmp(str, cfg->name)) {
-            config_set_int((char *) device_current.name, (char *) str, val);
-            break;
+        while ((cfg != NULL) && (cfg->type != CONFIG_END)) {
+            if (!strcmp(str, cfg->name)) {
+                config_set_int((char *) device_current.name, (char *) str, val);
+                break;
+            }
+
+            cfg++;
         }
-
-        cfg++;
     }
 }
 
 void
 device_set_config_hex16(const char *str, int val)
 {
-    const device_config_t *cfg = device_current.dev->config;
+    if (device_current.dev != NULL) {
+        const device_config_t *cfg = device_current.dev->config;
 
-    while (cfg && cfg->type != CONFIG_END) {
-        if (!strcmp(str, cfg->name)) {
-            config_set_hex16((char *) device_current.name, (char *) str, val);
-            break;
+        while ((cfg != NULL) && (cfg->type != CONFIG_END)) {
+            if (!strcmp(str, cfg->name)) {
+                config_set_hex16((char *) device_current.name, (char *) str, val);
+                break;
+            }
+
+            cfg++;
         }
-
-        cfg++;
     }
 }
 
 void
 device_set_config_hex20(const char *str, int val)
 {
-    const device_config_t *cfg = device_current.dev->config;
+    if (device_current.dev != NULL) {
+        const device_config_t *cfg = device_current.dev->config;
 
-    while (cfg && cfg->type != CONFIG_END) {
-        if (!strcmp(str, cfg->name)) {
-            config_set_hex20((char *) device_current.name, (char *) str, val);
-            break;
-        }
+        while ((cfg != NULL) && (cfg->type != CONFIG_END)) {
+            if (!strcmp(str, cfg->name)) {
+                config_set_hex20((char *) device_current.name, (char *) str, val);
+                break;
+            }
 
         cfg++;
+        }
     }
 }
 
 void
 device_set_config_mac(const char *str, int val)
 {
-    const device_config_t *cfg = device_current.dev->config;
+    if (device_current.dev != NULL) {
+        const device_config_t *cfg = device_current.dev->config;
 
-    while (cfg && cfg->type != CONFIG_END) {
-        if (!strcmp(str, cfg->name)) {
-            config_set_mac((char *) device_current.name, (char *) str, val);
-            break;
+        while ((cfg != NULL) && (cfg->type != CONFIG_END)) {
+            if (!strcmp(str, cfg->name)) {
+                config_set_mac((char *) device_current.name, (char *) str, val);
+                break;
+            }
+
+            cfg++;
         }
-
-        cfg++;
     }
 }
 
 int
 device_is_valid(const device_t *device, int mch)
 {
-    if (device == NULL)
-        return 1;
+    if (device != NULL) {
+        if ((device->flags & DEVICE_PCJR) && !machine_has_bus(mch, MACHINE_BUS_PCJR))
+            return 0;
 
-    if ((device->flags & DEVICE_PCJR) && !machine_has_bus(mch, MACHINE_BUS_PCJR))
-        return 0;
+        if ((device->flags & DEVICE_XTKBC) && machine_has_bus(mch, MACHINE_BUS_ISA16) && !machine_has_bus(mch, MACHINE_BUS_DM_KBC))
+            return 0;
 
-    if ((device->flags & DEVICE_XTKBC) && machine_has_bus(mch, MACHINE_BUS_ISA16) && !machine_has_bus(mch, MACHINE_BUS_DM_KBC))
-        return 0;
+        if ((device->flags & DEVICE_AT) && !machine_has_bus(mch, MACHINE_BUS_ISA16))
+            return 0;
 
-    if ((device->flags & DEVICE_AT) && !machine_has_bus(mch, MACHINE_BUS_ISA16))
-        return 0;
+        if ((device->flags & DEVICE_ATKBC) && !machine_has_bus(mch, MACHINE_BUS_ISA16) && !machine_has_bus(mch, MACHINE_BUS_DM_KBC))
+            return 0;
 
-    if ((device->flags & DEVICE_ATKBC) && !machine_has_bus(mch, MACHINE_BUS_ISA16) && !machine_has_bus(mch, MACHINE_BUS_DM_KBC))
-        return 0;
+        if ((device->flags & DEVICE_PS2) && !machine_has_bus(mch, MACHINE_BUS_PS2_PORTS))
+            return 0;
 
-    if ((device->flags & DEVICE_PS2) && !machine_has_bus(mch, MACHINE_BUS_PS2_PORTS))
-        return 0;
+        if ((device->flags & DEVICE_ISA) && !machine_has_bus(mch, MACHINE_BUS_ISA))
+            return 0;
 
-    if ((device->flags & DEVICE_ISA) && !machine_has_bus(mch, MACHINE_BUS_ISA))
-        return 0;
+        if ((device->flags & DEVICE_CBUS) && !machine_has_bus(mch, MACHINE_BUS_CBUS))
+            return 0;
 
-    if ((device->flags & DEVICE_CBUS) && !machine_has_bus(mch, MACHINE_BUS_CBUS))
-        return 0;
+        if ((device->flags & DEVICE_PCMCIA) && !machine_has_bus(mch, MACHINE_BUS_PCMCIA) && !machine_has_bus(mch, MACHINE_BUS_ISA))
+            return 0;
 
-    if ((device->flags & DEVICE_PCMCIA) && !machine_has_bus(mch, MACHINE_BUS_PCMCIA) && !machine_has_bus(mch, MACHINE_BUS_ISA))
-        return 0;
+        if ((device->flags & DEVICE_MCA) && !machine_has_bus(mch, MACHINE_BUS_MCA))
+            return 0;
 
-    if ((device->flags & DEVICE_MCA) && !machine_has_bus(mch, MACHINE_BUS_MCA))
-        return 0;
+        if ((device->flags & DEVICE_HIL) && !machine_has_bus(mch, MACHINE_BUS_HIL))
+            return 0;
 
-    if ((device->flags & DEVICE_HIL) && !machine_has_bus(mch, MACHINE_BUS_HIL))
-        return 0;
+        if ((device->flags & DEVICE_EISA) && !machine_has_bus(mch, MACHINE_BUS_EISA))
+            return 0;
 
-    if ((device->flags & DEVICE_EISA) && !machine_has_bus(mch, MACHINE_BUS_EISA))
-        return 0;
+        if ((device->flags & DEVICE_AT32) && !machine_has_bus(mch, MACHINE_BUS_AT32))
+            return 0;
 
-    if ((device->flags & DEVICE_AT32) && !machine_has_bus(mch, MACHINE_BUS_AT32))
-        return 0;
+        if ((device->flags & DEVICE_OLB) && !machine_has_bus(mch, MACHINE_BUS_OLB))
+            return 0;
 
-    if ((device->flags & DEVICE_OLB) && !machine_has_bus(mch, MACHINE_BUS_OLB))
-        return 0;
+        if ((device->flags & DEVICE_VLB) && !machine_has_bus(mch, MACHINE_BUS_VLB))
+            return 0;
 
-    if ((device->flags & DEVICE_VLB) && !machine_has_bus(mch, MACHINE_BUS_VLB))
-        return 0;
+        if ((device->flags & DEVICE_PCI) && !machine_has_bus(mch, MACHINE_BUS_PCI))
+            return 0;
 
-    if ((device->flags & DEVICE_PCI) && !machine_has_bus(mch, MACHINE_BUS_PCI))
-        return 0;
+        if ((device->flags & DEVICE_CARDBUS) && !machine_has_bus(mch, MACHINE_BUS_CARDBUS) && !machine_has_bus(mch, MACHINE_BUS_PCI))
+            return 0;
 
-    if ((device->flags & DEVICE_CARDBUS) && !machine_has_bus(mch, MACHINE_BUS_CARDBUS) && !machine_has_bus(mch, MACHINE_BUS_PCI))
-        return 0;
+        if ((device->flags & DEVICE_USB) && !machine_has_bus(mch, MACHINE_BUS_USB))
+            return 0;
 
-    if ((device->flags & DEVICE_USB) && !machine_has_bus(mch, MACHINE_BUS_USB))
-        return 0;
+        if ((device->flags & DEVICE_AGP) && !machine_has_bus(mch, MACHINE_BUS_AGP))
+            return 0;
 
-    if ((device->flags & DEVICE_AGP) && !machine_has_bus(mch, MACHINE_BUS_AGP))
-        return 0;
-
-    if ((device->flags & DEVICE_AC97) && !machine_has_bus(mch, MACHINE_BUS_AC97))
-        return 0;
+        if ((device->flags & DEVICE_AC97) && !machine_has_bus(mch, MACHINE_BUS_AC97))
+            return 0;
+    }
 
     return 1;
 }
@@ -861,20 +878,18 @@ device_is_valid(const device_t *device, int mch)
 int
 machine_get_config_int(char *str)
 {
-    const device_t        *dev = machine_get_device(machine);
-    const device_config_t *cfg;
+    const device_t *dev = machine_get_device(machine);
 
-    if (dev == NULL)
-        return 0;
+    if (dev != NULL) {
+        const device_config_t *cfg = dev->config;
 
-    cfg = dev->config;
-    while (cfg && cfg->type != CONFIG_END) {
-        if (!strcmp(str, cfg->name))
-            return (config_get_int((char *) dev->name, str, cfg->default_int));
+        while ((cfg != NULL) && (cfg->type != CONFIG_END)) {
+            if (!strcmp(str, cfg->name))
+                return (config_get_int((char *) dev->name, str, cfg->default_int));
 
-        cfg++;
+            cfg++;
+        }
     }
-
     return 0;
 }
 
@@ -885,9 +900,8 @@ machine_get_config_string(char *str)
     const char     *ret = "";
 
     if (dev != NULL) {
-        const device_config_t *cfg;
+        const device_config_t *cfg = dev->config;
 
-        cfg = dev->config;
         while ((cfg != NULL) && (cfg->type != CONFIG_END)) {
             if (!strcmp(str, cfg->name)) {
                 const char *s = config_get_string((char *) dev->name, str,
