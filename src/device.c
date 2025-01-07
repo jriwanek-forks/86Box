@@ -644,7 +644,13 @@ device_get_instance(void)
 const char *
 device_get_config_string(const char *str)
 {
+    if (device_current.dev == NULL)
+        return (NULL);
+
     const device_config_t *cfg = device_current.dev->config;
+
+    if (cfg == NULL)
+        return (NULL);
 
     while (cfg && cfg->type != CONFIG_END) {
         if (!strcmp(str, cfg->name))
@@ -659,7 +665,13 @@ device_get_config_string(const char *str)
 int
 device_get_config_int(const char *str)
 {
+    if (device_current.dev == NULL)
+        return 0;
+
     const device_config_t *cfg = device_current.dev->config;
+
+    if (cfg == NULL)
+        return 0;
 
     while (cfg && cfg->type != CONFIG_END) {
         if (!strcmp(str, cfg->name))
@@ -674,7 +686,13 @@ device_get_config_int(const char *str)
 int
 device_get_config_int_ex(const char *str, int def)
 {
+    if (device_current.dev == NULL)
+        return def;
+
     const device_config_t *cfg = device_current.dev->config;
+
+    if (cfg == NULL)
+        return def;
 
     while (cfg && cfg->type != CONFIG_END) {
         if (!strcmp(str, cfg->name))
@@ -689,7 +707,13 @@ device_get_config_int_ex(const char *str, int def)
 int
 device_get_config_hex16(const char *str)
 {
+    if (device_current.dev == NULL)
+        return 0;
+
     const device_config_t *cfg = device_current.dev->config;
+
+    if (cfg == NULL)
+        return 0;
 
     while (cfg && cfg->type != CONFIG_END) {
         if (!strcmp(str, cfg->name))
@@ -704,7 +728,13 @@ device_get_config_hex16(const char *str)
 int
 device_get_config_hex20(const char *str)
 {
+    if (device_current.dev == NULL)
+        return 0;
+
     const device_config_t *cfg = device_current.dev->config;
+
+    if (cfg == NULL)
+        return 0;
 
     while (cfg && cfg->type != CONFIG_END) {
         if (!strcmp(str, cfg->name))
@@ -719,7 +749,13 @@ device_get_config_hex20(const char *str)
 int
 device_get_config_mac(const char *str, int def)
 {
+    if (device_current.dev == NULL)
+        return def;
+
     const device_config_t *cfg = device_current.dev->config;
+
+    if (cfg == NULL)
+        return def;
 
     while (cfg && cfg->type != CONFIG_END) {
         if (!strcmp(str, cfg->name))
@@ -734,7 +770,13 @@ device_get_config_mac(const char *str, int def)
 void
 device_set_config_int(const char *str, int val)
 {
+    if (device_current.dev == NULL)
+        return;
+
     const device_config_t *cfg = device_current.dev->config;
+
+    if (cfg == NULL)
+        return;
 
     while (cfg && cfg->type != CONFIG_END) {
         if (!strcmp(str, cfg->name)) {
@@ -749,7 +791,13 @@ device_set_config_int(const char *str, int val)
 void
 device_set_config_hex16(const char *str, int val)
 {
+    if (device_current.dev == NULL)
+        return;
+
     const device_config_t *cfg = device_current.dev->config;
+
+    if (cfg == NULL)
+        return;
 
     while (cfg && cfg->type != CONFIG_END) {
         if (!strcmp(str, cfg->name)) {
@@ -764,7 +812,13 @@ device_set_config_hex16(const char *str, int val)
 void
 device_set_config_hex20(const char *str, int val)
 {
+    if (device_current.dev == NULL)
+        return;
+
     const device_config_t *cfg = device_current.dev->config;
+
+    if (cfg == NULL)
+        return;
 
     while (cfg && cfg->type != CONFIG_END) {
         if (!strcmp(str, cfg->name)) {
@@ -779,7 +833,13 @@ device_set_config_hex20(const char *str, int val)
 void
 device_set_config_mac(const char *str, int val)
 {
+    if (device_current.dev == NULL)
+        return;
+
     const device_config_t *cfg = device_current.dev->config;
+
+    if (cfg == NULL)
+        return;
 
     while (cfg && cfg->type != CONFIG_END) {
         if (!strcmp(str, cfg->name)) {
@@ -867,6 +927,10 @@ machine_get_config_int(char *str)
         return 0;
 
     cfg = dev->config;
+
+    if (cfg == NULL)
+        return 0;
+
     while (cfg && cfg->type != CONFIG_END) {
         if (!strcmp(str, cfg->name))
             return (config_get_int((char *) dev->name, str, cfg->default_int));
@@ -884,9 +948,13 @@ machine_get_config_string(char *str)
     const device_config_t *cfg;
 
     if (dev == NULL)
-        return 0;
+        return NULL;
 
     cfg = dev->config;
+
+    if (cfg == NULL)
+        return NULL;
+
     while (cfg && cfg->type != CONFIG_END) {
         if (!strcmp(str, cfg->name))
             return (config_get_string((char *) dev->name, str, (char *) cfg->default_string));
