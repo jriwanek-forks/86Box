@@ -1221,7 +1221,7 @@ fdc_read(uint16_t addr, void *priv)
 
     if (!fdc->power_down || ((addr & 7) == 2))  switch (addr & 7) {
         case 0: /* STA */
-            if (fdc->flags & FDC_FLAG_PS2) {
+            if (fdc->flags & FDC_FLAG_PS2) { /* Model 30 Mode */
                 drive = real_drive(fdc, fdc->dor & 3);
                 ret   = 0x00;
                 /* TODO:
@@ -1241,7 +1241,7 @@ fdc_read(uint16_t addr, void *priv)
                     ret |= 0x40;
                 if (fdc->fintr || fdc->reset_stat) /* INTR */
                     ret |= 0x80;
-            } else if (fdc->flags & FDC_FLAG_PS2_MCA) {
+            } else if (fdc->flags & FDC_FLAG_PS2_MCA) { /* PS/2 Mode */
                 drive = real_drive(fdc, fdc->dor & 3);
                 ret   = 0x04;
                 /* TODO:
@@ -1265,7 +1265,7 @@ fdc_read(uint16_t addr, void *priv)
                 ret = 0xff;
             break;
         case 1: /* STB */
-            if (fdc->flags & FDC_FLAG_PS2) {
+            if (fdc->flags & FDC_FLAG_PS2) { /* Model 30 Mode */
                 drive = real_drive(fdc, fdc->dor & 3);
                 ret   = 0x00;
                 if (!fdd_get_type(1))              /* -Drive 2 Installed */
@@ -1287,7 +1287,7 @@ fdc_read(uint16_t addr, void *priv)
                     default:
                         break;
                 }
-            } else if (fdc->flags & FDC_FLAG_PS2_MCA) {
+            } else if (fdc->flags & FDC_FLAG_PS2_MCA) { /* PS/2 Mode */
                 drive = real_drive(fdc, fdc->dor & 3);
                 ret   = 0xc0;
                 ret  |= (fdc->dor & 0x01) << 5;    /* Drive Select 0 */
@@ -2620,6 +2620,104 @@ const device_t fdc_at_nsc_dp8473_device = {
     .internal_name = "fdc_at_nsc_dp8473",
     .flags         = 0,
     .local         = FDC_FLAG_AT | FDC_FLAG_NEC | FDC_FLAG_NO_DSR_RESET,
+    .init          = fdc_init,
+    .close         = fdc_close,
+    .reset         = fdc_reset,
+    { .available = NULL },
+    .speed_changed = NULL,
+    .force_redraw  = NULL,
+    .config        = NULL
+};
+
+const device_t fdc_at_nsc_dp8473_sec_device = {
+    .name          = "PC/AT Floppy Drive Controller (NSC DP8473) (Secondary)",
+    .internal_name = "fdc_at_nsc_dp8473_sec",
+    .flags         = 0,
+    .local         = FDC_FLAG_AT | FDC_FLAG_NEC | FDC_FLAG_NO_DSR_RESET | FDC_FLAG_SEC,
+    .init          = fdc_init,
+    .close         = fdc_close,
+    .reset         = fdc_reset,
+    { .available = NULL },
+    .speed_changed = NULL,
+    .force_redraw  = NULL,
+    .config        = NULL
+};
+
+const device_t fdc_at_nsc_dp8473_ter_device = {
+    .name          = "PC/AT Floppy Drive Controller (NSC DP8473) (Tertiary)",
+    .internal_name = "fdc_at_nsc_dp8473_ter",
+    .flags         = 0,
+    .local         = FDC_FLAG_AT | FDC_FLAG_NEC | FDC_FLAG_NO_DSR_RESET | FDC_FLAG_TER,
+    .init          = fdc_init,
+    .close         = fdc_close,
+    .reset         = fdc_reset,
+    { .available = NULL },
+    .speed_changed = NULL,
+    .force_redraw  = NULL,
+    .config        = NULL
+};
+
+const device_t fdc_at_nsc_dp8473_qua_device = {
+    .name          = "PC/AT Floppy Drive Controller (NSC DP8473) (Quaternary)",
+    .internal_name = "fdc_at_nsc_dp8473_qua",
+    .flags         = 0,
+    .local         = FDC_FLAG_AT | FDC_FLAG_NEC | FDC_FLAG_NO_DSR_RESET | FDC_FLAG_QUA,
+    .init          = fdc_init,
+    .close         = fdc_close,
+    .reset         = fdc_reset,
+    { .available = NULL },
+    .speed_changed = NULL,
+    .force_redraw  = NULL,
+    .config        = NULL
+};
+
+const device_t fdc_at_nsc_dp8477_device = {
+    .name          = "PC/AT Floppy Drive Controller (NSC DP8477)",
+    .internal_name = "fdc_at_nsc_dp8477",
+    .flags         = 0,
+    .local         = FDC_FLAG_AT | FDC_FLAG_SUPERIO | FDC_FLAG_NEC | FDC_FLAG_NO_DSR_RESET,
+    .init          = fdc_init,
+    .close         = fdc_close,
+    .reset         = fdc_reset,
+    { .available = NULL },
+    .speed_changed = NULL,
+    .force_redraw  = NULL,
+    .config        = NULL
+};
+
+const device_t fdc_at_nsc_dp8477_sec_device = {
+    .name          = "PC/AT Floppy Drive Controller (NSC DP8477) (Secondary)",
+    .internal_name = "fdc_at_nsc_dp8477_sec",
+    .flags         = 0,
+    .local         = FDC_FLAG_AT | FDC_FLAG_SUPERIO | FDC_FLAG_NEC | FDC_FLAG_NO_DSR_RESET | FDC_FLAG_SEC,
+    .init          = fdc_init,
+    .close         = fdc_close,
+    .reset         = fdc_reset,
+    { .available = NULL },
+    .speed_changed = NULL,
+    .force_redraw  = NULL,
+    .config        = NULL
+};
+
+const device_t fdc_at_nsc_dp8477_ter_device = {
+    .name          = "PC/AT Floppy Drive Controller (NSC DP8477) (Tertiary)",
+    .internal_name = "fdc_at_nsc_dp8477_ter",
+    .flags         = 0,
+    .local         = FDC_FLAG_AT | FDC_FLAG_SUPERIO | FDC_FLAG_NEC | FDC_FLAG_NO_DSR_RESET | FDC_FLAG_TER,
+    .init          = fdc_init,
+    .close         = fdc_close,
+    .reset         = fdc_reset,
+    { .available = NULL },
+    .speed_changed = NULL,
+    .force_redraw  = NULL,
+    .config        = NULL
+};
+
+const device_t fdc_at_nsc_dp8477_qua_device = {
+    .name          = "PC/AT Floppy Drive Controller (NSC DP8477) (Quaternary)",
+    .internal_name = "fdc_at_nsc_dp8477_qua",
+    .flags         = 0,
+    .local         = FDC_FLAG_AT | FDC_FLAG_SUPERIO | FDC_FLAG_NEC | FDC_FLAG_NO_DSR_RESET | FDC_FLAG_QUA,
     .init          = fdc_init,
     .close         = fdc_close,
     .reset         = fdc_reset,
