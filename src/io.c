@@ -77,6 +77,7 @@ typedef struct io_claim_t {
 static io_claim_t io_claims[IO_CLAIMS];
 static uint8_t    io_claimed[NPORTS / 8];
 
+#define ENABLE_IO_LOG 1
 #ifdef ENABLE_IO_LOG
 uint8_t io_do_log = ENABLE_IO_LOG;
 
@@ -471,7 +472,8 @@ inb(uint16_t port)
 #endif
 
     io_cycle = 0;
-    io_log("[%04X:%08X] (%i, %i, %04i) in b(%04X) = %02X\n", CS, cpu_state.pc, in_smm, found, qfound, port, ret);
+    if (!found)
+        io_log("[%04X:%08X] (%i, %i, %04i) in b(%04X) = %02X\n", CS, cpu_state.pc, in_smm, found, qfound, port, ret);
 
     if ((port & 0xfff8) == 0x0200)
         fdc37mx0x_watchdog_reset_ext(0);
@@ -537,7 +539,8 @@ outb(uint16_t port, uint8_t val)
     }
 
     io_cycle = 0;
-    io_log("[%04X:%08X] (%i, %i, %04i) outb(%04X, %02X)\n", CS, cpu_state.pc, in_smm, found, qfound, port, val);
+    if (!found)
+        io_log("[%04X:%08X] (%i, %i, %04i) outb(%04X, %02X)\n", CS, cpu_state.pc, in_smm, found, qfound, port, val);
 
     if ((port & 0xfff8) == 0x0200)
         fdc37mx0x_watchdog_reset_ext(0);
@@ -633,7 +636,8 @@ inw(uint16_t port)
     }
 
     io_cycle = 0;
-    io_log("[%04X:%08X] (%i, %i, %04i) in w(%04X) = %04X\n", CS, cpu_state.pc, in_smm, found, qfound, port, ret);
+    if (!found)
+        io_log("[%04X:%08X] (%i, %i, %04i) in w(%04X) = %04X\n", CS, cpu_state.pc, in_smm, found, qfound, port, ret);
 
     if ((port & 0xfff8) == 0x0200)
         fdc37mx0x_watchdog_reset_ext(0);
@@ -716,7 +720,8 @@ outw(uint16_t port, uint16_t val)
     }
 
     io_cycle = 0;
-    io_log("[%04X:%08X] (%i, %i, %04i) outw(%04X, %04X)\n", CS, cpu_state.pc, in_smm, found, qfound, port, val);
+    if (!found)
+        io_log("[%04X:%08X] (%i, %i, %04i) outw(%04X, %04X)\n", CS, cpu_state.pc, in_smm, found, qfound, port, val);
 
     if ((port & 0xfff8) == 0x0200)
         fdc37mx0x_watchdog_reset_ext(0);
@@ -839,7 +844,8 @@ inl(uint16_t port)
         cycles -= (io_delay * (io_delay_multi ? 4 : 1));
 
     io_cycle = 0;
-    io_log("[%04X:%08X] (%i, %i, %04i) in l(%04X) = %08X\n", CS, cpu_state.pc, in_smm, found, qfound, port, ret);
+    if (!found)
+        io_log("[%04X:%08X] (%i, %i, %04i) in l(%04X) = %08X\n", CS, cpu_state.pc, in_smm, found, qfound, port, ret);
 
     if ((port & 0xfff8) == 0x0200)
         fdc37mx0x_watchdog_reset_ext(0);
@@ -938,8 +944,8 @@ outl(uint16_t port, uint32_t val)
 #endif
     }
 
-    io_cycle = 0;
-    io_log("[%04X:%08X] (%i, %i, %04i) outl(%04X, %08X)\n", CS, cpu_state.pc, in_smm, found, qfound, port, val);
+    if (!found)
+        io_log("[%04X:%08X] (%i, %i, %04i) outl(%04X, %08X)\n", CS, cpu_state.pc, in_smm, found, qfound, port, val);
 
     if ((port & 0xfff8) == 0x0200)
         fdc37mx0x_watchdog_reset_ext(0);
