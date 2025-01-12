@@ -272,7 +272,19 @@ extern const device_t fdc_at_smc_device;
 extern const device_t fdc_at_ali_device;
 extern const device_t fdc_at_winbond_device;
 extern const device_t fdc_at_nsc_device;
+#if 0
+extern const device_t fdc_at_nsc_sec_device;
+extern const device_t fdc_at_nsc_ter_device;
+extern const device_t fdc_at_nsc_qua_device;
+#endif
 extern const device_t fdc_at_nsc_dp8473_device;
+extern const device_t fdc_at_nsc_dp8473_sec_device;
+extern const device_t fdc_at_nsc_dp8473_ter_device;
+extern const device_t fdc_at_nsc_dp8473_qua_device;
+extern const device_t fdc_at_nsc_dp8477_device;
+extern const device_t fdc_at_nsc_dp8477_sec_device;
+extern const device_t fdc_at_nsc_dp8477_ter_device;
+extern const device_t fdc_at_nsc_dp8477_qua_device;
 extern const device_t fdc_ps2_device;
 extern const device_t fdc_ps2_mca_device;
 #endif
