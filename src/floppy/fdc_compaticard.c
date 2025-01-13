@@ -73,6 +73,7 @@ typedef struct compaticard_s {
     uint8_t regs[2];
 } compaticard_t;
 
+#define ENABLE_COMPATICARD_LOG 1
 #ifdef ENABLE_COMPATICARD_LOG
 int compaticard_do_log = ENABLE_COMPATICARD_LOG;
 
