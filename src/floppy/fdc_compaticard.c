@@ -104,6 +104,7 @@ typedef struct compaticard_s {
     uint16_t base_io_addr;
 } compaticard_t;
 
+#define ENABLE_COMPATICARD_LOG 1
 #ifdef ENABLE_COMPATICARD_LOG
 int compaticard_do_log = ENABLE_COMPATICARD_LOG;
 
