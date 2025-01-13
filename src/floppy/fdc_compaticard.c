@@ -139,7 +139,7 @@ compaticardiv_in(uint16_t port, void *priv)
 
     compaticard_log("[%04X:%08X] Read CompatiCard IV %04X %02X\n", CS, cpu_state.pc, port, ret);
 
-    return ret;
+    return ~ret;
 }
 
 static void
