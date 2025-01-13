@@ -125,7 +125,7 @@ set(CMAKE_FIND_PACKAGE_PREFER_CONFIG ON)
 #
 #      Option       Description                                                  Def.
 #      ------       -----------                                                  ----
-option(RELEASE      "Release build"                                              OFF)
+option(RELEASE      "Release build"                                              ON)
 option(DYNAREC      "Dynamic recompiler"                                         ON)
 option(OPENAL       "OpenAL"                                                     ON)
 option(RTMIDI       "RtMidi"                                                     ON)
