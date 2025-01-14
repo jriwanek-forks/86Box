@@ -1663,14 +1663,15 @@ static const device_config_t ev165a_config[] = {
         .file_filter    = NULL,
         .spinner        = { 0 },
         .selection      = {
-            { .description = "208H", .value = 0x0208 },
-            { .description = "218H", .value = 0x0218 },
-            { .description = "258H", .value = 0x0258 },
-            { .description = "268H", .value = 0x0268 },
-            { .description = "2A8H", .value = 0x02A8 },
-            { .description = "2B8H", .value = 0x02B8 },
-            { .description = "2E8H", .value = 0x02E8 },
-            { .description = ""                      }
+            { .description = "208H",     .value = 0x0208 },
+            { .description = "218H",     .value = 0x0218 },
+            { .description = "258H",     .value = 0x0258 },
+            { .description = "268H",     .value = 0x0268 },
+            { .description = "2A8H",     .value = 0x02A8 },
+            { .description = "2B8H",     .value = 0x02B8 },
+            { .description = "2E8H",     .value = 0x02E8 },
+            { .description = "Disabled", .value = 0x0000 },
+            { .description = ""                          }
         },
         .bios           = { { 0 } }
     },
