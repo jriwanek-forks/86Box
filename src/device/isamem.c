@@ -106,7 +106,8 @@
 #define ISAMEM_BRXT_CARD       13
 #define ISAMEM_BRAT_CARD       14
 #define ISAMEM_EV165A_CARD     15
-#define ISAMEM_LOTECH_EMS_CARD 16
+#define ISAMEM_EV178_CARD      16
+#define ISAMEM_LOTECH_EMS_CARD 17
 
 #define ISAMEM_DEBUG           1
 
@@ -1693,6 +1694,147 @@ static const device_t ev165a_device = {
     .config        = ev165a_config
 };
 
+static const device_config_t ev178_config[] = {
+  // clang-format off
+    {
+        .name = "size",
+        .description = "Memory size",
+        .type = CONFIG_SPINNER,
+        .default_string = "",
+        .default_int = 512,
+        .file_filter = "",
+        .spinner = {
+            .min = 0,
+            .max = 3072,
+            .step = 512
+        },
+        .selection = { { 0 } }
+    },
+    {
+        .name = "start",
+        .description = "Start Address",
+        .type = CONFIG_SPINNER,
+        .default_string = "",
+        .default_int = 0,
+        .file_filter = "",
+        .spinner = {
+            .min = 0,
+            .max = 16128,
+            .step = 128
+        },
+        .selection = { { 0 } }
+    },
+    {
+        .name = "length",
+        .description = "Contiguous Size",
+        .type = CONFIG_SPINNER,
+        .default_string = "",
+        .default_int = 0,
+        .file_filter = "",
+        .spinner = {
+            .min = 0,
+            .max = 16384,
+            .step = 128
+        },
+        .selection = { { 0 } }
+    },
+    {
+        .name = "width",
+        .description = "I/O Width",
+        .type = CONFIG_SELECTION,
+        .default_string = "",
+        .default_int = 0,
+        .file_filter = "",
+        .spinner = { 0 },
+        .selection = {
+            { .description = "8-bit",  .value = 0 },
+            { .description = "16-bit", .value = 1 },
+            { .description = ""                   }
+        },
+    },
+    {
+        .name = "speed",
+        .description = "Transfer Speed",
+        .type = CONFIG_SELECTION,
+        .default_string = "",
+        .default_int = 0,
+        .file_filter = "",
+        .spinner = { 0 },
+        .selection = {
+            { .description = "Standard (150ns)",   .value = 0 },
+            { .description = "High-Speed (120ns)", .value = 1 },
+            { .description = ""                               }
+        }
+    },
+    {
+        .name = "ems",
+        .description = "EMS mode",
+        .type = CONFIG_SELECTION,
+        .default_string = "",
+        .default_int = 0,
+        .file_filter = "",
+        .spinner = { 0 },
+        .selection = {
+            { .description = "Disabled", .value = 0 },
+            { .description = "Enabled",  .value = 1 },
+            { .description = ""                     }
+        },
+    },
+    {
+        .name = "base",
+        .description = "Address",
+        .type = CONFIG_HEX16,
+        .default_string = "",
+        .default_int = 0x033A,
+        .file_filter = "",
+        .spinner = { 0 },
+        .selection = {
+            { .description = "32AH", .value = 0x032A },
+            { .description = "33AH", .value = 0x033A },
+            { .description = "35AH", .value = 0x035A },
+            { .description = "36AH", .value = 0x036A },
+            { .description = "37AH", .value = 0x037A },
+            { .description = "39AH", .value = 0x039A },
+            { .description = ""                      }
+        },
+    },
+    // TODO: Check this
+    {
+        .name = "base2",
+        .description = "Address for > 4 MB",
+        .type = CONFIG_HEX16,
+        .default_string = "",
+        .default_int = 0x035A,
+        .file_filter = "",
+        .spinner = { 0 },
+        .selection = {
+            { .description = "32AH", .value = 0x032A },
+            { .description = "33AH", .value = 0x033A },
+            { .description = "35AH", .value = 0x035A },
+            { .description = "36AH", .value = 0x036A },
+            { .description = "37AH", .value = 0x037A },
+            { .description = "39AH", .value = 0x039A },
+            { .description = ""                      }
+        },
+    },
+    { .name = "", .description = "", .type = CONFIG_END }
+  // clang-format on
+};
+
+static const device_t ev178_device = {
+    .name          = "Everex EV-178 RAM 8000 AT",
+    .internal_name = "ev178",
+    .flags         = DEVICE_ISA,
+    .local         = ISAMEM_EV178_CARD,
+    .init          = isamem_init,
+    .close         = isamem_close,
+    .reset         = NULL,
+    .available     = NULL,
+    .speed_changed = NULL,
+    .force_redraw  = NULL,
+    .config        = ev178_config
+};
+
 static const device_config_t brxt_config[] = {
   // clang-format off
     {
@@ -2142,6 +2284,7 @@ static const struct {
     { &ems5150_device      },
     { &ev159_device        },
     { &ev165a_device       },
+    { &ev178_device        },
     { &brxt_device         },
 #ifdef USE_ISAMEM_BRAT
     { &brat_device         },
