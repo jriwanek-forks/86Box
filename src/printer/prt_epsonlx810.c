@@ -94,6 +94,7 @@
 #include <86box/86box.h>
 #include <86box/device.h>
 #include <86box/lpt.h>
+#include <86box/path.h>
 #include <86box/config.h>
 #include "86box/prt_epsonlx810.h"
 
@@ -1695,7 +1696,8 @@ outputPage(lpt_epsonlx810_t *printer)
         uint16_t physW = GetDeviceCaps(printer->printerDC, PHYSICALWIDTH);
         uint16_t physH = GetDeviceCaps(printer->printerDC, PHYSICALHEIGHT);
 
-        double scaleW, scaleH;
+        double scaleW;
+        double scaleH;
 
         if (printer->page->w > physW)
             scaleW = (double) printer->page->w / (double) physW;
@@ -2343,15 +2345,15 @@ static device_config_t epsonlx810_config[] = {
         .description = "Output DPI",
         .type = CONFIG_SELECTION,
         .selection = {
-            { .description = "240 DPI", .value = 240 },
-            { .description = "360 DPI", .value = 360 },
-            { .description = "480 DPI", .value = 480 },
-            { .description = "600 DPI", .value = 600 },
-            { .description = "720 DPI", .value = 720 },
-            { .description = "840 DPI", .value = 840 },
-            { .description = "960 DPI", .value = 960 },
+            { .description = "240 DPI",  .value =  240 },
+            { .description = "360 DPI",  .value =  360 },
+            { .description = "480 DPI",  .value =  480 },
+            { .description = "600 DPI",  .value =  600 },
+            { .description = "720 DPI",  .value =  720 },
+            { .description = "840 DPI",  .value =  840 },
+            { .description = "960 DPI",  .value =  960 },
             { .description = "1080 DPI", .value = 1080 },
-            { .description = "" }
+            { .description = ""                        }
         },
         .default_int = 360
     },
@@ -2360,13 +2362,13 @@ static device_config_t epsonlx810_config[] = {
         .description = "Output type",
         .type = CONFIG_SELECTION,
         .selection = {
-            { .description = "Postscript (.ps)", .value = OUTPUT_TYPE_POSTSCRIPT },
-            { .description = "Bitmap (.bmp)", .value = OUTPUT_TYPE_BMP },
-            { .description = "Portable Network Graphics (.png)", .value = OUTPUT_TYPE_PNG },
-            { .description = "Tagged Image File Format (.tiff)", .value = OUTPUT_TYPE_TIFF },
-            { .description = "JPEG (.jpg)", .value = OUTPUT_TYPE_JPG },
+            { .description = "Postscript (.ps)",                 .value = OUTPUT_TYPE_POSTSCRIPT              },
+            { .description = "Bitmap (.bmp)",                    .value = OUTPUT_TYPE_BMP                     },
+            { .description = "Portable Network Graphics (.png)", .value = OUTPUT_TYPE_PNG                     },
+            { .description = "Tagged Image File Format (.tiff)", .value = OUTPUT_TYPE_TIFF                    },
+            { .description = "JPEG (.jpg)",                      .value = OUTPUT_TYPE_JPG                     },
 #if defined(WIN32)
-            { .description = "Redirect to real printer", .value = OUTPUT_TYPE_FORWARD_TO_REAL_PRINTER },
+            { .description = "Redirect to real printer",         .value = OUTPUT_TYPE_FORWARD_TO_REAL_PRINTER },
 #endif
             { .description = "" }
         },
