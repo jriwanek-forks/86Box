@@ -378,7 +378,7 @@ machine_at_openat_init(const machine_t *model)
 {
     int ret;
 
-    ret = bios_load_linear("roms/machines/openat/bios.bin",
+    ret = bios_load_linear("roms/machines/openat/bios_102.bin",
                            0x000f0000, 65536, 0);
 
     if (bios_only || !ret)
