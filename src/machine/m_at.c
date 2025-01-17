@@ -173,6 +173,12 @@ static const device_config_t ibmat_config[] = {
 
             { .name = "618102x (01/10/84)", .internal_name = "ibm5170_011084", .bios_type = BIOS_NORMAL,
               .files_no = 2, .local = 0, .size = 65536, .files = { "roms/machines/ibmat/BIOS_5170_10JAN84_U27.BIN", "roms/machines/ibmat/BIOS_5170_10JAN84_U47.BIN", "" } },
+
+#ifdef USE_OPEN_AT
+            { .name = "OpenAT", .internal_name = "ibm5170_openat", .bios_type = BIOS_NORMAL,
+              .files_no = 1, .local = 0, .size = 65536, .files = { "roms/machines/openat/bios.bin", "" } },
+#endif
+
             { .files_no = 0 }
         },
     },
@@ -378,7 +384,7 @@ machine_at_openat_init(const machine_t *model)
 {
     int ret;
 
-    ret = bios_load_linear("roms/machines/openat/bios_102.bin",
+    ret = bios_load_linear("roms/machines/openat/bios.bin",
                            0x000f0000, 65536, 0);
 
     if (bios_only || !ret)
