@@ -568,7 +568,7 @@ hdd_preset_get_from_internal_name(char *s)
 {
     int c = 0;
 
-    for (int i = 0; i < (sizeof(hdd_speed_presets) / sizeof(hdd_preset_t)); i++) {
+    for (uint64_t i = 0; i < (sizeof(hdd_speed_presets) / sizeof(hdd_preset_t)); i++) {
         if (!strcmp(hdd_speed_presets[c].internal_name, s))
             return c;
         c++;
