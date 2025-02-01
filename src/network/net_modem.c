@@ -738,8 +738,7 @@ is_next_token(const char *a, size_t N, const char *b)
 static const char *
 modem_get_address_from_phonebook(modem_t *modem, const char *input)
 {
-    int i = 0;
-    for (i = 0; i < modem->entries_num; i++) {
+    for (uint32_t i = 0; i < modem->entries_num; i++) {
         if (strcmp(input, modem->entries[i].phone) == 0)
             return modem->entries[i].address;
     }
@@ -750,7 +749,6 @@ modem_get_address_from_phonebook(modem_t *modem, const char *input)
 static void
 modem_do_command(modem_t *modem, int repeat)
 {
-    int   i       = 0;
     char *scanbuf = NULL;
 
     if (repeat) {
@@ -769,7 +767,7 @@ modem_do_command(modem_t *modem, int repeat)
         modem->cmdbuf[modem->cmdpos] = modem->prevcmdbuf[modem->cmdpos] = '\0';
     }
     modem->cmdpos = 0;
-    for (i = 0; i < sizeof(modem->cmdbuf); i++) {
+    for (uint32_t i = 0; i < sizeof(modem->cmdbuf); i++) {
         modem->cmdbuf[i] = toupper(modem->cmdbuf[i]);
     }
 
@@ -1285,7 +1283,6 @@ static int
 modem_rx(void *priv, uint8_t *buf, int io_len)
 {
     modem_t *modem = (modem_t *) priv;
-    uint32_t i     = 0;
 
     if (modem->tcpIpMode)
         return 0;
@@ -1311,7 +1308,7 @@ modem_rx(void *priv, uint8_t *buf, int io_len)
     buf += 14;
 
     fifo8_push(&modem->rx_data, END);
-    for (i = 0; i < io_len; i++) {
+    for (int32_t i = 0; i < io_len; i++) {
         switch (buf[i]) {
             case END:
                 fifo8_push(&modem->rx_data, ESC);

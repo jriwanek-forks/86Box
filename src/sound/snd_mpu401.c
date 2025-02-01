@@ -1366,15 +1366,14 @@ mpu401_read(uint16_t addr, void *priv)
 int
 MPU401_InputSysex(void *priv, uint8_t *buffer, uint32_t len, int abort)
 {
-    mpu_t  *mpu = (mpu_t *) priv;
-    int     i;
+    mpu_t  *mpu    = (mpu_t *) priv;
     uint8_t val_ff = 0xff;
 
     mpu401_log("MPU401 Input Sysex\n");
 
     if (!mpu->intelligent || mpu->mode == M_UART) {
         /* UART mode input. */
-        for (i = 0; i < len; i++)
+        for (uint32_t i = 0; i < len; i++)
             MPU401_QueueByte(mpu, buffer[i]);
 
         MPU401_ReadRaiseIRQ(mpu);
@@ -1409,7 +1408,7 @@ MPU401_InputSysex(void *priv, uint8_t *buffer, uint32_t len, int abort)
         }
     } else if (mpu->filter.sysex_thru && mpu->midi_thru) {
         midi_raw_out_byte(0xf0);
-        for (i = 0; i < len; i++)
+        for (uint32_t i = 0; i < len; i++)
             midi_raw_out_byte(*(buffer + i));
     }
     return 0;
@@ -1420,7 +1419,6 @@ void
 MPU401_InputMsg(void *priv, uint8_t *msg, uint32_t len)
 {
     mpu_t         *mpu = (mpu_t *) priv;
-    int            i;
     int            tick;
     static uint8_t old_msg = 0;
     uint8_t        key;
@@ -1561,7 +1559,7 @@ MPU401_InputMsg(void *priv, uint8_t *msg, uint32_t len)
                             if (mpu->filter.commonmsgs_in)
                                 send = 1;
                             if (mpu->filter.commonmsgs_thru)
-                                for (i = 0; i < len; i++)
+                                for (uint32_t i = 0; i < len; i++)
                                     midi_raw_out_byte(msg[i]);
                         }
                     }
@@ -1615,7 +1613,7 @@ MPU401_InputMsg(void *priv, uint8_t *msg, uint32_t len)
                 midi_raw_out_byte(msg[1]);
                 midi_raw_out_byte(msg[2]);
             }
-            for (i = 0; i < len; i++)
+            for (uint32_t i = 0; i < len; i++)
                 midi_raw_out_byte(msg[i]);
         }
         if (send) {
@@ -1646,7 +1644,7 @@ MPU401_InputMsg(void *priv, uint8_t *msg, uint32_t len)
     }
 
     /* UART mode input. */
-    for (i = 0; i < len; i++)
+    for (uint32_t i = 0; i < len; i++)
         MPU401_QueueByte(mpu, msg[i]);
 
     MPU401_ReadRaiseIRQ(mpu);

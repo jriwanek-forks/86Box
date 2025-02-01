@@ -62,13 +62,12 @@ novell_cardkey_read(uint16_t port, void *priv)
 
 void* novell_cardkey_init(UNUSED(const device_t* info))
 {
-    char sernumstr[13] = { '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', 0 };
-    int i = 0;
-    novell_cardkey_t* cardkey = calloc(1, sizeof(novell_cardkey_t));
+    char              sernumstr[13] = { '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', 0 };
+    novell_cardkey_t *cardkey       = calloc(1, sizeof(novell_cardkey_t));
 
     strncpy(sernumstr, device_get_config_string("serial_number"), sizeof(sernumstr) - 1);
     
-    for (i = 0; i < sizeof(sernumstr) - 4; i++) {
+    for (uint32_t i = 0; i < sizeof(sernumstr) - 4; i++) {
         if (sernumstr[i] > '8' || sernumstr[i] < '0')
             sernumstr[i] = '0';
     }

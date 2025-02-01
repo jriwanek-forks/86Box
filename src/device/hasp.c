@@ -224,7 +224,7 @@ hasp_write_data(uint8_t val, void *priv)
 
             if (dev->passindex == sizeof(dev->tmppass)) {
                 if ((dev->tmppass[0] == 0x9c) && (dev->tmppass[1] == 0x9e)) {
-                    int i          = 2;
+                    uint16_t i     = 2;
                     dev->prodindex = 0;
 
                     do {

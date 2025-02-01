@@ -522,7 +522,7 @@ esp_do_command_phase(esp_t *dev)
 
     fifo8_pop_buf(&dev->cmdfifo, buf, cmdlen);
 
-    for (int i = 0; i < cmdlen; i++)
+    for (uint32_t i = 0; i < cmdlen; i++)
         esp_log("CDB[%i] = %02x\n", i, buf[i]);
 
     scsi_device_command_phase0(sd, buf);

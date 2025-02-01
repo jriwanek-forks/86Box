@@ -820,7 +820,7 @@ wd76c10_pf_loc_reset(wd76c10_t *dev)
 {
     uint32_t base;
 
-    for (uint8_t i = 0x031; i <= 0x03b; i++) {
+    for (uint16_t i = 0x031; i <= 0x03b; i++) {
         dev->mem_pages[i] = 0xff;
         base = ((uint32_t) i) << 14;
         wd76c10_set_mem_state(dev, base, 0x00004000, MEM_READ_EXTANY | MEM_WRITE_EXTANY, 0);
@@ -841,7 +841,7 @@ wd76c10_pf_loc_recalc(wd76c10_t *dev)
     uint8_t ems_page;
     uint32_t base;
 
-    for (uint8_t i = (0x031 + pf_loc); i <= (0x037 + pf_loc); i++) {
+    for (uint16_t i = (0x031 + pf_loc); i <= (0x037 + pf_loc); i++) {
         ems_page = (i - 0x10) & 0xf7;
         dev->mem_pages[i] = ems_page;
         base = ((uint32_t) i) << 14;

@@ -261,7 +261,7 @@ spd_register(uint8_t ram_type, uint8_t slot_mask, uint16_t max_module_size)
                 edo_data->dram_width     = 8;
 
                 edo_data->spd_rev = 0x12;
-                for (int i = spd_write_part_no(edo_data->part_no, (ram_type == SPD_TYPE_FPM) ? "FPM" : "EDO", rows[row]);
+                for (uint32_t i = spd_write_part_no(edo_data->part_no, (ram_type == SPD_TYPE_FPM) ? "FPM" : "EDO", rows[row]);
                      i < sizeof(edo_data->part_no); i++)
                     edo_data->part_no[i] = ' '; /* part number should be space-padded */
                 edo_data->rev_code[0] = BCD8(EMU_VERSION_MAJ);
