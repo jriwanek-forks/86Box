@@ -707,7 +707,7 @@ cmi8x38_write(uint16_t addr, uint8_t val, void *priv)
         case 0x02:
             /* Reset or start DMA channels if requested. */
             dev->io_regs[addr] = val & 0x0f;
-            for (int i = 0; i < (sizeof(dev->dma) / sizeof(dev->dma[0])); i++) {
+            for (uint32_t i = 0; i < (sizeof(dev->dma) / sizeof(dev->dma[0])); i++) {
                 if (val & (0x04 << i)) {
                     /* Reset DMA channel. */
                     dev->io_regs[addr] &= ~(0x01 << i); /* clear enable */
@@ -1318,7 +1318,7 @@ cmi8x38_speed_changed(void *priv)
     /* CMI8338 claims the frequency controls are for DAC (playback) and ADC (recording)
        respectively, while CMI8738 claims they're for channel 0 and channel 1. The Linux
        driver just assumes the latter definition, so that's what we're going to use here. */
-    for (int i = 0; i < (sizeof(dev->dma) / sizeof(dev->dma[0])); i++) {
+    for (uint32_t i = 0; i < (sizeof(dev->dma) / sizeof(dev->dma[0])); i++) {
         /* More confusion. The Linux driver implies the sample rate doubling
            bits take precedence over any configured sample rate. 128K with both
            doubling bits set is also supported there, but that's for newer chips. */
@@ -1416,7 +1416,7 @@ cmi8x38_reset(void *priv)
     cmi8x38_remap_traps(dev);
 
     /* Reset DMA channels. */
-    for (int i = 0; i < (sizeof(dev->dma) / sizeof(dev->dma[0])); i++) {
+    for (uint32_t i = 0; i < (sizeof(dev->dma) / sizeof(dev->dma[0])); i++) {
         dev->dma[i].playback_enabled = 0;
         dev->dma[i].fifo_pos = dev->dma[i].fifo_end = 0;
         memset(dev->dma[i].fifo, 0, sizeof(dev->dma[i].fifo));
@@ -1458,7 +1458,7 @@ cmi8x38_init(const device_t *info)
     io_sethandler(0xd0, 16, NULL, NULL, NULL, cmi8x38_dma_mask_write, NULL, NULL, dev);
 
     /* Initialize DMA channels. */
-    for (int i = 0; i < (sizeof(dev->dma) / sizeof(dev->dma[0])); i++) {
+    for (uint32_t i = 0; i < (sizeof(dev->dma) / sizeof(dev->dma[0])); i++) {
         dev->dma[i].id  = i;
         dev->dma[i].reg = 0x80 + (8 * i);
         dev->dma[i].dev = dev;
