@@ -1576,3 +1576,115 @@ machine_pcjr_init(UNUSED(const machine_t *model))
 
     return ret;
 }
+
+static const device_config_t pcjx_config[] = {
+  // clang-format off
+    {
+        .name = "display_type",
+        .description = "Display type",
+        .type = CONFIG_SELECTION,
+        .default_string = "",
+        .default_int = PCJR_RGB,
+        .file_filter = "",
+        .spinner = { 0 },
+        .selection = {
+            { .description = "RGB",       .value = PCJR_RGB       },
+            { .description = "Composite", .value = PCJR_COMPOSITE },
+            { .description = ""                                   }
+        }
+    },
+    {
+        .name = "apply_hd",
+        .description = "Apply overscan deltas",
+        .type = CONFIG_BINARY,
+        .default_string = "",
+        .default_int = 1
+    },
+    .bios = {
+        { .name = "IBM PCjx", .internal_name = "ibmpcjx", .bios_type = BIOS_NORMAL,
+          .files_no = 1, .local = 0, .size = 131072, .files = { "roms/machines/ibmpcjx/bios.rom", "" } },
+        { .name = "IBM PCjx", .internal_name = "ibmpcjx", .bios_type = BIOS_NORMAL,
+          .files_no = 1, .local = 0, .size = 131072, .files = { "roms/machines/ibmpcjx/bios.rom", "" } },
+        { .name = "IBM PCjx", .internal_name = "ibmpcjx", .bios_type = BIOS_NORMAL,
+          .files_no = 1, .local = 0, .size = 131072, .files = { "roms/machines/ibmpcjx/bios.rom", "" } },
+        { .name = "IBM PCjx", .internal_name = "ibmpcjx", .bios_type = BIOS_NORMAL,
+          .files_no = 1, .local = 0, .size = 131072, .files = { "roms/machines/ibmpcjx/bios.rom", "" } },
+
+    { .name = "", .description = "", .type = CONFIG_END }
+  // clang-format on
+};
+
+const device_t pcjx_device = {
+    .name          = "IBM PCjx",
+    .internal_name = "pcjx",
+    .flags         = 0,
+    .local         = 0,
+    .init          = NULL,
+    .close         = NULL,
+    .reset         = NULL,
+    .available     = NULL,
+    .speed_changed = speed_changed,
+    .force_redraw  = NULL,
+    .config        = pcjx_config
+};
+
+int
+machine_pcjx_init(UNUSED(const machine_t *model))
+{
+    pcjr_t *pcjr;
+
+    int         ret = 0;
+    const char *fn;
+
+    device_context(model->device);
+    fn           = device_get_bios_file(model->device, device_get_config_bios("bios"), 0);
+    ret          = bios_load_linear(fn, 0x000e0000, 131072, 0);
+    device_context_restore();
+
+    if (bios_only || !ret)
+        return ret;
+
+    pcjr = calloc(1, sizeof(pcjr_t));
+
+    pic_init_pcjr();
+    pit_common_init(0, pit_irq0_timer_pcjr, NULL);
+
+    cpu_set();
+
+    /* Initialize the video controller. */
+    video_reset(gfxcard[0]);
+    loadfont("roms/video/mda/mda.rom", 0);
+    device_context(&pcjr_device);
+    pcjr_vid_init(pcjr);
+    device_context_restore();
+    device_add_ex(&pcjr_device, pcjr);
+
+    /* Initialize the keyboard. */
+    keyboard_scan   = 1;
+    key_queue_start = key_queue_end = 0;
+    io_sethandler(0x0060, 4,
+                  kbd_read, NULL, NULL, kbd_write, NULL, NULL, pcjr);
+    io_sethandler(0x00a0, 8,
+                  kbd_read, NULL, NULL, kbd_write, NULL, NULL, pcjr);
+    timer_add(&pcjr->send_delay_timer, kbd_poll, pcjr, 1);
+    keyboard_set_table(scancode_pcjr);
+    keyboard_send = kbd_adddata_ex;
+
+    /* Technically it's the SN76496N, but the SN76489 is identical to the SN76496N. */
+    device_add(&sn76489_device);
+
+    nmi_mask = 0x80;
+
+    device_add(&fdc_pcjr_device);
+
+    device_add(&ns8250_pcjr_device);
+    serial_set_next_inst(SERIAL_MAX); /* So that serial_standalone_init() won't do anything. */
+
+    /* "All the inputs are 'read' with one 'IN' from address hex 201." - PCjr Technical Reference (Nov. 83), p.2-119
+
+    Note by Miran Grca: Meanwhile, the same Technical Reference clearly says that
+                        the gameport is on ports 201-207. */
+    standalone_gameport_type = &gameport_201_device;
+
+    return ret;
+}
