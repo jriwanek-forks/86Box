@@ -1501,6 +1501,13 @@ static const device_config_t pcjr_config[] = {
         .default_string = "",
         .default_int = 1
     },
+    {
+        .name = "modem_uart",
+        .description = "Enable Modem slot UART",
+        .type = CONFIG_BINARY,
+        .default_string = "",
+        .default_int = 0
+    },
     { .name = "", .description = "", .type = CONFIG_END }
   // clang-format on
 };
@@ -1566,6 +1573,9 @@ machine_pcjr_init(UNUSED(const machine_t *model))
     device_add(&fdc_pcjr_device);
 
     device_add(&ns8250_pcjr_device);
+#if 0
+    device_add(&ns8250_pcjr_device); // TODO - PCjr Modem
+#endif
     serial_set_next_inst(SERIAL_MAX); /* So that serial_standalone_init() won't do anything. */
 
     /* "All the inputs are 'read' with one 'IN' from address hex 201." - PCjr Technical Reference (Nov. 83), p.2-119
@@ -1599,6 +1609,13 @@ static const device_config_t pcjx_config[] = {
         .type = CONFIG_BINARY,
         .default_string = "",
         .default_int = 1
+    },
+    {
+        .name = "modem_uart",
+        .description = "Enable Modem slot UART",
+        .type = CONFIG_BINARY,
+        .default_string = "",
+        .default_int = 0
     },
     .bios = {
         { .name = "IBM PCjx", .internal_name = "ibmpcjx", .bios_type = BIOS_NORMAL,
@@ -1678,6 +1695,9 @@ machine_pcjx_init(UNUSED(const machine_t *model))
     device_add(&fdc_pcjr_device);
 
     device_add(&ns8250_pcjr_device);
+#if 0
+    device_add(&ns8250_pcjr_device); // TODO - PCjr Modem
+#endif
     serial_set_next_inst(SERIAL_MAX); /* So that serial_standalone_init() won't do anything. */
 
     /* "All the inputs are 'read' with one 'IN' from address hex 201." - PCjr Technical Reference (Nov. 83), p.2-119
