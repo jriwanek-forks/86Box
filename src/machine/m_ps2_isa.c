@@ -151,8 +151,7 @@ ps2_isa_setup(int model, int cpu_type)
     ps2_isa_t *ps2;
     void      *priv;
 
-    ps2 = (ps2_isa_t *) malloc(sizeof(ps2_isa_t));
-    memset(ps2, 0x00, sizeof(ps2_isa_t));
+    ps2 = (ps2_isa_t *) calloc(1, sizeof(ps2_isa_t));
     ps2->model    = model;
     ps2->cpu_type = cpu_type;
 
@@ -176,7 +175,7 @@ ps2_isa_setup(int model, int cpu_type)
 
     device_add(&ps_nvr_device);
 
-    device_add(&fdc_at_ps1_device);
+    device_add(&fdc_ps2_device);
 
     /* Enable the builtin HDC. */
     if (hdc_current[0] == HDC_INTERNAL) {

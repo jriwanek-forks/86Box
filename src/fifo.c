@@ -10,7 +10,7 @@
  *
  * Authors: Miran Grca, <mgrca8@gmail.com>
  *
- *          Copyright 2023 Miran Grca.
+ *          Copyright 2023-2025 Miran Grca.
  */
 #include <stdarg.h>
 #include <stdint.h>

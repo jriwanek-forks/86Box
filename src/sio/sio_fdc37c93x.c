@@ -149,11 +149,11 @@ fdc37c93x_superio_handler(fdc37c93x_t *dev)
     if (!dev->is_compaq) {
         if (dev->superio_base != 0x0000)
             io_removehandler(dev->superio_base, 0x0002,
-                         fdc37c93x_read, NULL, NULL, fdc37c93x_write, NULL, NULL, dev);
+                             fdc37c93x_read, NULL, NULL, fdc37c93x_write, NULL, NULL, dev);
         dev->superio_base = make_port_superio(dev);
         if (dev->superio_base != 0x0000)
             io_sethandler(dev->superio_base, 0x0002,
-                      fdc37c93x_read, NULL, NULL, fdc37c93x_write, NULL, NULL, dev);
+                          fdc37c93x_read, NULL, NULL, fdc37c93x_write, NULL, NULL, dev);
     }
 }
 
@@ -340,8 +340,8 @@ fdc37c93x_gpio_handler(fdc37c93x_t *dev)
 static void
 fdc37c93x_access_bus_handler(fdc37c93x_t *dev)
 {
-    const uint8_t global_enable = !!(dev->regs[0x22] & (1 << 6));
-    const uint8_t local_enable  = !!dev->ld_regs[9][0x30];
+    const uint8_t  global_enable = !!(dev->regs[0x22] & (1 << 6));
+    const uint8_t  local_enable  = !!dev->ld_regs[9][0x30];
     const uint16_t ld_port = dev->access_bus->base = make_port(dev, 9);
 
     access_bus_handler(dev->access_bus, global_enable && local_enable, ld_port);
@@ -986,7 +986,7 @@ const device_t fdc37c931apm_device = {
     .init          = fdc37c93x_init,
     .close         = fdc37c93x_close,
     .reset         = NULL,
-    { .available = NULL },
+    .available     = NULL,
     .speed_changed = NULL,
     .force_redraw  = NULL,
     .config        = NULL
@@ -1000,7 +1000,7 @@ const device_t fdc37c931apm_compaq_device = {
     .init          = fdc37c93x_init,
     .close         = fdc37c93x_close,
     .reset         = NULL,
-    { .available = NULL },
+    .available     = NULL,
     .speed_changed = NULL,
     .force_redraw  = NULL,
     .config        = NULL
@@ -1014,7 +1014,7 @@ const device_t fdc37c932_device = {
     .init          = fdc37c93x_init,
     .close         = fdc37c93x_close,
     .reset         = NULL,
-    { .available = NULL },
+    .available     = NULL,
     .speed_changed = NULL,
     .force_redraw  = NULL,
     .config        = NULL
@@ -1028,7 +1028,7 @@ const device_t fdc37c932fr_device = {
     .init          = fdc37c93x_init,
     .close         = fdc37c93x_close,
     .reset         = NULL,
-    { .available = NULL },
+    .available     = NULL,
     .speed_changed = NULL,
     .force_redraw  = NULL,
     .config        = NULL
@@ -1042,7 +1042,7 @@ const device_t fdc37c932qf_device = {
     .init          = fdc37c93x_init,
     .close         = fdc37c93x_close,
     .reset         = NULL,
-    { .available = NULL },
+    .available     = NULL,
     .speed_changed = NULL,
     .force_redraw  = NULL,
     .config        = NULL
@@ -1056,7 +1056,7 @@ const device_t fdc37c935_device = {
     .init          = fdc37c93x_init,
     .close         = fdc37c93x_close,
     .reset         = NULL,
-    { .available = NULL },
+    .available     = NULL,
     .speed_changed = NULL,
     .force_redraw  = NULL,
     .config        = NULL
@@ -1070,7 +1070,7 @@ const device_t fdc37c935_370_device = {
     .init          = fdc37c93x_init,
     .close         = fdc37c93x_close,
     .reset         = NULL,
-    { .available = NULL },
+    .available     = NULL,
     .speed_changed = NULL,
     .force_redraw  = NULL,
     .config        = NULL
@@ -1084,9 +1084,8 @@ const device_t fdc37c935_no_nvr_device = {
     .init          = fdc37c93x_init,
     .close         = fdc37c93x_close,
     .reset         = NULL,
-    { .available = NULL },
+    .available     = NULL,
     .speed_changed = NULL,
     .force_redraw  = NULL,
     .config        = NULL
 };
-

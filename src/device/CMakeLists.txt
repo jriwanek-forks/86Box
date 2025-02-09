@@ -13,7 +13,7 @@
 #
 #          Copyright 2020-2021 David Hrdlička.
 #          Copyright 2021      Andreas J. Reichel.
-#          Copyright 2021-2024 Jasmine Iwanek.
+#          Copyright 2021-2025 Jasmine Iwanek.
 #
 
 add_library(dev OBJECT
@@ -37,8 +37,8 @@ add_library(dev OBJECT
     kbc_at.c
     kbc_at_dev.c
     keyboard.c
-    keyboard_xt.c
     keyboard_at.c
+    keyboard_xt.c
     lpt.c
     mouse.c
     mouse_bus.c
@@ -58,7 +58,7 @@ add_library(dev OBJECT
     unittester.c
 )
 
-if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT MSVC)
     target_link_libraries(86Box atomic)
 endif()
 

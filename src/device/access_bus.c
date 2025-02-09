@@ -10,7 +10,7 @@
  *
  * Authors: Miran Grca, <mgrca8@gmail.com>
  *
- *          Copyright 2024 Miran Grca.
+ *          Copyright 2024-2025 Miran Grca.
  */
 #include <stdio.h>
 #include <stdint.h>
@@ -115,9 +115,8 @@ const device_t access_bus_device = {
     .init          = access_bus_init,
     .close         = access_bus_close,
     .reset         = NULL,
-    { .available = NULL },
+    .available     = NULL,
     .speed_changed = NULL,
     .force_redraw  = NULL,
     .config        = NULL
 };
-

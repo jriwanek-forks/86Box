@@ -1977,7 +1977,7 @@ read_status(void *priv)
 static void *
 escp_init(void *lpt)
 {
-    escp_t *dev;
+    escp_t *dev = NULL;
 
     /* Initialize FreeType. */
     if (ft_lib == NULL) {
@@ -1989,8 +1989,7 @@ escp_init(void *lpt)
     }
 
     /* Initialize a device instance. */
-    dev = (escp_t *) malloc(sizeof(escp_t));
-    memset(dev, 0x00, sizeof(escp_t));
+    dev = (escp_t *) calloc(1, sizeof(escp_t));
     dev->ctrl = 0x04;
     dev->lpt  = lpt;
 

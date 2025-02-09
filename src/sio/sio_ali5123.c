@@ -476,8 +476,7 @@ ali5123_close(void *priv)
 static void *
 ali5123_init(const device_t *info)
 {
-    ali5123_t *dev = (ali5123_t *) malloc(sizeof(ali5123_t));
-    memset(dev, 0, sizeof(ali5123_t));
+    ali5123_t *dev = (ali5123_t *) calloc(1, sizeof(ali5123_t));
 
     dev->fdc = device_add(&fdc_at_ali_device);
 
@@ -505,7 +504,7 @@ const device_t ali5123_device = {
     .init          = ali5123_init,
     .close         = ali5123_close,
     .reset         = ali5123_reset,
-    { .available = NULL },
+    .available     = NULL,
     .speed_changed = NULL,
     .force_redraw  = NULL,
     .config        = NULL

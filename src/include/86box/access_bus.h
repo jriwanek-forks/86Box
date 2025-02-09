@@ -12,7 +12,7 @@
  *
  * Authors: Miran Grca, <mgrca8@gmail.com>
  *
- *          Copyright 2020 Miran Grca.
+ *          Copyright 2020-2025 Miran Grca.
  */
 #ifndef ACCESS_BUS_H
 #define ACCESS_BUS_H
