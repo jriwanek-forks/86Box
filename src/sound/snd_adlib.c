@@ -145,7 +145,7 @@ adlib_close(void *priv)
 const device_t adlib_device = {
     .name          = "AdLib",
     .internal_name = "adlib",
-    .flags         = DEVICE_ISA,
+    .flags         = DEVICE_ISA | DEVICE_PCJR,
     .local         = 0,
     .init          = adlib_init,
     .close         = adlib_close,
