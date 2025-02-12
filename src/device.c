@@ -798,8 +798,13 @@ device_is_valid(const device_t *device, int mch)
     if (device == NULL)
         return 1;
 
-    if ((device->flags & DEVICE_PCJR) && !machine_has_bus(mch, MACHINE_BUS_PCJR))
-        return 0;
+    if (device->flags & DEVICE_PCJR) {
+        /* Set a device->flags to DEVICE_PCJR | DEVICE_ISA to indicate it's supported on PCjr and ISA */
+        if ((device->flags & DEVICE_ISA) && !machine_has_bus(mch, MACHINE_BUS_ISA))
+            return 0;
+        else if (!machine_has_bus(mch, MACHINE_BUS_PCJR))
+            return 0;
+    }
 
     if ((device->flags & DEVICE_XTKBC) && machine_has_bus(mch, MACHINE_BUS_ISA16) && !machine_has_bus(mch, MACHINE_BUS_DM_KBC))
         return 0;
