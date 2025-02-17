@@ -72,7 +72,9 @@ static void
 cart_load_error(int drive, UNUSED(char *fn))
 {
     cartridge_log("Cartridge: could not load '%s'\n", fn);
-    memset(cart_fns[drive], 0, sizeof(cart_fns[drive]));
+    if (drive >= 0 && drive < 2) {
+        memset(cart_fns[drive], 0, sizeof(cart_fns[drive]));
+    }
     ui_sb_update_icon_state(SB_CARTRIDGE | drive, 1);
 }
 
@@ -92,16 +94,26 @@ cart_image_close(int drive)
 static void
 cart_image_load(int drive, char *fn)
 {
-    FILE    *fp;
-    uint32_t size;
+    FILE    *fp   = NULL;
+    uint32_t size = 0;
     uint32_t base = 0x00000000;
 
     cart_image_close(drive);
 
     fp = fopen(fn, "rb");
+    if (!fp) {
+        cart_load_error(drive, fn);
+        return;
+    }
     if (fseek(fp, 0, SEEK_END) == -1)
         fatal("cart_image_load(): Error seeking to the end of the file\n");
     size = ftell(fp);
+    if (size == -1) {
+        cartridge_log("cart_image_load(): Failed to get file size\n");
+        cart_load_error(drive, fn);
+        fclose(fp);
+        return;
+    }
     if (size < 0x1200) {
         cartridge_log("cart_image_load(): File size %i is too small\n", size);
         cart_load_error(drive, fn);
@@ -111,10 +123,21 @@ cart_image_load(int drive, char *fn)
     if (size & 0x00000fff) {
         size -= 0x00000200;
         fseek(fp, 0x000001ce, SEEK_SET);
-        (void) !fread(&base, 1, 2, fp);
+    if (fread(&base, 1, 2, fp) != 2) {
+        cartridge_log("cart_image_load(): Failed to read base address\n");
+        cart_load_error(drive, fn);
+        fclose(fp);
+        return;
+    }
         base <<= 4;
         fseek(fp, 0x00000200, SEEK_SET);
         carts[drive].buf = (uint8_t *) calloc(1, size);
+        if (!carts[drive].buf) {
+            cartridge_log("cart_image_load(): Memory allocation failed\n");
+            cart_load_error(drive, fn);
+            fclose(fp);
+            return;
+        }
         (void) !fread(carts[drive].buf, 1, size, fp);
         fclose(fp);
     } else {
@@ -123,6 +146,12 @@ cart_image_load(int drive, char *fn)
             base += 0x8000;
         fseek(fp, 0x00000000, SEEK_SET);
         carts[drive].buf = (uint8_t *) calloc(1, size);
+        if (!carts[drive].buf) {
+            cartridge_log("cart_image_load(): Memory allocation failed\n");
+            cart_load_error(drive, fn);
+            fclose(fp);
+            return;
+        }
         (void) !fread(carts[drive].buf, 1, size, fp);
         fclose(fp);
     }
@@ -137,7 +166,7 @@ cart_image_load(int drive, char *fn)
 static void
 cart_load_common(int drive, char *fn, uint8_t hard_reset)
 {
-    FILE *fp;
+    FILE *fp = NULL;
 
     cartridge_log("Cartridge: loading drive %d with '%s'\n", drive, fn);
 
@@ -146,7 +175,8 @@ cart_load_common(int drive, char *fn, uint8_t hard_reset)
     fp = plat_fopen(fn, "rb");
     if (fp) {
         fclose(fp);
-        strcpy(cart_fns[drive], fn);
+        strncpy(cart_fns[drive], fn, sizeof(cart_fns[drive]) - 1);
+        cart_fns[drive][sizeof(cart_fns[drive]) - 1] = '\0';  // Ensure null-termination
         cart_image_load(drive, cart_fns[drive]);
         /* On the real PCjr, inserting a cartridge causes a reset
            in order to boot from the cartridge. */
