@@ -23,14 +23,15 @@
 #ifndef EMU_SERIAL_H
 #define EMU_SERIAL_H
 
-#define SERIAL_8250      0
-#define SERIAL_8250_PCJR 1
-#define SERIAL_16450     2
-#define SERIAL_16550     3
-#define SERIAL_16650     4
-#define SERIAL_16750     5
-#define SERIAL_16850     6
-#define SERIAL_16950     7
+#define SERIAL_8250           0
+#define SERIAL_8250_COM1_PCJR 1
+#define SERIAL_8250_COM2_PCJR 2
+#define SERIAL_16450          3
+#define SERIAL_16550          4
+#define SERIAL_16650          5
+#define SERIAL_16750          6
+#define SERIAL_16850          7
+#define SERIAL_16950          8
 
 #define SERIAL_FIFO_SIZE 16
 
@@ -153,7 +154,8 @@ extern void      serial_set_ri(serial_t *dev, uint8_t enabled);
 extern int       serial_get_ri(serial_t *dev);
 
 extern const device_t ns8250_device;
-extern const device_t ns8250_pcjr_device;
+extern const device_t ns8250_pcjr_com1_device;
+extern const device_t ns8250_pcjr_com2_device;
 extern const device_t ns16450_device;
 extern const device_t ns16550_device;
 extern const device_t ns16650_device;

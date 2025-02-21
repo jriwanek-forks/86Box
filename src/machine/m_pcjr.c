@@ -105,6 +105,8 @@ typedef struct pcjr_t {
     int        serial_pos;
     uint8_t    pa;
     uint8_t    pb;
+    uint8_t    option_modem;
+    uint8_t    option_ir;
     pc_timer_t send_delay_timer;
 } pcjr_t;
 
@@ -1346,6 +1348,8 @@ kbd_read(uint16_t port, void *priv)
             ret |= (ppispeakon ? 0x10 : 0);
             ret |= (ppispeakon ? 0x20 : 0);
             ret |= (pcjr->data ? 0x40 : 0);
+            if (pcjr->option_ir)
+                ret |= 0x80; /* Keyboard cable not connected */
             if (pcjr->data)
                 ret |= 0x40;
             break;
@@ -1481,25 +1485,48 @@ pit_irq0_timer_pcjr(int new_out, int old_out, UNUSED(void *priv))
 static const device_config_t pcjr_config[] = {
   // clang-format off
     {
-        .name = "display_type",
-        .description = "Display type",
-        .type = CONFIG_SELECTION,
-        .default_string = "",
-        .default_int = PCJR_RGB,
-        .file_filter = "",
-        .spinner = { 0 },
-        .selection = {
+        .name           = "display_type",
+        .description    = "Display type",
+        .type           = CONFIG_SELECTION,
+        .default_string = NULL,
+        .default_int    = PCJR_RGB,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = {
             { .description = "RGB",       .value = PCJR_RGB       },
             { .description = "Composite", .value = PCJR_COMPOSITE },
             { .description = ""                                   }
         }
     },
     {
-        .name = "apply_hd",
-        .description = "Apply overscan deltas",
-        .type = CONFIG_BINARY,
-        .default_string = "",
-        .default_int = 1
+        .name           = "apply_hd",
+        .description    = "Apply overscan deltas",
+        .type           = CONFIG_BINARY,
+        .default_string = NULL,
+        .default_int    = 1,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = { { 0 } }
+    },
+    {
+        .name           = "modem_slot",
+        .description    = "Enable Serial Port in Modem Slot",
+        .type           = CONFIG_BINARY,
+        .default_string = NULL,
+        .default_int    = 0,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = { { 0 } }
+    },
+    {
+        .name           = "ir_reciever",
+        .description    = "Enable IR Reciever",
+        .type           = CONFIG_BINARY,
+        .default_string = NULL,
+        .default_int    = 0,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = { { 0 } }
     },
     { .name = "", .description = "", .type = CONFIG_END }
   // clang-format on
@@ -1534,6 +1561,9 @@ machine_pcjr_init(UNUSED(const machine_t *model))
 
     pcjr = calloc(1, sizeof(pcjr_t));
 
+    pcjr->option_modem = device_get_config_int("modem_slot");
+    pcjr->option_ir    = device_get_config_int("ir_reciever");
+
     pic_init_pcjr();
     pit_common_init(0, pit_irq0_timer_pcjr, NULL);
 
@@ -1551,9 +1581,11 @@ machine_pcjr_init(UNUSED(const machine_t *model))
     keyboard_scan   = 1;
     key_queue_start = key_queue_end = 0;
     io_sethandler(0x0060, 4,
-                  kbd_read, NULL, NULL, kbd_write, NULL, NULL, pcjr);
+                  kbd_read, NULL, NULL,
+                  kbd_write, NULL, NULL, pcjr);
     io_sethandler(0x00a0, 8,
-                  kbd_read, NULL, NULL, kbd_write, NULL, NULL, pcjr);
+                  kbd_read, NULL, NULL,
+                  kbd_write, NULL, NULL, pcjr);
     timer_add(&pcjr->send_delay_timer, kbd_poll, pcjr, 1);
     keyboard_set_table(scancode_pcjr);
     keyboard_send = kbd_adddata_ex;
@@ -1565,7 +1597,12 @@ machine_pcjr_init(UNUSED(const machine_t *model))
 
     device_add(&fdc_pcjr_device);
 
-    device_add(&ns8250_pcjr_device);
+    if (pcjr->option_modem) 
+        device_add(&ns8250_pcjr_com2_device);
+    else {
+        device_add(&ns8250_pcjr_com1_device);
+        device_add(&ns8250_pcjr_com2_device);
+    }
     serial_set_next_inst(SERIAL_MAX); /* So that serial_standalone_init() won't do anything. */
 
     /* "All the inputs are 'read' with one 'IN' from address hex 201." - PCjr Technical Reference (Nov. 83), p.2-119
