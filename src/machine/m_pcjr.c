@@ -1605,7 +1605,7 @@ machine_pcjr_init(UNUSED(const machine_t *model))
         pcjr->option_fdc = 1;
     }
 
-    if (option_modem) 
+    if (pcjr->option_modem) 
         device_add(&ns8250_pcjr_com2_device);
     else {
         device_add(&ns8250_pcjr_com1_device);
