@@ -104,7 +104,7 @@ if(INSTRUMENT)
 endif()
 
 target_link_libraries(86Box cpu chipset mch dev mem fdd game cdrom rdisk mo hdd
-    net print scsi sio snd utils vid voodoo plat ui)
+    net print scsi sio snd utils usb vid voodoo plat ui)
 
 if(HAIKU)
     target_link_libraries(86Box be)
@@ -232,7 +232,6 @@ elseif(WIN32)
         OPTIONAL)
 endif()
 
-
 add_subdirectory(device)
 add_subdirectory(disk)
 add_subdirectory(floppy)
@@ -245,6 +244,7 @@ add_subdirectory(sio)
 add_subdirectory(scsi)
 add_subdirectory(sound)
 add_subdirectory(utils)
+add_subdirectory(usb)
 add_subdirectory(video)
 
 if (APPLE)

@@ -177,6 +177,8 @@ static const SOUND_CARD sound_cards[] = {
     /* AC97 */
     { &ad1881_device                },
     { &cs4297a_device               },
+    /* USB */
+    { &usb_audio_device             },
     { NULL                          }
     // clang-format on
 };

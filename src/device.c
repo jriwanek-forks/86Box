@@ -620,6 +620,8 @@ device_get_name(const device_t *dev, int bus, char *name)
             sbus = "COM";
         else if (dev->flags & DEVICE_LPT)
             sbus = "LPT";
+        else if (dev->flags & DEVICE_USB)
+            sbus = "USB";
 
         if (sbus != NULL) {
             /* First concatenate [<Bus>] before the device's name. */
