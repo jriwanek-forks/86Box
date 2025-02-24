@@ -122,6 +122,7 @@ static mouse_t mouse_devices[] = {
 #ifdef USE_STANDALONE_QUICKPORT
     { &mouse_upc_standalone_device     },
 #endif
+    { &mouse_usb_mouse_device          },
     { NULL                             }
     // clang-format on
 };
