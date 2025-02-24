@@ -51,6 +51,8 @@ typedef const struct {
     const device_t *device;
 } SCSI_CARD;
 
+extern const device_t usb_msd_device;
+
 static SCSI_CARD scsi_cards[] = {
   // clang-format off
     { &device_none,              },
@@ -86,6 +88,7 @@ static SCSI_CARD scsi_cards[] = {
     { &dc390_pci_device,         },
     { &buslogic_445s_device,     },
     { &buslogic_445c_device,     },
+    { &usb_msd_device            },
     { NULL,                      },
   // clang-format on
 };
