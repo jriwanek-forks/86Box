@@ -336,6 +336,8 @@ extern const device_t ymf715_onboard_device;
 extern const device_t ymf718_device;
 extern const device_t ymf719_device;
 
+extern const device_t usb_audio_device;
+
 #ifdef USE_LIBSERIALPORT
 /* External Audio device OPL2Board (Host Connected hardware)*/
 extern const device_t opl2board_device;

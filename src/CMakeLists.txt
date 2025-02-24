@@ -139,6 +139,7 @@ target_link_libraries(86Box
     snd
     mdsx_dll
     utils
+    usb
     vid
     voodoo
     plat
@@ -268,7 +269,6 @@ elseif(WIN32)
         OPTIONAL)
 endif()
 
-
 add_subdirectory(device)
 add_subdirectory(disk)
 add_subdirectory(floppy)
@@ -281,6 +281,7 @@ add_subdirectory(sio)
 add_subdirectory(scsi)
 add_subdirectory(sound)
 add_subdirectory(utils)
+add_subdirectory(usb)
 add_subdirectory(video)
 
 if (APPLE)
