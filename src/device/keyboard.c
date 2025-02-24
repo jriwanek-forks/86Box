@@ -89,6 +89,7 @@ kbc_at_log(const char* fmt, ...)
 #endif
 
 void (*keyboard_send)(uint16_t val);
+void (*keyboard_send_usb)(int down, uint16_t val);
 static void (*keyboard_input_handler)(uint16_t scan, int down, void *priv);
 static void *keyboard_input_priv;
 
@@ -213,7 +214,15 @@ key_process(uint16_t scan, int down)
     const scancode *codes = scan_table;
     int             c;
 
-    if (!keyboard_scan)
+    if (keyboard_send_usb) {
+        keyboard_send_usb(down, scan);
+        return;
+    }
+
+    if (!codes)
+        return;
+
+    if (!keyboard_scan || (keyboard_send == NULL))
         return;
 
     scan = scancode_config_map[scan];
