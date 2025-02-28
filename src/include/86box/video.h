@@ -419,6 +419,9 @@ extern const device_t gd5480_pci_device;
 /* IBM CGA */
 extern const device_t cga_device;
 
+/* IBM MCGA */
+extern const device_t mcga_device;
+
 /* Pravetz CGA */
 extern const device_t cga_pravetz_device;
 
