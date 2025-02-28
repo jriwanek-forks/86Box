@@ -20,6 +20,7 @@ add_library(vid OBJECT
     vid_cga.c
     vid_cga_comp.c
     vid_compaq_cga.c
+    vid_mcga.c
     vid_mda.c
     vid_hercules.c
     vid_herculesplus.c
