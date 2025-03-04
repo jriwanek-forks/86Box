@@ -2417,7 +2417,7 @@ mem_mapping_recalc(uint64_t base, uint64_t size)
         write_bus = write_mapping_bus[c];
         read_bus = read_mapping_bus[c];
 
-        pclog("%08X | ", c << MEM_GRANULARITY_BITS);
+        pclog("%" PRIX64 " | ", c << MEM_GRANULARITY_BITS);
         if (read) {
             pclog("R%c%c%c %08X+% 8X",
                 read->read_b ? 'b' : ' ', read->read_w ? 'w' : ' ', read->read_l ? 'l' : ' ',

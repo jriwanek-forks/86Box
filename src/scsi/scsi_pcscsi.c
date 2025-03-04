@@ -1464,7 +1464,7 @@ esp_reg_write(esp_t *dev, uint32_t saddr, uint32_t val)
                     break;
                 case CMD_ENSEL:
                     dev->rregs[ESP_RINTR] = 0;
-                    esp_log("ESP Enable Selection, do cmd = %d\n", dev->do_cmd);
+                    esp_log("ESP Enable Selection\n");
                     break;
                 case CMD_DISSEL:
                     dev->rregs[ESP_RINTR] = 0;
