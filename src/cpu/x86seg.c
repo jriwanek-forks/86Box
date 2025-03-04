@@ -60,7 +60,7 @@
 #define DPL2 ((segdat2[2] >> 13) & 3)
 #define DPL3 ((segdat3[2] >> 13) & 3)
 
-#define ENABLE_X86SEG_LOG 1
+//#define ENABLE_X86SEG_LOG 1
 #ifdef ENABLE_X86SEG_LOG
 int x86seg_do_log = ENABLE_X86SEG_LOG;
 
