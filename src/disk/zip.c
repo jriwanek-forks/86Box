@@ -172,7 +172,7 @@ zip_load_abort(const zip_t *dev)
     return 0;
 }
 
-int
+static int
 image_is_zdi(const char *s)
 {
     return !strcasecmp(path_get_extension((char *) s), "ZDI");
