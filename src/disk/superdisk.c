@@ -173,7 +173,7 @@ superdisk_load_abort(const superdisk_t *dev)
     return 0;
 }
 
-int
+static int
 image_is_sdi(const char *s)
 {
     return !strcasecmp(path_get_extension((char *) s), "SDI");
