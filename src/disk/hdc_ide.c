@@ -2332,7 +2332,7 @@ ide_callback(void *priv)
 
         case WIN_WRITE:
         case WIN_WRITE_NORETRY:
-#ifdef ENABLE_IDE_LOG
+#if defined(ENABLE_IDE_LOG)  && !defined(__APPLE__)
             off64_t sector = ide_get_sector(ide);
 #endif
             if (ide->type == IDE_ATAPI)
@@ -2355,7 +2355,9 @@ ide_callback(void *priv)
                 if (ret < 0)
                     err = UNC_ERR;
             }
+#if defined(ENABLE_IDE_LOG)  && !defined(__APPLE__)
             ide_log("Write: %02X, %i, %08X, %" PRIi64 "\n", err, ide->hdd_num, ide->lba_addr, sector);
+#endif
             break;
 
         case WIN_WRITE_DMA:
