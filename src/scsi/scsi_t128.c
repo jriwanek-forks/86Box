@@ -348,7 +348,7 @@ read_again:
                 t128->host_pos = 0;
                 t128->status &= ~0x02;
                 t128->block_count = (t128->block_count - 1) & 0xff;
-                t128_log("T128 Remaining blocks to be read=%d, status=%02x, len=%i, cdb[0] = %02x\n", t128->block_count, t128->status, dev->buffer_length, ncr->command[0]);
+                t128_log("T128 Remaining blocks to be read=%d, status=%02x, len=%i, cdb[0] = %02x\n", t128->block_count, t128->status, dev->buffer_length, scsi_bus->command[0]);
                 if (!t128->block_count) {
                     t128->block_loaded = 0;
                     t128_log("IO End of read transfer\n");

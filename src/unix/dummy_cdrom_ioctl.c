@@ -40,10 +40,10 @@
 #define MSFtoLBA(m, s, f) ((((m * 60) + s) * 75) + f)
 
 typedef struct ioctl_t {
-    cdrom_t                *dev;
-    void                   *log;
-    void                   *handle;
-    char                    path[256];
+    cdrom_t *dev;
+    void    *log;
+    void    *handle;
+    char     path[256];
 } ioctl_t;
 
 #ifdef ENABLE_IOCTL_LOG

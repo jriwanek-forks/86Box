@@ -2086,7 +2086,7 @@ sb_read(uint16_t addr, void *priv)
             break;
     }
 
-    sb_dsp_log("[%04X:%08X] DSP: [R] %04X = %02X\n", CS, cpu_state.pc, a, ret);
+    sb_dsp_log("[%04X:%08X] DSP: [R] %04X = %02X\n", CS, cpu_state.pc, addr, ret);
 
     return ret;
 }
