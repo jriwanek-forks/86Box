@@ -338,16 +338,18 @@ enum Cfg9346Bits {
 };
 
 typedef enum {
-    CH_8139 = 0,
-    CH_8139_K,
-    CH_8139A,
-    CH_8139A_G,
-    CH_8139B,
-    CH_8130,
-    CH_8139C,
-    CH_8100,
-    CH_8100B_8139D,
-    CH_8101,
+    CH_8129        = 0x00,
+    CH_8139        = 0x10,
+    CH_8139_K      = 0x70, /* Unverified Minor Revision of D apparently */
+    CH_8139A       = 0x20,
+    CH_8139A_G     = 0x30,
+    CH_8139B       = 0x40,
+    CH_8130        = 0x74, /* Unverified */
+    CH_8139C       = 0x50,
+    CH_8139CP      = 0x51,
+    CH_8100        = 0x78, /* Unverified */
+    CH_8100B_8139D = 0x50,
+    CH_8101        = 0x7c, /* Unverified */
 } chip_t;
 
 enum chip_flags {
