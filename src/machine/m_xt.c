@@ -406,6 +406,8 @@ machine_xt_init(const machine_t *model)
     uint8_t     enable_5161;
     uint8_t     enable_basic;
     const char *fn;
+    uint16_t    offset = 0;
+    uint32_t    local  = 0;
 
     /* No ROMs available. */
     if (!device_available(model->device))
@@ -415,11 +417,17 @@ machine_xt_init(const machine_t *model)
     enable_5161  = machine_get_config_int("enable_5161");
     enable_basic = machine_get_config_int("enable_basic");
     fn           = device_get_bios_file(model->device, device_get_config_bios("bios"), 0);
-    ret          = bios_load_linear(fn, 0x000fe000, 65536, 0x6000);
+    local        = device_get_bios_local(model->device, device_get_config_bios("bios"));
+ 
+    if (local == 0) // Offset for stock roms
+         offset   = 0x6000;
+    ret          = bios_load_linear(fn, 0x000fe000, 65536, offset);
 
     if (enable_basic && ret) {
-        fn = device_get_bios_file(model->device, device_get_config_bios("bios"), 0);
-        (void) bios_load_aux_linear(fn, 0x000f8000, 24576, 0);
+        if (local == 0) { // needed for stock roms
+            fn = device_get_bios_file(model->device, device_get_config_bios("bios"), 0);
+            (void) bios_load_aux_linear(fn, 0x000f8000, 24576, 0);
+        }
         fn = device_get_bios_file(model->device, device_get_config_bios("bios"), 1);
         /* On the real machine, the BASIC is repeated. */
         (void) bios_load_aux_linear(fn, 0x000f0000, 8192, 0);
