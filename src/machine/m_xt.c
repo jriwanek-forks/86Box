@@ -88,7 +88,7 @@ static const device_config_t ibmpc_config[] = {
               .files_no = 1, .local = 0, .size = 40960, .files = { "roms/machines/diagnostic/ruuds_diagnostic_rom_v5.4_8kb.bin", "" } },
             { .name = "XT RAM Test", .internal_name = "diag_xtramtest", .bios_type = BIOS_NORMAL,
               .files_no = 1, .local = 0, .size = 40960, .files = { "roms/machines/diagnostic/xtramtest_8k.bin", "" } },
-            { .files_no = 0 }
+            { .internal_name = NULL }
         },
     },
     {
@@ -198,7 +198,7 @@ static const device_config_t ibmpc82_config[] = {
               .files_no = 1, .local = 0, .size = 40960, .files = { "roms/machines/diagnostic/ruuds_diagnostic_rom_v5.4_8kb.bin", "" } },
             { .name = "XT RAM Test", .internal_name = "diag_xtramtest", .bios_type = BIOS_NORMAL,
               .files_no = 1, .local = 0, .size = 40960, .files = { "roms/machines/diagnostic/xtramtest_8k.bin", "" } },
-            { .files_no = 0 }
+            { .name = NULL }
         },
     },
     {
@@ -366,7 +366,7 @@ static const device_config_t ibmxt_config[] = {
                 .size          = 65536,
                 .files         = { "roms/machines/diagnostic/xtramtest_32k.bin", "roms/machines/ibmxt/BIOS_5160_08NOV82_U19_5000027.BIN", "" }
             },
-            { .files_no = 0 }
+            { .internal_name = "" }
         },
     },
     {
@@ -556,7 +556,7 @@ static const device_config_t ibmxt86_config[] = {
                 .files         = { "roms/machines/diagnostic/xtramtest_32k.bin", "roms/machines/ibmxt86/BIOS_5160_09MAY86_U19_62X0819_68X4370_27256_F000.BIN", "" }
             },
 
-            { .files_no = 0 }
+            { NULL }
         },
     },
     {
