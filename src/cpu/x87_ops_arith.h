@@ -210,7 +210,8 @@ opFCOMP(uint32_t fetchdat)
 static int
 opFCOMPP(UNUSED(uint32_t fetchdat))
 {
-    uint64_t *p, *q;
+    uint64_t *p;
+    uint64_t *q;
     FP_ENTER();
     cpu_state.pc++;
     cpu_state.npxs &= ~(FPU_SW_C0 | FPU_SW_C2 | FPU_SW_C3);

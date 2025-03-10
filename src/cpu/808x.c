@@ -47,7 +47,8 @@ uint32_t custom_nmi_vector     = 0x00000000;
 static uint8_t pfq[6];
 
 /* Variables to aid with the prefetch queue operation. */
-static int biu_cycles = 0, pfq_pos = 0;
+static int biu_cycles = 0;
+static int pfq_pos    = 0;
 
 /* The IP equivalent of the current prefetch queue position. */
 static uint16_t pfq_ip;
@@ -57,18 +58,25 @@ static uint32_t *opseg[4];
 static x86seg   *_opseg[4];
 
 static int noint   = 0;
-static int cpu_alu_op, pfq_size;
+static int cpu_alu_op;
+static int pfq_size;
 
-static uint32_t cpu_src = 0, cpu_dest = 0;
+static uint32_t cpu_src = 0;
+static uint32_t cpu_dest = 0;
 static uint32_t cpu_data = 0;
 
 static uint16_t last_addr = 0x0000;
 
 static uint32_t *ovr_seg     = NULL;
-static int       prefetching = 1, completed = 1;
-static int       in_rep = 0, repeating = 0, rep_c_flag = 0;
-static int       oldc, clear_lock = 0;
-static int       refresh = 0, cycdiff;
+static int       prefetching = 1;
+static int       completed = 1;
+static int       in_rep = 0;
+static int       repeating = 0;
+static int       rep_c_flag = 0;
+static int       oldc;
+static int       clear_lock = 0;
+static int       refresh = 0;
+static int       cycdiff;
 
 /* Various things needed for 8087. */
 #define OP_TABLE(name) ops_##name
@@ -482,10 +490,10 @@ pfq_write(void)
 static uint8_t
 pfq_read(void)
 {
-    uint8_t temp, i;
+    uint8_t temp;
 
     temp = pfq[0];
-    for (i = 0; i < (pfq_size - 1); i++)
+    for (uint8_t i = 0; i < (pfq_size - 1); i++)
         pfq[i] = pfq[i + 1];
     pfq_pos--;
     cpu_state.pc = (cpu_state.pc + 1) & 0xffff;
@@ -990,8 +998,10 @@ access(int num, UNUSED(int bits))
 static void
 interrupt(uint16_t addr)
 {
-    uint16_t old_cs, old_ip;
-    uint16_t new_cs, new_ip;
+    uint16_t old_cs;
+    uint16_t old_ip;
+    uint16_t new_cs;
+    uint16_t new_ip;
     uint16_t tempf;
 
     addr <<= 2;
@@ -1029,8 +1039,10 @@ interrupt_808x(uint16_t addr)
 static void
 custom_nmi(void)
 {
-    uint16_t old_cs, old_ip;
-    uint16_t new_cs, new_ip;
+    uint16_t old_cs;
+    uint16_t old_ip;
+    uint16_t new_cs;
+    uint16_t new_ip;
     uint16_t tempf;
 
     cpu_state.eaaddr = 0x0002;
@@ -1357,10 +1369,12 @@ mul(uint16_t a, uint16_t b)
 {
     int      negate    = 0;
     int      bit_count = 8;
-    int      carry, i;
+    int      carry;
+    int      i;
     uint16_t high_bit = 0x80;
     uint16_t size_mask;
-    uint16_t c, r;
+    uint16_t c;
+    uint16_t r;
 
     size_mask = (1 << bit_count) - 1;
 
@@ -1475,10 +1489,12 @@ set_co_mul(UNUSED(int bits), int carry)
 static int
 x86_div(uint16_t l, uint16_t h)
 {
-    int      b, bit_count = 8;
+    int      b;
+    int      bit_count         = 8;
     int      negative          = 0;
     int      dividend_negative = 0;
-    int      size_mask, carry;
+    int      size_mask;
+    int      carry;
     uint16_t r;
 
     if (opcode & 1) {
@@ -1752,19 +1768,45 @@ cpu_outw(uint16_t port, uint16_t val)
 void
 execx86(int cycs)
 {
-    uint8_t  temp = 0, temp2, old_af, nests;
-    uint8_t  temp_val, temp_al, bit, handled = 0;
-    uint8_t  odd, zero, nibbles_count, destcmp;
-    uint8_t  destbyte, srcbyte, nibble_result, bit_length;
+    uint8_t  temp = 0;
+    uint8_t  temp2;
+    uint8_t  old_af;
+    uint8_t  nests;
+    uint8_t  temp_val;
+    uint8_t  temp_al;
+    uint8_t  bit;
+    uint8_t  handled = 0;
+    uint8_t  odd;
+    uint8_t  zero;
+    uint8_t  nibbles_count;
+    uint8_t  destcmp;
+    uint8_t  destbyte;
+    uint8_t  srcbyte;
+    uint8_t  nibble_result;
+    uint8_t  bit_length;
     uint8_t  bit_offset;
     int8_t   nibble_result_s;
-    uint16_t addr, tempw, new_cs, new_ip;
-    uint16_t tempw_int, size, tempbp, lowbound;
-    uint16_t highbound, regval, orig_sp, wordtopush;
-    uint16_t immediate, old_flags;
+    uint16_t addr;
+    uint16_t tempw;
+    uint16_t new_cs;
+    uint16_t new_ip;
+    uint16_t tempw_int;
+    uint16_t size;
+    uint16_t tempbp;
+    uint16_t lowbound;
+    uint16_t highbound;
+    uint16_t regval;
+    uint16_t orig_sp;
+    uint16_t wordtopush;
+    uint16_t immediate;
+    uint16_t old_flags;
     int      bits;
-    uint32_t dest_seg, i, carry, nibble;
-    uint32_t srcseg, byteaddr;
+    uint32_t dest_seg;
+    uint32_t i;
+    uint32_t carry;
+    uint32_t nibble;
+    uint32_t srcseg;
+    uint32_t byteaddr;
 
     cycles += cycs;
 
