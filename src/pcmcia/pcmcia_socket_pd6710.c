@@ -114,7 +114,6 @@ pd6710_log(const char *fmt, ...)
 #    define pd6710_log(fmt, ...)
 #endif
 
-
 void pd67xx_power_recalc(pcmcia_socket_pd67xx* pd67xx);
 
 void
@@ -545,6 +544,7 @@ void
 pd67xx_port_write(uint16_t port, uint8_t val, void *priv)
 {
     pcmcia_socket_pd67xx *pd67xx = priv;
+
     pd6710_log("PCIC write port 0x%04X (val 0x%04X)\n", port, val);
 
     if (!(port & 1))
