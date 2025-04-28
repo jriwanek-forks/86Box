@@ -13,4 +13,4 @@
 #          Copyright 2024      Cacodemon345.
 #
 
-add_library(pcmcia pcmcia_socket_pd6710.c)
+add_library(pcmcia pcmcia_socket_pd6710.c pcmcia_mtd.c)
