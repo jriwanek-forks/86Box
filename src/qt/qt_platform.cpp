@@ -56,6 +56,8 @@
 
 #ifndef Q_OS_WINDOWS
 #    include <signal.h>
+#else
+#    include <io.h>
 #endif
 
 #ifdef Q_OS_UNIX
@@ -383,6 +385,64 @@ plat_mmap(size_t size, uint8_t executable)
 #    endif
     return (ret == MAP_FAILED) ? nullptr : ret;
 #endif
+}
+
+plat_file_mapping_t
+plat_mmap_file(FILE* file)
+{
+    plat_file_mapping_t map;
+    fflush(file);
+    map.map_handle = NULL;
+    map.mapped = NULL;
+    map.size = 0;
+
+#if defined Q_OS_WINDOWS
+    LARGE_INTEGER file_size;
+    auto fd = _fileno(file);
+    auto handle = _get_osfhandle(fd);
+    if (handle == -1) {
+        return map;
+    }
+    if (GetFileSizeEx((HANDLE)handle, &file_size)) {
+        map.size = (unsigned long long)file_size.QuadPart;
+    }
+    auto mem_handle = CreateFileMappingW((HANDLE)handle, NULL, PAGE_READWRITE, 0, 0, NULL);
+    if (mem_handle == NULL) {
+        return map;
+    }
+    map.map_handle = (void*)mem_handle;
+    map.mapped = (uint8_t*)MapViewOfFile(mem_handle, FILE_MAP_ALL_ACCESS, 0, 0, 0);
+    if (!map.mapped) {
+        (void)CloseHandle(mem_handle);
+        map.map_handle = NULL;
+    }
+    return map;
+#else
+    fseek(file, 0, SEEK_END);
+    auto size = ftello64(file);
+    if (size == -1)
+        return map;
+    fseek(file, 0, SEEK_SET);
+    map.map_handle = (void*)fileno(file);
+    map.mapped = (uint8_t*)mmap(0, size, PROT_READ | PROT_WRITE, MAP_SHARED, fileno(file), 0);
+    if (!map.mapped)
+        map.map_handle = NULL;
+    map.size = (unsigned long long)size;
+    return map;
+#endif
+}
+
+void
+plat_munmap_file(plat_file_mapping_t* map)
+{
+#if defined Q_OS_WINDOWS
+    UnmapViewOfFile((void*)map->mapped);
+    CloseHandle(map->map_handle);
+#else
+    munmap(map->mapped, map->size)
+#endif
+    map->map_handle = NULL;
+    map->mapped = NULL;
 }
 
 void

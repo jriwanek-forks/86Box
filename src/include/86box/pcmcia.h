@@ -83,4 +83,5 @@ void pcmcia_register_socket(pcmcia_socket_t *socket);
 
 #ifdef EMU_DEVICE_H
 extern const device_t pd6710_device;
+extern const device_t pd6710_alt_device;
 #endif

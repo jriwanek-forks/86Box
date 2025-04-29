@@ -935,7 +935,7 @@ pd6710_init(const device_t *info)
     pd67xx->socket.status_changed = pd67xx_status_changed;
     pd67xx->socket.socket_priv    = pd67xx;
 
-    io_sethandler(0x3e0, 2, pd67xx_port_read, NULL, NULL, pd67xx_port_write, NULL, NULL, pd67xx);
+    io_sethandler((info->local == 1) ? 0x3e2 : 0x3e0, 2, pd67xx_port_read, NULL, NULL, pd67xx_port_write, NULL, NULL, pd67xx);
 
     pcmcia_register_socket(&pd67xx->socket);
 
@@ -955,6 +955,20 @@ const device_t pd6710_device = {
     .internal_name = "pd6710",
     .flags         = DEVICE_ISA16,
     .local         = 0,
+    .init          = pd6710_init,
+    .close         = pd6710_close,
+    .reset         = NULL,
+    .available     = NULL,
+    .speed_changed = NULL,
+    .force_redraw  = NULL,
+    .config        = NULL
+};
+
+const device_t pd6710_alt_device = {
+    .name          = "Cirrus Logic CL-PD6710 (Alternate I/O Address)",
+    .internal_name = "pd6710_alt",
+    .flags         = DEVICE_ISA16,
+    .local         = 1,
     .init          = pd6710_init,
     .close         = pd6710_close,
     .reset         = NULL,
