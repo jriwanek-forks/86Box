@@ -85,7 +85,7 @@
 #define PCI_REGSIZE 256    /* size of PCI space */
 
 /* Copied over from NewtonOS emulator Einstein. */
-const uint8_t cis_data[90] = {
+const uint8_t cis_data[] = {
 	// NE2000:
 	//
 	0x01, 3, // Tuple #1, code = 0x1 (Common memory descriptor), length = 3
@@ -105,7 +105,7 @@ const uint8_t cis_data[90] = {
 	// Reg len = 2, config register addr = 0x3f8, last config = 0x20
 	// Registers: XX------
 	0x1b, 17, // Tuple #4, code = 0x1b (Configuration entry), length = 17
-	0xe0, 0x81, 0x1d, 0x3f, 0x55, 0x4d, 0x5d, 0x06, 0x86, 0x46, 0x26, 0xfc, 0x24, 0x65, 0x50, 0xff,
+	0xe0, 0x81, 0x1d, 0x3f, 0x55, 0x4d, 0x5d, 0x06, 0x86, 0x46, 0x26, 0xfc, 0x24, 0x65, 0x10, 0xff,
 	0xff,
 	// Config index = 0x20(default)
 	// Interface byte = 0x81 (I/O)  wait signal supported
@@ -118,12 +118,13 @@ const uint8_t cis_data[90] = {
 	// Max current average over 10 ms: 2 x 100mA
 	// Wait scale Speed = 1.5 x 10 us
 	// Card decodes 5 address lines, full 8/16 Bit I/O
-	// IRQ modes: Pulse
+	// IRQ modes: Level
 	// IRQs:  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
 	0x21, 2, // Tuple #5, code = 0x21 (Functional ID), length = 2
 	0x06, 0x00,
 	// Network/LAN adapter
-	0xff, 0 // Tuple #6, code = 0xff (Terminator), length = 0
+    0x14, 0x01, 0x00,
+	0xff, 0x01, 0x00 // Tuple #6, code = 0xff (Terminator), length = 1
 };
 
 typedef struct nic_t {
@@ -982,7 +983,7 @@ nic_pcmcia_read(uint32_t addr, int reg, void* priv)
     if (addr == 0x3fa)
         return dev->pcmcia_status_reg;
 
-    if ((addr >> 1) < 90)
+    if ((addr >> 1) < sizeof(cis_data))
         return cis_data[(addr >> 1)];
 
     return 0xFF;

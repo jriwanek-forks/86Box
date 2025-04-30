@@ -96,6 +96,24 @@ typedef struct pcmcia_socket_pd67xx {
     pcmcia_socket_t socket;
 } pcmcia_socket_pd67xx;
 
+#ifdef ENABLE_PD6710_LOG
+int pd6710_do_log = ENABLE_PD6710_LOG;
+
+static void
+pd6710_log(const char *fmt, ...)
+{
+    va_list ap;
+
+    if (pd6710_do_log) {
+        va_start(ap, fmt);
+        pclog_ex(fmt, ap);
+        va_end(ap);
+    }
+}
+#else
+#    define pd6710_log(fmt, ...)
+#endif
+
 void pd67xx_power_recalc(pcmcia_socket_pd67xx* pd67xx);
 
 void
@@ -255,7 +273,7 @@ pd67xx_mem_read(uint32_t addr, void *priv)
 
     addr += (pd67xx_mem_map->offset.addr & 0x3fff) * 4096;
     addr &= 0x3FFFFFF;
-    pclog("PD67XX: Read from memory 0x%X (REG=%d)\n", addr, !(pd67xx_mem_map->offset.addr & (1 << 14)));
+    pd6710_log("PD67XX: Read from memory 0x%X (REG=%d)\n", addr, !(pd67xx_mem_map->offset.addr & (1 << 14)));
     return pd67xx->socket.mem_read(addr, !(pd67xx_mem_map->offset.addr & (1 << 14)), pd67xx->socket.card_priv);
 }
 
@@ -281,7 +299,7 @@ pd67xx_mem_write(uint32_t addr, uint8_t val, void *priv)
 
     addr += (pd67xx_mem_map->offset.addr & 0x3fff) * 4096;
     addr &= 0x3FFFFFF;
-    pclog("PD67XX: Write 0x%02X to memory 0x%X (REG=%d)\n", val, addr, !(pd67xx_mem_map->offset.addr & (1 << 14)));
+    pd6710_log("PD67XX: Write 0x%02X to memory 0x%X (REG=%d)\n", val, addr, !(pd67xx_mem_map->offset.addr & (1 << 14)));
     return pd67xx->socket.mem_write(addr, val, !(pd67xx_mem_map->offset.addr & (1 << 14)), pd67xx->socket.card_priv);
 }
 
@@ -304,7 +322,7 @@ pd67xx_mem_readw(uint32_t addr, void *priv)
 
     addr += (pd67xx_mem_map->offset.addr & 0x3fff) * 4096;
     addr &= 0x3FFFFFF;
-    pclog("PD67XX: Read word from memory 0x%X (REG=%d)\n", addr, !(pd67xx_mem_map->offset.addr & (1 << 14)));
+    pd6710_log("PD67XX: Read word from memory 0x%X (REG=%d)\n", addr, !(pd67xx_mem_map->offset.addr & (1 << 14)));
     return pd67xx->socket.mem_readw(addr, !(pd67xx_mem_map->offset.addr & (1 << 14)), pd67xx->socket.card_priv);
 }
 
@@ -330,7 +348,7 @@ pd67xx_mem_writew(uint32_t addr, uint16_t val, void *priv)
 
     addr += (pd67xx_mem_map->offset.addr & 0x3fff) * 4096;
     addr &= 0x3FFFFFF;
-    pclog("PD67XX: Write word 0x%04X to memory 0x%X (REG=%d)\n", val, addr, !(pd67xx_mem_map->offset.addr & (1 << 14)));
+    pd6710_log("PD67XX: Write word 0x%04X to memory 0x%X (REG=%d)\n", val, addr, !(pd67xx_mem_map->offset.addr & (1 << 14)));
     return pd67xx->socket.mem_writew(addr, val, !(pd67xx_mem_map->offset.addr & (1 << 14)), pd67xx->socket.card_priv);
 }
 
@@ -526,8 +544,9 @@ void
 pd67xx_port_write(uint16_t port, uint8_t val, void *priv)
 {
     pcmcia_socket_pd67xx *pd67xx = priv;
-    
-    pclog("PCIC write port 0x%04X (val 0x%04X)\n", port, val);
+
+    pd6710_log("PCIC write port 0x%04X (val 0x%04X)\n", port, val);
+
     if (!(port & 1))
         pd67xx->index = val;
     else {
@@ -555,6 +574,7 @@ pd67xx_port_write(uint16_t port, uint8_t val, void *priv)
             case 0x06:
                 {
                     pd67xx->mapping_enable = val;
+                    pd6710_log("PCIC Memory Enable: 0x%X\n", val);
                     pd67xx_mem_recalc_all(pd67xx);
                     pd67xx->ranges[0]->enable = !!(val & (1 << 6));
                     pd67xx->ranges[1]->enable = !!(val & (1 << 7));
@@ -709,7 +729,7 @@ pd67xx_port_read(uint16_t port, void *priv)
 {
     pcmcia_socket_pd67xx *pd67xx = priv;
 
-    pclog("PCIC read port 0x%04X\n", port);
+    pd6710_log("PCIC read port 0x%04X\n", port);
 
     if (!(port & 1))
         return pd67xx->index;
@@ -717,8 +737,10 @@ pd67xx_port_read(uint16_t port, void *priv)
         switch (pd67xx->index) {
             case 0x00:
                 return 0b10000010;
-            case 0x01:
-                return pd67xx->interface_status | (pd67xx->inserted ? 0b11101111 : 0);
+            case 0x01: {
+                uint8_t val = (pd67xx->interface_status & (1 << 6)) | (pd67xx->inserted ? 0b11101111 : 0);
+                return val;
+            }
             case 0x02:
                 return pd67xx->power_control;
             case 0x03:
@@ -913,7 +935,7 @@ pd6710_init(const device_t *info)
     pd67xx->socket.status_changed = pd67xx_status_changed;
     pd67xx->socket.socket_priv    = pd67xx;
 
-    io_sethandler(0x3e0, 2, pd67xx_port_read, NULL, NULL, pd67xx_port_write, NULL, NULL, pd67xx);
+    io_sethandler((info->local == 1) ? 0x3e2 : 0x3e0, 2, pd67xx_port_read, NULL, NULL, pd67xx_port_write, NULL, NULL, pd67xx);
 
     pcmcia_register_socket(&pd67xx->socket);
 
@@ -933,6 +955,20 @@ const device_t pd6710_device = {
     .internal_name = "pd6710",
     .flags         = DEVICE_ISA16,
     .local         = 0,
+    .init          = pd6710_init,
+    .close         = pd6710_close,
+    .reset         = NULL,
+    .available     = NULL,
+    .speed_changed = NULL,
+    .force_redraw  = NULL,
+    .config        = NULL
+};
+
+const device_t pd6710_alt_device = {
+    .name          = "Cirrus Logic CL-PD6710 (Alternate I/O Address)",
+    .internal_name = "pd6710_alt",
+    .flags         = DEVICE_ISA16,
+    .local         = 1,
     .init          = pd6710_init,
     .close         = pd6710_close,
     .reset         = NULL,
