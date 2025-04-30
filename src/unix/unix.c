@@ -473,7 +473,7 @@ plat_mmap_file(FILE* file)
 void
 plat_munmap_file(plat_file_mapping_t* map)
 {
-    munmap(map->mapped, (size_t)map->size)
+    munmap(map->mapped, (size_t)map->size);
     map->map_handle = NULL;
     map->mapped = NULL;
 }

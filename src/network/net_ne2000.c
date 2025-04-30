@@ -200,7 +200,7 @@ nic_interrupt(void *priv, int set)
 {
     nic_t *dev = (nic_t *) priv;
 
-    if (dev->pcmcia_socket) {
+    if (dev->pcmcia_socket && dev->pcmcia_socket->card_priv) {
         dev->pcmcia_socket->interrupt(!!set, !!(dev->pcmcia_config & (1 << 6)), dev->pcmcia_socket);
         return;
     }
@@ -1062,7 +1062,10 @@ nic_init(const device_t *info)
         slot->reset        = nic_reset;
         slot->ata_mode     = nic_pcmcia_ata_mode;
         slot->mem_get_exec = NULL;
-        dev->pcmcia_socket = slot;
+        slot->device_name[0] = 0;
+        strcpy(slot->device_name, info->name);
+        slot->card_priv_unconnected = dev;
+        dev->pcmcia_socket          = slot;
         pcmcia_socket_insert_card(slot, dev);
         slot->ready_changed(true, slot);
     } else if (dev->board >= NE2K_RTL8019AS_PNP) {

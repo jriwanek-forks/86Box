@@ -52,6 +52,7 @@ extern "C" {
 #include <86box/apm.h>
 #include <86box/nvr.h>
 #include <86box/acpi.h>
+#include <86box/pcmcia.h>
 
 #ifdef USE_VNC
 #    include <86box/vnc.h>
@@ -213,6 +214,27 @@ MainWindow::MainWindow(QWidget *parent)
 
     connect(this, &MainWindow::hardResetCompleted, this, [this]() {
         ui->actionMCA_devices->setVisible(machine_has_bus(machine, MACHINE_BUS_MCA));
+        ui->menuPCMCIA->clear();
+        for (int i = 0; i < 4; i++) {
+            if (pcmcia_sockets[i] && pcmcia_sockets[i]->card_priv_unconnected) {
+                QMenu* menu = new QMenu(ui->menuPCMCIA);
+                auto menuAction = ui->menuPCMCIA->addMenu(menu);
+                menuAction->setText(QString::fromLatin1(pcmcia_sockets[i]->device_name));
+                auto action = menu->addAction(tr("&Connected"));
+                action->setParent(menu);
+                action->setCheckable(true);
+                action->setChecked(true);
+                ui->menuPCMCIA->menuAction()->setText("PCMCIA");
+                connect(action, &QAction::triggered, this, [this, i](bool checked) {
+                    startblit();
+                    if (checked == false)
+                        pcmcia_socket_remove_card(pcmcia_sockets[i]);
+                    else
+                        pcmcia_socket_insert_card(pcmcia_sockets[i], pcmcia_sockets[i]->card_priv_unconnected);
+                    endblit();
+                });
+            }
+        }
         while (QApplication::overrideCursor())
             QApplication::restoreOverrideCursor();
 #ifdef USE_WACOM
@@ -1455,6 +1477,27 @@ MainWindow::refreshMediaMenu()
     status->refresh(ui->statusbar);
     ui->actionMCA_devices->setVisible(machine_has_bus(machine, MACHINE_BUS_MCA));
     ui->actionACPI_Shutdown->setEnabled(!!acpi_enabled);
+    ui->menuPCMCIA->clear();
+    for (int i = 0; i < 4; i++) {
+        if (pcmcia_sockets[i] && pcmcia_sockets[i]->card_priv_unconnected) {
+            QMenu* menu = new QMenu(ui->menuPCMCIA);
+            auto menuAction = ui->menuPCMCIA->addMenu(menu);
+            menuAction->setText(QString::fromLatin1(pcmcia_sockets[i]->device_name));
+            auto action = menu->addAction(tr("&Connected"));
+            action->setParent(menu);
+            action->setCheckable(true);
+            action->setChecked(true);
+            ui->menuPCMCIA->menuAction()->setText("PCMCIA");
+            connect(action, &QAction::triggered, this, [this, i](bool checked) {
+                startblit();
+                if (checked == false)
+                    pcmcia_socket_remove_card(pcmcia_sockets[i]);
+                else
+                    pcmcia_socket_insert_card(pcmcia_sockets[i], pcmcia_sockets[i]->card_priv_unconnected);
+                endblit();
+            });
+        }
+    }
 }
 
 void

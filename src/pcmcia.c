@@ -28,8 +28,8 @@
 #include <86box/timer.h>
 #include <86box/pcmcia.h>
 
-static pcmcia_socket_t *pcmcia_sockets[4];
-static uint8_t          pcmcia_registered_sockets_num = 0;
+pcmcia_socket_t *pcmcia_sockets[4];
+static uint8_t   pcmcia_registered_sockets_num = 0;
 
 void
 pcmcia_reset(void)
@@ -57,6 +57,13 @@ pcmcia_search_for_slots(void)
             return pcmcia_sockets[i];
     }
     return NULL;
+}
+
+void
+pcmcia_socket_remove_card(pcmcia_socket_t *socket)
+{
+    socket->card_priv = NULL;
+    socket->card_inserted(false, socket);
 }
 
 void

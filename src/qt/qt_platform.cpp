@@ -439,7 +439,7 @@ plat_munmap_file(plat_file_mapping_t* map)
     UnmapViewOfFile((void*)map->mapped);
     CloseHandle(map->map_handle);
 #else
-    munmap(map->mapped, map->size)
+    munmap(map->mapped, map->size);
 #endif
     map->map_handle = NULL;
     map->mapped = NULL;
