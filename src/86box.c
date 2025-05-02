@@ -1391,7 +1391,7 @@ pc_reset_hard_init(void)
 
     /* Add CL-PD6710 device (Temporary) */
     device_add(&pd6710_device);
-    device_add(&pd6710_alt_device);
+    //device_add(&pd6710_alt_device);
 
     extern const device_t pcmcia_mtd_device;
 
