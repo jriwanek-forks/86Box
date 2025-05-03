@@ -90,6 +90,14 @@ mtd_pcmcia_writew(uint32_t addr, uint16_t val, int reg, void* priv)
     mtd_pcmcia_write(addr + 1, (val >> 8) & 0xFF, reg, priv);
 }
 
+static void*
+mtd_mem_get_exec(uint32_t addr, void* priv)
+{
+    pcmcia_mtd_t* mtd = priv;
+
+    return &mtd->map.mapped[addr & 0x3FFFFFF];
+}
+
 static uint8_t
 mtd_pcmcia_read(uint32_t addr, int reg, void* priv)
 {
@@ -163,7 +171,7 @@ mtd_init(const device_t* info)
     slot->mem_writew   = mtd_pcmcia_writew;
     slot->reset        = mtd_reset;
     slot->ata_mode     = mtd_ata_mode;
-    slot->mem_get_exec = NULL;
+    slot->mem_get_exec = mtd_mem_get_exec;
     slot->device_name[0] = 0;
     strcpy(slot->device_name, info->name);
 

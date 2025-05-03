@@ -133,7 +133,7 @@ pd67xx_mem_recalc(pd67xx_memory_map *mem_map)
 
         mem_mapping_set_addr(&mem_map->mapping, start, (end - start) + 4096);
         if (mem_map->main_ptr->socket.mem_get_exec) {
-            mem_mapping_set_exec(&mem_map->mapping, mem_map->main_ptr->socket.mem_get_exec(start + ((mem_map->offset.addr & 0x3fff) << 12)));
+            mem_mapping_set_exec(&mem_map->mapping, mem_map->main_ptr->socket.mem_get_exec(start + ((mem_map->offset.addr & 0x3fff) << 12), mem_map->main_ptr->socket.card_priv));
         } else {
             mem_mapping_set_exec(&mem_map->mapping, NULL);
         }

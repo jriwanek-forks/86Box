@@ -69,7 +69,7 @@ struct pcmcia_socket_t {
     void (*mem_writew)(uint32_t addr, uint16_t val, int reg, void* priv);
 
     /* Fetch exec address of card memory, for EMS/XIP. */
-    void* (*mem_get_exec)(uint32_t addr);
+    void* (*mem_get_exec)(uint32_t addr, void* priv);
 
     /* Signals power status change to the card. */
     void (*power_status_change)(int vcc, int vpp, pcmcia_socket_t* socket);
