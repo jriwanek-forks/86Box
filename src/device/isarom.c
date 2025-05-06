@@ -98,15 +98,15 @@ isarom_init(UNUSED(const device_t *info))
 
     dev->rom_addr = device_get_config_hex20("bios_addr");
     dev->rom_fn   = device_get_config_string("bios_fn");
-    dev->rom_size = 0x4000;
-    dev->rom_len  = 0x3fff;
+    dev->rom_size = device_get_config_int("bios_size");
+    dev->rom_len  = dev->rom_size - 1;
     uint8_t rom_writes_enabled = device_get_config_int("rom_writes_enabled");
 
     if (info->local == ISAROM_CARD_DUAL) {
         dev->rom2_addr = device_get_config_hex20("bios_addr2");
         dev->rom2_fn   = device_get_config_string("bios_fn2");
-        dev->rom2_size = 0x4000;
-        dev->rom2_len  = 0x3fff;
+        dev->rom2_size = dev->rom_size = device_get_config_int("bios_size2");
+        dev->rom2_len  = dev->rom2_size - 1;
         rom2_writes_enabled = device_get_config_int("rom2_writes_enabled");
     }
 
@@ -187,6 +187,23 @@ static const device_config_t isarom_config[] = {
         .bios           = { { 0 } }
     },
     {
+        .name           = "bios_size",
+        .description    = "BIOS Size:",
+        .type           = CONFIG_HEX20,
+        .default_string = NULL,
+        .default_int    = 32,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = {
+            { .description = "8K",  .value = 8192  },
+            { .description = "16K", .value = 16384 },
+            { .description = "32K", .value = 32768 },
+            { .description = "64K", .value = 65536 },
+            { .description = ""                    }
+        },
+        .bios           = { { 0 } }
+    },
+    {
         .name           = "rom_writes_enabled",
         .description    = "Enable BIOS extension ROM Writes",
         .type           = CONFIG_BINARY,
@@ -243,6 +260,23 @@ static const device_config_t isarom_dual_config[] = {
         .bios           = { { 0 } }
     },
     {
+        .name           = "bios_size",
+        .description    = "BIOS Size (ROM #1):",
+        .type           = CONFIG_HEX20,
+        .default_string = NULL,
+        .default_int    = 32,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = {
+            { .description = "8K",  .value = 8192  },
+            { .description = "16K", .value = 16384 },
+            { .description = "32K", .value = 32768 },
+            { .description = "64K", .value = 65536 },
+            { .description = ""                    }
+        },
+        .bios           = { { 0 } }
+    },
+    {
         .name           = "rom_writes_enabled",
         .description    = "Enable BIOS extension ROM Writes (ROM #1)",
         .type           = CONFIG_BINARY,
@@ -291,6 +325,23 @@ static const device_config_t isarom_dual_config[] = {
             { .description = "DC00H",    .value = 0xdc000 },
             { .description = "DE00H",    .value = 0xde000 },
             { .description = ""                           }
+        },
+        .bios           = { { 0 } }
+    },
+    {
+        .name           = "bios_size2",
+        .description    = "BIOS Size (ROM #2):",
+        .type           = CONFIG_HEX20,
+        .default_string = NULL,
+        .default_int    = 32,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = {
+            { .description = "8K",  .value = 8192  },
+            { .description = "16K", .value = 16384 },
+            { .description = "32K", .value = 32768 },
+            { .description = "64K", .value = 65536 },
+            { .description = ""                    }
         },
         .bios           = { { 0 } }
     },
