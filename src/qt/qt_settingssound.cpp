@@ -77,7 +77,7 @@ SettingsSound::onCurrentMachineChanged(const int machineId)
     int                 selectedRow;
 
     // Sound Card
-    QComboBox *         cbox[SOUND_CARD_MAX]         = { 0 };
+    QComboBox          *cbox[SOUND_CARD_MAX]         = { 0 };
     QAbstractItemModel *models[SOUND_CARD_MAX]       = { 0 };
     int                 removeRows_[SOUND_CARD_MAX]  = { 0 };
     int                 selectedRows[SOUND_CARD_MAX] = { 0 };
@@ -89,7 +89,7 @@ SettingsSound::onCurrentMachineChanged(const int machineId)
         removeRows_[i] = models[i]->rowCount();
     }
 
-    c               = 0;
+    c = 0;
     while (true) {
         const QString name = DeviceConfig::DeviceName(sound_card_getdevice(c),
                                                       sound_card_get_internal_name(c), 1);
