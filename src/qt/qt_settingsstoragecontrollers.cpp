@@ -141,11 +141,11 @@ SettingsStorageControllers::onCurrentMachineChanged(int machineId)
 
     /*CD interface controller config*/
 #ifdef USE_CDROM_MITSUMI
-    ui->label_7->setVisible(true);
+    ui->labelCDInterface->setVisible(true);
     ui->comboBoxCDInterface->setVisible(true);
     ui->pushButtonCDInterface->setVisible(true);
 #else
-    ui->label_7->setVisible(false);
+    ui->labelCDInterface->setVisible(false);
     ui->comboBoxCDInterface->setVisible(false);
     ui->pushButtonCDInterface->setVisible(false);
 #endif
