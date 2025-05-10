@@ -36,17 +36,17 @@ SettingsNetwork::enableElements(Ui::SettingsNetwork *ui)
         auto *nic_cbox      = findChild<QComboBox *>(QString("comboBoxNIC%1").arg(i + 1));
         auto *net_type_cbox = findChild<QComboBox *>(QString("comboBoxNet%1").arg(i + 1));
 
-        auto *intf_label    = findChild<QLabel *>(QString("interfaceLabel%1").arg(i + 1));
+        auto *intf_label    = findChild<QLabel *>(QString("labelIntf%1").arg(i + 1));
         auto *intf_cbox     = findChild<QComboBox *>(QString("comboBoxIntf%1").arg(i + 1));
 
         auto *conf_btn      = findChild<QPushButton *>(QString("pushButtonConf%1").arg(i + 1));
 //        auto *net_type_conf_btn      = findChild<QPushButton *>(QString("pushButtonNetTypeConf%1").arg(i + 1));
 
-        auto *vde_socket_label = findChild<QLabel *>(QString("socketVDELabel%1").arg(i + 1));
+        auto *vde_socket_label = findChild<QLabel *>(QString("labelSocketVDENIC%1").arg(i + 1));
         auto *socket_line   = findChild<QLineEdit *>(QString("socketVDENIC%1").arg(i + 1));
 
-        auto *option_list_label = findChild<QLabel *>(QString("optionListLabel%1").arg(i + 1));
-        auto *option_list_line = findChild<QWidget *>(QString("optionListLine%1").arg(i + 1));
+        auto *option_list_label = findChild<QLabel *>(QString("labelOptionList%1").arg(i + 1));
+        auto *option_list_line = findChild<QWidget *>(QString("lineOptionList%1").arg(i + 1));
 
         intf_cbox->setEnabled(net_type_cbox->currentData().toInt() == NET_TYPE_PCAP);
         conf_btn->setEnabled(network_card_has_config(nic_cbox->currentData().toInt()));
@@ -69,20 +69,25 @@ SettingsNetwork::enableElements(Ui::SettingsNetwork *ui)
             // Then only enable as needed based on network type
             switch (net_type_cbox->currentData().toInt()) {
                 case NET_TYPE_VDE:
-                    //                option_list_label->setText("VDE Options");
+                    // option_list_label->setText("VDE Options");
                     option_list_label->setVisible(true);
                     option_list_line->setVisible(true);
 
                     vde_socket_label->setVisible(true);
                     socket_line->setVisible(true);
                     break;
+
                 case NET_TYPE_PCAP:
-                    //                option_list_label->setText("PCAP Options");
+                    // option_list_label->setText("PCAP Options");
                     option_list_label->setVisible(true);
                     option_list_line->setVisible(true);
 
                     intf_cbox->setVisible(true);
                     intf_label->setVisible(true);
+                    break;
+
+                case NET_TYPE_SLIRP:
+                default:
                     break;
             }
         }
