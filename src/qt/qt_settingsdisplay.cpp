@@ -109,22 +109,22 @@ SettingsDisplay::onCurrentMachineChanged(int machineId)
     if (machine_has_flags(machineId, MACHINE_VIDEO_ONLY) > 0) {
         ui->comboBoxVideo->setEnabled(false);
         ui->comboBoxVideoSecondary->setEnabled(false);
-        ui->pushButtonConfigureSecondary->setEnabled(false);
+        ui->pushButtonConfigureVideoSecondary->setEnabled(false);
         selectedRow = 1;
     } else {
         ui->comboBoxVideo->setEnabled(true);
         ui->comboBoxVideoSecondary->setEnabled(true);
-        ui->pushButtonConfigureSecondary->setEnabled(true);
+        ui->pushButtonConfigureVideoSecondary->setEnabled(true);
     }
     ui->comboBoxVideo->setCurrentIndex(selectedRow);
     // TODO
     for (uint8_t i = 1; i < GFXCARD_MAX; i ++)
         if (gfxcard[i] == 0)
-            ui->pushButtonConfigureSecondary->setEnabled(false);
+            ui->pushButtonConfigureVideoSecondary->setEnabled(false);
 }
 
 void
-SettingsDisplay::on_pushButtonConfigure_clicked()
+SettingsDisplay::on_pushButtonConfigureVideo_clicked()
 {
     int videoCard = ui->comboBoxVideo->currentData().toInt();
     auto *device = video_card_getdevice(videoCard);
@@ -175,10 +175,10 @@ SettingsDisplay::on_comboBoxVideo_currentIndexChanged(int index)
     auto curVideoCard_2 = videoCard[1];
     videoCard[0] = ui->comboBoxVideo->currentData().toInt();
     if (videoCard[0] == VID_INTERNAL)
-        ui->pushButtonConfigure->setEnabled(machine_has_flags(machineId, MACHINE_VIDEO) &&
-                                            device_has_config(machine_get_vid_device(machineId)));
+        ui->pushButtonConfigureVideo->setEnabled(machine_has_flags(machineId, MACHINE_VIDEO) &&
+                                                 device_has_config(machine_get_vid_device(machineId)));
     else
-        ui->pushButtonConfigure->setEnabled(video_card_has_config(videoCard[0]) > 0);
+        ui->pushButtonConfigureVideo->setEnabled(video_card_has_config(videoCard[0]) > 0);
     bool machineHasPci = machine_has_bus(machineId, MACHINE_BUS_PCI) > 0;
     ui->pushButtonConfigureVoodoo->setEnabled(machineHasPci && ui->checkBoxVoodoo->isChecked());
 
@@ -241,7 +241,7 @@ SettingsDisplay::on_comboBoxVideo_currentIndexChanged(int index)
 
     if ((videoCard[1] == 0) || (machine_has_flags(machineId, MACHINE_VIDEO_ONLY) > 0)) {
         ui->comboBoxVideoSecondary->setCurrentIndex(0);
-        ui->pushButtonConfigureSecondary->setEnabled(false);
+        ui->pushButtonConfigureVideoSecondary->setEnabled(false);
     }
 
     // Is the currently selected video card a voodoo?
@@ -295,15 +295,15 @@ void
 SettingsDisplay::on_comboBoxVideoSecondary_currentIndexChanged(int index)
 {
     if (index < 0) {
-        ui->pushButtonConfigureSecondary->setEnabled(false);
+        ui->pushButtonConfigureVideoSecondary->setEnabled(false);
         return;
     }
     videoCard[1] = ui->comboBoxVideoSecondary->currentData().toInt();
-    ui->pushButtonConfigureSecondary->setEnabled(index != 0 && video_card_has_config(videoCard[1]) > 0);
+    ui->pushButtonConfigureVideoSecondary->setEnabled(index != 0 && video_card_has_config(videoCard[1]) > 0);
 }
 
 void
-SettingsDisplay::on_pushButtonConfigureSecondary_clicked()
+SettingsDisplay::on_pushButtonConfigureVideoSecondary_clicked()
 {
     auto *device = video_card_getdevice(ui->comboBoxVideoSecondary->currentData().toInt());
     DeviceConfig::ConfigureDevice(device);
