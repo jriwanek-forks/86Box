@@ -11,8 +11,10 @@
  *
  *
  * Authors: Joakim L. Gilje <jgilje@jgilje.net>
+ *          Jasmine Iwanek <jriwanek@gmail.com>
  *
  *          Copyright 2021 Joakim L. Gilje
+ *          Copyright 2025 Jasmine Iwanek
  */
 #include "qt_settingsotherperipherals.hpp"
 #include "ui_qt_settingsotherperipherals.h"
@@ -72,9 +74,9 @@ SettingsOtherPeripherals::onCurrentMachineChanged(int machineId)
     int   selectedRow = 0;
 
     // ISA RTC Cards
-    auto *model       = ui->comboBoxRTC->model();
+    auto *model = ui->comboBoxRTC->model();
     while (true) {
-        QString name = DeviceConfig::DeviceName(isartc_get_device(c), isartc_get_internal_name(c), 0);
+        const QString name = DeviceConfig::DeviceName(isartc_get_device(c), isartc_get_internal_name(c), 0);
         if (name.isEmpty())
             break;
 
