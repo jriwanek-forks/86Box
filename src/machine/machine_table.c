@@ -9390,8 +9390,8 @@ const machine_t machines[] = {
             .min_multi = 2.0,
             .max_multi = 2.0
         },
-        .bus_flags = MACHINE_PS2_PCI,
-        .flags = MACHINE_IDE_DUAL | MACHINE_APM,
+        .bus_flags = MACHINE_PS2_PCI | MACHINE_BUS_USB,
+        .flags = MACHINE_IDE_DUAL | MACHINE_APM | MACHINE_USB,
         .ram = {
             .min = 32768,
             .max = 131072,
@@ -13419,8 +13419,8 @@ const machine_t machines[] = {
             .min_multi = 1.5,
             .max_multi = 3.0
         },
-        .bus_flags = MACHINE_PS2_PCI | MACHINE_BUS_USB,
-        .flags = MACHINE_IDE_DUAL | MACHINE_APM | MACHINE_USB,
+        .bus_flags = MACHINE_PS2_PCI /* | MACHINE_BUS_USB */,
+        .flags = MACHINE_IDE_DUAL | MACHINE_APM /* | MACHINE_USB */,
         .ram = {
             .min = 8192,
             .max = 262144,
@@ -13459,8 +13459,8 @@ const machine_t machines[] = {
             .min_multi = 1.5,
             .max_multi = 3.0
         },
-        .bus_flags = MACHINE_PS2_PCI | MACHINE_BUS_USB,
-        .flags = MACHINE_IDE_DUAL | MACHINE_APM | MACHINE_GAMEPORT | MACHINE_USB,
+        .bus_flags = MACHINE_PS2_PCI /* | MACHINE_BUS_USB */,
+        .flags = MACHINE_IDE_DUAL | MACHINE_APM | MACHINE_GAMEPORT /* | MACHINE_USB */,
         .ram = {
             .min = 8192,
             .max = 262144,
@@ -13499,8 +13499,8 @@ const machine_t machines[] = {
             .min_multi = 1.5,
             .max_multi = 3.0
         },
-        .bus_flags = MACHINE_PS2_PCI | MACHINE_BUS_USB,
-        .flags = MACHINE_IDE_DUAL | MACHINE_APM | MACHINE_USB,
+        .bus_flags = MACHINE_PS2_PCI /* | MACHINE_BUS_USB */,
+        .flags = MACHINE_IDE_DUAL | MACHINE_APM /* | MACHINE_USB */,
         .ram = {
             .min = 8192,
             .max = 393216,
@@ -15730,8 +15730,9 @@ const machine_t machines[] = {
             .min_multi = 1.5,
             .max_multi = 8.0
         },
-        .bus_flags = MACHINE_PS2_AGP | MACHINE_BUS_USB,
-        .flags = MACHINE_IDE_DUAL | MACHINE_SOUND | MACHINE_APM | MACHINE_ACPI | MACHINE_GAMEPORT | MACHINE_USB, /* Machine has internal sound: Ensoniq ES1373 */
+        .bus_flags = MACHINE_PS2_AGP /* | MACHINE_BUS_USB */,
+        /* Enabling USB makes it stuck at NVRAM checking phrase at next boot for some reason. */
+        .flags = MACHINE_IDE_DUAL | MACHINE_SOUND | MACHINE_APM | MACHINE_ACPI | MACHINE_GAMEPORT /* | MACHINE_USB */, /* Machine has internal sound: Ensoniq ES1373 */
         .ram = {
             .min = 8192,
             .max = 1572864,
