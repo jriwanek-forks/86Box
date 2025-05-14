@@ -56,6 +56,7 @@ add_library(dev OBJECT
     phoenix_486_jumper.c
     postcard.c
     radisys_config.c
+    sdlc.c
     serial.c
     serial_passthrough.c
     smbus_ali7101.c
