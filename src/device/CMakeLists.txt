@@ -51,6 +51,7 @@ add_library(dev OBJECT
     pci_bridge.c
     phoenix_486_jumper.c
     postcard.c
+    sdlc.c
     serial.c
     serial_passthrough.c
     smbus_ali7101.c
