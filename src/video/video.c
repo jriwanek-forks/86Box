@@ -1037,7 +1037,7 @@ loadfont_common(FILE *fp, int format)
 
         default:
         case 2: /* CGA */
-            for (uint16_t c = 0; c < 256; c++)
+            for (uint16_t c = 0; c < 2048; c++) /* Allow up to 2048 chars */ // TODO: Was 256
                 for (uint8_t d = 0; d < 8; d++)
                     fontdat[c][d] = fgetc(fp) & 0xff;
             break;
