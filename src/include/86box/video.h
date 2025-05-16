@@ -189,15 +189,15 @@ extern uint32_t     pal_lookup[256];
 #endif
 extern int          video_fullscreen;
 extern int          video_fullscreen_scale;
-extern uint8_t      fontdat[2048][8];
-extern uint8_t      fontdatm[2048][16];
-extern uint8_t      fontdat2[2048][8];
-extern uint8_t      fontdatm2[2048][16];
-extern uint8_t      fontdatw[512][32];
-extern uint8_t      fontdat8x12[256][16];
-extern uint8_t      fontdat12x18[256][36];
-extern dbcs_font_t *fontdatksc5601;
-extern dbcs_font_t *fontdatksc5601_user;
+extern uint8_t      fontdat[2048][8];      /* IBM CGA font */
+extern uint8_t      fontdatm[2048][16];    /* IBM MDA font */
+extern uint8_t      fontdat2[2048][8];     /* IBM CGA 2nd instance font */
+extern uint8_t      fontdatm2[2048][16];   /* IBM MDA 2nd instance font */
+extern uint8_t      fontdatw[512][32];     /* Wyse700 font */
+extern uint8_t      fontdat8x12[256][16];  /* MDSI Genius font */
+extern uint8_t      fontdat12x18[256][36]; /* IM1024 font */
+extern dbcs_font_t *fontdatksc5601;        /* Korean KSC-5601 font */
+extern dbcs_font_t *fontdatksc5601_user;   /* Korean KSC-5601 user defined font */
 extern uint32_t    *video_6to8;
 extern uint32_t    *video_8togs;
 extern uint32_t    *video_8to32;
@@ -277,8 +277,8 @@ extern uint8_t video_force_resize_get_monitor(int monitor_index);
 extern void    video_force_resize_set_monitor(uint8_t res, int monitor_index);
 extern void    video_update_timing(void);
 
-extern void loadfont_ex(char *s, int format, int offset);
-extern void loadfont(char *s, int format);
+extern void loadfont_ex(char *fn, int format, int offset);
+extern void loadfont(char *fn, int format);
 
 extern int get_actual_size_x(void);
 extern int get_actual_size_y(void);
