@@ -27,6 +27,7 @@
 #define HAVE_STDARG_H
 #include <86box/86box.h>
 #include <86box/machine.h>
+#include <86box/mem.h>
 #include <86box/keyboard.h>
 #include <86box/plat.h>
 
@@ -127,6 +128,9 @@ keyboard_init(void)
     memset(keyboard_set3_flags, 0x00, sizeof(keyboard_set3_flags));
     keyboard_set3_all_repeat = 0;
     keyboard_set3_all_break  = 0;
+
+    /* Solves the issue of input randomly dying due to memory caching */
+    mem_updatecache();
 }
 
 void

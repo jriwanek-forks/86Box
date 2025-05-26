@@ -286,6 +286,19 @@
       </widget>
      </item>
      <item>
+      <widget class="QCheckBox" name="checkBoxCache">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+         <horstretch>3</horstretch>
+         <verstretch>3</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="text">
+        <string>Cache</string>
+       </property>
+      </widget>
+     </item>
+     <item>
       <widget class="QLabel" name="softFloatWarningIcon">
        <property name="text">
         <string/>

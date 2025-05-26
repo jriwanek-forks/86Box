@@ -146,6 +146,7 @@ extern int      cpu;                        /* (C) cpu type */
 extern int      cpu_use_dynarec;            /* (C) cpu uses/needs Dyna */
 extern int      fpu_type;                   /* (C) fpu type */
 extern int      fpu_softfloat;              /* (C) fpu uses softfloat */
+extern int      cache;                      /* (C) machine uses cache */
 extern int      time_sync;                  /* (C) enable time sync */
 extern int      hdd_format_type;            /* (C) hard disk file format */
 extern int      lba_enhancer_enabled;       /* (C) enable Vision Systems LBA Enhancer */
