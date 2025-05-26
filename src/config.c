@@ -478,6 +478,8 @@ load_machine(void)
     if ((fpu_type != FPU_NONE) && machine_has_flags(machine, MACHINE_SOFTFLOAT_ONLY))
         fpu_softfloat = 1;
 
+    cache = !!ini_section_get_int(cat, "cache", 0);
+
     p = ini_section_get_string(cat, "time_sync", NULL);
     if (p != NULL) {
         if (!strcmp(p, "disabled"))
@@ -2571,6 +2573,8 @@ save_machine(void)
         ini_section_delete_var(cat, "fpu_softfloat");
     else
         ini_section_set_int(cat, "fpu_softfloat", fpu_softfloat);
+
+    ini_section_set_int(cat, "cache", cache);
 
     if (time_sync & TIME_SYNC_ENABLED)
         if (time_sync & TIME_SYNC_UTC)

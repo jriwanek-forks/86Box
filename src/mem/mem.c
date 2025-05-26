@@ -596,6 +596,13 @@ mem_addr_translate(uint32_t addr, uint32_t chunk_start, uint32_t len)
     return chunk_start + (addr & mask);
 }
 
+int memspeed[11] = { 256, 320, 384, 512, 640, 768, 1024, 1152, 1280, 1536, 1920 };
+int memwaitstate;
+
+static int      cachelookup[256];
+static uint8_t *cachelookup2;
+static int      cachelnext;
+
 void
 addreadlookup(uint32_t virt, uint32_t phys)
 {
@@ -608,6 +615,17 @@ addreadlookup(uint32_t virt, uint32_t phys)
 
     if (readlookup2[virt >> 12] != (uintptr_t) LOOKUP_INV)
         return;
+
+
+    if (cache && !cachelookup2[phys >> 12]) {
+        readlnum++;
+        cycles-= memwaitstate;
+        if (cachelookup[cachelnext] != 0xffffffff)
+            cachelookup2[cachelookup[cachelnext]] = 0;
+        cachelookup[cachelnext] = phys >> 12;
+        cachelookup2[phys >> 12] = 1;
+        cachelnext = (cachelnext + 1) & (cachesize - 1);
+    }
 
     if (readlookup[readlnext] != (int) 0xffffffff) {
         if ((readlookup[readlnext] == ((es + DI) >> 12)) || (readlookup[readlnext] == ((es + EDI) >> 12)))
@@ -644,6 +662,18 @@ addwritelookup(uint32_t virt, uint32_t phys)
 
     if (page_lookup[virt >> 12])
         return;
+
+    if (cache && !cachelookup2[phys >> 12]) {
+        writelnum++;
+        cycles -= memwaitstate;
+        if (cachelookup[cachelnext] != 0xffffffff)
+            cachelookup2[cachelookup[cachelnext]] = 0;
+        cachelookup[cachelnext] = phys >> 12;
+        cachelookup2[phys >> 12] = 1;
+        cachelnext = (cachelnext + 1) & (cachesize - 1);
+    }
+
+    cycles -= memwaitstate;
 
     if (writelookup[writelnext] != -1) {
         page_lookup[writelookup[writelnext]]  = NULL;
@@ -2268,6 +2298,24 @@ mem_write_remappedl2(uint32_t addr, uint32_t val, UNUSED(void *priv))
 }
 
 void
+mem_updatecache(void)
+{
+    if (!cache) {
+        memwaitstate = 0; // Disable caching completely
+        return;
+    }
+    flushmmucache();
+    if (!is386) {
+        memwaitstate = 0;
+        return;
+    }
+    if (cpu_16bitbus)
+        memwaitstate = 512 * cpu_multi;
+    else
+        memwaitstate = 150 * cpu_multi;
+}
+
+void
 mem_invalidate_range(uint32_t start_addr, uint32_t end_addr)
 {
 #ifdef USE_NEW_DYNAREC
@@ -3011,6 +3059,7 @@ mem_init(void)
     page_lookup  = (page_t **) malloc((1 << 20) * sizeof(page_t *));
     readlookup2  = malloc((1 << 20) * sizeof(uintptr_t));
     writelookup2 = malloc((1 << 20) * sizeof(uintptr_t));
+    cachelookup2 = malloc((1 << 20));
 #endif
 }
 
