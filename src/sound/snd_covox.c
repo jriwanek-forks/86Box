@@ -36,6 +36,7 @@
 #define  COVOX_ISADACR0        3
 #define  COVOX_ISADACR1        4
 
+#define ENABLE_COVOX_LOG 1
 #ifdef ENABLE_COVOX_LOG
 int covox_do_log = ENABLE_COVOX_LOG;
 
