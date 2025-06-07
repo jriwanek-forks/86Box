@@ -109,24 +109,28 @@ isarom_init(const device_t *info)
         dev->rom2_fn   = device_get_config_string("bios_fn2");
         dev->rom2_size = device_get_config_int("bios_size2");
         dev->rom2_len  = dev->rom2_size - 1;
+#if 0
         rom2_writes_enabled = device_get_config_int("rom2_writes_enabled");
+#endif
     }
 
-    if (rom_writes_enabled) {
-        mem_mapping_set_write_handler(&dev->rom.mapping, rom_write, rom_writew, rom_writel);
-        snprintf(dev->nvr_path, sizeof(dev->nvr_path), "isarom_%i_1.nvr", device_get_instance());
-        FILE *fp = nvr_fopen(dev->nvr_path, "rb");
-        if (fp != NULL) {
-            fread(dev->rom.rom, 1, dev->rom_size, fp);
-            fclose(fp);
+    if (dev->rom_addr != 0) {
+        if (rom_writes_enabled) {
+            mem_mapping_set_write_handler(&dev->rom.mapping, rom_write, rom_writew, rom_writel);
+            snprintf(dev->nvr_path, sizeof(dev->nvr_path), "isarom_%i_1.nvr", device_get_instance());
+            FILE *fp = nvr_fopen(dev->nvr_path, "rb");
+            if (fp != NULL) {
+                fread(dev->rom.rom, 1, dev->rom_size, fp);
+                fclose(fp);
+            }
         }
-    }
 
-    if (dev->rom_addr != 0)
         rom_init(&dev->rom, dev->rom_fn,
                  dev->rom_addr, dev->rom_size, dev->rom_len, 0, MEM_MAPPING_EXTERNAL);
+    }
 
-    if (info->local == ISAROM_CARD_DUAL) {
+    if ((info->local == ISAROM_CARD_DUAL) && (dev->rom2_addr != 0)) {
+#if 0
         if (rom2_writes_enabled) {
             mem_mapping_set_write_handler(&dev->rom2.mapping, rom_write, rom_writew, rom_writel);
             snprintf(dev->nvr2_path, sizeof(dev->nvr_path), "isarom_%i_2.nvr", device_get_instance());
@@ -136,11 +140,11 @@ isarom_init(const device_t *info)
                 fclose(fp);
             }
         }
-    }
+#endif
 
-    if (dev->rom2_addr != 0)
         rom_init(&dev->rom2, dev->rom2_fn,
                  dev->rom2_addr, dev->rom2_size, dev->rom2_len, 0, MEM_MAPPING_EXTERNAL);
+    }
 
     return dev;
 }
