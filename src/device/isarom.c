@@ -49,17 +49,17 @@ isarom_log(const char *fmt, ...)
 
 typedef struct isarom_t {
     rom_t       rom;
-    uint16_t    rom_addr;
+    uint32_t    rom_addr;
     const char *rom_fn;
-    uint16_t    rom_size;
-    uint16_t    rom_len;
+    uint32_t    rom_size;
+    uint32_t    rom_len;
     char        nvr_path[64];
 
     rom_t       rom2;
-    uint16_t    rom2_addr;
+    uint32_t    rom2_addr;
     const char *rom2_fn;
-    uint16_t    rom2_size;
-    uint16_t    rom2_len;
+    uint32_t    rom2_size;
+    uint32_t    rom2_len;
     char        nvr2_path[64];
 } isarom_t;
 
