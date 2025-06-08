@@ -686,6 +686,23 @@ mc146818_time_set(nvr_t *nvr, struct tm *tm)
     nvr->regs[MC146818_REG_YEAR]    = RTC_BCD(tm->tm_year % 100);
 }
 
+static void
+mc146818_start(nvr_t *nvr)
+{
+    struct tm tm;
+
+    /* Initialize the internal and chip times. */
+    if (time_sync) {
+        /* Use the internal clock's time. */
+        nvr_time_get(&tm);
+        mc146818_time_set(nvr, &tm);
+    } else {
+        /* Set the internal clock from the chip time. */
+        mc146818_time_get(nvr, &tm);
+        nvr_time_set(&tm);
+    }
+}
+
 /************************************************************************
  *                                                                      *
  *            Generic code for all supported chips.                     *
@@ -793,7 +810,7 @@ isartc_init(const device_t *info)
             dev->irq         = device_get_config_int("irq");
             dev->f_rd        = mc146818_read;
             dev->f_wr        = mc146818_write;
-            dev->nvr.start   = mc146818_time_set;
+            dev->nvr.start   = mc146818_start;
             dev->nvr.tick    = mc146818_tick;
             dev->nvr.size    = 128;
             dev->year        = MC146818_REG_YEAR;
