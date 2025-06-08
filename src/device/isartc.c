@@ -90,6 +90,7 @@
 #define ISARTC_MPLUS2   5
 #define ISARTC_RTC58167 6
 #define ISARTC_MM58167  10
+#define ISARTC_RTC8088  12
 
 #define ISARTC_ROM_MM58167_1 "roms/rtc/glatick/GLaTICK_0.8.8_NS_86B.ROM"  /* Generic 58167, AST or EV-170 */
 #define ISARTC_ROM_MM58167_2 "roms/rtc/glatick/GLaTICK_0.8.8_NS_86B2.ROM" /* PII-147 */
@@ -160,6 +161,21 @@ typedef struct rtcdev_t {
 #define MM67_GOCMD       21   /* GO Command */
 #define MM67_STBYIRQ     22   /* standby IRQ */
 #define MM67_TEST        31   /* test mode */
+
+#define MC146818_REG_SECONDS     0x00
+#define MC146818_REG_MINUTES     0x02
+#define MC146818_REG_HOURS       0x04
+#define MC146818_REG_DAY         0x06
+#define MC146818_REG_DATE        0x07
+#define MC146818_REG_MONTH       0x08
+#define MC146818_REG_YEAR        0x09
+#define MC146818_REG_REGA        0x0A
+#define MC146818_REG_REGB        0x0B
+#define MC146818_REG_REGC        0x0C
+#define MC146818_REG_REGD        0x0D
+
+#define MC146818_IO_ADDR_PORT    0x70
+#define MC146818_IO_DATA_PORT    0x71
 
 #ifdef ENABLE_ISARTC_LOG
 int isartc_do_log = ENABLE_ISARTC_LOG;
@@ -594,6 +610,86 @@ rtc58167_write(uint16_t port, uint8_t val, void *priv)
 
 /************************************************************************
  *                                                                      *
+ *            Code for MC146818 chips.                                  *
+ *                                                                      *
+ * Note: This code is dual licensed under the file license              *
+ *       And the GPLv2                                                  *
+ *                                                                      *
+ ************************************************************************/
+
+#define RTC_BCD_DEC(x, y) RTC_BCD(RTC_DCB(x) - y)
+
+static uint8_t mc146818_index;
+
+static uint8_t
+mc146818_read(uint16_t port, void *priv)
+{
+    rtcdev_t *dev = priv ? (rtcdev_t *)priv : NULL;
+    nvr_t    *nvr = dev ? &dev->nvr : NULL;
+
+    if (port == MC146818_IO_ADDR_PORT)
+        return mc146818_index;
+    if (port == MC146818_IO_DATA_PORT && nvr) {
+        if (mc146818_index == MC146818_REG_REGC) {
+            uint8_t regc = nvr->regs[MC146818_REG_REGC];
+            nvr->regs[MC146818_REG_REGC] = 0; // Clear interrupt flags after read
+            return regc;
+        }
+        return nvr->regs[mc146818_index];
+    }
+    return 0xFF;
+}
+
+static void
+mc146818_write(uint16_t port, uint8_t val, void *priv)
+{
+    rtcdev_t *dev = priv ? (rtcdev_t *) priv : NULL;
+    nvr_t    *nvr = dev ? &dev->nvr : NULL;
+    if (port == MC146818_IO_ADDR_PORT)
+        mc146818_index = val & 0x7F;
+    else if (port == MC146818_IO_DATA_PORT && nvr)
+        nvr->regs[mc146818_index] = val;
+}
+
+static void
+mc146818_tick(nvr_t *nvr)
+{
+    if (!nvr)
+        return;
+    nvr->regs[MC146818_REG_REGC] |= 0x10; // Set UF (update-ended interrupt flag)
+    // An IRQ would be raised externally if enabled in REG B
+}
+
+static void
+mc146818_time_get(nvr_t *nvr, struct tm *tm)
+{
+    if (!nvr || !tm)
+       return;
+    tm->tm_sec  = RTC_BCD_DEC(nvr->regs[MC146818_REG_SECONDS]);
+    tm->tm_min  = RTC_BCD_DEC(nvr->regs[MC146818_REG_MINUTES]);
+    tm->tm_hour = RTC_BCD_DEC(nvr->regs[MC146818_REG_HOURS]);
+    tm->tm_mday = RTC_BCD_DEC(nvr->regs[MC146818_REG_DATE]);
+    tm->tm_mon  = RTC_BCD_DEC(nvr->regs[MC146818_REG_MONTH]) - 1;
+    tm->tm_year = RTC_BCD_DEC(nvr->regs[MC146818_REG_YEAR]);
+    if (tm->tm_year < 70)
+        tm->tm_year += 100;
+}
+
+static void
+mc146818_time_set(nvr_t *nvr, struct tm *tm)
+{
+    if (!nvr || !tm)
+        return;
+    nvr->regs[MC146818_REG_SECONDS] = RTC_DEC_BCD(tm->tm_sec);
+    nvr->regs[MC146818_REG_MINUTES] = RTC_DEC_BCD(tm->tm_min);
+    nvr->regs[MC146818_REG_HOURS]   = RTC_DEC_BCD(tm->tm_hour);
+    nvr->regs[MC146818_REG_DATE]    = RTC_DEC_BCD(tm->tm_mday);
+    nvr->regs[MC146818_REG_MONTH]   = RTC_DEC_BCD(tm->tm_mon + 1);
+    nvr->regs[MC146818_REG_YEAR]    = RTC_DEC_BCD(tm->tm_year % 100);
+}
+
+/************************************************************************
+ *                                                                      *
  *            Generic code for all supported chips.                     *
  *                                                                      *
  ************************************************************************/
@@ -690,6 +786,19 @@ isartc_init(const device_t *info)
             dev->nvr.tick    = mm67_tick;
             dev->year        = MM67_AL_HUNTEN;  /* year,    NON STANDARD */
             dev->century     = MM67_AL_SEC;     /* century, NON STANDARD */
+            break;
+
+            case ISARTC_MC146818:
+            dev->flags |= FLAG_YEARBCD;
+            dev->base_addr   = MC146818_IO_ADDR_PORT;
+            dev->base_addrsz = 2;
+            dev->irq         = device_get_config_int("irq");
+            dev->f_rd        = mc146818_read;
+            dev->f_wr        = mc146818_write;
+            dev->nvr.start   = mc146818_time_set;
+            dev->nvr.tick    = mc146818_tick;
+            dev->nvr.size    = 128;
+            dev->year        = MC146818_REG_YEAR;
             break;
 
         default:
@@ -1012,6 +1121,120 @@ static const device_t mm58167_device = {
     .config        = mm58167_config
 };
 
+static const device_config_t mc146818_config[] = {
+  // clang-format off
+    {
+        .name           = "base",
+        .description    = "Address",
+        .type           = CONFIG_HEX16,
+        .default_string = NULL,
+        .default_int    = 0x0070,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = {
+            { .description = "70H",  .value = 0x0070 },
+            { .description = "240H", .value = 0x0240 },
+            { .description = "2A0H", .value = 0x02a0 },
+            { .description = "2C0H", .value = 0x02c0 },
+            { .description = "340H", .value = 0x0340 },
+            { .description = "3A0H", .value = 0x03a0 },
+            { .description = "3C0H", .value = 0x03c0 },
+            { .description = ""                      }
+        },
+        .bios           = { { 0 } }
+    },
+    {
+        .name           = "irq",
+        .description    = "IRQ",
+        .type           = CONFIG_SELECTION,
+        .default_string = NULL,
+        .default_int    = -1,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = {
+            { .description = "Disabled", .value = -1 },
+            { .description = "IRQ2",     .value =  2 },
+            { .description = "IRQ5",     .value =  5 },
+            { .description = "IRQ7",     .value =  7 },
+            { .description = ""                      }
+        },
+        .bios           = { { 0 } }
+    },
+    { .name = "", .description = "", .type = CONFIG_END }
+  // clang-format on
+};
+
+static const device_t mc146818_device = {
+    .name          = "Generic MC146818 RTC",
+    .internal_name = "rtc_mc146818",
+    .flags         = DEVICE_ISA | DEVICE_SIDECAR,
+    .local         = ISARTC_MC146818,
+    .init          = isartc_init,
+    .close         = isartc_close,
+    .reset         = NULL,
+    .available     = NULL,
+    .speed_changed = NULL,
+    .force_redraw  = NULL,
+    .config        = mc146818_config
+};
+
+static const device_config_t rtc8088_config[] = {
+  // clang-format off
+    {
+        .name           = "base",
+        .description    = "Address",
+        .type           = CONFIG_HEX16,
+        .default_string = NULL,
+        .default_int    = 0x0070,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = {
+            { .description = "70H",  .value = 0x0070 },
+            { .description = "240H", .value = 0x0240 },
+            { .description = "2A0H", .value = 0x02a0 },
+            { .description = "2C0H", .value = 0x02c0 },
+            { .description = "340H", .value = 0x0340 },
+            { .description = "3A0H", .value = 0x03a0 },
+            { .description = "3C0H", .value = 0x03c0 },
+            { .description = ""                      }
+        },
+        .bios           = { { 0 } }
+    },
+    {
+        .name           = "irq",
+        .description    = "IRQ",
+        .type           = CONFIG_SELECTION,
+        .default_string = NULL,
+        .default_int    = -1,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = {
+            { .description = "Disabled", .value = -1 },
+            { .description = "IRQ2",     .value =  2 },
+            { .description = "IRQ5",     .value =  5 },
+            { .description = "IRQ7",     .value =  7 },
+            { .description = ""                      }
+        },
+        .bios           = { { 0 } }
+    },
+    { .name = "", .description = "", .type = CONFIG_END }
+  // clang-format on
+};
+
+static const device_t rtc8088_device = {
+    .name          = "RTC8088 DS12885 RTC",
+    .internal_name = "rtc_mm58167",
+    .flags         = DEVICE_ISA | DEVICE_SIDECAR,
+    .local         = ISARTC_MC146818,
+    .init          = isartc_init,
+    .close         = isartc_close,
+    .reset         = NULL,
+    .available     = NULL,
+    .speed_changed = NULL,
+    .force_redraw  = NULL,
+    .config        = rtc8088_config
+};
+
 /* Onboard RTC devices */
 const device_t vendex_xt_rtc_onboard_device = {
     .name          = "National Semiconductor MM58167 (Vendex)",
@@ -1052,6 +1275,8 @@ static const struct {
     { &a6pak_device    },
     { &mplus2_device   },
     { &mm58167_device  },
+    { &mc146818_device },
+    { &rtc8088_device  },
     { NULL             }
     // clang-format on
 };
