@@ -617,8 +617,6 @@ rtc58167_write(uint16_t port, uint8_t val, void *priv)
  *                                                                      *
  ************************************************************************/
 
-#define RTC_BCD_DEC(x, y) RTC_BCD(RTC_DCB(x) - y)
-
 static uint8_t mc146818_index;
 
 static uint8_t
@@ -665,12 +663,12 @@ mc146818_time_get(nvr_t *nvr, struct tm *tm)
 {
     if (!nvr || !tm)
        return;
-    tm->tm_sec  = RTC_BCD_DEC(nvr->regs[MC146818_REG_SECONDS]);
-    tm->tm_min  = RTC_BCD_DEC(nvr->regs[MC146818_REG_MINUTES]);
-    tm->tm_hour = RTC_BCD_DEC(nvr->regs[MC146818_REG_HOURS]);
-    tm->tm_mday = RTC_BCD_DEC(nvr->regs[MC146818_REG_DATE]);
-    tm->tm_mon  = RTC_BCD_DEC(nvr->regs[MC146818_REG_MONTH]) - 1;
-    tm->tm_year = RTC_BCD_DEC(nvr->regs[MC146818_REG_YEAR]);
+    tm->tm_sec  = RTC_DCB(nvr->regs[MC146818_REG_SECONDS]);
+    tm->tm_min  = RTC_DCB(nvr->regs[MC146818_REG_MINUTES]);
+    tm->tm_hour = RTC_DCB(nvr->regs[MC146818_REG_HOURS]);
+    tm->tm_mday = RTC_DCB(nvr->regs[MC146818_REG_DATE]);
+    tm->tm_mon  = RTC_DCB(nvr->regs[MC146818_REG_MONTH]) - 1;
+    tm->tm_year = RTC_DCB(nvr->regs[MC146818_REG_YEAR]);
     if (tm->tm_year < 70)
         tm->tm_year += 100;
 }
@@ -680,12 +678,12 @@ mc146818_time_set(nvr_t *nvr, struct tm *tm)
 {
     if (!nvr || !tm)
         return;
-    nvr->regs[MC146818_REG_SECONDS] = RTC_DEC_BCD(tm->tm_sec);
-    nvr->regs[MC146818_REG_MINUTES] = RTC_DEC_BCD(tm->tm_min);
-    nvr->regs[MC146818_REG_HOURS]   = RTC_DEC_BCD(tm->tm_hour);
-    nvr->regs[MC146818_REG_DATE]    = RTC_DEC_BCD(tm->tm_mday);
-    nvr->regs[MC146818_REG_MONTH]   = RTC_DEC_BCD(tm->tm_mon + 1);
-    nvr->regs[MC146818_REG_YEAR]    = RTC_DEC_BCD(tm->tm_year % 100);
+    nvr->regs[MC146818_REG_SECONDS] = RTC_BCD(tm->tm_sec);
+    nvr->regs[MC146818_REG_MINUTES] = RTC_BCD(tm->tm_min);
+    nvr->regs[MC146818_REG_HOURS]   = RTC_BCD(tm->tm_hour);
+    nvr->regs[MC146818_REG_DATE]    = RTC_BCD(tm->tm_mday);
+    nvr->regs[MC146818_REG_MONTH]   = RTC_BCD(tm->tm_mon + 1);
+    nvr->regs[MC146818_REG_YEAR]    = RTC_BCD(tm->tm_year % 100);
 }
 
 /************************************************************************
