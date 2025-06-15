@@ -787,7 +787,21 @@ modem_do_command(modem_t *modem, int repeat)
         char chr = modem_fetch_character(&scanbuf);
         switch (chr) {
             case '+':
-                if (is_next_token("NET", sizeof("NET"), scanbuf)) {
+                if (is_next_token("FCLASS=?", sizeof("FCLASS=?"), scanbuf)) {
+                    scanbuf += 8;
+                    modem_send_line(modem, "+FCLASS: (0)");
+                    modem_send_res(modem, ResOK);
+                    return;
+                } else if (is_next_token("FCLASS?", sizeof("FCLASS?"), scanbuf)) {
+                    scanbuf += 7;
+                    modem_send_line(modem, "+FCLASS: 0");
+                    modem_send_res(modem, ResOK);
+                    return;
+                } else if (is_next_token("FCLASS=0", sizeof("FCLASS=0"), scanbuf)) {
+                    scanbuf += 8;
+                    modem_send_res(modem, ResOK);
+                    return;
+                } else if (is_next_token("NET", sizeof("NET"), scanbuf)) {
                     // only walk the pointer ahead if the command matches
                     scanbuf += 3;
                     const uint32_t requested_mode = modem_scan_number(&scanbuf);
