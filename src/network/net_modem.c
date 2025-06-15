@@ -186,12 +186,11 @@ trim(char *str)
     char  *frontp = str;
     char  *endp   = NULL;
 
-    if (str == NULL) {
+    if (str == NULL)
         return NULL;
-    }
-    if (str[0] == '\0') {
+
+    if (str[0] == '\0')
         return str;
-    }
 
     len  = strlen(str);
     endp = str + len;
@@ -202,9 +201,9 @@ trim(char *str)
     while (isspace((unsigned char) *frontp)) {
         ++frontp;
     }
-    if (endp != frontp) {
+
+    if (endp != frontp)
         while (isspace((unsigned char) *(--endp)) && endp != frontp) { }
-    }
 
     if (frontp != str && endp == frontp)
         *str = '\0';
@@ -412,7 +411,7 @@ static void
 modem_data_mode_process_byte(modem_t *modem, uint8_t data)
 {
     if (modem->reg[MREG_ESCAPE_CHAR] <= 127) {
-        if (modem->plusinc >= 1 && modem->plusinc <= 3 && modem->reg[MREG_ESCAPE_CHAR] == data) {
+        if ((modem->plusinc >= 1) && (modem->plusinc <= 3) && (modem->reg[MREG_ESCAPE_CHAR] == data)) {
             modem->plusinc++;
         } else {
             modem->plusinc = 0;
@@ -420,7 +419,7 @@ modem_data_mode_process_byte(modem_t *modem, uint8_t data)
     }
     modem->cmdpause = 0;
 
-    if (modem->tx_count < 0x10000 && modem->connected) {
+    if ((modem->tx_count < 0x10000) && modem->connected) {
         modem->tx_pkt_ser_line[modem->tx_count++] = data;
         if (data == END && !modem->tcpIpMode) {
             process_tx_packet(modem, modem->tx_pkt_ser_line, (uint32_t) modem->tx_count);
@@ -807,7 +806,7 @@ modem_do_command(modem_t *modem, int repeat)
                     const uint32_t requested_mode = modem_scan_number(&scanbuf);
 
                     // If the mode isn't valid then stop parsing
-                    if (requested_mode != 1 && requested_mode != 0) {
+                    if ((requested_mode != 1) && (requested_mode != 0)) {
                         modem_send_res(modem, ResERROR);
                         return;
                     }
