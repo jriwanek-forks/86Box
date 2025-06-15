@@ -1529,9 +1529,8 @@ modem_init(UNUSED(const device_t *info))
     modem->card = network_attach(modem, modem->mac, modem_rx, NULL);
 
     phonebook_file = device_get_config_string("phonebook_file");
-    if (phonebook_file && phonebook_file[0] != 0) {
+    if ((phonebook_file) && (phonebook_file[0] != 0))
         modem_read_phonebook_file(modem, phonebook_file);
-    }
 
     return modem;
 }
