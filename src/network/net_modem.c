@@ -40,6 +40,7 @@
 #include <86box/plat_unused.h>
 #include <86box/plat_netsocket.h>
 
+#define ENABLE_MODEM_LOG 1
 #ifdef ENABLE_MODEM_LOG
 int modem_do_log = ENABLE_MODEM_LOG;
 
