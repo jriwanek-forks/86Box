@@ -252,10 +252,8 @@ static const device_config_t serial_passthrough_config[] = {
 #else /* _WIN32 */
             { .description = "Pseudo Terminal/Virtual Console", .value = SERPT_MODE_VCON       },
 #endif /* _WIN32 */
-#if 0 /* TODO */
             { .description = "TCP Server",                      .value = SERPT_MODE_TCP_SRV    },
             { .description = "TCP Client",                      .value = SERPT_MODE_TCP_CLNT   },
-#endif
             { .description = "Host Serial Passthrough",         .value = SERPT_MODE_HOSTSER    },
             { .description = ""                                                                }
         },

@@ -23,6 +23,8 @@
 #include <string.h>
 #include <stdint.h>
 #include <wchar.h>
+#include <winsock2.h>
+#include <ws2tcpip.h>
 
 #include <86box/86box.h>
 #include <86box/log.h>
@@ -52,7 +54,10 @@ plat_serpt_close(void *priv)
         SetCommState((HANDLE) dev->master_fd, (DCB *) dev->backend_priv);
         free(dev->backend_priv);
     }
-    CloseHandle((HANDLE) dev->master_fd);
+    if (dev->mode >= SERPT_MODE_TCP_SRV)
+        closesocket((SOCKET) dev->master_fd);
+    else
+        CloseHandle((HANDLE) dev->master_fd);
 }
 
 static void
@@ -80,6 +85,10 @@ plat_serpt_write_vcon(serial_passthrough_t *dev, uint8_t data)
 #endif
     DWORD bytesWritten = 0;
     WriteFile((HANDLE) dev->master_fd, &data, 1, &bytesWritten, NULL);
+}
+
+void plat_serpt_write_tcp(serial_passthrough_t *dev, uint8_t data) {
+    send((SOCKET)dev->master_fd, (const char *) &data, 1, 0);
 }
 
 void
@@ -179,6 +188,10 @@ plat_serpt_write(void *priv, uint8_t data)
         case SERPT_MODE_HOSTSER:
             plat_serpt_write_vcon(dev, data);
             break;
+        case SERPT_MODE_TCP_SRV:
+        case SERPT_MODE_TCP_CLNT:
+            plat_serpt_write_tcp(dev, data);
+            break;
         default:
             break;
     }
@@ -196,18 +209,9 @@ int
 plat_serpt_read(void *priv, uint8_t *data)
 {
     serial_passthrough_t *dev = (serial_passthrough_t *) priv;
-    int                   res = 0;
+    int                   res = plat_serpt_read_vcon(dev, data);
 
-    switch (dev->mode) {
-        case SERPT_MODE_NPIPE_SRV:
-        case SERPT_MODE_NPIPE_CLNT:
-        case SERPT_MODE_HOSTSER:
-            res = plat_serpt_read_vcon(dev, data);
-            break;
-        default:
-            break;
-    }
-    return res;
+    return res == 1;
 }
 
 static int
@@ -295,10 +299,87 @@ open_host_serial_port(serial_passthrough_t *dev)
     return 1;
 }
 
+static int
+open_tcp_server(serial_passthrough_t *dev)
+{
+    char *port_str = strchr(dev->named_pipe, ':'); // Expecting "0.0.0.0:1234"
+    if (!port_str)
+        return 0;
+
+    *port_str++ = '\0'; // Split host:port
+    const char *host = dev->named_pipe;
+
+    SOCKET listen_sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (listen_sock == INVALID_SOCKET)
+        return 0;
+
+    struct sockaddr_in addr = {
+        .sin_family = AF_INET,
+        .sin_port = htons((u_short) atoi(port_str)),
+        .sin_addr.s_addr = inet_addr(host)
+    };
+
+    if (bind(listen_sock, (struct sockaddr *)&addr, sizeof(addr)) == SOCKET_ERROR)
+        return 0;
+
+    if (listen(listen_sock, 1) == SOCKET_ERROR)
+        return 0;
+
+    SOCKET client_sock = accept(listen_sock, NULL, NULL);
+    if (client_sock == INVALID_SOCKET)
+        return 0;
+
+    closesocket(listen_sock); // only one connection
+    dev->master_fd = (intptr_t) client_sock;
+    return 1;
+}
+
+static int
+open_tcp_client(serial_passthrough_t *dev)
+{
+    char *port_str = strchr(dev->named_pipe, ':'); // "host:port"
+    if (!port_str)
+        return 0;
+
+    *port_str++ = '\0';
+    const char *host = dev->named_pipe;
+
+    SOCKET sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (sock == INVALID_SOCKET)
+        return 0;
+
+    struct sockaddr_in addr = {
+        .sin_family = AF_INET,
+        .sin_port   = htons((u_short) atoi(port_str))
+    };
+
+    struct hostent *he = gethostbyname(host);
+    if (!he)
+        return 0;
+
+    memcpy(&addr.sin_addr, he->h_addr, he->h_length);
+    if (connect(sock, (struct sockaddr *)&addr, sizeof(addr)) == SOCKET_ERROR)
+        return 0;
+
+    dev->master_fd = (intptr_t) sock;
+    return 1;
+}
+
 int
 plat_serpt_open_device(void *priv)
 {
     serial_passthrough_t *dev = (serial_passthrough_t *) priv;
+
+    if ((dev->mode == SERPT_MODE_TCP_SRV) || (dev->mode == SERPT_MODE_TCP_CLNT)) {
+        static int wsa_initialized = 0;
+        if (!wsa_initialized) {
+            WSADATA wsaData;
+            if (WSAStartup(MAKEWORD(2,2), &wsaData) != 0)
+                return 1;
+
+            wsa_initialized = 1;
+        }
+    }
 
     switch (dev->mode) {
         case SERPT_MODE_NPIPE_SRV:
@@ -313,6 +394,10 @@ plat_serpt_open_device(void *priv)
             if (open_host_serial_port(dev))
                 return 0;
             break;
+        case SERPT_MODE_TCP_SRV:
+            return open_tcp_server(dev) ? 0 : 1;
+        case SERPT_MODE_TCP_CLNT:
+            return open_tcp_client(dev) ? 0 : 1;
         default:
             break;
     }

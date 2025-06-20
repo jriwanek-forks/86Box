@@ -31,7 +31,13 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <stdlib.h>
+#include <netinet/in.h>
+#include <netdb.h>
+#include <arpa/inet.h>
 #include <unistd.h>
+#include <errno.h>
+#include <sys/socket.h>
+#include <sys/types.h>
 #include <string.h>
 #include <sys/select.h>
 #include <stdint.h>
@@ -94,6 +100,8 @@ plat_serpt_read(void *priv, uint8_t *data)
             return 0;
         }
         case SERPT_MODE_VCON:
+        case SERPT_MODE_TCP_SRV:
+        case SERPT_MODE_TCP_CLNT:
             FD_ZERO(&rdfds);
             FD_SET(dev->master_fd, &rdfds);
             tv.tv_sec  = 0;
@@ -238,6 +246,8 @@ plat_serpt_write(void *priv, uint8_t data)
     switch (dev->mode) {
         case SERPT_MODE_VCON:
         case SERPT_MODE_HOSTSER:
+        case SERPT_MODE_TCP_SRV:
+        case SERPT_MODE_TCP_CLNT:
             plat_serpt_write_vcon(dev, data);
             break;
         default:
@@ -339,6 +349,73 @@ open_host_serial_port(serial_passthrough_t *dev)
     return 1;
 }
 
+static int open_tcp_server(serial_passthrough_t *dev)
+{
+    char *port_str = strchr(dev->named_pipe, ':');
+    if (!port_str) return 0;
+    *port_str++ = '\0';
+    const char *host = dev->named_pipe;
+
+    int listen_fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (listen_fd < 0) return 0;
+
+    int yes = 1;
+    setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes));
+
+    struct sockaddr_in addr = {
+        .sin_family = AF_INET,
+        .sin_port = htons(atoi(port_str)),
+        .sin_addr.s_addr = inet_addr(host)
+    };
+
+    if (bind(listen_fd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+        close(listen_fd);
+        return 0;
+    }
+    if (listen(listen_fd, 1) < 0) {
+        close(listen_fd);
+        return 0;
+    }
+
+    int client_fd = accept(listen_fd, NULL, NULL);
+    close(listen_fd);
+    if (client_fd < 0) return 0;
+
+    dev->master_fd = client_fd;
+    return 1;
+}
+
+static int open_tcp_client(serial_passthrough_t *dev)
+{
+    char *port_str = strchr(dev->named_pipe, ':');
+    if (!port_str) return 0;
+    *port_str++ = '\0';
+    const char *host = dev->named_pipe;
+
+    int sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (sock < 0) return 0;
+
+    struct hostent *he = gethostbyname(host);
+    if (!he) {
+        close(sock);
+        return 0;
+    }
+
+    struct sockaddr_in addr = {
+        .sin_family = AF_INET,
+        .sin_port = htons(atoi(port_str))
+    };
+    memcpy(&addr.sin_addr, he->h_addr, he->h_length);
+
+    if (connect(sock, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+        close(sock);
+        return 0;
+    }
+
+    dev->master_fd = sock;
+    return 1;
+}
+
 int
 plat_serpt_open_device(void *priv)
 {
@@ -351,6 +428,14 @@ plat_serpt_open_device(void *priv)
             break;
         case SERPT_MODE_HOSTSER:
             if (!open_host_serial_port(dev))
+                return 1;
+            break;
+        case SERPT_MODE_TCP_SRV:
+            if (!open_tcp_server(dev))
+                return 1;
+            break;
+        case SERPT_MODE_TCP_CLNT:
+            if (!open_tcp_client(dev))
                 return 1;
             break;
         default:
