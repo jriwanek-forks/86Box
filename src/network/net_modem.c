@@ -1112,7 +1112,7 @@ modem_do_command(modem_t *modem, int repeat)
                     break;
                 }
             case '%': // % escaped commands
-                // Windows 98 modem prober sends unknown command AT%V
+                // Windows 95 and 98 modem prober sends unknown command AT%V
                 modem_send_res(modem, ResERROR);
                 return;
             case '\0':
