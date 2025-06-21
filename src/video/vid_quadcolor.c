@@ -263,6 +263,16 @@ quadcolor_recalctimings(quadcolor_t *quadcolor)
     quadcolor->dispofftime = (uint64_t) (_dispofftime);
 }
 
+static inline uint8_t
+get_next_qc2_pixel(quadcolor_t *quadcolor)
+{
+    uint8_t pixel = (quadcolor->vram_2[quadcolor->qc2idx] & quadcolor->qc2mask) >> ((quadcolor->qc2mask = ~quadcolor->qc2mask) & 4);
+
+    quadcolor->qc2idx += quadcolor->qc2mask >> 7;
+
+    return quadcolor->quadcolor_2_oe ? pixel : 0;
+}
+
 static void
 quadcolor_render(quadcolor_t *quadcolor, int line)
 {
@@ -529,16 +539,6 @@ quadcolor_blit_memtoscreen(quadcolor_t *quadcolor, int x, int y, int w, int h)
     video_blit_memtoscreen(x, y, w, h);
 }
 
-static inline uint8_t
-get_next_qc2_pixel(quadcolor_t *quadcolor)
-{
-    uint8_t pixel = (quadcolor->vram_2[quadcolor->qc2idx] & quadcolor->qc2mask) >> ((quadcolor->qc2mask = ~quadcolor->qc2mask) & 4);
-
-    quadcolor->qc2idx += quadcolor->qc2mask >> 7;
-
-    return quadcolor->quadcolor_2_oe ? pixel : 0;
-}
-
 void
 quadcolor_poll(void *priv)
 {
@@ -773,7 +773,7 @@ quadcolor_standalone_init(UNUSED(const device_t *info))
     int    display_type;
     quadcolor_t *quadcolor = calloc(1, sizeof(quadcolor_t));
 
-    video_inform(VIDEO_FLAG_TYPE_quadcolor, &timing_quadcolor);
+    video_inform(VIDEO_FLAG_TYPE_CGA, &timing_quadcolor);
 
     display_type               = device_get_config_int("display_type");
     quadcolor->composite       = (display_type != CGA_RGB);
@@ -784,7 +784,7 @@ quadcolor_standalone_init(UNUSED(const device_t *info))
     quadcolor->vram   = malloc(DEVICE_VRAM);
     quadcolor->vram_2 = malloc(0x10000);
 
-    quadcolor_comp_init(quadcolor->revision);
+    cga_comp_init(quadcolor->revision);
     timer_add(&quadcolor->timer, quadcolor_poll, quadcolor, 1);
     mem_mapping_add(&quadcolor->mapping, 0xb8000, 0x08000, quadcolor_read, NULL, NULL, quadcolor_write, NULL, NULL, NULL /*quadcolor->vram*/, MEM_MAPPING_EXTERNAL, quadcolor);
     /* add mapping for vram_2 at 0xd0000, mirrored at 0xe0000 */
@@ -797,7 +797,7 @@ quadcolor_standalone_init(UNUSED(const device_t *info))
     overscan_x = overscan_y = 16;
 
     quadcolor->rgb_type = device_get_config_int("rgb_type");
-    quadcolor_palette   = (quadcolor->rgb_type << 1);
+    cga_palette   = (quadcolor->rgb_type << 1);
     cgapal_rebuild();
     update_cga16_color(quadcolor->cgamode);
 
