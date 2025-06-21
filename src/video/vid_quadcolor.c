@@ -282,9 +282,9 @@ quadcolor_render(quadcolor_t *quadcolor, int line)
         for (column = 0; column < 8; ++column) {
             buffer32->line[line][column] = 0;
             if (quadcolor->cgamode & CGA_MODE_FLAG_HIGHRES)
-                buffer32->line[line][column + (quadcolor->crtc[CGA_CRTC_HDISP] << 3) + 8] = 0;
+                buffer32->line[line][column + (quadcolor->crtc[CGA_CRTC_HDISP] << 3) + 8] = (quadcolor->quadcolor_ctrl & 15); /* TODO: Is Quadcolor bg color actually relevant, here? */
             else
-                buffer32->line[line][column + (quadcolor->crtc[CGA_CRTC_HDISP] << 4) + 8] = 0;
+                buffer32->line[line][column + (quadcolor->crtc[CGA_CRTC_HDISP] << 4) + 8] = (quadcolor->quadcolor_ctrl & 15); /* TODO: Is Quadcolor bg color actually relevant, here? */
         }
     } else {
         for (column = 0; column < 8; ++column) {
@@ -295,7 +295,7 @@ quadcolor_render(quadcolor_t *quadcolor, int line)
                 buffer32->line[line][column + (quadcolor->crtc[CGA_CRTC_HDISP] << 4) + 8] = (quadcolor->cgacol & 15) + 16;
         }
     }
-    if (quadcolor->cgamode & CGA_MODE_FLAG_HIGHRES) {
+    if (quadcolor->cgamode & CGA_MODE_FLAG_HIGHRES) { /* 80-column text */
         for (x = 0; x < quadcolor->crtc[CGA_CRTC_HDISP]; x++) {
             if (quadcolor->cgamode & CGA_MODE_FLAG_VIDEO_ENABLE) {
                 chr  = quadcolor->charbuffer[x << 1];
@@ -313,21 +313,21 @@ quadcolor_render(quadcolor_t *quadcolor, int line)
             if (drawcursor) {
                 for (column = 0; column < 8; column++) {
                     buffer32->line[line][(x << 3) + column + 8]
-                        = cols[(fontdat[chr + quadcolor->fontbase][quadcolor->scanline & 7] & (1 << (column ^ 7))) ? 1 : 0] ^ 15;
+                        = (cols[(fontdat[chr + quadcolor->fontbase][quadcolor->scanline & 7] & (1 << (column ^ 7))) ? 1 : 0] ^ 15) | get_next_qc2_pixel(quadcolor);
                 }
             } else {
                 for (column = 0; column < 8; column++) {
                     buffer32->line[line][(x << 3) + column + 8]
-                        = cols[(fontdat[chr + quadcolor->fontbase][quadcolor->scanline & 7] & (1 << (column ^ 7))) ? 1 : 0];
+                        = cols[(fontdat[chr + quadcolor->fontbase][quadcolor->scanline & 7] & (1 << (column ^ 7))) ? 1 : 0] | get_next_qc2_pixel(quadcolor);
                 }
             }
             quadcolor->memaddr++;
         }
-    } else if (!(quadcolor->cgamode & CGA_MODE_FLAG_GRAPHICS)) {
+    } else if (!(quadcolor->cgamode & CGA_MODE_FLAG_GRAPHICS)) { /* not graphics (nor 80-column text) => 40-column text */
         for (x = 0; x < quadcolor->crtc[CGA_CRTC_HDISP]; x++) {
             if (quadcolor->cgamode & CGA_MODE_FLAG_VIDEO_ENABLE) {
-                chr  = quadcolor->vram[(quadcolor->memaddr << 1) & DEVICE_VRAM_MASK];
-                attr = quadcolor->vram[((quadcolor->memaddr << 1) + 1) & DEVICE_VRAM_MASK];
+                chr  = quadcolor->vram[quadcolor->page_offset ^ (quadcolor->memaddr << 1) & DEVICE_VRAM_MASK];
+                attr = quadcolor->vram[quadcolor->page_offset ^ ((quadcolor->memaddr << 1) + 1) & DEVICE_VRAM_MASK];
             } else
                 chr = attr = 0;
             drawcursor = ((quadcolor->memaddr == cursoraddr) && quadcolor->cursorvisible && quadcolor->cursoron);
@@ -341,19 +341,21 @@ quadcolor_render(quadcolor_t *quadcolor, int line)
             quadcolor->memaddr++;
             if (drawcursor) {
                 for (column = 0; column < 8; column++) {
-                    buffer32->line[line][(x << 4) + (column << 1) + 8]
-                        = buffer32->line[line][(x << 4) + (column << 1) + 9]
-                        = cols[(fontdat[chr + quadcolor->fontbase][quadcolor->scanline & 7] & (1 << (column ^ 7))) ? 1 : 0] ^ 15;
+                    dat = (cols[(fontdat[chr + quadcolor->fontbase][quadcolor->scanline & 7] & (1 << (column ^ 7))) ? 1 : 0] ^ 15);
+                    buffer32->line[line][(x << 4) + (column << 1) + 8] = dat | get_next_qc2_pixel(quadcolor);
+                    buffer32->line[line][(x << 4) + (column << 1) + 9] = dat | get_next_qc2_pixel(quadcolor);
+                        
                 }
             } else {
                 for (column = 0; column < 8; column++) {
-                    buffer32->line[line][(x << 4) + (column << 1) + 8]
-                        = buffer32->line[line][(x << 4) + (column << 1) + 9] 
-                        = cols[(fontdat[chr + quadcolor->fontbase][quadcolor->scanline & 7] & (1 << (column ^ 7))) ? 1 : 0];
+                    dat = cols[(fontdat[chr + quadcolor->fontbase][quadcolor->scanline & 7] & (1 << (column ^ 7))) ? 1 : 0];
+                    buffer32->line[line][(x << 4) + (column << 1) + 8] = dat | get_next_qc2_pixel(quadcolor);
+                    buffer32->line[line][(x << 4) + (column << 1) + 9] = dat | get_next_qc2_pixel(quadcolor);
+                    
                 }
             }
         }
-    } else if (!(quadcolor->cgamode & CGA_MODE_FLAG_HIGHRES_GRAPHICS)) {
+    } else if (!(quadcolor->cgamode & CGA_MODE_FLAG_HIGHRES_GRAPHICS)) { /* not hi-res (but graphics) => 4-color mode */
         cols[0] = (quadcolor->cgacol & 15) | 16;
         col     = (quadcolor->cgacol & 16) ? 24 : 16;
         if (quadcolor->cgamode & CGA_MODE_FLAG_BW) {
@@ -371,30 +373,29 @@ quadcolor_render(quadcolor_t *quadcolor, int line)
         }
         for (x = 0; x < quadcolor->crtc[CGA_CRTC_HDISP]; x++) {
             if (quadcolor->cgamode & CGA_MODE_FLAG_VIDEO_ENABLE)
-                dat = (quadcolor->vram[((quadcolor->memaddr << 1) & 0x1fff) + ((quadcolor->scanline & 1) * 0x2000)] << 8) |
-                      quadcolor->vram[((quadcolor->memaddr << 1) & 0x1fff) + ((quadcolor->scanline & 1) * 0x2000) + 1];
+                dat = (quadcolor->vram[quadcolor->page_offset ^ (((quadcolor->memaddr << 1) & 0x1fff) + ((quadcolor->scanline & 1) * 0x2000))] << 8) |
+                      quadcolor->vram[quadcolor->page_offset ^ (((quadcolor->memaddr << 1) & 0x1fff) + ((quadcolor->scanline & 1) * 0x2000) + 1)];
             else
                 dat = 0;
             quadcolor->memaddr++;
             for (column = 0; column < 8; column++) {
-                buffer32->line[line][(x << 4) + (column << 1) + 8]
-                    = buffer32->line[line][(x << 4) + (column << 1) + 9]
-                    = cols[dat >> 14];
+                buffer32->line[line][(x << 4) + (column << 1) + 8] = cols[dat >> 14] | get_next_qc2_pixel(quadcolor);
+                buffer32->line[line][(x << 4) + (column << 1) + 9] = cols[dat >> 14] | get_next_qc2_pixel(quadcolor);
                 dat <<= 2;
             }
         }
-    } else {
-        cols[0] = 0;
+    } else { /* 2-color hi-res graphics mode */
+        cols[0] = quadcolor->quadcolor_ctrl & 15; /* background color (Quadcolor-specific) */;
         cols[1] = (quadcolor->cgacol & 15) + 16;
         for (x = 0; x < quadcolor->crtc[CGA_CRTC_HDISP]; x++) {
-            if (quadcolor->cgamode & CGA_MODE_FLAG_VIDEO_ENABLE)
-                dat = (quadcolor->vram[((quadcolor->memaddr << 1) & 0x1fff) + ((quadcolor->scanline & 1) * 0x2000)] << 8) |
-                      quadcolor->vram[((quadcolor->memaddr << 1) & 0x1fff) + ((quadcolor->scanline & 1) * 0x2000) + 1];
+            if (quadcolor->cgamode & CGA_MODE_FLAG_VIDEO_ENABLE) /* video enabled */
+                dat = (quadcolor->vram[quadcolor->page_offset ^ (((quadcolor->memaddr << 1) & 0x1fff) + ((quadcolor->scanline & 1) * 0x2000))] << 8) |
+                      quadcolor->vram[quadcolor->page_offset ^ (((quadcolor->memaddr << 1) & 0x1fff) + ((quadcolor->scanline & 1) * 0x2000) + 1)];
             else
-                dat = 0;
+                dat = quadcolor->quadcolor_ctrl & 15; /* TODO: Is Quadcolor bg color actually relevant, here? Probably. See QC2 manual p.46 1. */;
             quadcolor->memaddr++;
             for (column = 0; column < 16; column++) {
-                buffer32->line[line][(x << 4) + column + 8] = cols[dat >> 15];
+                buffer32->line[line][(x << 4) + column + 8] = cols[dat >> 15] | get_next_qc2_pixel(quadcolor);
                 dat <<= 1;
             }
         }
@@ -406,7 +407,8 @@ quadcolor_render_blank(quadcolor_t *quadcolor, int line)
 {
     int32_t  highres_graphics_flag = (CGA_MODE_FLAG_HIGHRES_GRAPHICS | CGA_MODE_FLAG_GRAPHICS);
 
-    int col = ((quadcolor->cgamode & highres_graphics_flag) == highres_graphics_flag) ? 0 : (quadcolor->cgacol & 15) + 16;
+    /* `+ 16` isn't in PCem's version */
+    int col = ((quadcolor->cgamode & highres_graphics_flag) == highres_graphics_flag) ? (quadcolor->quadcolor_ctrl & 15) : (quadcolor->cgacol & 15) + 16;  /* TODO: Is Quadcolor bg color actually relevant, here? */
 
     if (quadcolor->cgamode & CGA_MODE_FLAG_HIGHRES)
         hline(buffer32, 0, line, (quadcolor->crtc[CGA_CRTC_HDISP] << 3) + 16, col);
