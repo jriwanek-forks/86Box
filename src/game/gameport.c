@@ -108,6 +108,8 @@ static const struct {
     { &joystick_sw_pad                       },
     { &joystick_tm_fcs                       },
     { &joystick_tm_fcs_rcs                   },
+    { &joystick_creative_cobra               },
+    { &joystick_gravis_gamepad_pro           },
     { NULL                                   }
 };
 
