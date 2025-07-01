@@ -190,6 +190,14 @@ extern const joystick_t joystick_2axis_8button;
 extern const joystick_t joystick_ch_flightstick_pro;
 extern const joystick_t joystick_ch_flightstick_pro_ch_pedals;
 
+extern const joystick_t joystick_creative_gamepad;
+extern const joystick_t joystick_creative_cobra;
+
+extern const joystick_t joystick_gravis_gamepad_pro;
+extern const joystick_t joystick_gravis_blackhawk_digital;
+extern const joystick_t joystick_gravis_xterminator_digital;
+extern const joystick_t joystick_gravis_xterminator_dualcontrol;
+
 extern const joystick_t joystick_sw_pad;
 
 extern const joystick_t joystick_tm_fcs;
