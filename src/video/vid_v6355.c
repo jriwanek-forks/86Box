@@ -207,8 +207,10 @@ v6355_recalctimings(v6355_t *v6355)
     double _dispontime, _dispofftime;
 
     unsigned w = v6355_width(v6355);
+#if 0
     unsigned h = v6355_height(v6355);
     unsigned xadj = v6355->v6355data[0x67] & 0x1F;    /* Horizontal adjust */
+#endif
 
     pclog("Recalc - %i %i %i\n", w + 32, w, v6355->cgamode & 1);
     disptime = w + 33;
@@ -235,7 +237,7 @@ v6355_pointer(v6355_t *v6355, uint8_t *pixel)
      * the top left-hand corner of the visible area */
     int pointer_x = (v6355->v6355data[0x60] << 8) | (v6355->v6355data[0x61]);
     int pointer_y = v6355->v6355data[0x63];
-    uint8_t px, mc, mand, mxor, mflags;
+    uint8_t /* px, */ mc, mand, mxor, mflags; // TODO
 
     /* Mouse drawing options */
     mflags = v6355->v6355data[0x64];
@@ -421,10 +423,14 @@ void v6355_poll(void *priv) {
     int drawcursor;
     int x, c;
     int oldvc;
+#if 0
     uint8_t chr, attr;
     uint16_t dat;
+#endif
     uint32_t cols[4];
+#if 0
     int col;
+#endif
     int oldsc;
     uint8_t pixel[640];
 
@@ -669,7 +675,7 @@ void
 v6355_init(v6355_t *v6355)
 {
     timer_add(&v6355->timer, v6355_poll, v6355, 1);
-    v6355->display_type = DISPLAY_RGB;
+    v6355->display_type = 0; // DISPLAY_RGB
 }
 
 void *
