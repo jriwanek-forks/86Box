@@ -303,6 +303,7 @@ void
 gameport_update_joystick_type(void)
 {
     /* Add a standalone game port if a joystick is enabled but no other game ports exist. */
+    // TODO: This looks suspect
     if (standalone_gameport_type)
         gameport_add(standalone_gameport_type);
 
