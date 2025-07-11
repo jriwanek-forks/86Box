@@ -90,8 +90,10 @@ SettingsInput::~SettingsInput()
 void
 SettingsInput::save()
 {
-    mouse_type    = ui->comboBoxMouse->currentData().toInt();
-    joystick_type = ui->comboBoxJoystick->currentData().toInt();
+    mouse_type       = ui->comboBoxMouse->currentData().toInt();
+
+    joystick_type[0] = ui->comboBoxJoystick0->currentData().toInt();
+    joystick_type[1] = ui->comboBoxJoystick1->currentData().toInt();
 
     // Copy accelerators from working set to global set
     for(int x = 0; x < NUM_ACCELS; x++) {
@@ -134,21 +136,71 @@ SettingsInput::onCurrentMachineChanged(int machineId)
     mouseModel->removeRows(0, removeRows);
     ui->comboBoxMouse->setCurrentIndex(selectedRow);
 
+    // Gameports
+    auto *gameportModel = ui->comboBoxGameport->model();
+    removeRows          = gameportModel->rowCount();
+
+    selectedRow = 0;
+    for (int i = 0; i < 8; ++i) { // TODO
+        const auto *dev = gameport_getdevice(i); // TODO
+#if 0
+        if ((i == GAMEPORT_TYPE_INTERNAL) && (machine_has_flags(machineId, MACHINE_GAMEPORT) == 0))
+            continue;
+#endif
+
+        if (device_is_valid(dev, machineId) == 0)
+            continue;
+
+        QString name = DeviceConfig::DeviceName(dev, gameport_get_internal_name(i), 0);
+        int     row  = gameportModel->rowCount();
+        gameportModel->insertRow(row);
+        auto idx = gameportModel->index(row, 0);
+
+        gameportModel->setData(idx, name, Qt::DisplayRole);
+        mouseModel->setData(idx, i, Qt::UserRole);
+
+#if 0
+        if (i == gameport_type)
+            selectedRow = row - removeRows;
+#endif
+    }
+    gameportModel->removeRows(0, removeRows);
+    ui->comboBoxGameport->setCurrentIndex(selectedRow);
+
+    // Joysticks
+//    uint8_t     gp            = 0;
+
     int         i             = 0;
     const char *joyName       = joystick_get_name(i);
-    auto       *joystickModel = ui->comboBoxJoystick->model();
+    auto       *joystickModel = ui->comboBoxJoystick0->model();
     removeRows                = joystickModel->rowCount();
     selectedRow               = 0;
     while (joyName) {
         int row = Models::AddEntry(joystickModel, tr(joyName).toUtf8().data(), i);
-        if (i == joystick_type)
+        if (i == joystick_type[0])
             selectedRow = row - removeRows;
 
         ++i;
         joyName = joystick_get_name(i);
     }
     joystickModel->removeRows(0, removeRows);
-    ui->comboBoxJoystick->setCurrentIndex(selectedRow);
+    ui->comboBoxJoystick0->setCurrentIndex(selectedRow);
+
+    i             = 0;
+    joyName       = joystick_get_name(i);
+    joystickModel = ui->comboBoxJoystick1->model();
+    removeRows    = joystickModel->rowCount();
+    selectedRow   = 0;
+    while (joyName) {
+        int row = Models::AddEntry(joystickModel, tr(joyName).toUtf8().data(), i);
+        if (i == joystick_type[1])
+            selectedRow = row - removeRows;
+
+        ++i;
+        joyName = joystick_get_name(i);
+    }
+    joystickModel->removeRows(0, removeRows);
+    ui->comboBoxJoystick1->setCurrentIndex(selectedRow);
 }
 
 void
@@ -253,16 +305,43 @@ SettingsInput::on_comboBoxMouse_currentIndexChanged(int index)
 }
 
 void
-SettingsInput::on_comboBoxJoystick_currentIndexChanged(int index)
+SettingsInput::on_comboBoxGameport_currentIndexChanged(int index)
 {
-    int joystickId = ui->comboBoxJoystick->currentData().toInt();
+    int gameportId = ui->comboBoxGameport->currentData().toInt();
+    ui->pushButtonConfigureGameport->setEnabled(gameport_has_config(gameportId) > 0);
+}
+
+void
+SettingsInput::on_comboBoxJoystick0_currentIndexChanged(int index)
+{
+    int joystickId = ui->comboBoxJoystick0->currentData().toInt();
     for (int i = 0; i < MAX_JOYSTICKS; ++i) {
-        auto *btn = findChild<QPushButton *>(QString("pushButtonJoystick%1").arg(i + 1));
+        auto *btn = findChild<QPushButton *>(QString("pushButtonJoystick0%1").arg(i + 1));
         if (btn == nullptr)
             continue;
 
         btn->setEnabled(joystick_get_max_joysticks(joystickId) > i);
     }
+}
+
+void
+SettingsInput::on_comboBoxJoystick1_currentIndexChanged(int index)
+{
+    int joystickId = ui->comboBoxJoystick1->currentData().toInt();
+    for (int i = 0; i < MAX_JOYSTICKS; ++i) {
+        auto *btn = findChild<QPushButton *>(QString("pushButtonJoystick1%1").arg(i + 1));
+        if (btn == nullptr)
+            continue;
+
+        btn->setEnabled(joystick_get_max_joysticks(joystickId) > i);
+    }
+}
+
+void
+SettingsInput::on_pushButtonConfigureGameport_clicked()
+{
+    int gameportId = ui->comboBoxGameport->currentData().toInt();
+    DeviceConfig::ConfigureDevice(gameport_getdevice(gameportId));
 }
 
 void
@@ -273,10 +352,10 @@ SettingsInput::on_pushButtonConfigureMouse_clicked()
 }
 
 static int
-get_axis(JoystickConfiguration &jc, int axis, int joystick_nr)
+get_axis(JoystickConfiguration &jc, int axis, uint8_t gameport_nr, int joystick_nr)
 {
     int axis_sel = jc.selectedAxis(axis);
-    int nr_axes  = plat_joystick_state[joystick_state[0][joystick_nr].plat_joystick_nr - 1].nr_axes;
+    int nr_axes  = plat_joystick_state[joystick_state[gameport_nr][joystick_nr].plat_joystick_nr - 1].nr_axes;
 
     if (axis_sel < nr_axes)
         return axis_sel;
@@ -289,10 +368,10 @@ get_axis(JoystickConfiguration &jc, int axis, int joystick_nr)
 }
 
 static int
-get_pov(JoystickConfiguration &jc, int pov, int joystick_nr)
+get_pov(JoystickConfiguration &jc, int pov, uint8_t gameport_nr, int joystick_nr)
 {
     int pov_sel = jc.selectedPov(pov);
-    int nr_povs = plat_joystick_state[joystick_state[0][joystick_nr].plat_joystick_nr - 1].nr_povs * 2;
+    int nr_povs = plat_joystick_state[joystick_state[gameport_nr][joystick_nr].plat_joystick_nr - 1].nr_povs * 2;
 
     if (pov_sel < nr_povs) {
         if (pov_sel & 1)
@@ -305,9 +384,9 @@ get_pov(JoystickConfiguration &jc, int pov, int joystick_nr)
 }
 
 static void
-updateJoystickConfig(int type, int joystick_nr, QWidget *parent)
+updateJoystickConfig(int type, uint8_t gameport_nr, int joystick_nr, QWidget *parent)
 {
-    JoystickConfiguration jc(type, joystick_nr, parent);
+    JoystickConfiguration jc(type, gameport_nr, joystick_nr, parent);
     switch (jc.exec()) {
         case QDialog::Rejected:
             return;
@@ -315,43 +394,67 @@ updateJoystickConfig(int type, int joystick_nr, QWidget *parent)
             break;
     }
 
-    joystick_state[0][joystick_nr].plat_joystick_nr = jc.selectedDevice();
-    if (joystick_state[0][joystick_nr].plat_joystick_nr) {
+    joystick_state[gameport_nr][joystick_nr].plat_joystick_nr = jc.selectedDevice();
+    if (joystick_state[gameport_nr][joystick_nr].plat_joystick_nr) {
         for (int axis_nr = 0; axis_nr < joystick_get_axis_count(type); axis_nr++) {
-            joystick_state[0][joystick_nr].axis_mapping[axis_nr] = get_axis(jc, axis_nr, joystick_nr);
+            joystick_state[gameport_nr][joystick_nr].axis_mapping[axis_nr] = get_axis(jc, axis_nr, gameport_nr, joystick_nr);
         }
 
         for (int button_nr = 0; button_nr < joystick_get_button_count(type); button_nr++) {
-            joystick_state[0][joystick_nr].button_mapping[button_nr] = jc.selectedButton(button_nr);
+            joystick_state[gameport_nr][joystick_nr].button_mapping[button_nr] = jc.selectedButton(button_nr);
         }
 
         for (int pov_nr = 0; pov_nr < joystick_get_pov_count(type) * 2; pov_nr += 2) {
-            joystick_state[0][joystick_nr].pov_mapping[pov_nr][0] = get_pov(jc, pov_nr, joystick_nr);
-            joystick_state[0][joystick_nr].pov_mapping[pov_nr][1] = get_pov(jc, pov_nr + 1, joystick_nr);
+            joystick_state[gameport_nr][joystick_nr].pov_mapping[pov_nr][0] = get_pov(jc, pov_nr, gameport_nr, joystick_nr);
+            joystick_state[gameport_nr][joystick_nr].pov_mapping[pov_nr][1] = get_pov(jc, pov_nr + 1, gameport_nr, joystick_nr);
         }
     }
 }
 
 void
-SettingsInput::on_pushButtonJoystick1_clicked()
+SettingsInput::on_pushButtonJoystick01_clicked()
 {
-    updateJoystickConfig(ui->comboBoxJoystick->currentData().toInt(), 0, this);
+    updateJoystickConfig(ui->comboBoxJoystick0->currentData().toInt(), 0, 0, this);
 }
 
 void
-SettingsInput::on_pushButtonJoystick2_clicked()
+SettingsInput::on_pushButtonJoystick02_clicked()
 {
-    updateJoystickConfig(ui->comboBoxJoystick->currentData().toInt(), 1, this);
+    updateJoystickConfig(ui->comboBoxJoystick0->currentData().toInt(), 0, 1, this);
 }
 
 void
-SettingsInput::on_pushButtonJoystick3_clicked()
+SettingsInput::on_pushButtonJoystick03_clicked()
 {
-    updateJoystickConfig(ui->comboBoxJoystick->currentData().toInt(), 2, this);
+    updateJoystickConfig(ui->comboBoxJoystick0->currentData().toInt(), 0, 2, this);
 }
 
 void
-SettingsInput::on_pushButtonJoystick4_clicked()
+SettingsInput::on_pushButtonJoystick04_clicked()
 {
-    updateJoystickConfig(ui->comboBoxJoystick->currentData().toInt(), 3, this);
+    updateJoystickConfig(ui->comboBoxJoystick0->currentData().toInt(), 0, 3, this);
+}
+
+void
+SettingsInput::on_pushButtonJoystick11_clicked()
+{
+    updateJoystickConfig(ui->comboBoxJoystick0->currentData().toInt(), 1, 0, this);
+}
+
+void
+SettingsInput::on_pushButtonJoystick12_clicked()
+{
+    updateJoystickConfig(ui->comboBoxJoystick0->currentData().toInt(), 1, 1, this);
+}
+
+void
+SettingsInput::on_pushButtonJoystick13_clicked()
+{
+    updateJoystickConfig(ui->comboBoxJoystick0->currentData().toInt(), 1, 2, this);
+}
+
+void
+SettingsInput::on_pushButtonJoystick14_clicked()
+{
+    updateJoystickConfig(ui->comboBoxJoystick0->currentData().toInt(), 1, 3, this);
 }
