@@ -94,6 +94,7 @@ SettingsInput::save()
     mouse_type    = ui->comboBoxMouse->currentData().toInt();
 
     joystick_type[0] = ui->comboBoxJoystick0->currentData().toInt();
+    joystick_type[1] = ui->comboBoxJoystick1->currentData().toInt();
 
     // Copy accelerators from working set to global set
     for(int x = 0; x < NUM_ACCELS; x++) {
@@ -115,8 +116,8 @@ SettingsInput::onCurrentMachineChanged(int machineId)
 
     int selectedRow = 0;
 
-    int c           = 0;
-    int has_int_kbd = !!machine_has_flags(machineId, MACHINE_KEYBOARD);
+    int visibleItemCount = 0;
+    int has_int_kbd      = !!machine_has_flags(machineId, MACHINE_KEYBOARD);
 
     for (int i = 0; i < keyboard_get_ndev(); ++i) {
         const auto *dev           = keyboard_get_device(i);
@@ -139,13 +140,13 @@ SettingsInput::onCurrentMachineChanged(int machineId)
         if (i == keyboard_type)
             selectedRow = row - removeRows;
 
-        c++;
+        visibleItemCount++;
     }
     keyboardModel->removeRows(0, removeRows);
     ui->comboBoxKeyboard->setCurrentIndex(-1);
     ui->comboBoxKeyboard->setCurrentIndex(selectedRow);
 
-    if ((c == 1) || has_int_kbd)
+    if ((visibleItemCount == 1) || has_int_kbd)
         ui->comboBoxKeyboard->setEnabled(false);
     else
         ui->comboBoxKeyboard->setEnabled(true);
@@ -177,6 +178,40 @@ SettingsInput::onCurrentMachineChanged(int machineId)
     ui->comboBoxMouse->setCurrentIndex(-1);
     ui->comboBoxMouse->setCurrentIndex(selectedRow);
 
+    // Gameports
+    auto *gameportModel = ui->comboBoxGameport->model();
+    removeRows          = gameportModel->rowCount();
+
+    selectedRow = 0;
+    for (int i = 0; i < gameport_get_ndev(); ++i) {
+        const auto *dev = gameport_get_device(i);
+#if 0
+        if ((i == GAMEPORT_TYPE_INTERNAL) && (machine_has_flags(machineId, MACHINE_GAMEPORT) == 0))
+            continue;
+#endif
+
+        if (device_is_valid(dev, machineId) == 0)
+            continue;
+
+        QString name = DeviceConfig::DeviceName(dev, gameport_get_internal_name(i), 0);
+        int     row  = gameportModel->rowCount();
+        gameportModel->insertRow(row);
+        auto idx = gameportModel->index(row, 0);
+
+        gameportModel->setData(idx, name, Qt::DisplayRole);
+        gameportModel->setData(idx, i, Qt::UserRole);
+
+#if 0
+        if (i == gameport_type)
+            selectedRow = row - removeRows;
+#endif
+    }
+    gameportModel->removeRows(0, removeRows);
+    ui->comboBoxGameport->setCurrentIndex(-1);
+    ui->comboBoxGameport->setCurrentIndex(selectedRow);
+
+//    uint8_t     gp            = 0;
+
     // Joysticks
     int         i             = 0;
     const char *joyName       = joystick_get_name(i);
@@ -193,6 +228,22 @@ SettingsInput::onCurrentMachineChanged(int machineId)
     }
     joystickModel->removeRows(0, removeRows);
     ui->comboBoxJoystick0->setCurrentIndex(selectedRow);
+
+    i             = 0;
+    joyName       = joystick_get_name(i);
+    joystickModel = ui->comboBoxJoystick1->model();
+    removeRows    = joystickModel->rowCount();
+    selectedRow   = 0;
+    while (joyName) {
+        int row = Models::AddEntry(joystickModel, tr(joyName).toUtf8().data(), i);
+        if (i == joystick_type[1])
+            selectedRow = row - removeRows;
+
+        ++i;
+        joyName = joystick_get_name(i);
+    }
+    joystickModel->removeRows(0, removeRows);
+    ui->comboBoxJoystick1->setCurrentIndex(selectedRow);
 }
 
 void
@@ -308,6 +359,13 @@ SettingsInput::on_comboBoxMouse_currentIndexChanged(int index)
 }
 
 void
+SettingsInput::on_comboBoxGameport_currentIndexChanged(int index)
+{
+    int gameportId = ui->comboBoxGameport->currentData().toInt();
+    ui->pushButtonConfigureGameport->setEnabled(gameport_has_config(gameportId) > 0);
+}
+
+void
 SettingsInput::on_comboBoxJoystick0_currentIndexChanged(int index)
 {
     int joystickId = ui->comboBoxJoystick0->currentData().toInt();
@@ -318,6 +376,26 @@ SettingsInput::on_comboBoxJoystick0_currentIndexChanged(int index)
 
         btn->setEnabled(joystick_get_max_joysticks(joystickId) > i);
     }
+}
+
+void
+SettingsInput::on_comboBoxJoystick1_currentIndexChanged(int index)
+{
+    int joystickId = ui->comboBoxJoystick1->currentData().toInt();
+    for (int i = 0; i < MAX_JOYSTICKS; ++i) {
+        auto *btn = findChild<QPushButton *>(QString("pushButtonJoystick1%1").arg(i + 1));
+        if (btn == nullptr)
+            continue;
+
+        btn->setEnabled(joystick_get_max_joysticks(joystickId) > i);
+    }
+}
+
+void
+SettingsInput::on_pushButtonConfigureGameport_clicked()
+{
+    int gameportId = ui->comboBoxGameport->currentData().toInt();
+    DeviceConfig::ConfigureDevice(gameport_get_device(gameportId));
 }
 
 void
@@ -416,4 +494,28 @@ void
 SettingsInput::on_pushButtonJoystick04_clicked()
 {
     updateJoystickConfig(ui->comboBoxJoystick0->currentData().toInt(), 0, 3, this);
+}
+
+void
+SettingsInput::on_pushButtonJoystick11_clicked()
+{
+    updateJoystickConfig(ui->comboBoxJoystick1->currentData().toInt(), 1, 0, this);
+}
+
+void
+SettingsInput::on_pushButtonJoystick12_clicked()
+{
+    updateJoystickConfig(ui->comboBoxJoystick1->currentData().toInt(), 1, 1, this);
+}
+
+void
+SettingsInput::on_pushButtonJoystick13_clicked()
+{
+    updateJoystickConfig(ui->comboBoxJoystick1->currentData().toInt(), 1, 2, this);
+}
+
+void
+SettingsInput::on_pushButtonJoystick14_clicked()
+{
+    updateJoystickConfig(ui->comboBoxJoystick1->currentData().toInt(), 1, 3, this);
 }

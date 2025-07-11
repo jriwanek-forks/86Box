@@ -35,9 +35,9 @@
 
 device_t game_ports[GAMEPORT_MAX];
 
-typedef struct {
+typedef struct gameport_list_t {
     const device_t *device;
-} GAMEPORT;
+} gameport_list_t;
 
 typedef struct g_axis_t {
     pc_timer_t                  timer;
@@ -50,6 +50,7 @@ typedef struct _gameport_ {
     uint8_t                     len;
     struct _joystick_instance_ *joystick;
     struct _gameport_          *next;
+    uint8_t                     is_secondary;
 } gameport_t;
 
 typedef struct _tmacm_ {
@@ -302,6 +303,7 @@ void
 gameport_update_joystick_type(uint8_t gp)
 {
     /* Add a standalone game port if a joystick is enabled but no other game ports exist. */
+    // TODO: This looks suspect
     if (standalone_gameport_type)
         gameport_add(standalone_gameport_type);
 
@@ -395,6 +397,8 @@ gameport_init(const device_t *info)
 
     // TODO: Later we'll actually support more than one gameport
     uint8_t joy_insn = 0;
+
+    dev->is_secondary = (info->local >> 24);
 
     /* Allocate global instance. */
     if (!joystick_instance[joy_insn] && joystick_type[joy_insn]) {
@@ -583,7 +587,7 @@ const device_t gameport_208_device = {
     .name          = "Game port (Port 208h-20fh)",
     .internal_name = "gameport_208",
     .flags         = 0,
-    .local         = GAMEPORT_8ADDR | 0x0208,
+    .local         = GAMEPORT_SECONDARY | GAMEPORT_8ADDR | 0x0208,
     .init          = gameport_init,
     .close         = gameport_close,
     .reset         = NULL,
@@ -597,7 +601,7 @@ const device_t gameport_209_device = {
     .name          = "Game port (Port 209h only)",
     .internal_name = "gameport_209",
     .flags         = 0,
-    .local         = GAMEPORT_1ADDR | 0x0209,
+    .local         = GAMEPORT_SECONDARY | GAMEPORT_1ADDR | 0x0209,
     .init          = gameport_init,
     .close         = gameport_close,
     .reset         = NULL,
@@ -611,7 +615,7 @@ const device_t gameport_20b_device = {
     .name          = "Game port (Port 20Bh only)",
     .internal_name = "gameport_20b",
     .flags         = 0,
-    .local         = GAMEPORT_1ADDR | 0x020B,
+    .local         = GAMEPORT_SECONDARY | GAMEPORT_1ADDR | 0x020B,
     .init          = gameport_init,
     .close         = gameport_close,
     .reset         = NULL,
@@ -625,7 +629,7 @@ const device_t gameport_20d_device = {
     .name          = "Game port (Port 20Dh only)",
     .internal_name = "gameport_20d",
     .flags         = 0,
-    .local         = GAMEPORT_1ADDR | 0x020D,
+    .local         = GAMEPORT_SECONDARY | GAMEPORT_1ADDR | 0x020D,
     .init          = gameport_init,
     .close         = gameport_close,
     .reset         = NULL,
@@ -639,7 +643,7 @@ const device_t gameport_20f_device = {
     .name          = "Game port (Port 20Fh only)",
     .internal_name = "gameport_20f",
     .flags         = 0,
-    .local         = GAMEPORT_1ADDR | 0x020F,
+    .local         = GAMEPORT_SECONDARY | GAMEPORT_1ADDR | 0x020F,
     .init          = gameport_init,
     .close         = gameport_close,
     .reset         = NULL,
@@ -775,7 +779,7 @@ const device_t gameport_sio_1io_device = {
     .config        = NULL
 };
 
-static const GAMEPORT gameports[] = {
+static const gameport_list_t gameport_devices[] = {
     { &device_none            },
     { &device_internal        },
     { &gameport_200_device    },
@@ -791,8 +795,8 @@ static const GAMEPORT gameports[] = {
 int
 gameport_available(int port)
 {
-    if (gameports[port].device)
-        return (device_available(gameports[port].device));
+    if (gameport_devices[port].device)
+        return (device_available(gameport_devices[port].device));
 
     return 1;
 }
@@ -801,24 +805,31 @@ gameport_available(int port)
 const device_t *
 gameport_get_device(int port)
 {
-    return (gameports[port].device);
+    return (gameport_devices[port].device);
 }
 
 /* UI */
 int
 gameport_has_config(int port)
 {
-    if (!gameports[port].device)
+    if (gameport_devices[port].device == NULL)
         return 0;
 
-    return (device_has_config(gameports[port].device) ? 1 : 0);
+    return (device_has_config(gameport_devices[port].device) ? 1 : 0);
+}
+
+/* Return number of MOUSE types we know about. */
+int
+gameport_get_ndev(void)
+{
+    return ((sizeof(gameport_devices) / sizeof(gameport_list_t)) - 1);
 }
 
 /* UI */
 const char *
 gameport_get_internal_name(int port)
 {
-    return device_get_internal_name(gameports[port].device);
+    return device_get_internal_name(gameport_devices[port].device);
 }
 
 /* UI */
@@ -827,8 +838,8 @@ gameport_get_from_internal_name(const char *str)
 {
     int c = 0;
 
-    while (gameports[c].device != NULL) {
-        if (!strcmp(gameports[c].device->internal_name, str))
+    while (gameport_devices[c].device != NULL) {
+        if (!strcmp(gameport_devices[c].device->internal_name, str))
             return c;
         c++;
     }
