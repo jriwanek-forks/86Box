@@ -50,6 +50,7 @@ typedef struct _gameport_ {
     uint8_t                     len;
     struct _joystick_instance_ *joystick;
     struct _gameport_          *next;
+    uint8_t                     is_secondary;
 } gameport_t;
 
 typedef struct _tmacm_ {
@@ -65,7 +66,7 @@ typedef struct _joystick_instance_ {
     void             *dat;
 } joystick_instance_t;
 
-int joystick_type = JS_TYPE_NONE;
+int joystick_type[GAMEPORT_MAX] = { JS_TYPE_NONE, JS_TYPE_NONE };
 
 static const joystick_t joystick_none = {
     .name          = "None",
@@ -305,11 +306,14 @@ gameport_update_joystick_type(void)
     if (standalone_gameport_type)
         gameport_add(standalone_gameport_type);
 
+    // TODO: Later we'll actually support more than one gameport
+    uint8_t joy_insn = 0;
+
     /* Reset the joystick interface. */
-    if (joystick_instance[0]) {
-        joystick_instance[0]->intf->close(joystick_instance[0]->dat);
-        joystick_instance[0]->intf = joysticks[joystick_type].joystick;
-        joystick_instance[0]->dat  = joystick_instance[0]->intf->init();
+    if (joystick_instance[joy_insn]) {
+        joystick_instance[joy_insn]->intf->close(joystick_instance[joy_insn]->dat);
+        joystick_instance[joy_insn]->intf = joysticks[joystick_type[joy_insn]].joystick;
+        joystick_instance[joy_insn]->dat  = joystick_instance[joy_insn]->intf->init();
     }
 }
 
@@ -393,24 +397,28 @@ gameport_init(const device_t *info)
 {
     gameport_t *dev = calloc(1, sizeof(gameport_t));
 
+    dev->is_secondary = (info->local >> 24);
+    // TODO: Later we'll actually support more than one gameport
+    uint8_t joy_insn = 0;
+
     /* Allocate global instance. */
-    if (!joystick_instance[0] && joystick_type) {
-        joystick_instance[0] = calloc(1, sizeof(joystick_instance_t));
+    if (!joystick_instance[joy_insn] && joystick_type[joy_insn]) {
+        joystick_instance[joy_insn] = calloc(1, sizeof(joystick_instance_t));
 
         // For each analog joystick axis
-        for (uint8_t i = 0; i < 4; i++) {
-            joystick_instance[0]->axis[i].joystick = joystick_instance[0];
+        for (int i = 0; i < 4; i ++) {
+            joystick_instance[joy_insn]->axis[i].joystick = joystick_instance[joy_insn];
 
-            joystick_instance[0]->axis[i].axis_nr = i;
+            joystick_instance[joy_insn]->axis[i].axis_nr = i;
 
-            timer_add(&joystick_instance[0]->axis[i].timer, timer_over, &joystick_instance[0]->axis[i], 0);
+            timer_add(&joystick_instance[joy_insn]->axis[i].timer, timer_over, &joystick_instance[joy_insn]->axis[i], 0);
         }
 
-        joystick_instance[0]->intf = joysticks[joystick_type].joystick;
-        joystick_instance[0]->dat  = joystick_instance[0]->intf->init();
+        joystick_instance[joy_insn]->intf = joysticks[joystick_type[joy_insn]].joystick;
+        joystick_instance[joy_insn]->dat  = joystick_instance[joy_insn]->intf->init();
     }
 
-    dev->joystick = joystick_instance[0];
+    dev->joystick = joystick_instance[joy_insn];
 
     /* Map game port to the default address. Not applicable on PnP-only ports. */
     dev->len = (info->local >> 16) & 0xff;
@@ -478,12 +486,15 @@ gameport_close(void *priv)
     /* If this port was active, remove it from the active ports list. */
     gameport_remap(dev, 0);
 
-    /* Free the global instance here, if it wasn't already freed. */
-    if (joystick_instance[0]) {
-        joystick_instance[0]->intf->close(joystick_instance[0]->dat);
+    // TODO: Later we'll actually support more than one gameport
+    uint8_t joy_insn = 0;
 
-        free(joystick_instance[0]);
-        joystick_instance[0] = NULL;
+    /* Free the global instance here, if it wasn't already freed. */
+    if (joystick_instance[joy_insn]) {
+        joystick_instance[joy_insn]->intf->close(joystick_instance[joy_insn]->dat);
+
+        free(joystick_instance[joy_insn]);
+        joystick_instance[joy_insn] = NULL;
     }
 
     free(dev);
@@ -577,7 +588,7 @@ const device_t gameport_208_device = {
     .name          = "Game port (Port 208h-20fh)",
     .internal_name = "gameport_208",
     .flags         = 0,
-    .local         = GAMEPORT_8ADDR | 0x0208,
+    .local         = GAMEPORT_SECONDARY | GAMEPORT_8ADDR | 0x0208,
     .init          = gameport_init,
     .close         = gameport_close,
     .reset         = NULL,
@@ -591,7 +602,7 @@ const device_t gameport_209_device = {
     .name          = "Game port (Port 209h only)",
     .internal_name = "gameport_209",
     .flags         = 0,
-    .local         = GAMEPORT_1ADDR | 0x0209,
+    .local         = GAMEPORT_SECONDARY | GAMEPORT_1ADDR | 0x0209,
     .init          = gameport_init,
     .close         = gameport_close,
     .reset         = NULL,
@@ -605,7 +616,7 @@ const device_t gameport_20b_device = {
     .name          = "Game port (Port 20Bh only)",
     .internal_name = "gameport_20b",
     .flags         = 0,
-    .local         = GAMEPORT_1ADDR | 0x020B,
+    .local         = GAMEPORT_SECONDARY | GAMEPORT_1ADDR | 0x020B,
     .init          = gameport_init,
     .close         = gameport_close,
     .reset         = NULL,
@@ -619,7 +630,7 @@ const device_t gameport_20d_device = {
     .name          = "Game port (Port 20Dh only)",
     .internal_name = "gameport_20d",
     .flags         = 0,
-    .local         = GAMEPORT_1ADDR | 0x020D,
+    .local         = GAMEPORT_SECONDARY | GAMEPORT_1ADDR | 0x020D,
     .init          = gameport_init,
     .close         = gameport_close,
     .reset         = NULL,
@@ -633,7 +644,7 @@ const device_t gameport_20f_device = {
     .name          = "Game port (Port 20Fh only)",
     .internal_name = "gameport_20f",
     .flags         = 0,
-    .local         = GAMEPORT_1ADDR | 0x020F,
+    .local         = GAMEPORT_SECONDARY | GAMEPORT_1ADDR | 0x020F,
     .init          = gameport_init,
     .close         = gameport_close,
     .reset         = NULL,
