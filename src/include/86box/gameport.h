@@ -51,6 +51,7 @@
 #define GAMEPORT_6ADDR      0x060000
 #define GAMEPORT_8ADDR      0x080000
 #define GAMEPORT_SIO        0x1000000
+#define GAMEPORT_PNPROM     0x2000000
 #define GAMEPORT_SECONDARY  0x10000000
 
 typedef struct joystick_t {
