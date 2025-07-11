@@ -61,13 +61,13 @@ typedef struct _joystick_instance_ {
     uint8_t  state;
     g_axis_t axis[4];
 
-    const joystick_if_t *intf;
-    void                *dat;
+    const joystick_t *intf;
+    void             *dat;
 } joystick_instance_t;
 
 int joystick_type = JS_TYPE_NONE;
 
-static const joystick_if_t joystick_none = {
+static const joystick_t joystick_none = {
     .name          = "None",
     .internal_name = "none",
     .init          = NULL,
@@ -86,7 +86,7 @@ static const joystick_if_t joystick_none = {
 };
 
 static const struct {
-    const joystick_if_t *joystick;
+    const joystick_t *joystick;
 } joysticks[] = {
     { &joystick_none                         },
     { &joystick_2axis_2button                },
@@ -244,10 +244,8 @@ gameport_write(UNUSED(uint16_t addr), UNUSED(uint8_t val), void *priv)
     /* Read all axes. */
     joystick->state |= 0x0f;
 
-    gameport_time(joystick, 0, joystick->intf->read_axis(joystick->dat, 0));
-    gameport_time(joystick, 1, joystick->intf->read_axis(joystick->dat, 1));
-    gameport_time(joystick, 2, joystick->intf->read_axis(joystick->dat, 2));
-    gameport_time(joystick, 3, joystick->intf->read_axis(joystick->dat, 3));
+    for (uint8_t i = 0; i < 4; i++)
+        gameport_time(joystick, i, joystick->intf->read_axis(joystick->dat, i));
 
     /* Notify the interface. */
     joystick->intf->write(joystick->dat);
@@ -771,7 +769,7 @@ gameport_available(int port)
 
 /* UI */
 const device_t *
-gameports_getdevice(int port)
+gameport_getdevice(int port)
 {
     return (gameports[port].device);
 }

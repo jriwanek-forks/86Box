@@ -96,9 +96,9 @@ typedef struct {
     } pov[MAX_JOY_POVS];
 } raw_joystick_t;
 
-int             joysticks_present = 0;
-joystick_t      joystick_state[GAMEPORT_MAX][MAX_JOYSTICKS];
-plat_joystick_t plat_joystick_state[MAX_PLAT_JOYSTICKS];
+int                   joysticks_present = 0;
+joystick_state_t      joystick_state[GAMEPORT_MAX][MAX_JOYSTICKS];
+plat_joystick_state_t plat_joystick_state[MAX_PLAT_JOYSTICKS];
 
 raw_joystick_t raw_joystick_state[MAX_PLAT_JOYSTICKS];
 
