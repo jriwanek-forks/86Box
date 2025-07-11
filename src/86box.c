@@ -1573,8 +1573,9 @@ pc_reset_hard_init(void)
        the chances of the SCSI controller ending up on the bridge. */
     video_voodoo_init();
 
-    if (joystick_type)
-        gameport_update_joystick_type(); /* installs game port if no device provides one, must be late */
+    /* installs first game port if no device provides one, must be late */
+    if (joystick_type[0])
+        gameport_update_joystick_type();
 
     ui_sb_update_panes();
 
@@ -1782,7 +1783,10 @@ pc_run(void)
 #ifdef USE_GDBSTUB /* avoid a KBC FIFO overflow when CPU emulation is stalled */
     }
 #endif
-    joystick_process();
+    joystick_process(0); // Gameport 0
+#if 0
+    joystick_process(1); // Gameport 1
+#endif
     endblit();
 
     /* Done with this frame, update statistics. */

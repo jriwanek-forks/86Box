@@ -35,9 +35,9 @@
 
 device_t game_ports[GAMEPORT_MAX];
 
-typedef struct {
+typedef struct gameport_list_t {
     const device_t *device;
-} GAMEPORT;
+} gameport_list_t;
 
 typedef struct g_axis_t {
     pc_timer_t                  timer;
@@ -50,6 +50,7 @@ typedef struct _gameport_ {
     uint8_t                     len;
     struct _joystick_instance_ *joystick;
     struct _gameport_          *next;
+    uint8_t                     is_secondary;
 } gameport_t;
 
 typedef struct _tmacm_ {
@@ -65,7 +66,7 @@ typedef struct _joystick_instance_ {
     void             *dat;
 } joystick_instance_t;
 
-int joystick_type = JS_TYPE_NONE;
+int joystick_type[GAMEPORT_MAX] = { JS_TYPE_NONE, JS_TYPE_NONE };
 
 static const joystick_t joystick_none = {
     .name          = "None",
@@ -299,17 +300,18 @@ timer_over(void *priv)
 }
 
 void
-gameport_update_joystick_type(void)
+gameport_update_joystick_type(uint8_t gp)
 {
     /* Add a standalone game port if a joystick is enabled but no other game ports exist. */
+    // TODO: This looks suspect
     if (standalone_gameport_type)
         gameport_add(standalone_gameport_type);
 
     /* Reset the joystick interface. */
-    if (joystick_instance[0]) {
-        joystick_instance[0]->intf->close(joystick_instance[0]->dat);
-        joystick_instance[0]->intf = joysticks[joystick_type].joystick;
-        joystick_instance[0]->dat  = joystick_instance[0]->intf->init();
+    if (joystick_instance[gp]) {
+        joystick_instance[gp]->intf->close(joystick_instance[gp]->dat);
+        joystick_instance[gp]->intf = joysticks[joystick_type[gp]].joystick;
+        joystick_instance[gp]->dat  = joystick_instance[gp]->intf->init();
     }
 }
 
@@ -393,24 +395,29 @@ gameport_init(const device_t *info)
 {
     gameport_t *dev = calloc(1, sizeof(gameport_t));
 
+    // TODO: Later we'll actually support more than one gameport
+    uint8_t joy_insn = 0;
+
+    dev->is_secondary = (info->local >> 24);
+
     /* Allocate global instance. */
-    if (!joystick_instance[0] && joystick_type) {
-        joystick_instance[0] = calloc(1, sizeof(joystick_instance_t));
+    if (!joystick_instance[joy_insn] && joystick_type[joy_insn]) {
+        joystick_instance[joy_insn] = calloc(1, sizeof(joystick_instance_t));
 
         // For each analog joystick axis
         for (uint8_t i = 0; i < 4; i++) {
-            joystick_instance[0]->axis[i].joystick = joystick_instance[0];
+            joystick_instance[joy_insn]->axis[i].joystick = joystick_instance[joy_insn];
 
-            joystick_instance[0]->axis[i].axis_nr = i;
+            joystick_instance[joy_insn]->axis[i].axis_nr = i;
 
-            timer_add(&joystick_instance[0]->axis[i].timer, timer_over, &joystick_instance[0]->axis[i], 0);
+            timer_add(&joystick_instance[joy_insn]->axis[i].timer, timer_over, &joystick_instance[joy_insn]->axis[i], 0);
         }
 
-        joystick_instance[0]->intf = joysticks[joystick_type].joystick;
-        joystick_instance[0]->dat  = joystick_instance[0]->intf->init();
+        joystick_instance[joy_insn]->intf = joysticks[joystick_type[joy_insn]].joystick;
+        joystick_instance[joy_insn]->dat  = joystick_instance[joy_insn]->intf->init();
     }
 
-    dev->joystick = joystick_instance[0];
+    dev->joystick = joystick_instance[joy_insn];
 
     /* Map game port to the default address. Not applicable on PnP-only ports. */
     dev->len = (info->local >> 16) & 0xff;
@@ -475,15 +482,18 @@ gameport_close(void *priv)
 {
     gameport_t *dev = (gameport_t *) priv;
 
+    // TODO: Later we'll actually support more than one gameport
+    uint8_t joy_insn = 0;
+
     /* If this port was active, remove it from the active ports list. */
     gameport_remap(dev, 0);
 
     /* Free the global instance here, if it wasn't already freed. */
-    if (joystick_instance[0]) {
-        joystick_instance[0]->intf->close(joystick_instance[0]->dat);
+    if (joystick_instance[joy_insn]) {
+        joystick_instance[joy_insn]->intf->close(joystick_instance[joy_insn]->dat);
 
-        free(joystick_instance[0]);
-        joystick_instance[0] = NULL;
+        free(joystick_instance[joy_insn]);
+        joystick_instance[joy_insn] = NULL;
     }
 
     free(dev);
@@ -577,7 +587,7 @@ const device_t gameport_208_device = {
     .name          = "Game port (Port 208h-20fh)",
     .internal_name = "gameport_208",
     .flags         = 0,
-    .local         = GAMEPORT_8ADDR | 0x0208,
+    .local         = GAMEPORT_SECONDARY | GAMEPORT_8ADDR | 0x0208,
     .init          = gameport_init,
     .close         = gameport_close,
     .reset         = NULL,
@@ -591,7 +601,7 @@ const device_t gameport_209_device = {
     .name          = "Game port (Port 209h only)",
     .internal_name = "gameport_209",
     .flags         = 0,
-    .local         = GAMEPORT_1ADDR | 0x0209,
+    .local         = GAMEPORT_SECONDARY | GAMEPORT_1ADDR | 0x0209,
     .init          = gameport_init,
     .close         = gameport_close,
     .reset         = NULL,
@@ -605,7 +615,7 @@ const device_t gameport_20b_device = {
     .name          = "Game port (Port 20Bh only)",
     .internal_name = "gameport_20b",
     .flags         = 0,
-    .local         = GAMEPORT_1ADDR | 0x020B,
+    .local         = GAMEPORT_SECONDARY | GAMEPORT_1ADDR | 0x020B,
     .init          = gameport_init,
     .close         = gameport_close,
     .reset         = NULL,
@@ -619,7 +629,7 @@ const device_t gameport_20d_device = {
     .name          = "Game port (Port 20Dh only)",
     .internal_name = "gameport_20d",
     .flags         = 0,
-    .local         = GAMEPORT_1ADDR | 0x020D,
+    .local         = GAMEPORT_SECONDARY | GAMEPORT_1ADDR | 0x020D,
     .init          = gameport_init,
     .close         = gameport_close,
     .reset         = NULL,
@@ -633,7 +643,7 @@ const device_t gameport_20f_device = {
     .name          = "Game port (Port 20Fh only)",
     .internal_name = "gameport_20f",
     .flags         = 0,
-    .local         = GAMEPORT_1ADDR | 0x020F,
+    .local         = GAMEPORT_SECONDARY | GAMEPORT_1ADDR | 0x020F,
     .init          = gameport_init,
     .close         = gameport_close,
     .reset         = NULL,
@@ -769,7 +779,7 @@ const device_t gameport_sio_1io_device = {
     .config        = NULL
 };
 
-static const GAMEPORT gameports[] = {
+static const gameport_list_t gameport_devices[] = {
     { &device_none            },
     { &device_internal        },
     { &gameport_200_device    },
@@ -785,34 +795,41 @@ static const GAMEPORT gameports[] = {
 int
 gameport_available(int port)
 {
-    if (gameports[port].device)
-        return (device_available(gameports[port].device));
+    if (gameport_devices[port].device)
+        return (device_available(gameport_devices[port].device));
 
     return 1;
 }
 
 /* UI */
 const device_t *
-gameport_getdevice(int port)
+gameport_get_device(int port)
 {
-    return (gameports[port].device);
+    return (gameport_devices[port].device);
 }
 
 /* UI */
 int
 gameport_has_config(int port)
 {
-    if (!gameports[port].device)
+    if (gameport_devices[port].device == NULL)
         return 0;
 
-    return (device_has_config(gameports[port].device) ? 1 : 0);
+    return (device_has_config(gameport_devices[port].device) ? 1 : 0);
+}
+
+/* Return number of MOUSE types we know about. */
+int
+gameport_get_ndev(void)
+{
+    return ((sizeof(gameport_devices) / sizeof(gameport_list_t)) - 1);
 }
 
 /* UI */
 const char *
 gameport_get_internal_name(int port)
 {
-    return device_get_internal_name(gameports[port].device);
+    return device_get_internal_name(gameport_devices[port].device);
 }
 
 /* UI */
@@ -821,8 +838,8 @@ gameport_get_from_internal_name(const char *str)
 {
     int c = 0;
 
-    while (gameports[c].device != NULL) {
-        if (!strcmp(gameports[c].device->internal_name, str))
+    while (gameport_devices[c].device != NULL) {
+        if (!strcmp(gameport_devices[c].device->internal_name, str))
             return c;
         c++;
     }
