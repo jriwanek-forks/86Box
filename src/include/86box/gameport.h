@@ -52,6 +52,7 @@
 #define GAMEPORT_8ADDR      0x080000
 #define GAMEPORT_SIO        0x1000000
 #define GAMEPORT_PNPROM     0x2000000
+#define GAMEPORT_SECONDARY  0x10000000
 
 typedef struct joystick_t {
     const char *name;
@@ -122,6 +123,8 @@ extern int gameport_available(int port);
 extern const device_t *gameport_get_device(int port);
 #endif
 extern int         gameport_has_config(int port);
+extern int         gameport_get_ndev(void);
+
 extern const char *gameport_get_internal_name(int port);
 extern int         gameport_get_from_internal_name(const char *str);
 

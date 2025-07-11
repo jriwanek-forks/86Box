@@ -1853,6 +1853,9 @@ pc_run(void)
     }
 #endif
     joystick_process(0); // Gameport 0
+#if 0
+    joystick_process(1); // Gameport 1
+#endif
     endblit();
 
     /* Done with this frame, update statistics. */

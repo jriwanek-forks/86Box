@@ -32,11 +32,20 @@ private slots:
     void on_comboBoxMouse_currentIndexChanged(int index);
     void on_pushButtonConfigureMouse_clicked();
 
+    void on_comboBoxGameport_currentIndexChanged(int index);
+    void on_pushButtonConfigureGameport_clicked();
+
     void on_comboBoxJoystick0_currentIndexChanged(int index);
     void on_pushButtonJoystick01_clicked();
     void on_pushButtonJoystick02_clicked();
     void on_pushButtonJoystick03_clicked();
     void on_pushButtonJoystick04_clicked();
+
+    void on_comboBoxJoystick1_currentIndexChanged(int index);
+    void on_pushButtonJoystick11_clicked();
+    void on_pushButtonJoystick12_clicked();
+    void on_pushButtonJoystick13_clicked();
+    void on_pushButtonJoystick14_clicked();
 
     void on_tableKeys_cellDoubleClicked(int row, int col);
     void on_tableKeys_currentCellChanged(int currentRow, int currentColumn, int previousRow, int previousColumn);
