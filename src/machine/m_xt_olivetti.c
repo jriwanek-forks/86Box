@@ -2325,7 +2325,7 @@ machine_xt_m24_init(const machine_t *model)
     /* Address 66-67 = mainboard dip-switch settings */
     io_sethandler(0x0065, 3, m24_read, NULL, NULL, NULL, NULL, NULL, NULL);
 
-    standalone_gameport_type = &gameport_device;
+    standalone_gameport_type = &gameport_200_device;
 
     nmi_init();
 
@@ -2396,8 +2396,8 @@ machine_xt_m240_init(const machine_t *model)
     if (fdc_current[0] == FDC_INTERNAL)
         device_add(&fdc_at_device); /* io.c logs clearly show it using port 3F7 */
 
-    if (joystick_type)
-        device_add(&gameport_device);
+    if (joystick_type[0])
+        device_add(&gameport_200_device);
 
     nmi_init();
 

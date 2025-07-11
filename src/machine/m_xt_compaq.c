@@ -56,7 +56,7 @@ machine_xt_compaq_deskpro_init(const machine_t *model)
     if (fdc_current[0] == FDC_INTERNAL)
         device_add(&fdc_xt_device);
     nmi_init();
-    standalone_gameport_type = &gameport_device;
+    standalone_gameport_type = &gameport_200_device;
 
     lpt1_remove();
     lpt1_setup(LPT_MDA_ADDR);
@@ -83,8 +83,8 @@ machine_xt_compaq_portable_init(const machine_t *model)
     if (fdc_current[0] == FDC_INTERNAL)
         device_add(&fdc_xt_device);
     nmi_init();
-    if (joystick_type)
-        device_add(&gameport_device);
+    if (joystick_type[0])
+        device_add(&gameport_200_device);
 
     lpt1_remove();
     lpt1_setup(LPT_MDA_ADDR);
