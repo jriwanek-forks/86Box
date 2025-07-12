@@ -184,29 +184,36 @@ SettingsInput::onCurrentMachineChanged(int machineId)
     auto *gameportModel = ui->comboBoxGameport->model();
     removeRows          = gameportModel->rowCount();
 
+    c           = 0;
     selectedRow = 0;
-    for (int i = 0; i < 8; ++i) { // TODO
-        const auto *dev = gameport_getdevice(i); // TODO
+    while(true) {
 #if 0
-        if ((i == GAMEPORT_TYPE_INTERNAL) && (machine_has_flags(machineId, MACHINE_GAMEPORT) == 0))
+        if ((c == GAMEPORT_TYPE_INTERNAL) && (machine_has_flags(machineId, MACHINE_GAMEPORT) == 0)) {
+            c++;
             continue;
+        }
 #endif
 
-        if (device_is_valid(dev, machineId) == 0)
-            continue;
+        const device_t *dev  = gameport_getdevice(c); // TODO
+        QString         name = DeviceConfig::DeviceName(dev, gameport_get_internal_name(c), 1);
 
-        QString name = DeviceConfig::DeviceName(dev, gameport_get_internal_name(i), 0);
-        int     row  = gameportModel->rowCount();
-        gameportModel->insertRow(row);
-        auto idx = gameportModel->index(row, 0);
+        if (name.isEmpty()) {
+            break;
+        }
 
-        gameportModel->setData(idx, name, Qt::DisplayRole);
-        mouseModel->setData(idx, i, Qt::UserRole);
+        if (gameport_available(c) && device_is_valid(dev, machineId)) {
+            int     row  = gameportModel->rowCount();
+            gameportModel->insertRow(row);
+            auto idx = gameportModel->index(row, 0);
+
+            gameportModel->setData(idx, name, Qt::DisplayRole);
+            gameportModel->setData(idx, c, Qt::UserRole);
 
 #if 0
-        if (i == gameport_type)
-            selectedRow = row - removeRows;
+            if (i == gameport_type)
+                selectedRow = row - removeRows;
 #endif
+        }
     }
     gameportModel->removeRows(0, removeRows);
     ui->comboBoxGameport->setCurrentIndex(selectedRow);
@@ -379,6 +386,7 @@ SettingsInput::on_comboBoxJoystick0_currentIndexChanged(int index)
     }
 }
 
+void
 SettingsInput::on_comboBoxJoystick1_currentIndexChanged(int index)
 {
     int joystickId = ui->comboBoxJoystick1->currentData().toInt();
