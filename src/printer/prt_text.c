@@ -513,6 +513,27 @@ prnt_close(void *priv)
     free(dev);
 }
 
+// clang-format off
+static const device_config_t lpt_prt_text_config[] = {
+    {
+        .name           = "paper_size",
+        .description    = "Paper Size",
+        .type           = CONFIG_SELECTION,
+        .default_string = NULL,
+        .default_int    = 0,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = {
+            { .description = "Letter", .value = 0 },
+            { .description = "A4",     .value = 1 },
+            { .description = ""                   }
+        },
+        .bios           = { { 0 } }
+    },
+    { .name = "", .description = "", .type = CONFIG_END }
+};
+// clang-format on
+
 const lpt_device_t lpt_prt_text_device = {
     .name             = "Generic Text Printer",
     .internal_name    = "text_prt",
@@ -526,5 +547,5 @@ const lpt_device_t lpt_prt_text_device = {
     .read_ctrl        = NULL,
     .epp_write_data   = NULL,
     .epp_request_read = NULL,
-    .config           = NULL
+    .config           = lpt_prt_text_config
 };
