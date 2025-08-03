@@ -114,6 +114,7 @@ static const SOUND_CARD sound_cards[] = {
     { &mmb_device                   },
     { &pasplus_device               },
     { &voicemasterkey_device        },
+    { &soundmaster_device           },
     { &soundmasterplus_device       },
     { &soundman_device              },
     { &isadacr0_device              },
