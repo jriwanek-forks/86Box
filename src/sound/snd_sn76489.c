@@ -10,7 +10,20 @@
 #include <86box/io.h>
 #include <86box/sound.h>
 #include <86box/snd_sn76489.h>
+#include <86box/timer.h>
+#include <86box/lpt.h>
 #include <86box/plat_unused.h>
+
+typedef struct tndlpt_s {
+    void *lpt;
+
+    sn76489_t *sn76489;
+
+#if 0
+    int16_t buffer[2][SOUNDBUFLEN];
+    int     pos;
+#endif
+} tndlpt_t;
 
 int sn76489_mute;
 
@@ -265,6 +278,56 @@ sn76489_device_close(void *priv)
     free(sn76489);
 }
 
+static void *
+tndlpt_init(void *lpt)
+{
+    tndlpt_t *tndlpt = calloc(1, sizeof(tndlpt_t));
+
+    tndlpt->lpt = lpt;
+
+    // TODO
+#if 0
+    sound_add_handler(tndlpt_get_buffer, tndlpt);
+#else
+    sound_add_handler(sn76489_get_buffer, tndlpt->sn76489);
+
+#endif
+
+    return tndlpt;
+}
+
+static void
+tndlpt_close(void *priv)
+{
+    tndlpt_t *tndlpt = (tndlpt_t *) priv;
+
+    free(tndlpt);
+}
+
+static void
+tndlpt_write_data(uint8_t val, void *priv)
+{
+    tndlpt_t *tndlpt = (tndlpt_t *) priv;
+
+//  TODO
+#if 0
+    tndlpt->dac_val_l = tndlpt->dac_val_r = val;
+#endif
+    
+	sn76489_update(tndlpt->sn76489);
+}
+
+// TODO: Likely unneeded
+static void
+tndlpt_write_ctrl(uint8_t val, void *priv)
+{
+    tndlpt_t *tndlpt = (tndlpt_t *) priv;
+
+#if 0
+    tndlpt->channel = val & 0x01;
+#endif
+}
+
 static const device_config_t tndy_config[] = {
   // clang-format off
     {
@@ -330,4 +393,21 @@ const device_t tndy_device = {
     .speed_changed = NULL,
     .force_redraw  = NULL,
     .config        = tndy_config
+};
+
+const lpt_device_t lpt_tnd_device = {
+    .name             = "tndlpt",
+    .internal_name    = "lpt_tndlpt",
+    .init             = tndlpt_init,
+    .close            = tndlpt_close,
+    .write_data       = tndlpt_write_data,
+    .write_ctrl       = tndlpt_write_ctrl, // Likely Unneeded
+    .autofeed         = NULL,
+    .strobe           = NULL, // Check this
+    .read_status      = NULL, // Check this
+    .read_ctrl        = NULL,
+    .epp_write_data   = NULL,
+    .epp_request_read = NULL,
+    .priv             = NULL,
+    .lpt              = NULL
 };
