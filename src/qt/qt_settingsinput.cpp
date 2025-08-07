@@ -180,45 +180,33 @@ SettingsInput::onCurrentMachineChanged(int machineId)
     ui->comboBoxMouse->setCurrentIndex(-1);
     ui->comboBoxMouse->setCurrentIndex(selectedRow);
 
-#if 0
     // Gameports
     auto *gameportModel = ui->comboBoxGameport->model();
     removeRows          = gameportModel->rowCount();
 
-    visibleItemCount = 0;
-    selectedRow      = 0;
-    while(true) {
-#if 0
-        if ((visibleItemCount == GAMEPORT_TYPE_INTERNAL) && (machine_has_flags(machineId, MACHINE_GAMEPORT) == 0)) {
-            visibleItemCount++;
+    selectedRow = 0;
+    for (int i = 0; i < gameport_get_ndev(); ++i) {
+        const auto *dev = gameport_get_device(i);
+        if ((i == GAMEPORT_TYPE_INTERNAL) && (machine_has_flags(machineId, MACHINE_GAMEPORT) == 0))
             continue;
-        }
-#endif
 
-        const device_t *dev  = gameport_get_device(c);
-        QString         name = DeviceConfig::DeviceName(dev, gameport_get_internal_name(c), 1);
+        if (device_is_valid(dev, machineId) == 0)
+            continue;
 
-        if (name.isEmpty()) {
-            break;
-        }
+        QString name = DeviceConfig::DeviceName(dev, gameport_get_internal_name(i), 0);
+        int     row  = gameportModel->rowCount();
+        gameportModel->insertRow(row);
+        auto idx = gameportModel->index(row, 0);
 
-        if (gameport_available(c) && device_is_valid(dev, machineId)) {
-            int     row  = gameportModel->rowCount();
-            gameportModel->insertRow(row);
-            auto idx = gameportModel->index(row, 0);
+        gameportModel->setData(idx, name, Qt::DisplayRole);
+        gameportModel->setData(idx, i, Qt::UserRole);
 
-            gameportModel->setData(idx, name, Qt::DisplayRole);
-            gameportModel->setData(idx, c, Qt::UserRole);
-
-#if 0
-            if (i == gameport_type)
-                selectedRow = row - removeRows;
-#endif
-        }
+        if (i == gameport_type)
+            selectedRow = row - removeRows;
     }
     gameportModel->removeRows(0, removeRows);
+    ui->comboBoxGameport->setCurrentIndex(-1);
     ui->comboBoxGameport->setCurrentIndex(selectedRow);
-#endif
 
     // Joysticks
 //    uint8_t     gp            = 0;
