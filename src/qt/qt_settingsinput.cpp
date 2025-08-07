@@ -187,8 +187,10 @@ SettingsInput::onCurrentMachineChanged(int machineId)
     selectedRow = 0;
     for (int i = 0; i < gameport_get_ndev(); ++i) {
         const auto *dev = gameport_get_device(i);
+#if 0
         if ((i == GAMEPORT_TYPE_INTERNAL) && (machine_has_flags(machineId, MACHINE_GAMEPORT) == 0))
             continue;
+#endif
 
         if (device_is_valid(dev, machineId) == 0)
             continue;
@@ -201,8 +203,10 @@ SettingsInput::onCurrentMachineChanged(int machineId)
         gameportModel->setData(idx, name, Qt::DisplayRole);
         gameportModel->setData(idx, i, Qt::UserRole);
 
+#if 0
         if (i == gameport_type)
             selectedRow = row - removeRows;
+#endif
     }
     gameportModel->removeRows(0, removeRows);
     ui->comboBoxGameport->setCurrentIndex(-1);
