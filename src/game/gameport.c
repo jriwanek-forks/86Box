@@ -35,9 +35,9 @@
 
 device_t game_ports[GAMEPORT_MAX];
 
-typedef struct {
+typedef struct gameport_t {
     const device_t *device;
-} GAMEPORT;
+} gameport_t;
 
 typedef struct g_axis_t {
     pc_timer_t                  timer;
@@ -781,7 +781,7 @@ const device_t gameport_sio_1io_device = {
     .config        = NULL
 };
 
-static const GAMEPORT gameports[] = {
+static const gameport_t gameport_devices[] = {
     { &device_none            },
     { &device_internal        },
     { &gameport_200_device    },
@@ -805,26 +805,33 @@ gameport_available(int port)
 
 /* UI */
 const device_t *
-gameport_getdevice(int port)
+gameport_get_device(int port)
 {
-    return (gameports[port].device);
+    return (gameport_devices[port].device);
 }
 
 /* UI */
 int
 gameport_has_config(int port)
 {
-    if (!gameports[port].device)
+    if (gameport_devices[port].device == NULL)
         return 0;
 
-    return (device_has_config(gameports[port].device) ? 1 : 0);
+    return (device_has_config(gameport_devices[port].device) ? 1 : 0);
+}
+
+/* Return number of MOUSE types we know about. */
+int
+gameport_get_ndev(void)
+{
+    return ((sizeof(gameport_devices) / sizeof(device_t)) - 1);
 }
 
 /* UI */
 const char *
 gameport_get_internal_name(int port)
 {
-    return device_get_internal_name(gameports[port].device);
+    return device_get_internal_name(gameport_devices[port].device);
 }
 
 /* UI */
@@ -833,8 +840,8 @@ gameport_get_from_internal_name(const char *str)
 {
     int c = 0;
 
-    while (gameports[c].device != NULL) {
-        if (!strcmp(gameports[c].device->internal_name, str))
+    while (gameport_devices[c].device != NULL) {
+        if (!strcmp(gameport_devices[c].device->internal_name, str))
             return c;
         c++;
     }

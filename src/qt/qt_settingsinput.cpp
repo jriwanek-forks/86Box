@@ -195,7 +195,7 @@ SettingsInput::onCurrentMachineChanged(int machineId)
         }
 #endif
 
-        const device_t *dev  = gameport_getdevice(c); // TODO
+        const device_t *dev  = gameport_get_device(c);
         QString         name = DeviceConfig::DeviceName(dev, gameport_get_internal_name(c), 1);
 
         if (name.isEmpty()) {
@@ -405,7 +405,7 @@ void
 SettingsInput::on_pushButtonConfigureGameport_clicked()
 {
     int gameportId = ui->comboBoxGameport->currentData().toInt();
-    DeviceConfig::ConfigureDevice(gameport_getdevice(gameportId));
+    DeviceConfig::ConfigureDevice(gameport_get_device(gameportId));
 }
 
 void
