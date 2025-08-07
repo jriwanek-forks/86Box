@@ -180,6 +180,7 @@ SettingsInput::onCurrentMachineChanged(int machineId)
     ui->comboBoxMouse->setCurrentIndex(-1);
     ui->comboBoxMouse->setCurrentIndex(selectedRow);
 
+#if 0
     // Gameports
     auto *gameportModel = ui->comboBoxGameport->model();
     removeRows          = gameportModel->rowCount();
@@ -217,6 +218,7 @@ SettingsInput::onCurrentMachineChanged(int machineId)
     }
     gameportModel->removeRows(0, removeRows);
     ui->comboBoxGameport->setCurrentIndex(selectedRow);
+#endif
 
     // Joysticks
 //    uint8_t     gp            = 0;
