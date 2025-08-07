@@ -118,8 +118,8 @@ SettingsInput::onCurrentMachineChanged(int machineId)
 
     int selectedRow = 0;
 
-    int c           = 0;
-    int has_int_kbd = !!machine_has_flags(machineId, MACHINE_KEYBOARD);
+    int visibleItemCount = 0;
+    int has_int_kbd      = !!machine_has_flags(machineId, MACHINE_KEYBOARD);
 
     for (int i = 0; i < keyboard_get_ndev(); ++i) {
         const auto *dev           = keyboard_get_device(i);
@@ -142,13 +142,13 @@ SettingsInput::onCurrentMachineChanged(int machineId)
         if (i == keyboard_type)
             selectedRow = row - removeRows;
 
-        c++;
+        visibleItemCount++;
     }
     keyboardModel->removeRows(0, removeRows);
     ui->comboBoxKeyboard->setCurrentIndex(-1);
     ui->comboBoxKeyboard->setCurrentIndex(selectedRow);
 
-    if ((c == 1) || has_int_kbd)
+    if ((visibleItemCount == 1) || has_int_kbd)
         ui->comboBoxKeyboard->setEnabled(false);
     else
         ui->comboBoxKeyboard->setEnabled(true);
@@ -185,12 +185,12 @@ SettingsInput::onCurrentMachineChanged(int machineId)
     auto *gameportModel = ui->comboBoxGameport->model();
     removeRows          = gameportModel->rowCount();
 
-    c           = 0;
-    selectedRow = 0;
+    visibleItemCount = 0;
+    selectedRow      = 0;
     while(true) {
 #if 0
-        if ((c == GAMEPORT_TYPE_INTERNAL) && (machine_has_flags(machineId, MACHINE_GAMEPORT) == 0)) {
-            c++;
+        if ((visibleItemCount == GAMEPORT_TYPE_INTERNAL) && (machine_has_flags(machineId, MACHINE_GAMEPORT) == 0)) {
+            visibleItemCount++;
             continue;
         }
 #endif
