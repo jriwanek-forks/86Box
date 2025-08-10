@@ -10,6 +10,7 @@
 #include <86box/io.h>
 #include <86box/sound.h>
 #include <86box/snd_sn76489.h>
+#include <86box/plat_fallthrough.h>
 #include <86box/plat_unused.h>
 
 int sn76489_mute;
@@ -34,6 +35,10 @@ int sn76489_mute;
 #define FREQ_LATCH_BITS    10
 #define MAX_FREQ_VALUE     (1 << FREQ_LATCH_BITS)
 #define FREQ_SHIFT_FACTOR  6
+
+#define CARD_TYPE_SN76489   0
+#define CARD_TYPE_NCR8496   1
+#define CARD_TYPE_TNDY      2
 
 static float volslog[16] = {
     0.00000f, 0.59715f, 0.75180f, 0.94650f,
@@ -213,7 +218,7 @@ sn74689_set_extra_divide(sn76489_t *sn76489, int enable)
     sn76489->extra_divide = enable;
 }
 
-void
+static void
 sn76489_init(sn76489_t *sn76489, uint16_t base, uint16_t size, int type, int freq)
 {
     sound_add_handler(sn76489_get_buffer, sn76489);
@@ -244,37 +249,36 @@ sn76489_init(sn76489_t *sn76489, uint16_t base, uint16_t size, int type, int fre
 
     sn76489_mute = 0;
 
-    io_sethandler(base, size, NULL, NULL, NULL, sn76489_write, NULL, NULL, sn76489);
+    // Register the I/O handlers for the device.
+    io_sethandler(base, size,
+                  NULL, NULL, NULL,
+                  sn76489_write, NULL, NULL,
+                  sn76489);
 }
 
 void *
-sn76489_device_init(UNUSED(const device_t *info))
+sn76489_device_init(const device_t *info)
 {
     sn76489_t *sn76489 = calloc(1, sizeof(sn76489_t));
+    uint16_t   base;
+    uint16_t   size = 0x0008;
+    int        type = SN76496;
+    int        freq = 3579545;
 
-    sn76489_init(sn76489, 0x00c0, 0x0008, SN76496, 3579545);
+    switch (info->local) {
+        case CARD_TYPE_TNDY:
+            base = device_get_config_hex16("base");
+            break;
+        case CARD_TYPE_NCR8496:
+            type = NCR8496;
+            fallthrough;
+        case CARD_TYPE_SN76489:
+        default:
+            base = 0x00c0;
+            break;
+    }
 
-    return sn76489;
-}
-
-void *
-ncr8496_device_init(UNUSED(const device_t *info))
-{
-    sn76489_t *sn76489 = calloc(1, sizeof(sn76489_t));
-
-    sn76489_init(sn76489, 0x00c0, 0x0008, NCR8496, 3579545);
-
-    return sn76489;
-}
-
-void *
-tndy_device_init(UNUSED(const device_t *info))
-{
-    sn76489_t *sn76489 = calloc(1, sizeof(sn76489_t));
-
-    uint16_t addr = device_get_config_hex16("base");
-
-    sn76489_init(sn76489, addr, 0x0008, SN76496, 3579545);
+    sn76489_init(sn76489, base, size, type, freq);
 
     return sn76489;
 }
@@ -316,7 +320,7 @@ const device_t sn76489_device = {
     .name          = "TI SN74689 PSG",
     .internal_name = "sn76489",
     .flags         = 0,
-    .local         = 0,
+    .local         = CARD_TYPE_SN76489,
     .init          = sn76489_device_init,
     .close         = sn76489_device_close,
     .reset         = NULL,
@@ -330,8 +334,8 @@ const device_t ncr8496_device = {
     .name          = "NCR8496 PSG",
     .internal_name = "ncr8496",
     .flags         = 0,
-    .local         = 0,
-    .init          = ncr8496_device_init,
+    .local         = CARD_TYPE_NCR8496,
+    .init          = sn76489_device_init,
     .close         = sn76489_device_close,
     .reset         = NULL,
     .available     = NULL,
@@ -344,8 +348,8 @@ const device_t tndy_device = {
     .name          = "TNDY",
     .internal_name = "tndy",
     .flags         = DEVICE_ISA,
-    .local         = 0,
-    .init          = tndy_device_init,
+    .local         = CARD_TYPE_TNDY,
+    .init          = sn76489_device_init,
     .close         = sn76489_device_close,
     .reset         = NULL,
     .available     = NULL,
