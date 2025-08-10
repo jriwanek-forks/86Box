@@ -14,6 +14,27 @@
 
 int sn76489_mute;
 
+#define CMD_MASK         0x80
+#define REG_ADDR_MASK    0x70
+#define DATA_MASK        0xf
+#define FREQ_HI_DATA_MASK 0x7f
+
+#define REG_TONE1_FREQ_LO  0x40
+#define REG_TONE1_VOL      0x50
+#define REG_TONE2_FREQ_LO  0x20
+#define REG_TONE2_VOL      0x30
+#define REG_TONE3_FREQ_LO  0x00
+#define REG_TONE3_VOL      0x10
+#define REG_NOISE_CTRL     0x60
+#define REG_NOISE_VOL      0x70
+
+#define NOISE_FREQ_MASK  0x03 // NF0, NF1 bits
+#define NOISE_TYPE_MASK  0x04 // FB bit for white vs periodic noise
+
+#define FREQ_LATCH_BITS    10
+#define MAX_FREQ_VALUE     (1 << FREQ_LATCH_BITS)
+#define FREQ_SHIFT_FACTOR  6
+
 static float volslog[16] = {
     0.00000f, 0.59715f, 0.75180f, 0.94650f,
     1.19145f, 1.50000f, 1.88835f, 2.37735f,
@@ -47,12 +68,13 @@ sn76489_update(sn76489_t *sn76489)
                 sn76489->stat[c] = -sn76489->stat[c];
             }
         }
+
         result += (((sn76489->shift & 1) ^ 1) * 127 * volslog[sn76489->vol[0]] * 2);
 
         sn76489->count[0] -= (512 * sn76489->psgconst);
         while ((sn76489->count[0] < 0) && sn76489->latch[0]) {
             sn76489->count[0] += (sn76489->latch[0] * 4);
-            if (!(sn76489->noise & 4)) {
+            if (!(sn76489->noise & NOISE_TYPE_MASK)) {
                 if ((sn76489->shift >> sn76489->white_noise_tap_1) & 1) {
                     sn76489->shift >>= 1;
                     sn76489->shift |= sn76489->feedback_mask;
@@ -94,11 +116,11 @@ sn76489_write(UNUSED(uint16_t addr), uint8_t data, void *priv)
 
     sn76489_update(sn76489);
 
-    if (data & 0x80) {
+    if (data & CMD_MASK) {
         sn76489->firstdat = data;
-        switch (data & 0x70) {
-            case 0:
-                sn76489->freqlo[3] = data & 0xf;
+        switch (data & REG_ADDR_MASK) {
+            case REG_TONE3_FREQ_LO: // Tone 3 (freq low bits)
+                sn76489->freqlo[3] = data & DATA_MASK;
                 sn76489->latch[3]  = (sn76489->freqlo[3] | (sn76489->freqhi[3] << 4)) << 6;
                 if (!sn76489->extra_divide)
                     sn76489->latch[3] &= 0x3ff;
@@ -106,12 +128,12 @@ sn76489_write(UNUSED(uint16_t addr), uint8_t data, void *priv)
                     sn76489->latch[3] = (sn76489->extra_divide ? 2048 : 1024) << 6;
                 sn76489->lasttone = 3;
                 break;
-            case 0x10:
-                data &= 0xf;
+            case REG_TONE3_VOL: // Tone 3 (volume)
+                data &= DATA_MASK;
                 sn76489->vol[3] = 0xf - data;
                 break;
-            case 0x20:
-                sn76489->freqlo[2] = data & 0xf;
+            case REG_TONE2_FREQ_LO: // Tone 2 (freq low bits)
+                sn76489->freqlo[2] = data & DATA_MASK;
                 sn76489->latch[2]  = (sn76489->freqlo[2] | (sn76489->freqhi[2] << 4)) << 6;
                 if (!sn76489->extra_divide)
                     sn76489->latch[2] &= 0x3ff;
@@ -119,12 +141,12 @@ sn76489_write(UNUSED(uint16_t addr), uint8_t data, void *priv)
                     sn76489->latch[2] = (sn76489->extra_divide ? 2048 : 1024) << 6;
                 sn76489->lasttone = 2;
                 break;
-            case 0x30:
-                data &= 0xf;
+            case REG_TONE2_VOL: // Tone 2 (volume)
+                data &= DATA_MASK;
                 sn76489->vol[2] = 0xf - data;
                 break;
-            case 0x40:
-                sn76489->freqlo[1] = data & 0xf;
+            case REG_TONE1_FREQ_LO: // Tone 1 (freq low bits)
+                sn76489->freqlo[1] = data & DATA_MASK;
                 sn76489->latch[1]  = (sn76489->freqlo[1] | (sn76489->freqhi[1] << 4)) << 6;
                 if (!sn76489->extra_divide)
                     sn76489->latch[1] &= 0x3ff;
@@ -132,23 +154,23 @@ sn76489_write(UNUSED(uint16_t addr), uint8_t data, void *priv)
                     sn76489->latch[1] = (sn76489->extra_divide ? 2048 : 1024) << 6;
                 sn76489->lasttone = 1;
                 break;
-            case 0x50:
-                data &= 0xf;
+            case REG_TONE1_VOL: // Tone 1 (volume)
+                data &= DATA_MASK;
                 sn76489->vol[1] = 0xf - data;
                 break;
-            case 0x60:
-                if (((data & 4) != (sn76489->noise & 4)) || (sn76489->type == SN76496))
+            case REG_NOISE_CTRL: // Noise control
+                if (((data & NOISE_TYPE_MASK) != (sn76489->noise & NOISE_TYPE_MASK)) || (sn76489->type == SN76496))
                     sn76489->shift = sn76489->feedback_mask;
-                sn76489->noise = data & 0xf;
-                if ((data & 3) == 3)
+                sn76489->noise = data & DATA_MASK;
+                if ((data & NOISE_FREQ_MASK) == 3)
                     sn76489->latch[0] = sn76489->latch[1];
                 else
-                    sn76489->latch[0] = 0x400 << (data & 3);
+                    sn76489->latch[0] = 0x400 << (data & NOISE_FREQ_MASK);
                 if (!sn76489->latch[0])
                     sn76489->latch[0] = (sn76489->extra_divide ? 2048 : 1024) << 6;
                 break;
-            case 0x70:
-                data &= 0xf;
+            case REG_NOISE_VOL: // Noise (volume)
+                data &= DATA_MASK;
                 sn76489->vol[0] = 0xf - data;
                 break;
 
@@ -157,28 +179,28 @@ sn76489_write(UNUSED(uint16_t addr), uint8_t data, void *priv)
         }
     } else {
         /* NCR8496 ignores writes to registers 1, 3, 5, 6 and 7 with bit 7 clear. */
-        if ((sn76489->type != SN76496) && ((sn76489->firstdat & 0x10) || ((sn76489->firstdat & 0x70) == 0x60)))
+        if ((sn76489->type != SN76496) && ((sn76489->firstdat & REG_TONE3_VOL) || ((sn76489->firstdat & REG_NOISE_VOL) == REG_NOISE_CTRL)))
             return;
 
-        if ((sn76489->firstdat & 0x70) == 0x60 && (sn76489->type == SN76496)) {
+        if ((sn76489->firstdat & REG_NOISE_VOL) == REG_NOISE_CTRL && (sn76489->type == SN76496)) {
             if (sn76489->type == SN76496)
                 sn76489->shift = sn76489->feedback_mask;
-            sn76489->noise = data & 0xf;
-            if ((data & 3) == 3)
+            sn76489->noise = data & DATA_MASK;
+            if ((data & NOISE_FREQ_MASK) == 3)
                 sn76489->latch[0] = sn76489->latch[1];
             else
-                sn76489->latch[0] = 0x400 << (data & 3);
+                sn76489->latch[0] = 0x400 << (data & NOISE_FREQ_MASK);
             if (!sn76489->latch[0])
                 sn76489->latch[0] = (sn76489->extra_divide ? 2048 : 1024) << 6;
-        } else if ((sn76489->firstdat & 0x70) != 0x60) {
-            sn76489->freqhi[sn76489->lasttone] = data & 0x7F;
+        } else if ((sn76489->firstdat & REG_NOISE_CTRL) != REG_NOISE_CTRL) {
+            sn76489->freqhi[sn76489->lasttone] = data & FREQ_HI_DATA_MASK;
             freq                               = sn76489->freqlo[sn76489->lasttone] |
                                                  (sn76489->freqhi[sn76489->lasttone] << 4);
             if (!sn76489->extra_divide)
                 freq &= 0x3ff;
             if (!freq)
                 freq = sn76489->extra_divide ? 2048 : 1024;
-            if ((sn76489->noise & 3) == 3 && sn76489->lasttone == 1)
+            if ((sn76489->noise & NOISE_FREQ_MASK) == 3 && (sn76489->lasttone == 1))
                 sn76489->latch[0] = freq << 6;
             sn76489->latch[sn76489->lasttone] = freq << 6;
         }
