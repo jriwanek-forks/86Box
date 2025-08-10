@@ -218,7 +218,7 @@ sn74689_set_extra_divide(sn76489_t *sn76489, int enable)
     sn76489->extra_divide = enable;
 }
 
-static void
+void
 sn76489_init(sn76489_t *sn76489, uint16_t base, uint16_t size, int type, int freq)
 {
     sound_add_handler(sn76489_get_buffer, sn76489);
