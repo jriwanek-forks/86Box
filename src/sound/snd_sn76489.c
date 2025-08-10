@@ -233,15 +233,25 @@ sn76489_init(sn76489_t *sn76489, uint16_t base, uint16_t size, int type, int fre
         sn76489->feedback_mask     = 0x8000;
     }
 
-    sn76489->latch[0] = sn76489->latch[1] = sn76489->latch[2] = sn76489->latch[3] = 0x3FF << 6;
-    sn76489->vol[0]                                                               = 0;
-    sn76489->vol[1] = sn76489->vol[2] = sn76489->vol[3] = 8;
-    sn76489->stat[0] = sn76489->stat[1] = sn76489->stat[2] = sn76489->stat[3] = 127;
+    sn76489->latch[0] = 0x3FF << FREQ_SHIFT_FACTOR;
+    sn76489->latch[1] = 0x3FF << FREQ_SHIFT_FACTOR;
+    sn76489->latch[2] = 0x3FF << FREQ_SHIFT_FACTOR;
+    sn76489->latch[3] = 0x3FF << FREQ_SHIFT_FACTOR;
+    sn76489->vol[0]   = 0;
+    sn76489->vol[1]   = 8;
+    sn76489->vol[2]   = 8;
+    sn76489->vol[3]   = 8;
+    sn76489->stat[0]  = 127;
+    sn76489->stat[1]  = 127;
+    sn76489->stat[2]  = 127;
+    sn76489->stat[3]  = 127;
+
     srand(time(NULL));
     sn76489->count[0] = 0;
-    sn76489->count[1] = (rand() & 0x3FF) << 6;
-    sn76489->count[2] = (rand() & 0x3FF) << 6;
-    sn76489->count[3] = (rand() & 0x3FF) << 6;
+    sn76489->count[1] = (rand() & 0x3FF) << FREQ_SHIFT_FACTOR;
+    sn76489->count[2] = (rand() & 0x3FF) << FREQ_SHIFT_FACTOR;
+    sn76489->count[3] = (rand() & 0x3FF) << FREQ_SHIFT_FACTOR;
+
     sn76489->noise    = 3;
     sn76489->shift    = sn76489->feedback_mask;
     sn76489->type     = type;
