@@ -65,7 +65,7 @@ typedef struct _joystick_instance_ {
     void             *dat;
 } joystick_instance_t;
 
-int joystick_type = JS_TYPE_NONE;
+int joystick_type[1] = { JS_TYPE_NONE };
 
 static const joystick_t joystick_none = {
     .name          = "None",
@@ -308,7 +308,7 @@ gameport_update_joystick_type(void)
     /* Reset the joystick interface. */
     if (joystick_instance[0]) {
         joystick_instance[0]->intf->close(joystick_instance[0]->dat);
-        joystick_instance[0]->intf = joysticks[joystick_type].joystick;
+        joystick_instance[0]->intf = joysticks[joystick_type[0]].joystick;
         joystick_instance[0]->dat  = joystick_instance[0]->intf->init();
     }
 }
@@ -394,7 +394,7 @@ gameport_init(const device_t *info)
     gameport_t *dev = calloc(1, sizeof(gameport_t));
 
     /* Allocate global instance. */
-    if (!joystick_instance[0] && joystick_type) {
+    if (!joystick_instance[0] && joystick_type[0]) {
         joystick_instance[0] = calloc(1, sizeof(joystick_instance_t));
 
         // For each analog joystick axis
@@ -406,7 +406,7 @@ gameport_init(const device_t *info)
             timer_add(&joystick_instance[0]->axis[i].timer, timer_over, &joystick_instance[0]->axis[i], 0);
         }
 
-        joystick_instance[0]->intf = joysticks[joystick_type].joystick;
+        joystick_instance[0]->intf = joysticks[joystick_type[0]].joystick;
         joystick_instance[0]->dat  = joystick_instance[0]->intf->init();
     }
 

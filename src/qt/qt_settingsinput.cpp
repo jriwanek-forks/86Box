@@ -95,7 +95,7 @@ SettingsInput::save()
     keyboard_type = ui->comboBoxKeyboard->currentData().toInt();
     mouse_type    = ui->comboBoxMouse->currentData().toInt();
 
-    joystick_type = ui->comboBoxJoystick->currentData().toInt();
+    joystick_type[0] = ui->comboBoxJoystick->currentData().toInt();
 
     // Copy accelerators from working set to global set
     for(int x = 0; x < NUM_ACCELS; x++) {
@@ -186,7 +186,7 @@ SettingsInput::onCurrentMachineChanged(int machineId)
     selectedRow               = 0;
     while (joyName) {
         int row = Models::AddEntry(joystickModel, tr(joyName).toUtf8().data(), i);
-        if (i == joystick_type)
+        if (i == joystick_type[0])
             selectedRow = row - removeRows;
 
         ++i;
