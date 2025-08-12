@@ -168,7 +168,7 @@ extern const char *joystick_get_axis_name(int js, int id);
 extern const char *joystick_get_button_name(int js, int id);
 extern const char *joystick_get_pov_name(int js, int id);
 
-extern void  gameport_update_joystick_type(void);
+extern void  gameport_update_joystick_type(uint8_t gp);
 extern void  gameport_remap(void *priv, uint16_t address);
 extern void *gameport_add(const device_t *gameport_type);
 

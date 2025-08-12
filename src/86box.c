@@ -1573,8 +1573,9 @@ pc_reset_hard_init(void)
        the chances of the SCSI controller ending up on the bridge. */
     video_voodoo_init();
 
+    /* installs first game port if no device provides one, must be late */
     if (joystick_type[0])
-        gameport_update_joystick_type(); /* installs game port if no device provides one, must be late */
+        gameport_update_joystick_type(0);
 
     ui_sb_update_panes();
 
