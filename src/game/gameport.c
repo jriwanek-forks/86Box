@@ -65,7 +65,7 @@ typedef struct _joystick_instance_ {
     void             *dat;
 } joystick_instance_t;
 
-int joystick_type[1] = { JS_TYPE_NONE };
+int joystick_type[GAMEPORT_MAX] = { JS_TYPE_NONE, JS_TYPE_NONE };
 
 static const joystick_t joystick_none = {
     .name          = "None",
@@ -799,7 +799,7 @@ gameport_available(int port)
 
 /* UI */
 const device_t *
-gameport_getdevice(int port)
+gameport_get_device(int port)
 {
     return (gameports[port].device);
 }

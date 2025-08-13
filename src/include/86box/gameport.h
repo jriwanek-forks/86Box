@@ -119,7 +119,7 @@ extern "C" {
 
 extern int gameport_available(int port);
 #ifdef EMU_DEVICE_H
-extern const device_t *gameport_getdevice(int port);
+extern const device_t *gameport_get_device(int port);
 #endif
 extern int         gameport_has_config(int port);
 extern const char *gameport_get_internal_name(int port);
@@ -151,7 +151,7 @@ extern plat_joystick_state_t plat_joystick_state[MAX_PLAT_JOYSTICKS];
 extern joystick_state_t      joystick_state[GAMEPORT_MAX][MAX_JOYSTICKS];
 extern int                   joysticks_present;
 
-extern int joystick_type[1];
+extern int joystick_type[GAMEPORT_MAX];
 
 extern void joystick_init(void);
 extern void joystick_close(void);
