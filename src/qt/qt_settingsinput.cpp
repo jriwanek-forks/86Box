@@ -95,7 +95,7 @@ SettingsInput::save()
     keyboard_type = ui->comboBoxKeyboard->currentData().toInt();
     mouse_type    = ui->comboBoxMouse->currentData().toInt();
 
-    joystick_type[0] = ui->comboBoxJoystick->currentData().toInt();
+    joystick_type[0] = ui->comboBoxJoystick0->currentData().toInt();
 
     // Copy accelerators from working set to global set
     for(int x = 0; x < NUM_ACCELS; x++) {
@@ -181,7 +181,7 @@ SettingsInput::onCurrentMachineChanged(int machineId)
 
     int         i             = 0;
     const char *joyName       = joystick_get_name(i);
-    auto       *joystickModel = ui->comboBoxJoystick->model();
+    auto       *joystickModel = ui->comboBoxJoystick0->model();
     removeRows                = joystickModel->rowCount();
     selectedRow               = 0;
     while (joyName) {
@@ -193,7 +193,7 @@ SettingsInput::onCurrentMachineChanged(int machineId)
         joyName = joystick_get_name(i);
     }
     joystickModel->removeRows(0, removeRows);
-    ui->comboBoxJoystick->setCurrentIndex(selectedRow);
+    ui->comboBoxJoystick0->setCurrentIndex(selectedRow);
 }
 
 void
@@ -309,11 +309,11 @@ SettingsInput::on_comboBoxMouse_currentIndexChanged(int index)
 }
 
 void
-SettingsInput::on_comboBoxJoystick_currentIndexChanged(int index)
+SettingsInput::on_comboBoxJoystick0_currentIndexChanged(int index)
 {
-    int joystickId = ui->comboBoxJoystick->currentData().toInt();
+    int joystickId = ui->comboBoxJoystick0->currentData().toInt();
     for (int i = 0; i < MAX_JOYSTICKS; ++i) {
-        auto *btn = findChild<QPushButton *>(QString("pushButtonJoystick%1").arg(i + 1));
+        auto *btn = findChild<QPushButton *>(QString("pushButtonJoystick0%1").arg(i + 1));
         if (btn == nullptr)
             continue;
 
@@ -396,25 +396,25 @@ updateJoystickConfig(int type, int joystick_nr, QWidget *parent)
 }
 
 void
-SettingsInput::on_pushButtonJoystick1_clicked()
+SettingsInput::on_pushButtonJoystick01_clicked()
 {
-    updateJoystickConfig(ui->comboBoxJoystick->currentData().toInt(), 0, this);
+    updateJoystickConfig(ui->comboBoxJoystick0->currentData().toInt(), 0, this);
 }
 
 void
-SettingsInput::on_pushButtonJoystick2_clicked()
+SettingsInput::on_pushButtonJoystick02_clicked()
 {
-    updateJoystickConfig(ui->comboBoxJoystick->currentData().toInt(), 1, this);
+    updateJoystickConfig(ui->comboBoxJoystick0->currentData().toInt(), 1, this);
 }
 
 void
-SettingsInput::on_pushButtonJoystick3_clicked()
+SettingsInput::on_pushButtonJoystick03_clicked()
 {
-    updateJoystickConfig(ui->comboBoxJoystick->currentData().toInt(), 2, this);
+    updateJoystickConfig(ui->comboBoxJoystick0->currentData().toInt(), 2, this);
 }
 
 void
-SettingsInput::on_pushButtonJoystick4_clicked()
+SettingsInput::on_pushButtonJoystick04_clicked()
 {
-    updateJoystickConfig(ui->comboBoxJoystick->currentData().toInt(), 3, this);
+    updateJoystickConfig(ui->comboBoxJoystick0->currentData().toInt(), 3, this);
 }
