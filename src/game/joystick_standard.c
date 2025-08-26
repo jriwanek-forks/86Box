@@ -10,7 +10,6 @@
  *
  * Authors: Miran Grca, <mgrca8@gmail.com>
  *          Sarah Walker, <https://pcem-emulator.co.uk/>
- *          Miran Grca, <mgrca8@gmail.com>
  *          Jasmine Iwanek, <jriwanek@gmail.com>
  *
  *          Copyright 2016-2018 Miran Grca.
@@ -61,20 +60,39 @@ joystick_standard_close(UNUSED(void *priv))
 static uint8_t
 joystick_standard_read(UNUSED(void *priv))
 {
-    uint8_t ret = 0xf0;
+    uint8_t ret    = 0xf0;
+    uint8_t gp_num = 0;
 
-    if (JOYSTICK_PRESENT(0, 0)) {
-        if (joystick_state[0][0].button[0])
+    if (JOYSTICK_PRESENT(gp_num, 0)) {
+        if (joystick_state[gp_num][0].button[0])
             ret &= ~0x10;
-        if (joystick_state[0][0].button[1])
+        if (joystick_state[gp_num][0].button[1])
             ret &= ~0x20;
     }
 
-    if (JOYSTICK_PRESENT(0, 1)) {
-        if (joystick_state[0][1].button[0])
+    if (JOYSTICK_PRESENT(gp_num, 1)) {
+        if (joystick_state[gp_num][1].button[0])
             ret &= ~0x40;
-        if (joystick_state[0][1].button[1])
+        if (joystick_state[gp_num][1].button[1])
             ret &= ~0x80;
+    }
+
+    return ret;
+}
+
+static uint8_t
+joystick_standard_read_3button(UNUSED(void *priv))
+{
+    uint8_t ret    = 0xf0;
+    uint8_t gp_num = 0;
+
+    if (JOYSTICK_PRESENT(gp_num, 0)) {
+        if (joystick_state[gp_num][0].button[0])
+            ret &= ~0x10;
+        if (joystick_state[gp_num][0].button[1])
+            ret &= ~0x20;
+        if (joystick_state[gp_num][0].button[2])
+            ret &= ~0x40;
     }
 
     return ret;
@@ -83,16 +101,17 @@ joystick_standard_read(UNUSED(void *priv))
 static uint8_t
 joystick_standard_read_4button(UNUSED(void *priv))
 {
-    uint8_t ret = 0xf0;
+    uint8_t ret    = 0xf0;
+    uint8_t gp_num = 0;
 
-    if (JOYSTICK_PRESENT(0, 0)) {
-        if (joystick_state[0][0].button[0])
+    if (JOYSTICK_PRESENT(gp_num, 0)) {
+        if (joystick_state[gp_num][0].button[0])
             ret &= ~0x10;
-        if (joystick_state[0][0].button[1])
+        if (joystick_state[gp_num][0].button[1])
             ret &= ~0x20;
-        if (joystick_state[0][0].button[2])
+        if (joystick_state[gp_num][0].button[2])
             ret &= ~0x40;
-        if (joystick_state[0][0].button[3])
+        if (joystick_state[gp_num][0].button[3])
             ret &= ~0x80;
     }
 
@@ -108,23 +127,25 @@ joystick_standard_write(UNUSED(void *priv))
 static int
 joystick_standard_read_axis(UNUSED(void *priv), int axis)
 {
+    uint8_t gp_num = 0;
+
     switch (axis) {
         case 0:
-            if (!JOYSTICK_PRESENT(0, 0))
+            if (!JOYSTICK_PRESENT(gp_num, 0))
                 return AXIS_NOT_PRESENT;
-            return joystick_state[0][0].axis[0];
+            return joystick_state[gp_num][0].axis[0];
         case 1:
-            if (!JOYSTICK_PRESENT(0, 0))
+            if (!JOYSTICK_PRESENT(gp_num, 0))
                 return AXIS_NOT_PRESENT;
-            return joystick_state[0][0].axis[1];
+            return joystick_state[gp_num][0].axis[1];
         case 2:
-            if (!JOYSTICK_PRESENT(0, 1))
+            if (!JOYSTICK_PRESENT(gp_num, 1))
                 return AXIS_NOT_PRESENT;
-            return joystick_state[0][1].axis[0];
+            return joystick_state[gp_num][1].axis[0];
         case 3:
-            if (!JOYSTICK_PRESENT(0, 1))
+            if (!JOYSTICK_PRESENT(gp_num, 1))
                 return AXIS_NOT_PRESENT;
-            return joystick_state[0][1].axis[1];
+            return joystick_state[gp_num][1].axis[1];
         default:
             return 0;
     }
@@ -133,14 +154,16 @@ joystick_standard_read_axis(UNUSED(void *priv), int axis)
 static int
 joystick_standard_read_axis_4button(UNUSED(void *priv), int axis)
 {
-    if (!JOYSTICK_PRESENT(0, 0))
+    uint8_t gp_num = 0;
+
+    if (!JOYSTICK_PRESENT(gp_num, 0))
         return AXIS_NOT_PRESENT;
 
     switch (axis) {
         case 0:
-            return joystick_state[0][0].axis[0];
+            return joystick_state[gp_num][0].axis[0];
         case 1:
-            return joystick_state[0][0].axis[1];
+            return joystick_state[gp_num][0].axis[1];
         case 2:
         case 3:
         default:
@@ -153,24 +176,26 @@ joystick_standard_read_axis_4button(UNUSED(void *priv), int axis)
 static int
 joystick_standard_read_axis_with_pov(UNUSED(void *priv), int axis)
 {
-    if (!JOYSTICK_PRESENT(0, 0))
+    uint8_t gp_num = 0;
+
+    if (!JOYSTICK_PRESENT(gp_num, 0))
         return AXIS_NOT_PRESENT;
 
     switch (axis) {
         case 0: // X-axis
-            return joystick_state[0][0].axis[0];
+            return joystick_state[gp_num][0].axis[0];
         case 1: // Y-axis
-            return joystick_state[0][0].axis[1];
+            return joystick_state[gp_num][0].axis[1];
         case 2: // POV Hat (mapped to the 3rd logical axis, index 2)
-            if (joystick_state[0][0].pov[0] == -1)
+            if (joystick_state[gp_num][0].pov[0] == -1)
                 return 32767; // Centered/No input (as per tm_fcs_rcs_read_axis example)
-            if (joystick_state[0][0].pov[0] > 315 || joystick_state[0][0].pov[0] < 45)
+            if (joystick_state[gp_num][0].pov[0] > 315 || joystick_state[gp_num][0].pov[0] < 45)
                 return -32768; // Up
-            if (joystick_state[0][0].pov[0] >= 45 && joystick_state[0][0].pov[0] < 135)
+            if (joystick_state[gp_num][0].pov[0] >= 45 && joystick_state[gp_num][0].pov[0] < 135)
                 return -16384; // Up-Right (example value, matches tm_fcs_rcs_read_axis)
-            if (joystick_state[0][0].pov[0] >= 135 && joystick_state[0][0].pov[0] < 225)
+            if (joystick_state[gp_num][0].pov[0] >= 135 && joystick_state[gp_num][0].pov[0] < 225)
                 return 0; // Right/Left (example, matches tm_fcs_rcs_read_axis)
-            if (joystick_state[0][0].pov[0] >= 225 && joystick_state[0][0].pov[0] < 315)
+            if (joystick_state[gp_num][0].pov[0] >= 225 && joystick_state[gp_num][0].pov[0] < 315)
                 return 16384; // Down-Left (example value, matches tm_fcs_rcs_read_axis)
             return 0; // Fallback
         case 3: // This case might be used for a Z-axis if present, or can return 0 if not.
@@ -185,16 +210,18 @@ joystick_standard_read_axis_with_pov(UNUSED(void *priv), int axis)
 static int
 joystick_standard_read_axis_3axis(UNUSED(void *priv), int axis)
 {
-    if (!JOYSTICK_PRESENT(0, 0))
+    uint8_t gp_num = 0;
+
+    if (!JOYSTICK_PRESENT(gp_num, 0))
         return AXIS_NOT_PRESENT;
 
     switch (axis) {
         case 0:
-            return joystick_state[0][0].axis[0];
+            return joystick_state[gp_num][0].axis[0];
         case 1:
-            return joystick_state[0][0].axis[1];
+            return joystick_state[gp_num][0].axis[1];
         case 2:
-            return joystick_state[0][0].axis[2];
+            return joystick_state[gp_num][0].axis[2];
         case 3:
         default:
             return 0;
@@ -204,18 +231,20 @@ joystick_standard_read_axis_3axis(UNUSED(void *priv), int axis)
 static int
 joystick_standard_read_axis_4axis(UNUSED(void *priv), int axis)
 {
-    if (!JOYSTICK_PRESENT(0, 0))
+    uint8_t gp_num = 0;
+
+    if (!JOYSTICK_PRESENT(gp_num, 0))
         return AXIS_NOT_PRESENT;
 
     switch (axis) {
         case 0:
-            return joystick_state[0][0].axis[0];
+            return joystick_state[gp_num][0].axis[0];
         case 1:
-            return joystick_state[0][0].axis[1];
+            return joystick_state[gp_num][0].axis[1];
         case 2:
-            return joystick_state[0][0].axis[2];
+            return joystick_state[gp_num][0].axis[2];
         case 3:
-            return joystick_state[0][0].axis[3];
+            return joystick_state[gp_num][0].axis[3];
         default:
             return 0;
     }
@@ -224,18 +253,20 @@ joystick_standard_read_axis_4axis(UNUSED(void *priv), int axis)
 static int
 joystick_standard_read_axis_6button(UNUSED(void *priv), int axis)
 {
-    if (!JOYSTICK_PRESENT(0, 0))
+    uint8_t gp_num = 0;
+
+    if (!JOYSTICK_PRESENT(gp_num, 0))
         return AXIS_NOT_PRESENT;
 
     switch (axis) {
         case 0:
-            return joystick_state[0][0].axis[0];
+            return joystick_state[gp_num][0].axis[0];
         case 1:
-            return joystick_state[0][0].axis[1];
+            return joystick_state[gp_num][0].axis[1];
         case 2:
-            return joystick_state[0][0].button[4] ? -32767 : 32768;
+            return joystick_state[gp_num][0].button[4] ? -32767 : 32768;
         case 3:
-            return joystick_state[0][0].button[5] ? -32767 : 32768;
+            return joystick_state[gp_num][0].button[5] ? -32767 : 32768;
         default:
             return 0;
     }
@@ -243,24 +274,26 @@ joystick_standard_read_axis_6button(UNUSED(void *priv), int axis)
 static int
 joystick_standard_read_axis_8button(UNUSED(void *priv), int axis)
 {
-    if (!JOYSTICK_PRESENT(0, 0))
+    uint8_t gp_num = 0;
+
+    if (!JOYSTICK_PRESENT(gp_num, 0))
         return AXIS_NOT_PRESENT;
 
     switch (axis) {
         case 0:
-            return joystick_state[0][0].axis[0];
+            return joystick_state[gp_num][0].axis[0];
         case 1:
-            return joystick_state[0][0].axis[1];
+            return joystick_state[gp_num][0].axis[1];
         case 2:
-            if (joystick_state[0][0].button[4])
+            if (joystick_state[gp_num][0].button[4])
                 return -32767;
-            if (joystick_state[0][0].button[6])
+            if (joystick_state[gp_num][0].button[6])
                 return 32768;
             return 0;
         case 3:
-            if (joystick_state[0][0].button[5])
+            if (joystick_state[gp_num][0].button[5])
                 return -32767;
-            if (joystick_state[0][0].button[7])
+            if (joystick_state[gp_num][0].button[7])
                 return 32768;
             return 0;
         default:
@@ -273,6 +306,42 @@ joystick_standard_a0_over(UNUSED(void *priv))
 {
     //
 }
+
+const joystick_t joystick_generic_paddle = {
+    .name          = "Generic Paddle Controller",
+    .internal_name = "generic_paddle",
+    .init          = joystick_standard_init,
+    .close         = joystick_standard_close,
+    .read          = joystick_standard_read,
+    .write         = joystick_standard_write,
+    .read_axis     = joystick_standard_read_axis,
+    .a0_over       = joystick_standard_a0_over,
+    .axis_count    = 1,
+    .button_count  = 1,
+    .pov_count     = 0,
+    .max_joysticks = 2,
+    .axis_names    = { "X axis" },
+    .button_names  = { "Button 1" },
+    .pov_names     = { NULL }
+};
+
+const joystick_t joystick_2axis_1button = {
+    .name          = "2-axis, 1-button joystick(s)",
+    .internal_name = "2axis_1button",
+    .init          = joystick_standard_init,
+    .close         = joystick_standard_close,
+    .read          = joystick_standard_read,
+    .write         = joystick_standard_write,
+    .read_axis     = joystick_standard_read_axis,
+    .a0_over       = joystick_standard_a0_over,
+    .axis_count    = 2,
+    .button_count  = 1,
+    .pov_count     = 0,
+    .max_joysticks = 2,
+    .axis_names    = { "X axis", "Y axis" },
+    .button_names  = { "Button 1" },
+    .pov_names     = { NULL }
+};
 
 const joystick_t joystick_2axis_2button = {
     .name          = "2-axis, 2-button joystick(s)",
@@ -328,6 +397,42 @@ const joystick_t joystick_2button_flight_yoke = {
     .pov_names     = { NULL }
 };
 
+const joystick_t joystick_2axis_3button = {
+    .name          = "2-axis, 3-button joystick",
+    .internal_name = "2axis_3button",
+    .init          = joystick_standard_init,
+    .close         = joystick_standard_close,
+    .read          = joystick_standard_read_3button,
+    .write         = joystick_standard_write,
+    .read_axis     = joystick_standard_read_axis_4button,
+    .a0_over       = joystick_standard_a0_over,
+    .axis_count    = 2,
+    .button_count  = 3,
+    .pov_count     = 0,
+    .max_joysticks = 1,
+    .axis_names    = { "X axis", "Y axis" },
+    .button_names  = { "Button 1", "Button 2", "Button 3" },
+    .pov_names     = { NULL }
+};
+
+const joystick_t joystick_3button_flight_yoke = {
+    .name          = "3-button flight yoke",
+    .internal_name = "3button_flight_yoke",
+    .init          = joystick_standard_init,
+    .close         = joystick_standard_close,
+    .read          = joystick_standard_read_3button,
+    .write         = joystick_standard_write,
+    .read_axis     = joystick_standard_read_axis_4button,
+    .a0_over       = joystick_standard_a0_over,
+    .axis_count    = 2,
+    .button_count  = 3,
+    .pov_count     = 0,
+    .max_joysticks = 1,
+    .axis_names    = { "Roll axis", "Pitch axis" },
+    .button_names  = { "Trigger", "Button 2", "Button 3" },
+    .pov_names     = { NULL }
+};
+
 const joystick_t joystick_2axis_4button = {
     .name          = "2-axis, 4-button joystick",
     .internal_name = "2axis_4button",
@@ -361,6 +466,25 @@ const joystick_t joystick_4button_gamepad = {
     .max_joysticks = 1,
     .axis_names    = { "X axis", "Y axis" },
     .button_names  = { "Button 1", "Button 2", "Button 3", "Button 4" },
+    .pov_names     = { NULL }
+};
+
+const joystick_t joystick_gravis_gamepad = {
+    .name          = "Gravis PC GamePad",
+    .internal_name = "gravis_gamepad",
+    .init          = joystick_standard_init,
+    .close         = joystick_standard_close,
+    .read          = joystick_standard_read_4button,
+    .write         = joystick_standard_write,
+    .read_axis     = joystick_standard_read_axis_4button,
+    .a0_over       = joystick_standard_a0_over,
+    .axis_count    = 2,
+    .button_count  = 4,
+    .pov_count     = 0,
+    .max_joysticks = 1,
+    .axis_names    = { "X axis", "Y axis" },
+    // TODO: Check this
+    .button_names  = { "Button 1 (Red)", "Button 2 (Blue)", "Button 3 (Yellow)", "Button 4 (Green)" },
     .pov_names     = { NULL }
 };
 
@@ -418,6 +542,42 @@ const joystick_t joystick_2button_yoke_throttle = {
     .pov_names     = { NULL }
 };
 
+const joystick_t joystick_3axis_3button = {
+    .name          = "3-axis, 3-button joystick",
+    .internal_name = "3axis_3button",
+    .init          = joystick_standard_init,
+    .close         = joystick_standard_close,
+    .read          = joystick_standard_read_3button,
+    .write         = joystick_standard_write,
+    .read_axis     = joystick_standard_read_axis_3axis,
+    .a0_over       = joystick_standard_a0_over,
+    .axis_count    = 3,
+    .button_count  = 3,
+    .pov_count     = 0,
+    .max_joysticks = 1,
+    .axis_names    = { "X axis", "Y axis", "Z axis" },
+    .button_names  = { "Button 1", "Button 2", "Button 3" },
+    .pov_names     = { NULL }
+};
+
+const joystick_t joystick_3button_yoke_throttle = {
+    .name          = "3-button flight yoke with throttle",
+    .internal_name = "3button_yoke_throttle",
+    .init          = joystick_standard_init,
+    .close         = joystick_standard_close,
+    .read          = joystick_standard_read_3button,
+    .write         = joystick_standard_write,
+    .read_axis     = joystick_standard_read_axis_3axis,
+    .a0_over       = joystick_standard_a0_over,
+    .axis_count    = 3,
+    .button_count  = 3,
+    .pov_count     = 0,
+    .max_joysticks = 1,
+    .axis_names    = { "Roll axis", "Pitch axis", "Throttle axis" },
+    .button_names  = { "Button 1", "Button 2", "Button 3" },
+    .pov_names     = { NULL }
+};
+
 const joystick_t joystick_3axis_4button = {
     .name          = "3-axis, 4-button joystick",
     .internal_name = "3axis_4button",
@@ -454,9 +614,9 @@ const joystick_t joystick_4button_yoke_throttle = {
     .pov_names     = { NULL }
 };
 
-const joystick_t joystick_win95_steering_wheel = {
-    .name          = "Win95 Steering Wheel (3-axis, 4-button)",
-    .internal_name = "win95_steering_wheel",
+const joystick_t joystick_steering_wheel_4_button = {
+    .name          = "Steering Wheel (3-axis, 4-button)",
+    .internal_name = "steering_wheel_4_button",
     .init          = joystick_standard_init,
     .close         = joystick_standard_close,
     .read          = joystick_standard_read_4button,
@@ -469,6 +629,42 @@ const joystick_t joystick_win95_steering_wheel = {
     .max_joysticks = 1,
     .axis_names    = { "Steering axis", "Accelerator axis", "Brake axis" },
     .button_names  = { "Button 1", "Button 2", "Button 3", "Button 4" },
+    .pov_names     = { NULL }
+};
+
+const joystick_t joystick_4axis_2button = {
+    .name          = "4-axis, 2-button joystick",
+    .internal_name = "4axis_2button",
+    .init          = joystick_standard_init,
+    .close         = joystick_standard_close,
+    .read          = joystick_standard_read,
+    .write         = joystick_standard_write,
+    .read_axis     = joystick_standard_read_axis_4axis,
+    .a0_over       = joystick_standard_a0_over,
+    .axis_count    = 4,
+    .button_count  = 3,
+    .pov_count     = 0,
+    .max_joysticks = 1,
+    .axis_names    = { "X axis", "Y axis", "Z axis", "zX axis" },
+    .button_names  = { "Button 1", "Button 2" },
+    .pov_names     = { NULL }
+};
+
+const joystick_t joystick_4axis_3button = {
+    .name          = "4-axis, 3-button joystick",
+    .internal_name = "4axis_3button",
+    .init          = joystick_standard_init,
+    .close         = joystick_standard_close,
+    .read          = joystick_standard_read_3button,
+    .write         = joystick_standard_write,
+    .read_axis     = joystick_standard_read_axis_4axis,
+    .a0_over       = joystick_standard_a0_over,
+    .axis_count    = 4,
+    .button_count  = 3,
+    .pov_count     = 0,
+    .max_joysticks = 1,
+    .axis_names    = { "X axis", "Y axis", "Z axis", "zX axis" },
+    .button_names  = { "Button 1", "Button 2", "Button 3" },
     .pov_names     = { NULL }
 };
 

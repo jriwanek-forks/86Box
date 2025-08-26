@@ -18,6 +18,29 @@
  *          Copyright 2021      RichardG.
  *          Copyright 2021-2025 Jasmine Iwanek.
  */
+/*
+ * TODO
+ *
+ * Creative GamePad
+ * Creative GamePad Cobra
+ * Gravis Analog Joystick
+ * Gravis Analog Pro Joystick
+ * Gravis BlackHawk Digital
+ * Gravis GamePad Pro
+ * Gravis Grip Pad
+ * Gravis Xterminator
+ * Logitech ThunderPad
+ * Logitech WingMan
+ * Logitech WingMan Extreme
+ * Logitech WingMan Light
+ * Microsoft SideWinder 3D Pro
+ * Microsoft SideWinder Force Feedback Pro
+ * Microsoft SideWinder Force Feedback Wheel
+ * Microsoft SideWinder Freestyle Pro
+ * Microsoft SideWinder Precision Pro
+ * Thrustmaster Formula T1/T2 with adapter
+ * Thrustmaster Formula T1/T2 without adapter
+ */
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
@@ -88,27 +111,46 @@ static const joystick_t joystick_none = {
 static const struct {
     const joystick_t *joystick;
 } joysticks[] = {
-    { &joystick_none                         },
-    { &joystick_2axis_2button                },
-    { &joystick_2button_gamepad              },
-    { &joystick_2button_flight_yoke          },
-    { &joystick_2axis_4button                },
-    { &joystick_4button_gamepad              },
-    { &joystick_4button_flight_yoke          },
-    { &joystick_2axis_6button                },
-    { &joystick_2axis_8button                },
-    { &joystick_3axis_2button                },
-    { &joystick_2button_yoke_throttle        },
-    { &joystick_3axis_4button                },
-    { &joystick_win95_steering_wheel         },
-    { &joystick_4button_yoke_throttle        },
-    { &joystick_4axis_4button                },
-    { &joystick_ch_flightstick_pro           },
-    { &joystick_ch_flightstick_pro_ch_pedals },
-    { &joystick_sw_pad                       },
-    { &joystick_tm_fcs                       },
-    { &joystick_tm_fcs_rcs                   },
-    { NULL                                   }
+    { &joystick_none                               },
+    { &joystick_generic_paddle                     },
+    { &joystick_2axis_1button                      },
+    { &joystick_2axis_2button                      },
+    { &joystick_2button_gamepad                    },
+    { &joystick_2button_flight_yoke                },
+    { &joystick_2axis_3button                      },
+    { &joystick_2axis_4button                      },
+    { &joystick_4button_gamepad                    },
+    { &joystick_gravis_gamepad                     },
+    { &joystick_3button_flight_yoke                },
+    { &joystick_4button_flight_yoke                },
+    { &joystick_2axis_6button                      }, // ?
+    { &joystick_2axis_8button                      }, // ?
+    { &joystick_3axis_2button                      },
+    { &joystick_2button_yoke_throttle              },
+    { &joystick_3button_yoke_throttle              },
+    { &joystick_3axis_3button                      },
+    { &joystick_3axis_4button                      },
+    { &joystick_steering_wheel_4_button            }, // Custom, needs tested
+    { &joystick_4button_yoke_throttle              },
+    { &joystick_4axis_2button                      },
+    { &joystick_4axis_3button                      },
+    { &joystick_4axis_4button                      }, // Custom
+    { &joystick_ch_flightstick                     },
+    { &joystick_ch_flightstick_ch_pedals           },
+    { &joystick_ch_flightstick_ch_pedals_pro       },
+    { &joystick_ch_flightstick_pro                 },
+    { &joystick_ch_flightstick_pro_ch_pedals       },
+    { &joystick_ch_flightstick_pro_ch_pedals_pro   },
+    { &joystick_ch_virtual_pilot                   },
+    { &joystick_ch_virtual_pilot_ch_pedals         },
+    { &joystick_ch_virtual_pilot_ch_pedals_pro     },
+    { &joystick_ch_virtual_pilot_pro               },
+    { &joystick_ch_virtual_pilot_pro_ch_pedals     },
+    { &joystick_ch_virtual_pilot_pro_ch_pedals_pro },
+    { &joystick_sw_pad                             },
+    { &joystick_tm_fcs                             },
+    { &joystick_tm_fcs_rcs                         },
+    { NULL                                         }
 };
 
 static joystick_instance_t *joystick_instance[GAMEPORT_MAX] = { NULL, NULL };
