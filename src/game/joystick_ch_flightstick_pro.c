@@ -136,6 +136,63 @@ ch_flightstick_pro_a0_over(UNUSED(void *priv))
     //
 }
 
+// TODO
+const joystick_t joystick_ch_flightstick = {
+    .name          = "CH Flightstick",
+    .internal_name = "ch_flightstick",
+    .init          = ch_flightstick_pro_init,
+    .close         = ch_flightstick_pro_close,
+    .read          = ch_flightstick_pro_read,
+    .write         = ch_flightstick_pro_write,
+    .read_axis     = ch_flightstick_pro_read_axis,
+    .a0_over       = ch_flightstick_pro_a0_over,
+    .axis_count    = 3,
+    .button_count  = 4,
+    .pov_count     = 1,
+    .max_joysticks = 1,
+    .axis_names    = { "X axis", "Y axis", "Throttle" },
+    .button_names  = { "Button 1", "Button 2", "Button 3", "Button 4" },
+    .pov_names     = { "POV" }
+};
+
+// TODO
+const joystick_t joystick_ch_flightstick_ch_pedals = {
+    .name          = "CH Flightstick + CH Pedals",
+    .internal_name = "ch_flightstick_ch_pedals",
+    .init          = ch_flightstick_pro_init,
+    .close         = ch_flightstick_pro_close,
+    .read          = ch_flightstick_pro_read,
+    .write         = ch_flightstick_pro_write,
+    .read_axis     = ch_flightstick_pro_ch_pedals_read_axis,
+    .a0_over       = ch_flightstick_pro_a0_over,
+    .axis_count    = 4,
+    .button_count  = 4,
+    .pov_count     = 1,
+    .max_joysticks = 1,
+    .axis_names    = { "X axis", "Y axis", "Throttle", "Rudder" },
+    .button_names  = { "Button 1", "Button 2", "Button 3", "Button 4" },
+    .pov_names     = { "POV" }
+};
+
+// TODO
+const joystick_t joystick_ch_flightstick_ch_pedals_pro = {
+    .name          = "CH Flightstick + CH Pedals Pro",
+    .internal_name = "ch_flightstick_ch_pedals_pro",
+    .init          = ch_flightstick_pro_init,
+    .close         = ch_flightstick_pro_close,
+    .read          = ch_flightstick_pro_read,
+    .write         = ch_flightstick_pro_write,
+    .read_axis     = ch_flightstick_pro_ch_pedals_read_axis,
+    .a0_over       = ch_flightstick_pro_a0_over,
+    .axis_count    = 4,
+    .button_count  = 4,
+    .pov_count     = 1,
+    .max_joysticks = 1,
+    .axis_names    = { "X axis", "Y axis", "Throttle", "Rudder" },
+    .button_names  = { "Button 1", "Button 2", "Button 3", "Button 4" },
+    .pov_names     = { "POV" }
+};
+
 const joystick_t joystick_ch_flightstick_pro = {
     .name          = "CH Flightstick Pro",
     .internal_name = "ch_flightstick_pro",
@@ -157,6 +214,139 @@ const joystick_t joystick_ch_flightstick_pro = {
 const joystick_t joystick_ch_flightstick_pro_ch_pedals = {
     .name          = "CH Flightstick Pro + CH Pedals",
     .internal_name = "ch_flightstick_pro_ch_pedals",
+    .init          = ch_flightstick_pro_init,
+    .close         = ch_flightstick_pro_close,
+    .read          = ch_flightstick_pro_read,
+    .write         = ch_flightstick_pro_write,
+    .read_axis     = ch_flightstick_pro_ch_pedals_read_axis,
+    .a0_over       = ch_flightstick_pro_a0_over,
+    .axis_count    = 4,
+    .button_count  = 4,
+    .pov_count     = 1,
+    .max_joysticks = 1,
+    .axis_names    = { "X axis", "Y axis", "Throttle", "Rudder" },
+    .button_names  = { "Button 1", "Button 2", "Button 3", "Button 4" },
+    .pov_names     = { "POV" }
+};
+
+// TODO
+const joystick_t joystick_ch_flightstick_pro_ch_pedals_pro = {
+    .name          = "CH Flightstick Pro + CH Pedals Pro",
+    .internal_name = "ch_flightstick_pro_ch_pedals_pro",
+    .init          = ch_flightstick_pro_init,
+    .close         = ch_flightstick_pro_close,
+    .read          = ch_flightstick_pro_read,
+    .write         = ch_flightstick_pro_write,
+    .read_axis     = ch_flightstick_pro_ch_pedals_read_axis,
+    .a0_over       = ch_flightstick_pro_a0_over,
+    .axis_count    = 4,
+    .button_count  = 4,
+    .pov_count     = 1,
+    .max_joysticks = 1,
+    .axis_names    = { "X axis", "Y axis", "Throttle", "Rudder" },
+    .button_names  = { "Button 1", "Button 2", "Button 3", "Button 4" },
+    .pov_names     = { "POV" }
+};
+
+// TODO
+const joystick_t joystick_ch_virtual_pilot = {
+    .name          = "CH Virtual Pilot",
+    .internal_name = "ch_virtual_pilot",
+    .init          = ch_flightstick_pro_init,
+    .close         = ch_flightstick_pro_close,
+    .read          = ch_flightstick_pro_read,
+    .write         = ch_flightstick_pro_write,
+    .read_axis     = ch_flightstick_pro_read_axis,
+    .a0_over       = ch_flightstick_pro_a0_over,
+    .axis_count    = 3,
+    .button_count  = 4,
+    .pov_count     = 1,
+    .max_joysticks = 1,
+    .axis_names    = { "X axis", "Y axis", "Throttle" },
+    .button_names  = { "Button 1", "Button 2", "Button 3", "Button 4" },
+    .pov_names     = { "POV" }
+};
+
+// TODO
+const joystick_t joystick_ch_virtual_pilot_ch_pedals = {
+    .name          = "CH Virtual Pilot + CH Pedals",
+    .internal_name = "ch_virtual_pilot_ch_pedals",
+    .init          = ch_flightstick_pro_init,
+    .close         = ch_flightstick_pro_close,
+    .read          = ch_flightstick_pro_read,
+    .write         = ch_flightstick_pro_write,
+    .read_axis     = ch_flightstick_pro_ch_pedals_read_axis,
+    .a0_over       = ch_flightstick_pro_a0_over,
+    .axis_count    = 4,
+    .button_count  = 4,
+    .pov_count     = 1,
+    .max_joysticks = 1,
+    .axis_names    = { "X axis", "Y axis", "Throttle", "Rudder" },
+    .button_names  = { "Button 1", "Button 2", "Button 3", "Button 4" },
+    .pov_names     = { "POV" }
+};
+
+// TODO
+const joystick_t joystick_ch_virtual_pilot_ch_pedals_pro = {
+    .name          = "CH Virtual Pilot + CH Pedals Pro",
+    .internal_name = "ch_virtual_pilot_ch_pedals_pro",
+    .init          = ch_flightstick_pro_init,
+    .close         = ch_flightstick_pro_close,
+    .read          = ch_flightstick_pro_read,
+    .write         = ch_flightstick_pro_write,
+    .read_axis     = ch_flightstick_pro_ch_pedals_read_axis,
+    .a0_over       = ch_flightstick_pro_a0_over,
+    .axis_count    = 4,
+    .button_count  = 4,
+    .pov_count     = 1,
+    .max_joysticks = 1,
+    .axis_names    = { "X axis", "Y axis", "Throttle", "Rudder" },
+    .button_names  = { "Button 1", "Button 2", "Button 3", "Button 4" },
+    .pov_names     = { "POV" }
+};
+
+// TODO
+const joystick_t joystick_ch_virtual_pilot_pro = {
+    .name          = "CH Virtual Pilot Pro",
+    .internal_name = "ch_virtual_pilot_pro",
+    .init          = ch_flightstick_pro_init,
+    .close         = ch_flightstick_pro_close,
+    .read          = ch_flightstick_pro_read,
+    .write         = ch_flightstick_pro_write,
+    .read_axis     = ch_flightstick_pro_read_axis,
+    .a0_over       = ch_flightstick_pro_a0_over,
+    .axis_count    = 3,
+    .button_count  = 4,
+    .pov_count     = 1,
+    .max_joysticks = 1,
+    .axis_names    = { "X axis", "Y axis", "Throttle" },
+    .button_names  = { "Button 1", "Button 2", "Button 3", "Button 4" },
+    .pov_names     = { "POV" }
+};
+
+// TODO
+const joystick_t joystick_ch_virtual_pilot_pro_ch_pedals = {
+    .name          = "CH Virtual Pilot Pro + CH Pedals",
+    .internal_name = "ch_virtual_pilot_pro_ch_pedals",
+    .init          = ch_flightstick_pro_init,
+    .close         = ch_flightstick_pro_close,
+    .read          = ch_flightstick_pro_read,
+    .write         = ch_flightstick_pro_write,
+    .read_axis     = ch_flightstick_pro_ch_pedals_read_axis,
+    .a0_over       = ch_flightstick_pro_a0_over,
+    .axis_count    = 4,
+    .button_count  = 4,
+    .pov_count     = 1,
+    .max_joysticks = 1,
+    .axis_names    = { "X axis", "Y axis", "Throttle", "Rudder" },
+    .button_names  = { "Button 1", "Button 2", "Button 3", "Button 4" },
+    .pov_names     = { "POV" }
+};
+
+// TODO
+const joystick_t joystick_ch_virtual_pilot_pro_ch_pedals_pro = {
+    .name          = "CH Virtual Pilot Pro + CH Pedals Pro",
+    .internal_name = "ch_virtual_pilot_pro_ch_pedals_pro",
     .init          = ch_flightstick_pro_init,
     .close         = ch_flightstick_pro_close,
     .read          = ch_flightstick_pro_read,

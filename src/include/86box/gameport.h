@@ -177,6 +177,7 @@ extern const joystick_t joystick_2button_gamepad;
 extern const joystick_t joystick_2button_flight_yoke;
 extern const joystick_t joystick_2axis_4button;
 extern const joystick_t joystick_4button_gamepad;
+extern const joystick_t joystick_gravis_gamepad;
 extern const joystick_t joystick_4button_flight_yoke;
 extern const joystick_t joystick_3axis_2button;
 extern const joystick_t joystick_2button_yoke_throttle;
@@ -187,8 +188,52 @@ extern const joystick_t joystick_4axis_4button;
 extern const joystick_t joystick_2axis_6button;
 extern const joystick_t joystick_2axis_8button;
 
+extern const joystick_t joystick_2axis_2button_pov;
+extern const joystick_t joystick_3button_flight_yoke;
+extern const joystick_t joystick_2axis_3button;
+extern const joystick_t joystick_2axis_3button_pov;
+extern const joystick_t joystick_2axis_4button_pov;
+extern const joystick_t joystick_3button_yoke_throttle;
+extern const joystick_t joystick_3axis_3button;
+extern const joystick_t joystick_3axis_3button_pov;
+extern const joystick_t joystick_3axis_4button_pov;
+extern const joystick_t joystick_4axis_2button;
+extern const joystick_t joystick_4axis_2button_pov;
+extern const joystick_t joystick_4axis_3button;
+extern const joystick_t joystick_4axis_3button_pov;
+extern const joystick_t joystick_4axis_4button_pov;
+
+extern const joystick_t joystick_2button_flight_yoke_pov;
+extern const joystick_t joystick_3button_flight_yoke_pov;
+extern const joystick_t joystick_4button_flight_yoke_pov;
+extern const joystick_t joystick_2button_flight_yoke_throttle;
+extern const joystick_t joystick_3button_flight_yoke_throttle;
+extern const joystick_t joystick_4button_flight_yoke_throttle;
+extern const joystick_t joystick_2button_flight_yoke_throttle_pov;
+extern const joystick_t joystick_3button_flight_yoke_throttle_pov;
+extern const joystick_t joystick_4button_flight_yoke_throttle_pov;
+extern const joystick_t joystick_2button_flight_yoke_throttle_rudder;
+extern const joystick_t joystick_3button_flight_yoke_throttle_rudder;
+extern const joystick_t joystick_4button_flight_yoke_throttle_rudder;
+extern const joystick_t joystick_2button_flight_yoke_throttle_rudder_pov;
+extern const joystick_t joystick_3button_flight_yoke_throttle_rudder_pov;
+extern const joystick_t joystick_4button_flight_yoke_throttle_rudder_pov;
+
+extern const joystick_t joystick_ch_flightstick;
+extern const joystick_t joystick_ch_flightstick_ch_pedals;
+extern const joystick_t joystick_ch_flightstick_ch_pedals_pro;
+
 extern const joystick_t joystick_ch_flightstick_pro;
 extern const joystick_t joystick_ch_flightstick_pro_ch_pedals;
+extern const joystick_t joystick_ch_flightstick_pro_ch_pedals_pro;
+
+extern const joystick_t joystick_ch_virtual_pilot;
+extern const joystick_t joystick_ch_virtual_pilot_ch_pedals;
+extern const joystick_t joystick_ch_virtual_pilot_ch_pedals_pro;
+
+extern const joystick_t joystick_ch_virtual_pilot_pro;
+extern const joystick_t joystick_ch_virtual_pilot_pro_ch_pedals;
+extern const joystick_t joystick_ch_virtual_pilot_pro_ch_pedals_pro;
 
 extern const joystick_t joystick_sw_pad;
 
