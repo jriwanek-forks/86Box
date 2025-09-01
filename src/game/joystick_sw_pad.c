@@ -90,7 +90,8 @@ sw_timer_over(void *priv)
     if (sw->poll_left == 1 && !sw->poll_clock)
         timer_advance_u64(&sw->poll_timer, TIMER_USEC * 160);
     else if (sw->poll_left)
-        timer_set_delay_u64(&sw->poll_timer, TIMER_USEC * 5);
+//        timer_set_delay_u64(&sw->poll_timer, TIMER_USEC * 5);
+        timer_on_auto(&sw->poll_timer, 5);
 }
 
 static void
@@ -98,7 +99,7 @@ sw_trigger_timer_over(void *priv)
 {
     sw_data *sw = (sw_data *) priv;
 
-    timer_disable(&sw->trigger_timer);
+    timer_stop(&sw->trigger_timer);
 }
 
 static int
@@ -142,7 +143,7 @@ sw_read(void *priv)
     if (!JOYSTICK_PRESENT(0, 0))
         return 0xff;
 
-    if (timer_is_enabled(&sw->poll_timer)) {
+    if (timer_is_on(&sw->poll_timer)) {
         if (sw->poll_clock)
             temp |= 0x10;
 
@@ -170,7 +171,8 @@ sw_write(void *priv)
 
     if (!sw->poll_left) {
         sw->poll_clock = 1;
-        timer_set_delay_u64(&sw->poll_timer, TIMER_USEC * 40);
+//        timer_set_delay_u64(&sw->poll_timer, TIMER_USEC * 40);
+        timer_on_auto(&sw->poll_timer, 40);
 
         if (time_since_last > 9900 && time_since_last < 9940) {
             sw->poll_mode = 0;
@@ -222,7 +224,7 @@ sw_write(void *priv)
         }
     }
 
-    timer_disable(&sw->trigger_timer);
+    timer_stop(&sw->trigger_timer);
 }
 
 static int
@@ -239,7 +241,8 @@ sw_a0_over(void *priv)
 {
     sw_data *sw = (sw_data *) priv;
 
-    timer_set_delay_u64(&sw->trigger_timer, TIMER_USEC * 10000);
+//    timer_set_delay_u64(&sw->trigger_timer, TIMER_USEC * 10000);
+    timer_on_auto(&sw->trigger_timer, 10000);
 }
 
 const joystick_t joystick_sw_pad = {
