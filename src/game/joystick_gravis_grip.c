@@ -273,74 +273,62 @@ grav_write_gpp(void *priv)
             // --- Encode 24-bit packet for current joystick (js) into `single_joystick_packet` ---
             uint64_t single_joystick_packet = 0; // Use a temporary 64-bit var to build the 24-bit packet.
 
-            // Start/framing bits (Bit 1-7 in image, corresponding to indices 0-6 in a 0-indexed 24-bit packet).
-            // Values: 0111110 (LSB first for shifting, so bit 0:0, 1:1, 2:1, 3:1, 4:1, 5:1, 6:0).
-            // NOTE: The Linux driver's sync word `0x7c0000` corresponds to these bits (0111110),
-            // but the `0xfe4210` mask and XOR operation suggest a more complex scrambling.
-            // For now, we encode directly as per the image. Future refinement might require
-            // pre-scrambling `single_joystick_packet` if the Linux driver's sync word is definitive.
-            single_joystick_packet |= (0ULL << 0); // Bit 1: 0
-            single_joystick_packet |= (1ULL << 1); // Bit 2: 1
-            single_joystick_packet |= (1ULL << 2); // Bit 3: 1
-            single_joystick_packet |= (1ULL << 3); // Bit 4: 1
-            single_joystick_packet |= (1ULL << 4); // Bit 5: 1
-            single_joystick_packet |= (1ULL << 5); // Bit 6: 1
-            single_joystick_packet |= (0ULL << 6); // Bit 7: 0
+            // Protocol start bits: 0111110 (LSB first, so bit 0:0, 1:1, 2:1, 3:1, 4:1, 5:1, 6:0)
+            single_joystick_packet |= (0ULL << 0);
+            single_joystick_packet |= (1ULL << 1);
+            single_joystick_packet |= (1ULL << 2);
+            single_joystick_packet |= (1ULL << 3);
+            single_joystick_packet |= (1ULL << 4);
+            single_joystick_packet |= (1ULL << 5);
+            single_joystick_packet |= (0ULL << 6);
 
-            // Digital buttons (based on joystick_gravis_gamepad_pro.button_names mapping).
-            // Button states are 1 if pressed, 0 if not.
-            // Bit 8 (index 7): Select -> joystick_state[0][js].button[0]
-            if (joystick_state[0][js].button[0]) single_joystick_packet |= (1ULL << 7);
-            // Bit 9 (index 8): Start -> joystick_state[0][js].button[1]
-            if (joystick_state[0][js].button[1]) single_joystick_packet |= (1ULL << 8);
-            // Bit 10 (index 9): R2 -> joystick_state[0][js].button[2]
-            if (joystick_state[0][js].button[2]) single_joystick_packet |= (1ULL << 9);
-            // Bit 11 (index 10): Blue -> joystick_state[0][js].button[3]
-            if (joystick_state[0][js].button[3]) single_joystick_packet |= (1ULL << 10);
+            // Bit 7: Select (button[0])
+            if (joystick_state[0][js].button[0])
+                single_joystick_packet |= (1ULL << 7);
+            // Bit 8: Start (button[1])
+            if (joystick_state[0][js].button[1])
+                single_joystick_packet |= (1ULL << 8);
+            // Bit 9: L2 (button[4])
+            if (joystick_state[0][js].button[4])
+                single_joystick_packet |= (1ULL << 9);
 
-            // Frame bit (Bit 12 in image, index 11 in packet) is 0.
-            // (No explicit setting needed as `single_joystick_packet` starts at 0).
+            // Bit 10: POV Up
+            if (joystick_state[0][js].pov[0] >= 315 || joystick_state[0][js].pov[0] <= 45)
+                single_joystick_packet |= (1ULL << 10);
 
-            // Digital buttons continued
-            // Bit 13 (index 12): L2 -> joystick_state[0][js].button[4]
-            if (joystick_state[0][js].button[4]) single_joystick_packet |= (1ULL << 12);
-            // Bit 14 (index 13): Green -> joystick_state[0][js].button[5]
-            if (joystick_state[0][js].button[5]) single_joystick_packet |= (1ULL << 13);
-            // Bit 15 (index 14): Yellow -> joystick_state[0][js].button[6]
-            if (joystick_state[0][js].button[6]) single_joystick_packet |= (1ULL << 14);
-            // Bit 16 (index 15): Red -> joystick_state[0][js].button[7]
-            if (joystick_state[0][js].button[7]) single_joystick_packet |= (1ULL << 15);
+            // Bit 11: POV Right
+            if (joystick_state[0][js].pov[0] >= 45 && joystick_state[0][js].pov[0] <= 135)
+                single_joystick_packet |= (1ULL << 11);
 
-            // Frame bit (Bit 17 in image, index 16 in packet) is 0.
+            // Bit 12: POV Left
+            if (joystick_state[0][js].pov[0] >= 225 && joystick_state[0][js].pov[0] <= 315)
+                single_joystick_packet |= (1ULL << 12);
 
-            // Digital buttons continued
-            // Bit 18 (index 17): L1 -> joystick_state[0][js].button[8]
-            if (joystick_state[0][js].button[8]) single_joystick_packet |= (1ULL << 17);
-            // Bit 19 (index 18): R1 -> joystick_state[0][js].button[9]
-            if (joystick_state[0][js].button[9]) single_joystick_packet |= (1ULL << 18);
+            // Bit 6: POV Down
+            if (joystick_state[0][js].pov[0] >= 135 && joystick_state[0][js].pov[0] <= 225)
+                single_joystick_packet |= (1ULL << 6);
 
-            // Frame bit (Bit 20 in image, index 19 in packet) is 0.
-
-            // D-pad (POV) bits (Bit 21-24 in image, indices 20-23 in packet)
-            // Convert POV angle (0-359 degrees) to individual Up/Down/Right/Left bits.
-            // Assuming 0=Up, 90=Right, 180=Down, 270=Left for `joystick_state.pov`.
-            if (joystick_state[0][js].pov[0] != -1) {
-                double angle = (double)joystick_state[0][js].pov[0];
-                // Up (Bit 21, index 20)
-                if (angle >= 337.5 || angle < 22.5) single_joystick_packet |= (1ULL << 20);
-                // Down (Bit 22, index 21)
-                if (angle >= 157.5 && angle < 202.5) single_joystick_packet |= (1ULL << 21);
-                // Right (Bit 23, index 22)
-                if (angle >= 67.5 && angle < 112.5) single_joystick_packet |= (1ULL << 22);
-                // Left (Bit 24, index 23)
-                if (angle >= 247.5 && angle < 292.5) single_joystick_packet |= (1ULL << 23);
-
-                // Handle diagonals (set both relevant bits if applicable)
-                if (angle >= 22.5 && angle < 67.5) { single_joystick_packet |= (1ULL << 20) | (1ULL << 22); } // Up-Right
-                if (angle >= 112.5 && angle < 157.5) { single_joystick_packet |= (1ULL << 21) | (1ULL << 22); } // Down-Right
-                if (angle >= 202.5 && angle < 247.5) { single_joystick_packet |= (1ULL << 21) | (1ULL << 23); } // Down-Left
-                if (angle >= 292.5 && angle < 337.5) { single_joystick_packet |= (1ULL << 20) | (1ULL << 23); } // Up-Left
-            }
+            // Bit 13: Blue (button[3])
+            if (joystick_state[0][js].button[3])
+                single_joystick_packet |= (1ULL << 13);
+            // Bit 14: L1 (button[8])
+            if (joystick_state[0][js].button[8])
+                single_joystick_packet |= (1ULL << 14);
+            // Bit 15: R1 (button[9])
+            if (joystick_state[0][js].button[9])
+                single_joystick_packet |= (1ULL << 15);
+            // Bit 16: R2 (button[2])
+            if (joystick_state[0][js].button[2])
+                single_joystick_packet |= (1ULL << 16);
+            // Bit 17: Green (button[5])
+            if (joystick_state[0][js].button[5])
+                single_joystick_packet |= (1ULL << 17);
+            // Bit 18: Yellow (button[6])
+            if (joystick_state[0][js].button[6])
+                single_joystick_packet |= (1ULL << 18);
+            // Bit 19: Red (button[7])
+            if (joystick_state[0][js].button[7])
+                single_joystick_packet |= (1ULL << 19);
 
             // Copy the completed 24-bit packet (3 bytes) into the larger `packet_buffer`.
             // Each joystick's data is concatenated.
