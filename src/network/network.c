@@ -113,6 +113,8 @@ static const NETWORK_CARD net_cards[] = {
     /* EISA */
     { &threec592_device           },
     { &threec597_device           },
+    /* PCMCIA */
+    { &ne2000_compat_pcmcia_device },
     /* MCA */
     { &threec529_mc_device        },
     { &threec529_tp_device        },

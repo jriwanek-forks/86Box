@@ -158,6 +158,14 @@ extern int hide_status_bar;
 extern int hide_tool_bar;
 extern int fullscreen_ui_visible;
 
+struct plat_file_mapping_t {
+    void              *map_handle;
+    uint8_t           *mapped;
+    unsigned long long size;
+};
+
+typedef struct plat_file_mapping_t plat_file_mapping_t;
+
 /* System-related functions. */
 extern FILE    *plat_fopen(const char *path, const char *mode);
 extern FILE    *plat_fopen64(const char *path, const char *mode);
@@ -200,6 +208,10 @@ extern void     plat_clean_up(void);
 /* Windows-specific physical disk handling. */
 extern plat_device_vol_locked_t* plat_lock_volumes(FILE* file);
 extern void                      plat_unlock_volumes(plat_device_vol_locked_t* vol);
+
+/* File mapping */
+extern      plat_file_mapping_t plat_mmap_file(FILE *file);
+extern void plat_munmap_file(plat_file_mapping_t *file);
 
 /* Resource management. */
 extern char *plat_get_string(int id);
