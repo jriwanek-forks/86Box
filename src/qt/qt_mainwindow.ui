@@ -251,11 +251,17 @@
     <addaction name="actionAbout_86Box"/>
     <addaction name="actionAbout_Qt"/>
    </widget>
+   <widget class="QMenu" name="menuPCMCIA">
+    <property name="title">
+     <string>PCMCIA</string>
+    </property>
+   </widget>
    <addaction name="menuAction"/>
    <addaction name="menuView"/>
    <addaction name="menuMedia"/>
    <addaction name="menuTools"/>
    <addaction name="menuAbout"/>
+   <addaction name="menuPCMCIA"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <widget class="QToolBar" name="toolBar">

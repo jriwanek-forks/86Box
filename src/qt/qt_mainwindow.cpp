@@ -54,6 +54,7 @@ extern "C" {
 #include <86box/apm.h>
 #include <86box/nvr.h>
 #include <86box/acpi.h>
+#include <86box/pcmcia.h>
 #include <86box/renderdefs.h>
 
 #ifdef USE_VNC
@@ -282,6 +283,27 @@ MainWindow::MainWindow(QWidget *parent)
 
     connect(this, &MainWindow::hardResetCompleted, this, [this]() {
         ui->actionMCA_devices->setVisible(machine_has_bus(machine, MACHINE_BUS_MCA));
+        ui->menuPCMCIA->clear();
+        for (uint8_t i = 0; i < 4; i++) {
+            if (pcmcia_sockets[i] && pcmcia_sockets[i]->card_priv_unconnected) {
+                QMenu* menu = new QMenu(ui->menuPCMCIA);
+                auto menuAction = ui->menuPCMCIA->addMenu(menu);
+                menuAction->setText(QString::fromLatin1(pcmcia_sockets[i]->device_name));
+                auto action = menu->addAction(tr("&Connected"));
+                action->setParent(menu);
+                action->setCheckable(true);
+                action->setChecked(true);
+                ui->menuPCMCIA->menuAction()->setText("PCMCIA");
+                connect(action, &QAction::triggered, this, [this, i](bool checked) {
+                    startblit();
+                    if (checked == false)
+                        pcmcia_socket_remove_card(pcmcia_sockets[i]);
+                    else
+                        pcmcia_socket_insert_card(pcmcia_sockets[i], pcmcia_sockets[i]->card_priv_unconnected);
+                    endblit();
+                });
+            }
+        }
         num_label->setVisible(machine_has_bus(machine, MACHINE_BUS_PS2_PORTS | MACHINE_BUS_AT_KBD));
         scroll_label->setVisible(machine_has_bus(machine, MACHINE_BUS_PS2_PORTS | MACHINE_BUS_AT_KBD));
         caps_label->setVisible(machine_has_bus(machine, MACHINE_BUS_PS2_PORTS | MACHINE_BUS_AT_KBD));
@@ -1669,6 +1691,27 @@ MainWindow::refreshMediaMenu()
     status->refresh(ui->statusbar);
     ui->actionMCA_devices->setVisible(machine_has_bus(machine, MACHINE_BUS_MCA));
     ui->actionACPI_Shutdown->setEnabled(!!acpi_enabled);
+    ui->menuPCMCIA->clear();
+    for (uint8_t i = 0; i < 4; i++) {
+        if (pcmcia_sockets[i] && pcmcia_sockets[i]->card_priv_unconnected) {
+            QMenu* menu = new QMenu(ui->menuPCMCIA);
+            auto menuAction = ui->menuPCMCIA->addMenu(menu);
+            menuAction->setText(QString::fromLatin1(pcmcia_sockets[i]->device_name));
+            auto action = menu->addAction(tr("&Connected"));
+            action->setParent(menu);
+            action->setCheckable(true);
+            action->setChecked(true);
+            ui->menuPCMCIA->menuAction()->setText("PCMCIA");
+            connect(action, &QAction::triggered, this, [this, i](bool checked) {
+                startblit();
+                if (checked == false)
+                    pcmcia_socket_remove_card(pcmcia_sockets[i]);
+                else
+                    pcmcia_socket_insert_card(pcmcia_sockets[i], pcmcia_sockets[i]->card_priv_unconnected);
+                endblit();
+            });
+        }
+    }
 
     num_label->setToolTip(QShortcut::tr("Num Lock"));
     num_label->setVisible(machine_has_bus(machine, MACHINE_BUS_PS2_PORTS | MACHINE_BUS_AT_KBD));

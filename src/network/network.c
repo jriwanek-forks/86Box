@@ -106,6 +106,8 @@ static const NETWORK_CARD net_cards[] = {
     { &ne2000_device              },
     { &pcnet_am79c960_eb_device   },
     { &rtl8019as_pnp_device       },
+    /* PCMCIA */
+    { &ne2000_compat_pcmcia_device },
     /* MCA */
     { &ethernext_mc_device        },
     { &wd8003eta_device           },

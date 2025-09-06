@@ -21,9 +21,11 @@
  *          TheCollector1995, <mariogplayer@gmail.com>
  *          Miran Grca, <mgrca8@gmail.com>
  *          Peter Grehan, <grehan@iprg.nokia.com>
+ *          Cacodemon345
  *
  *          Copyright 2017-2018 Fred N. van Kempen.
  *          Copyright 2016-2018 Miran Grca.
+ *          Copyright 2024-2025 Cacodemon345.
  *          Portions Copyright (C) 2002  MandrakeSoft S.A.
  *
  * This program is free software; you can redistribute it and/or modify
@@ -70,6 +72,7 @@
 #include <86box/isapnp.h>
 #include <86box/plat_fallthrough.h>
 #include <86box/plat_unused.h>
+#include <86box/pcmcia.h>
 
 /* ROM BIOS file paths. */
 #define ROM_PATH_NE1000  "roms/network/ne1000/ne1000.rom"
@@ -81,6 +84,49 @@
 #define PCI_VENDID  0x10ec /* Realtek, Inc */
 #define PCI_DEVID   0x8029 /* RTL8029AS */
 #define PCI_REGSIZE 256    /* size of PCI space */
+
+/* Copied over from NewtonOS emulator Einstein. */
+const uint8_t cis_data[] = {
+	// NE2000:
+	//
+	0x01, 3, // Tuple #1, code = 0x1 (Common memory descriptor), length = 3
+	0x00, 0x00, 0xff,
+	// Common memory device information:
+	// Device number 1, type No device, WPS = OFF
+	// Speed = No speed, Memory block size = 512b, 1 units
+	0x15, 51, // Tuple #2, code = 0x15 (Version 1 info), length = 51
+	0x04, 0x01, 0x45, 0x74, 0x68, 0x65, 0x72, 0x6e, 0x65, 0x74, 0x20, 0x41, 0x64, 0x61, 0x70, 0x74,
+	0x65, 0x72, 0x20, 0x45, 0x32, 0x30, 0x30, 0x30, 0x00, 0x50, 0x43, 0x4d, 0x43, 0x49, 0x41, 0x20,
+	0x45, 0x74, 0x68, 0x65, 0x72, 0x6e, 0x65, 0x74, 0x00, 0x44, 0x00, 0x4e, 0x45, 0x32, 0x30, 0x30,
+	0x30, 0x00, 0xff,
+	// Version = 4.1, Manuf = [Ethernet Adapter], card vers = [E2000 PCMCIA Ethernet]
+	// Addit. info = [D],[NE2000]
+	0x1a, 5, // Tuple #3, code = 0x1a (Configuration map), length = 5
+	0x01, 0x20, 0xf8, 0x03, 0x03,
+	// Reg len = 2, config register addr = 0x3f8, last config = 0x20
+	// Registers: XX------
+	0x1b, 17, // Tuple #4, code = 0x1b (Configuration entry), length = 17
+	0xe0, 0x81, 0x1d, 0x3f, 0x55, 0x4d, 0x5d, 0x06, 0x86, 0x46, 0x26, 0xfc, 0x24, 0x65, 0x10, 0xff,
+	0xff,
+	// Config index = 0x20(default)
+	// Interface byte = 0x81 (I/O)  wait signal supported
+	// Vcc pwr:
+	// Nominal operating supply voltage: 5 x 1V
+	// Minimum operating supply voltage: 4.5 x 1V
+	// Maximum operating supply voltage: 5.5 x 1V
+	// Continuous supply current: 1 x 100mA
+	// Max current average over 1 second: 1 x 100mA, ext = 0x46
+	// Max current average over 10 ms: 2 x 100mA
+	// Wait scale Speed = 1.5 x 10 us
+	// Card decodes 5 address lines, full 8/16 Bit I/O
+	// IRQ modes: Level
+	// IRQs:  0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
+	0x21, 2, // Tuple #5, code = 0x21 (Functional ID), length = 2
+	0x06, 0x00,
+	// Network/LAN adapter
+    0x14, 0x01, 0x00,
+	0xff, 0x01, 0x00 // Tuple #6, code = 0xff (Terminator), length = 1
+};
 
 typedef struct nic_t {
     dp8390_t   *dp8390;
@@ -105,6 +151,13 @@ typedef struct nic_t {
 
     /* POS registers, MCA boards only */
     uint8_t     pos_regs[8];
+
+    /* PCMCIA registers, PCMCIA cards only */
+    uint8_t     pcmcia_config;
+    uint8_t     pcmcia_status_reg;
+
+    /* PCMCIA socket instance. */
+    pcmcia_socket_t* pcmcia_socket;
 
     int         board;
     int         is_pci;
@@ -147,6 +200,11 @@ static void
 nic_interrupt(void *priv, int set)
 {
     nic_t *dev = (nic_t *) priv;
+
+    if (dev->pcmcia_socket && dev->pcmcia_socket->card_priv) {
+        dev->pcmcia_socket->interrupt(!!set, !!(dev->pcmcia_config & (1 << 6)), dev->pcmcia_socket);
+        return;
+    }
 
     if (dev->is_pci) {
         if (set)
@@ -561,6 +619,8 @@ nic_pnp_write_vendor_reg(uint8_t ld, uint8_t reg, uint8_t val, void *priv)
 static void
 nic_ioset(nic_t *dev, uint16_t addr)
 {
+    if (dev->pcmcia_socket)
+        return;
     if (dev->is_pci) {
         io_sethandler(addr, 32,
                       nic_readb, nic_readw, nic_readl,
@@ -907,6 +967,70 @@ nic_mca_feedb(void *priv)
     return (dev->pos_regs[2] & 0x01);
 }
 
+static uint8_t
+nic_pcmcia_read(uint32_t addr, int reg, void *priv)
+{
+    nic_t *dev = (nic_t *) priv;
+    if (reg == 0)
+        addr &= ~1;
+    else
+        return 0xFF; /* There's no common memory space to access. */
+
+    addr &= 0x3FFFFFF;
+
+    if (addr == 0x3f8)
+        return dev->pcmcia_config;
+
+    if (addr == 0x3fa)
+        return dev->pcmcia_status_reg;
+
+    if ((addr >> 1) < sizeof(cis_data))
+        return cis_data[(addr >> 1)];
+
+    return 0xFF;
+}
+
+static uint16_t
+nic_pcmcia_readw(uint32_t addr, int reg, void* priv)
+{
+    return nic_pcmcia_read(addr, reg, priv) | (nic_pcmcia_read(addr + 1, reg, priv) << 8);
+}
+
+static void
+nic_pcmcia_write(uint32_t addr, uint8_t val, int reg, void *priv)
+{
+    nic_t *dev = (nic_t *) priv;
+    if (reg == 0)
+        addr &= ~1;
+    else
+        return; /* There's no common memory space to access. */
+
+    addr &= 0x3FFFFFF;
+
+    if (addr == 0x3f8) {
+        dev->pcmcia_config = val;
+
+        if (val & 0x80)
+            nic_reset(dev);
+    }
+
+    if (addr == 0x3fa)
+        dev->pcmcia_status_reg = (val & 0x28);
+}
+
+static void
+nic_pcmcia_writew(uint32_t addr, uint16_t val, int reg, void *priv)
+{
+    nic_pcmcia_write(addr, val & 0xFF, reg, priv);
+    nic_pcmcia_write(addr + 1, (val >> 8) & 0xFF, reg, priv);
+}
+
+static void
+nic_pcmcia_ata_mode(bool ata, pcmcia_socket_t* socket)
+{
+    //
+}
+
 static void *
 nic_init(const device_t *info)
 {
@@ -920,7 +1044,31 @@ nic_init(const device_t *info)
     dev->name  = info->name;
     dev->board = info->local;
 
-    if (dev->board >= NE2K_RTL8019AS_PNP) {
+    if (info->flags & DEVICE_PCMCIA) {
+        pcmcia_socket_t* slot = pcmcia_search_for_slots();
+        if (!slot) {
+            free(dev);
+            return NULL;
+        }
+
+        slot->io_read        = nic_readb;
+        slot->io_readw       = nic_readw;
+        slot->io_write       = nic_writeb;
+        slot->io_writew      = nic_writew;
+        slot->mem_read       = nic_pcmcia_read;
+        slot->mem_write      = nic_pcmcia_write;
+        slot->mem_readw      = nic_pcmcia_readw;
+        slot->mem_writew     = nic_pcmcia_writew;
+        slot->reset          = nic_reset;
+        slot->ata_mode       = nic_pcmcia_ata_mode;
+        slot->mem_get_exec   = NULL;
+        slot->device_name[0] = 0;
+        strcpy(slot->device_name, info->name);
+        slot->card_priv_unconnected = dev;
+        dev->pcmcia_socket          = slot;
+        pcmcia_socket_insert_card(slot, dev);
+        slot->ready_changed(true, slot);
+    } else if (dev->board >= NE2K_RTL8019AS_PNP) {
         dev->base_address = 0x340;
         dev->base_irq     = 12;
         if (dev->board == NE2K_RTL8029AS) {
@@ -1091,7 +1239,7 @@ nic_init(const device_t *info)
      * Make this device known to the I/O system.
      * PnP and PCI devices start with address spaces inactive.
      */
-    if ((dev->board < NE2K_RTL8019AS_PNP) && (dev->board != NE2K_ETHERNEXT_MC))
+    if ((dev->board < NE2K_RTL8019AS_PNP) && (dev->board != NE2K_ETHERNEXT_MC) && !(info->flags & DEVICE_PCMCIA))
         nic_ioset(dev, dev->base_address);
 
     /* Set up our BIOS ROM space, if any. */
@@ -1752,6 +1900,20 @@ const device_t ne2000_compat_8bit_device = {
     .speed_changed = NULL,
     .force_redraw  = NULL,
     .config        = ne2000_compat_8bit_config
+};
+
+const device_t ne2000_compat_pcmcia_device = {
+    .name          = "NE2000 Compatible (PCMCIA)",
+    .internal_name = "ne2k_pcmcia",
+    .flags         = DEVICE_PCMCIA,
+    .local         = NE2K_NE2000_COMPAT,
+    .init          = nic_init,
+    .close         = nic_close,
+    .reset         = NULL,
+    .available     = NULL,
+    .speed_changed = NULL,
+    .force_redraw  = NULL,
+    .config        = rtl8019as_config
 };
 
 const device_t ethernext_mc_device = {

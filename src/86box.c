@@ -107,6 +107,7 @@
 #include <86box/apm.h>
 #include <86box/acpi.h>
 #include <86box/nv/vid_nv_rivatimer.h>
+#include <86box/pcmcia.h>
 
 // Disable c99-designator to avoid the warnings about int ng
 #ifdef __clang__
@@ -1561,6 +1562,9 @@ pc_reset_hard_init(void)
     /* Reset the general machine support modules. */
     io_init();
 
+    /* Reset PCMCIA socket list. */
+    pcmcia_reset();
+
     /* Turn on and (re)initialize timer processing. */
     timer_init();
 
@@ -1579,6 +1583,14 @@ pc_reset_hard_init(void)
     /* Reset some basic devices. */
     speaker_init();
     shadowbios = 0;
+
+    /* Add CL-PD6710 device (Temporary) */
+    device_add(&pd6710_device);
+    //device_add(&pd6710_alt_device);
+
+    extern const device_t pcmcia_mtd_device;
+
+    device_add(&pcmcia_mtd_device);
 
     /*
      * Once the machine has been initialized, all that remains

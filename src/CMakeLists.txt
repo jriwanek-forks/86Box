@@ -48,6 +48,7 @@ add_executable(86Box
     nvr_at.c
     nvr_ps2.c
     machine_status.c
+    pcmcia.c
 )
 
 if(CMAKE_SYSTEM_NAME MATCHES "Linux")
@@ -123,6 +124,7 @@ target_link_libraries(86Box
     utils
     vid
     voodoo
+    pcmcia
     plat
     ui
 )
@@ -261,6 +263,7 @@ add_subdirectory(game)
 add_subdirectory(machine)
 add_subdirectory(mem)
 add_subdirectory(network)
+add_subdirectory(pcmcia)
 add_subdirectory(printer)
 add_subdirectory(sio)
 add_subdirectory(scsi)

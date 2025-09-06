@@ -136,6 +136,14 @@ extern int kbd_req_capture;
 extern int hide_status_bar;
 extern int hide_tool_bar;
 
+struct plat_file_mapping_t {
+    void              *map_handle;
+    uint8_t           *mapped;
+    unsigned long long size;
+};
+
+typedef struct plat_file_mapping_t plat_file_mapping_t;
+
 /* System-related functions. */
 extern FILE    *plat_fopen(const char *path, const char *mode);
 extern FILE    *plat_fopen64(const char *path, const char *mode);
@@ -167,6 +175,10 @@ extern void     plat_language_code_r(int id, char *outbuf, int len);
 extern void     plat_get_cpu_string(char *outbuf, uint8_t len);
 extern void     plat_set_thread_name(void *thread, const char *name);
 extern void     plat_break(void);
+
+/* File mapping */
+extern      plat_file_mapping_t plat_mmap_file(FILE *file);
+extern void plat_munmap_file(plat_file_mapping_t *file);
 
 /* Resource management. */
 extern wchar_t *plat_get_string(int id);

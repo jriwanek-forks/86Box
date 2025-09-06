@@ -460,6 +460,37 @@ plat_get_ticks_common(void)
     return ElapsedMicroseconds;
 }
 
+plat_file_mapping_t
+plat_mmap_file(FILE *file)
+{
+    plat_file_mapping_t map;
+    ssize_t             size;
+
+    fflush(file);
+    map.map_handle = NULL;
+    map.mapped     = NULL;
+
+    fseek(file, 0, SEEK_END);
+    size = ftello64(file);
+    if (size == -1)
+        return map;
+    fseek(file, 0, SEEK_SET);
+    map.map_handle = (void *) fileno(file);
+    map.mapped     = mmap(0, (size_t) size, PROT_READ | PROT_WRITE, MAP_SHARED, fileno(file), 0);
+    if (!map.mapped)
+        map.map_handle = NULL;
+    map.size = (unsigned long long) size;
+    return map;
+}
+
+void
+plat_munmap_file(plat_file_mapping_t *map)
+{
+    munmap(map->mapped, (size_t) map->size);
+    map->map_handle = NULL;
+    map->mapped     = NULL;
+}
+
 uint32_t
 plat_get_ticks(void)
 {
