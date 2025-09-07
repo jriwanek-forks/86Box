@@ -40,6 +40,7 @@ add_library(snd OBJECT
     snd_covox.c
     snd_cs423x.c
     snd_gus.c
+    snd_imfc.cpp
     snd_sb.c
     snd_sb_dsp.c
     snd_emu8k.c
