@@ -73,7 +73,11 @@ if(WIN32)
 
     # Default value for the `WIN32` target property, which specifies whether
     # to build the application for the Windows GUI or console subsystem
-    option(CMAKE_WIN32_EXECUTABLE "Build a Windows GUI executable" ON)
+    if(CLI)
+        set(CMAKE_WIN32_EXECUTABLE OFF)
+    else()
+        option(CMAKE_WIN32_EXECUTABLE "Build a Windows GUI executable" ON)
+    endif()
 else()
     # Prefer dynamic builds everywhere else
     set(PREFER_STATIC OFF)
@@ -138,6 +142,7 @@ option(DEV_BRANCH   "Development branch"                                        
 option(DISCORD      "Discord Rich Presence support"                              ON)
 option(DEBUGREGS486 "Enable debug register opeartion on 486+ CPUs"               OFF)
 option(LIBASAN      "Enable compilation with the addresss sanitizer"             OFF)
+option(CLI          "Command line interface"                                     OFF)
 
 if((ARCH STREQUAL "arm64") OR (ARCH STREQUAL "arm"))
     set(NEW_DYNAREC ON)

@@ -25,6 +25,7 @@
 #include <string.h>
 #include <time.h>
 #include <wchar.h>
+#include <unistd.h>
 
 #define HAVE_STDARG_H
 #include <86box/86box.h>
@@ -113,6 +114,11 @@ log_out(void *priv, const char *fmt, va_list ap)
         pclog("WARNING: Logging called with a NULL format pointer\n");
     else if (fmt[0] != '\0') {
         log_ensure_stdlog_open();
+#ifdef USE_CLI
+        /* Don't output to stdout on CLI mode unless it is redirected. */
+        if (isatty(fileno(stdlog)))
+            return;
+#endif
 
         vsnprintf(temp, sizeof(temp), fmt, ap);
 
@@ -160,6 +166,11 @@ log_out_cyclic(void* priv, const char* fmt, va_list ap)
     else if (fmt[0] != '\0') {
         /* Ensure stdlog is open. */
         log_ensure_stdlog_open();
+#ifdef USE_CLI
+        /* Don't output to stdout on CLI mode unless it is redirected. */
+        if (isatty(fileno(stdlog)))
+            return;
+#endif
 
         char temp[LOG_SIZE_BUFFER] = {0};
 

@@ -45,6 +45,11 @@
 #    endif
 #endif
 
+#ifdef _WIN32
+# include <io.h>
+#else
+# include <unistd.h>
+#endif
 #define HAVE_STDARG_H
 #include <86box/86box.h>
 #include <86box/config.h>
@@ -107,6 +112,7 @@
 #include <86box/apm.h>
 #include <86box/acpi.h>
 #include <86box/nv/vid_nv_rivatimer.h>
+#include <86box/cli.h>
 
 // Disable c99-designator to avoid the warnings about int ng
 #ifdef __clang__
@@ -378,6 +384,11 @@ pclog_ex(UNUSED(const char *fmt), UNUSED(va_list ap))
         return;
 
     pclog_ensure_stdlog_open();
+#    ifdef USE_CLI
+    /* Don't output to stdout on CLI mode unless it is redirected. */
+    if (isatty(fileno(stdlog)))
+        return;
+#    endif
 
     vsprintf(temp, fmt, ap);
     if (suppr_seen && !strcmp(buff, temp))
@@ -387,7 +398,7 @@ pclog_ex(UNUSED(const char *fmt), UNUSED(va_list ap))
             fprintf(stdlog, "*** %d repeats ***\n", seen);
         seen = 0;
         strcpy(buff, temp);
-        fprintf(stdlog, "%s", temp);
+        fprintf(stdlog, temp, ap);
     }
 
     fflush(stdlog);
@@ -1350,6 +1361,10 @@ pc_init_modules(void)
 
     atfullspeed = 0;
 
+#ifdef USE_CLI
+    cli_init();
+#endif
+
     random_init();
 
     mem_init();
@@ -1506,6 +1521,10 @@ pc_reset_hard_close(void)
     nvr_close();
 
     mouse_close();
+
+#ifdef USE_CLI
+    cli_close();
+#endif
 
     device_close_all();
 
@@ -1870,6 +1889,10 @@ pc_run(void)
         dispatch_async_f(dispatch_get_main_queue(), wcsdup((const wchar_t *) temp), _ui_window_title);
 #else
         ui_window_title(temp);
+#endif
+#ifdef USE_CLI
+        swprintf(temp, sizeof_w(temp), L"%hs - %i%% - %ls %ls", vm_name, fps, EMU_NAME_W, EMU_VERSION_FULL_W);
+        cli_render_write_title(temp);
 #endif
         title_update = 0;
     }

@@ -99,6 +99,10 @@ if(VNC)
     endif()
 endif()
 
+if(CLI)
+    add_compile_definitions(USE_CLI)
+endif()
+
 if(INSTRUMENT)
     add_compile_definitions(USE_INSTRUMENT)
 endif()
@@ -277,6 +281,10 @@ if (QT)
 else()
     add_compile_definitions(USE_SDL_UI)
     add_subdirectory(unix)
+endif()
+
+if(CLI)
+    add_subdirectory(cli)
 endif()
 
 if(CMAKE_SYSTEM_NAME MATCHES "NetBSD")

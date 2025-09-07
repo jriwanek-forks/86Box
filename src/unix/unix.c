@@ -1233,7 +1233,6 @@ int
 main(int argc, char **argv)
 {
     SDL_Event event;
-    void     *libedithandle;
     int      ret = 0;
 
     SDL_Init(0);
@@ -1255,16 +1254,6 @@ main(int argc, char **argv)
         fprintf(stderr, "Failed to create blit mutex: %s", SDL_GetError());
         return -1;
     }
-    libedithandle = dlopen(LIBEDIT_LIBRARY, RTLD_LOCAL | RTLD_LAZY);
-    if (libedithandle) {
-        f_readline    = dlsym(libedithandle, "readline");
-        f_add_history = dlsym(libedithandle, "add_history");
-        if (!f_readline) {
-            fprintf(stderr, "readline in libedit not found, line editing will be limited.\n");
-        }
-        f_rl_callback_handler_remove = dlsym(libedithandle, "rl_callback_handler_remove");
-    } else
-        fprintf(stderr, "libedit not found, line editing will be limited.\n");
     mousemutex = SDL_CreateMutex();
     sdl_initho();
 
@@ -1282,7 +1271,7 @@ main(int argc, char **argv)
 
     do_start();
 #ifndef USE_CLI
-    thread_create(monitor_thread, NULL);
+    cli_monitor_init(1);
 #endif
     SDL_AddTimer(1000, timer_onesec, NULL);
     while (!is_quit) {
@@ -1416,8 +1405,6 @@ main(int argc, char **argv)
     SDL_DestroyMutex(blitmtx);
     SDL_DestroyMutex(mousemutex);
     SDL_Quit();
-    if (f_rl_callback_handler_remove)
-        f_rl_callback_handler_remove();
     return 0;
 }
 
