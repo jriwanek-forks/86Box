@@ -148,7 +148,9 @@ media_menu_set_name_cdrom(int drive)
 {
     wchar_t      name[512];
     wchar_t     *temp;
+#if 0
     wchar_t      fn[512];
+#endif
     MENUITEMINFO mii = { 0 };
 
     int bus = cdrom[drive].bus_type;
@@ -156,6 +158,8 @@ media_menu_set_name_cdrom(int drive)
 
     temp = plat_get_string(id);
 
+// TODO
+#if 0
     if (cdrom[drive].host_drive == 200) {
         if (strlen(cdrom[drive].image_path) == 0) {
             _swprintf(name, plat_get_string(IDS_5120),
@@ -167,6 +171,7 @@ media_menu_set_name_cdrom(int drive)
         }
     } else
         _swprintf(name, plat_get_string(IDS_5120), drive + 1, temp, plat_get_string(IDS_2057));
+#endif
 
     mii.cbSize     = sizeof(mii);
     mii.fMask      = MIIM_STRING;
@@ -305,6 +310,8 @@ media_menu_update_cdrom(int id)
     else
         CheckMenuItem(menus[i], IDM_CDROM_MUTE | id, MF_BYCOMMAND | MF_UNCHECKED);
 
+// TODO
+#if 0
     if (cdrom[id].host_drive == 200) {
         CheckMenuItem(menus[i], IDM_CDROM_IMAGE | id, MF_BYCOMMAND | (cdrom[id].is_dir ? MF_UNCHECKED : MF_CHECKED));
         CheckMenuItem(menus[i], IDM_CDROM_DIR | id, MF_BYCOMMAND | (cdrom[id].is_dir ? MF_CHECKED : MF_UNCHECKED));
@@ -320,6 +327,7 @@ media_menu_update_cdrom(int id)
         EnableMenuItem(menus[i], IDM_CDROM_RELOAD | id, MF_BYCOMMAND | MF_GRAYED);
     else
         EnableMenuItem(menus[i], IDM_CDROM_RELOAD | id, MF_BYCOMMAND | MF_ENABLED);
+#endif
 
     media_menu_set_name_cdrom(id);
 }
@@ -649,9 +657,10 @@ media_menu_proc(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
             break;
 
         case IDM_CDROM_IMAGE:
-            if (!file_dlg_st(hwnd, IDS_2141, cdrom[id].is_dir ? NULL : cdrom[id].image_path, NULL, 0)) {
+#if 0
+            if (!file_dlg_st(hwnd, IDS_2141, cdrom[id].is_dir ? NULL : cdrom[id].image_path, NULL, 0))
                 cdrom_mount(id, openfilestring);
-            }
+#endif
             break;
 
         case IDM_CDROM_DIR:
