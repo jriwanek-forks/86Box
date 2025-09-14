@@ -905,17 +905,17 @@ plat_mmap(size_t size, uint8_t executable)
 }
 
 void
-plat_get_global_config_dir(char *strptr)
+plat_get_global_config_dir(char *strptr, const uint8_t len)
 {
     wchar_t appdata_dir[1024] = { L'\0' };
 
     if (_wgetenv(L"LOCALAPPDATA") && _wgetenv(L"LOCALAPPDATA")[0] != L'\0') {
-        size_t len = 0;
+        size_t lenw = 0;
         wcsncpy(appdata_dir, _wgetenv(L"LOCALAPPDATA"), 1024);
-        len = wcslen(appdata_dir);
-        if (appdata_dir[len - 1] != L'\\') {
-            appdata_dir[len]     = L'\\';
-            appdata_dir[len + 1] = L'\0';
+        lenw = wcslen(appdata_dir);
+        if (appdata_dir[lenw - 1] != L'\\') {
+            appdata_dir[lenw]     = L'\\';
+            appdata_dir[lenw + 1] = L'\0';
         }
         wcscat(appdata_dir, L"86box");
         CreateDirectoryW(appdata_dir, NULL);
@@ -1010,18 +1010,18 @@ plat_delay_ms(uint32_t count)
 
 /* Return the VIDAPI number for the given name. */
 int
-plat_vidapi(char *name)
+plat_vidapi(const char *api)
 {
     /* Default/System is SDL Hardware. */
-    if (!strcasecmp(name, "default") || !strcasecmp(name, "system"))
+    if (!strcasecmp(api, "default") || !strcasecmp(api, "system"))
         return 1;
 
     /* If DirectDraw or plain SDL was specified, return SDL Software. */
-    if (!strcasecmp(name, "ddraw") || !strcasecmp(name, "sdl"))
+    if (!strcasecmp(api, "ddraw") || !strcasecmp(api, "sdl"))
         return 1;
 
     for (uint8_t i = 0; i < RENDERERS_NUM; i++) {
-        if (vid_apis[i].name && !strcasecmp(vid_apis[i].name, name))
+        if (vid_apis[i].name && !strcasecmp(vid_apis[i].name, api))
             return i;
     }
 

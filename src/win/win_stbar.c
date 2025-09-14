@@ -563,7 +563,7 @@ ui_sb_update_panes(void)
         if (fdd_get_type(i) != 0)
             sb_parts++;
     }
-    hdc_name = hdc_get_internal_name(hdc_current);
+    hdc_name = hdc_get_internal_name(hdc_current[0]);
     for (i = 0; i < CDROM_NUM; i++) {
         /* Could be Internal or External IDE.. */
         if ((cdrom[i].bus_type == CDROM_BUS_ATAPI) && !ide_int && memcmp(hdc_name, "xtide", 5) && memcmp(hdc_name, "ide", 3))

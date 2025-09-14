@@ -42,6 +42,7 @@ extern "C" {
 
 extern int ui_msgbox(int flags, void *message);
 extern int ui_msgbox_header(int flags, void *header, void *message);
+extern int ui_msgbox_ex(int flags, void *header, void *message, void *btn1, void *btn2, void *btn3);
 
 /* Status Bar functions. */
 #define SB_ICON_WIDTH 24
@@ -64,6 +65,7 @@ extern void     ui_sb_set_ready(int ready);
 extern void     ui_sb_update_panes(void);
 extern void     ui_sb_update_text(void);
 extern void     ui_sb_update_tip(int meaning);
+extern void     ui_sb_timer_callback(int pane);
 extern void     ui_sb_update_icon(int tag, int active);
 extern void     ui_sb_update_icon_state(int tag, int state);
 extern void     ui_sb_set_text_w(wchar_t *wstr);

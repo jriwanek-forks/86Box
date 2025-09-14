@@ -512,7 +512,10 @@ MainWindowProcedure(HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam)
             hmenu = GetMenu(hwnd);
             switch (LOWORD(wParam)) {
                 case IDM_ACTION_SCREENSHOT:
+// TODO: Fix this
+#if 0
                     take_screenshot();
+#endif
                     break;
 
 #ifdef MTR_ENABLED

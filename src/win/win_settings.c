@@ -409,8 +409,8 @@ win_settings_init(void)
     /* Storage devices category */
     for (i = 0; i < SCSI_BUS_MAX; i++)
         temp_scsi_card[i] = scsi_card_current[i];
-    temp_fdc_card = fdc_type;
-    temp_hdc      = hdc_current;
+    temp_fdc_card = fdc_current[0];
+    temp_hdc      = hdc_current[0];
     temp_ide_ter  = ide_ter_enabled;
     temp_ide_qua  = ide_qua_enabled;
     temp_cassette = cassette_enable;
@@ -535,8 +535,8 @@ win_settings_changed(void)
     /* Storage devices category */
     for (uint8_t j = 0; j < SCSI_BUS_MAX; j++)
         i = i || (temp_scsi_card[j] != scsi_card_current[j]);
-    i = i || (fdc_type != temp_fdc_card);
-    i = i || (hdc_current != temp_hdc);
+    i = i || (fdc_current[0] != temp_fdc_card);
+    i = i || (hdc_current[0] != temp_hdc);
     i = i || (temp_ide_ter != ide_ter_enabled);
     i = i || (temp_ide_qua != ide_qua_enabled);
     i = i || (temp_cassette != cassette_enable);
@@ -630,8 +630,8 @@ win_settings_save(void)
     /* Storage devices category */
     for (uint8_t i = 0; i < SCSI_BUS_MAX; i++)
         scsi_card_current[i] = temp_scsi_card[i];
-    hdc_current     = temp_hdc;
-    fdc_type        = temp_fdc_card;
+    hdc_current[0]  = temp_hdc;
+    fdc_current[0]  = temp_fdc_card;
     ide_ter_enabled = temp_ide_ter;
     ide_qua_enabled = temp_ide_qua;
     cassette_enable = temp_cassette;
@@ -651,9 +651,14 @@ win_settings_save(void)
     /* Removable devices category */
     memcpy(cdrom, temp_cdrom, CDROM_NUM * sizeof(cdrom_t));
     for (uint8_t i = 0; i < CDROM_NUM; i++) {
+#if 0
         cdrom[i].is_dir      = 0;
+#endif
         cdrom[i].priv        = NULL;
         cdrom[i].ops         = NULL;
+#if 0
+        cdrom[i].local       = NULL;
+#endif
         cdrom[i].image       = NULL;
         cdrom[i].insert      = NULL;
         cdrom[i].close       = NULL;
