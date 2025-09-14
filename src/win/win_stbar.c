@@ -267,7 +267,7 @@ StatusBarCreateCdromTip(int part)
     id     = IDS_5377 + (bus - 1);
     szText = plat_get_string(id);
 
-    if (cdrom[drive].host_drive == 200) {
+    if (strlen(cdrom->image_path) > 0) {
         if (strlen(cdrom[drive].image_path) == 0) {
             _swprintf(tempTip, plat_get_string(IDS_5120),
                       drive + 1, szText, plat_get_string(IDS_2057));
@@ -768,7 +768,7 @@ ui_sb_update_panes(void)
 
             case SB_CDROM: /* CD-ROM */
                 id = sb_part_meanings[i] & 0xf;
-                if (cdrom[id].host_drive == 200)
+                if (strlen(cdrom[id].image_path) > 0)
                     sb_part_icons[i] = (strlen(cdrom[id].image_path) == 0) ? 128 : 0;
                 else
                     sb_part_icons[i] = 128;

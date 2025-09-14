@@ -115,13 +115,12 @@ floppy_eject(uint8_t id)
 void
 plat_cdrom_ui_update(uint8_t id, UNUSED(uint8_t reload))
 {
-    const cdrom_t *drv = &cdrom[id];
+    const cdrom_t *dev = &cdrom[id];
 
-    if (drv->host_drive == 0) {
+    if (strlen(dev->image_path) > 0)
         ui_sb_update_icon_state(SB_CDROM | id, 1);
-    } else {
+    else
         ui_sb_update_icon_state(SB_CDROM | id, 0);
-    }
 
     media_menu_update_cdrom(id);
     ui_sb_update_tip(SB_CDROM | id);
@@ -130,7 +129,6 @@ plat_cdrom_ui_update(uint8_t id, UNUSED(uint8_t reload))
 void
 cdrom_mount(uint8_t id, char *fn)
 {
-    cdrom[id].prev_host_drive = cdrom[id].host_drive;
     strcpy(cdrom[id].prev_image_path, cdrom[id].image_path);
     if (cdrom[id].ops && cdrom[id].ops->exit)
         cdrom[id].ops->exit(&(cdrom[id]));
@@ -142,12 +140,12 @@ cdrom_mount(uint8_t id, char *fn)
     /* Signal media change to the emulated machine. */
     if (cdrom[id].insert)
         cdrom[id].insert(cdrom[id].priv);
-    cdrom[id].host_drive = (strlen(cdrom[id].image_path) == 0) ? 0 : 200;
-    if (cdrom[id].host_drive == 200) {
+
+    if (strlen(cdrom[id].image_path) > 0)
         ui_sb_update_icon_state(SB_CDROM | id, 0);
-    } else {
+    else
         ui_sb_update_icon_state(SB_CDROM | id, 1);
-    }
+
     media_menu_update_cdrom(id);
     ui_sb_update_tip(SB_CDROM | id);
     config_save();
@@ -159,10 +157,10 @@ mo_eject(uint8_t id)
     mo_t *dev = (mo_t *) mo_drives[id].priv;
 
     mo_disk_close(dev);
-    if (mo_drives[id].bus_type) {
-        /* Signal disk change to the emulated machine. */
+
+    /* Signal disk change to the emulated machine. */
+    if (mo_drives[id].bus_type)
         mo_insert(dev);
-    }
 
     ui_sb_update_icon_state(SB_MO | id, 1);
     media_menu_update_mo(id);
@@ -193,11 +191,10 @@ mo_reload(uint8_t id)
     mo_t *dev = (mo_t *) mo_drives[id].priv;
 
     mo_disk_reload(dev);
-    if (strlen(mo_drives[id].image_path) == 0) {
+    if (strlen(mo_drives[id].image_path) == 0)
         ui_sb_update_icon_state(SB_MO | id, 1);
-    } else {
+    else
         ui_sb_update_icon_state(SB_MO | id, 0);
-    }
 
     media_menu_update_mo(id);
     ui_sb_update_tip(SB_MO | id);
@@ -211,10 +208,9 @@ zip_eject(uint8_t id)
     zip_t *dev = (zip_t *) zip_drives[id].priv;
 
     zip_disk_close(dev);
-    if (zip_drives[id].bus_type) {
-        /* Signal disk change to the emulated machine. */
+    /* Signal disk change to the emulated machine. */
+    if (zip_drives[id].bus_type)
         zip_insert(dev);
-    }
 
     ui_sb_update_icon_state(SB_ZIP | id, 1);
     media_menu_update_zip(id);
@@ -245,11 +241,10 @@ zip_reload(uint8_t id)
     zip_t *dev = (zip_t *) zip_drives[id].priv;
 
     zip_disk_reload(dev);
-    if (strlen(zip_drives[id].image_path) == 0) {
+    if (strlen(zip_drives[id].image_path) == 0)
         ui_sb_update_icon_state(SB_ZIP | id, 1);
-    } else {
+    else
         ui_sb_update_icon_state(SB_ZIP | id, 0);
-    }
 
     media_menu_update_zip(id);
     ui_sb_update_tip(SB_ZIP | id);
