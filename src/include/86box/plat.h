@@ -30,6 +30,11 @@
 #endif
 
 /* String ID numbers. */
+// TODO: WIN32 UI Only
+#ifdef _WIN32
+#include <86box/language.h>
+#endif
+
 enum {
     STRING_MOUSE_CAPTURE,             /* "Click to capture mouse" */
     STRING_MOUSE_RELEASE,             /* "Press F8+F12/Ctrl+End to release mouse" */

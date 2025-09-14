@@ -135,14 +135,15 @@ option(NEW_DYNAREC  "Use the PCem v15 (\"new\") dynamic recompiler"             
 option(MINITRACE    "Enable Chrome tracing using the modified minitrace library"    OFF)
 option(GDBSTUB      "Enable GDB stub server for debugging"                          OFF)
 option(DEV_BRANCH   "Development branch"                                            OFF)
+option(QT           "Qt GUI"                                                        ON)
 option(DISCORD      "Discord Rich Presence support"                                 ON)
 option(DEBUGREGS486 "Enable debug register opeartion on 486+ CPUs"                  OFF)
 
 if(WIN32)
-    set(QT ON)
+#    set(QT ON)
     option(CPPTHREADS "C++11 threads" OFF)
 else()
-    option(QT "Qt GUI" ON)
+#    option(QT "Qt GUI" ON)
     option(CPPTHREADS "C++11 threads" ON)
 endif()
 
