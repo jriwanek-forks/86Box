@@ -21,8 +21,10 @@ add_library(plat OBJECT
     win.c
     win_dynld.c
     win_cdrom.c
+    win_cdrom_ioctl.c
     win_keyboard.c
     win_mouse.c
+    win_netsocket.c
     win_serial_passthrough.c
 )
 
