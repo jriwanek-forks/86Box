@@ -652,7 +652,8 @@ kbd_read(uint16_t port, void *priv)
 
         case 0x62:
             ret = (pcjr->latched ? 1 : 0);
-            ret |= 0x02; /* Modem card not installed */
+            if (pcjr->option_modem)
+                ret |= 0x02; /* Modem card not installed */
             if (mem_size < 128)
                 ret |= 0x08; /* 64k expansion card not installed */
             if ((pcjr->pb & 0x08) || (cassette == NULL))
@@ -662,6 +663,8 @@ kbd_read(uint16_t port, void *priv)
             ret |= (ppispeakon ? 0x10 : 0);
             ret |= (ppispeakon ? 0x20 : 0);
             ret |= (pcjr->data ? 0x40 : 0);
+            if (pcjr->option_ir)
+                ret |= 0x80; /* Keyboard cable not connected */
             if (pcjr->data)
                 ret |= 0x40;
             break;
@@ -813,6 +816,28 @@ static const device_config_t pcjr_config[] = {
         .selection      = { { 0 } },
         .bios           = { { 0 } }
     },
+    {
+        .name           = "modem_slot",
+        .description    = "Enable Serial Port in Modem Slot",
+        .type           = CONFIG_BINARY,
+        .default_string = NULL,
+        .default_int    = 0,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = { { 0 } },
+        .bios           = { { 0 } }
+    },
+    {
+        .name           = "ir_reciever",
+        .description    = "Enable IR Reciever",
+        .type           = CONFIG_BINARY,
+        .default_string = NULL,
+        .default_int    = 0,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = { { 0 } },
+        .bios           = { { 0 } }
+    },
     { .name = "", .description = "", .type = CONFIG_END }
     // clang-format on
 };
@@ -846,6 +871,9 @@ machine_pcjr_init(UNUSED(const machine_t *model))
 
     pcjr = calloc(1, sizeof(pcjr_t));
 
+    pcjr->option_modem = device_get_config_int("modem_slot");
+    pcjr->option_ir    = device_get_config_int("ir_reciever");
+
     is_pcjr = 1;
 
     pic_init_pcjr();
@@ -865,9 +893,13 @@ machine_pcjr_init(UNUSED(const machine_t *model))
     keyboard_scan   = 1;
     key_queue_start = key_queue_end = 0;
     io_sethandler(0x0060, 4,
-                  kbd_read, NULL, NULL, kbd_write, NULL, NULL, pcjr);
+                  kbd_read, NULL, NULL,
+                  kbd_write, NULL, NULL,
+                  pcjr);
     io_sethandler(0x00a0, 8,
-                  kbd_read, NULL, NULL, kbd_write, NULL, NULL, pcjr);
+                  kbd_read, NULL, NULL,
+                  kbd_write, NULL, NULL,
+                  pcjr);
     timer_add(&pcjr->send_delay_timer, kbd_poll, pcjr, 1);
     keyboard_set_table(scancode_pcjr);
     keyboard_send = kbd_adddata_ex;
@@ -879,7 +911,12 @@ machine_pcjr_init(UNUSED(const machine_t *model))
 
     device_add(&fdc_pcjr_device);
 
-    device_add(&ns8250_pcjr_device);
+    if (pcjr->option_modem)
+        device_add(&ns8250_pcjr_com2_device);
+    else {
+        device_add(&ns8250_pcjr_com1_device);
+        device_add(&ns8250_pcjr_com2_device);
+    }
     /* So that serial_standalone_init() won't do anything. */
     serial_set_next_inst(SERIAL_MAX - 1);
 
