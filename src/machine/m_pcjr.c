@@ -41,6 +41,7 @@
 #include <86box/rom.h>
 #include <86box/fdd.h>
 #include <86box/fdc.h>
+#include <86box/fdc_ext.h>
 #include <86box/sound.h>
 #include <86box/snd_speaker.h>
 #include <86box/snd_sn76489.h>
@@ -654,6 +655,8 @@ kbd_read(uint16_t port, void *priv)
             ret = (pcjr->latched ? 1 : 0);
             if (pcjr->option_modem)
                 ret |= 0x02; /* Modem card not installed */
+            if (pcjr->option_fdc)
+                ret |= 0x04; /* Diskette card not installed */
             if (mem_size < 128)
                 ret |= 0x08; /* 64k expansion card not installed */
             if ((pcjr->pb & 0x08) || (cassette == NULL))
@@ -872,6 +875,7 @@ machine_pcjr_init(UNUSED(const machine_t *model))
     pcjr = calloc(1, sizeof(pcjr_t));
 
     pcjr->option_modem = device_get_config_int("modem_slot");
+    pcjr->option_fdc   = 0;
     pcjr->option_ir    = device_get_config_int("ir_reciever");
 
     is_pcjr = 1;
@@ -910,6 +914,10 @@ machine_pcjr_init(UNUSED(const machine_t *model))
     nmi_mask = 0x80;
 
     device_add(&fdc_pcjr_device);
+    if (fdc_current[0] == FDC_INTERNAL) {
+        device_add(&fdc_pcjr_device);
+        pcjr->option_fdc = 1;
+    }
 
     if (pcjr->option_modem)
         device_add(&ns8250_pcjr_com2_device);
