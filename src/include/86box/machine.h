@@ -839,6 +839,9 @@ extern int             machine_at_hot433a_init(const machine_t *);
 
 /* VIA VT82C496G */
 extern int             machine_at_g486vpa_init(const machine_t *);
+#ifdef EMU_DEVICE_H
+extern const device_t  fic486vipio2_device;
+#endif
 extern int             machine_at_486vipio2_init(const machine_t *);
 
 /* m_at_486_misc.c */
