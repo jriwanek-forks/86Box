@@ -32,7 +32,7 @@
 
 #ifndef DISABLE_FDD_AUDIO
 
-#define SAMPLEPATH "roms/floppy/samples"
+#define SAMPLEPATH roms/floppy/samples
 
 /* Audio sample structure */
 typedef struct {
