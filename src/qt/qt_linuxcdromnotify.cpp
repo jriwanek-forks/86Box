@@ -73,9 +73,8 @@ LinuxCDROMNotify::~LinuxCDROMNotify()
 {
     if (inotify_fd != -1) {
         for (const auto &device : monitored_devices) {
-            if (device.watch_fd != -1) {
+            if (device.watch_fd != -1)
                 inotify_rm_watch(inotify_fd, device.watch_fd);
-            }
         }
         close(inotify_fd);
     }
@@ -89,12 +88,11 @@ std::unique_ptr<LinuxCDROMNotify> LinuxCDROMNotify::Register(MainWindow *window)
 void LinuxCDROMNotify::setupCDROMMonitoring()
 {
     monitored_devices.clear();
-    for (int i = 0; i < CDROM_NUM; i++) {
+    for (uint8_t i = 0; i < CDROM_NUM; i++) {
         if (cdrom[i].bus_type != 0) {  // Drive is configured
             QString device_path = QString::fromLocal8Bit(cdrom[i].ioctl_dev_path);
-            if (!device_path.isEmpty()) {
+            if (!device_path.isEmpty())
                 addCDROMDevice(device_path, i);
-            }
         }
     }
 }
@@ -105,9 +103,9 @@ void LinuxCDROMNotify::onInotifyEvent()
     ssize_t length = read(inotify_fd, buffer, sizeof(buffer));
 
     if (length == -1) {
-        if (errno != EAGAIN && errno != EWOULDBLOCK) {
+        if (errno != EAGAIN && errno != EWOULDBLOCK)
             qWarning() << "LinuxCDROMNotify: Error reading inotify events:" << strerror(errno);
-        }
+
         return;
     }
 
@@ -130,19 +128,16 @@ void LinuxCDROMNotify::onInotifyEvent()
 
 void LinuxCDROMNotify::processCDROMChange(const QString &path, int cdrom_id)
 {
-    if (cdrom_id < 0 || cdrom_id >= CDROM_NUM) {
+    if (cdrom_id < 0 || cdrom_id >= CDROM_NUM)
         return;
-    }
 
     cdrom_t *dev = &cdrom[cdrom_id];
-    if (dev->bus_type == 0) {
+    if (dev->bus_type == 0)
         return;  // Drive not configured
-    }
 
     int fd = open(path.toLocal8Bit().constData(), O_RDONLY | O_NONBLOCK);
-    if (fd == -1) {
+    if (fd == -1)
         return;
-    }
 
     int status = ioctl(fd, CDROM_DRIVE_STATUS, CDSL_CURRENT);
     
@@ -166,19 +161,18 @@ bool LinuxCDROMNotify::addCDROMDevice(const QString &path, int cdrom_id)
 {
     // Check if already monitoring this device
     for (const auto &device : monitored_devices) {
-        if (device.path == path) {
+        if (device.path == path)
             return true;  // Already monitoring
-        }
     }
 
     // Add new device to monitoring
     CDROMDevice device;
-    device.path = path;
-    device.watch_fd = inotify_add_watch(inotify_fd, path.toLocal8Bit().constData(), IN_ATTRIB);
-    device.last_check = 0;
-    device.last_capacity = 0;
+    device.path           = path;
+    device.watch_fd       = inotify_add_watch(inotify_fd, path.toLocal8Bit().constData(), IN_ATTRIB);
+    device.last_check     = 0;
+    device.last_capacity  = 0;
     device.last_device_id = 0;
-    device.cdrom_id = cdrom_id;
+    device.cdrom_id       = cdrom_id;
 
     if (device.watch_fd != -1) {
         monitored_devices.append(device);
@@ -188,5 +182,4 @@ bool LinuxCDROMNotify::addCDROMDevice(const QString &path, int cdrom_id)
         return false;
     }
 }
-
-#endif // __linux__
+#endif /*__linux__*/

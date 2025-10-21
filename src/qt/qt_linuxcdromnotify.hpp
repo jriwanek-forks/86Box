@@ -51,18 +51,18 @@ private slots:
     void onInotifyEvent();
 
 private:
-    MainWindow *window;
-    int inotify_fd;
+    MainWindow      *window;
+    int              inotify_fd;
     QSocketNotifier *notifier;
-    QTimer *periodic_timer;
+    QTimer          *periodic_timer;
     
     struct CDROMDevice {
-        QString path;
-        int watch_fd;
-        time_t last_check;
+        QString  path;
+        int      watch_fd;
+        time_t   last_check;
         uint32_t last_capacity;
-        dev_t last_device_id;
-        int cdrom_id;
+        dev_t    last_device_id;
+        int      cdrom_id;
     };
     
     QList<CDROMDevice> monitored_devices;
@@ -73,5 +73,4 @@ private:
     void processCDROMChange(const QString &path, int cdrom_id);
     bool addCDROMDevice(const QString &path, int cdrom_id);    
 };
-
-#endif
+#endif /*QT_LINUXCDROMNOTIFY_HPP*/

@@ -216,9 +216,9 @@ linux_ioctl_read_raw_toc(linux_ioctl_t *dev_ioctl)
 
         if (sg_hdr.sb_len_wr > 0) {
             linux_ioctl_log(dev_ioctl->log, "Linux IOCTL: Sense data: ");
-            for (int i = 0; i < sg_hdr.sb_len_wr && i < 16; i++) {
+            for (int i = 0; i < sg_hdr.sb_len_wr && i < 16; i++)
                 linux_ioctl_log(dev_ioctl->log, "%02x ", sense_buffer[i]);
-            }
+
             linux_ioctl_log(dev_ioctl->log, "\n");
         }
         close(dev_ioctl->fd);
@@ -281,13 +281,12 @@ linux_ioctl_read_raw_toc(linux_ioctl_t *dev_ioctl)
                                 track->point, track->pm, track->ps, track->pf,
                                 (ctl & 4) ? "DATA" : "AUDIO",
                                 (ctl & 2) ? "DIGITAL_COPY_PERMITTED" : "", i);
-            } else if (track->point == 0xA0) {
+            } else if (track->point == 0xA0)
                 linux_ioctl_log(dev_ioctl->log, "First track: %02d, Disc type: %02X (index %d)\n", track->pm, track->ps, i);
-            } else if (track->point == 0xA1) {
+            else if (track->point == 0xA1)
                 linux_ioctl_log(dev_ioctl->log, "Last track: %02d (index %d)\n", track->pm, i);
-            } else if (track->point == 0xA2) {
+            else if (track->point == 0xA2)
                 linux_ioctl_log(dev_ioctl->log, "Lead-out start: %02d:%02d:%02d (index %d)\n", track->pm, track->ps, track->pf, i);
-            }
         }
     }
 #endif
@@ -329,9 +328,8 @@ linux_ioctl_get_track_index(const linux_ioctl_t *dev_ioctl, const uint32_t secto
             const uint32_t start = MSFtoLBA(ct->pm, ct->ps, ct->pf) - 150;
 
             /* If track start is beyond our sector, we can't use this track */
-            if (start > sector) {
+            if (start > sector)
                 continue;
-            }
 
             /* If this start is better than our current best, use it */
             if (start >= best_start) {
@@ -571,13 +569,13 @@ linux_ioctl_read_sector(const void *local, uint8_t *buffer, const uint32_t secto
         /* Debug: Show the actual data we read for sector 16 */
         if (sector == 16 && ret) {
             linux_ioctl_log(dev_ioctl->log, "Linux IOCTL: Sector 16 raw data: ");
-            for (int i = 16; i < 32; i++) {
+            for (int i = 16; i < 32; i++)
                 linux_ioctl_log(dev_ioctl->log, "%02X ", buffer[i]);
-            }
+
             linux_ioctl_log(dev_ioctl->log, " (ASCII: ");
-            for (int i = 16; i < 32; i++) {
+            for (int i = 16; i < 32; i++)
                 linux_ioctl_log(dev_ioctl->log, "%c", (buffer[i] >= 32 && buffer[i] < 127) ? buffer[i] : '.');
-            }
+
             linux_ioctl_log(dev_ioctl->log, ")\n");
         }
     }
@@ -588,9 +586,8 @@ linux_ioctl_read_sector(const void *local, uint8_t *buffer, const uint32_t secto
         /* Windows-style subchannel construction - only if not already present */
         if (sector != 0xffffffff) {
             for (int i = 11; i >= 0; i--) {
-                for (int j = 7; j >= 0; j--) {
+                for (int j = 7; j >= 0; j--)
                     buffer[2352 + (i * 8) + j] = ((buffer[sc_offs + i] >> (7 - j)) & 0x01) << 6;
-                }
             }
         }
     }
@@ -677,9 +674,8 @@ linux_ioctl_is_empty(const void *local)
 
     linux_ioctl_log(dev_ioctl->log, "Linux IOCTL: is_empty() called\n");
 
-    if (dev_ioctl->fd < 0) {
+    if (dev_ioctl->fd < 0)
         return 1;
-    }
 
     if (ioctl(dev_ioctl->fd, CDROM_DRIVE_STATUS, CDSL_CURRENT) != CDS_DISC_OK) {
         linux_ioctl_log(dev_ioctl->log, "Linux IOCTL: No disc in drive\n");
@@ -709,9 +705,8 @@ linux_ioctl_load(const void *local)
 
     linux_ioctl_log(dev_ioctl->log, "Linux IOCTL: load() called\n");
 
-    if (!dev_ioctl || dev_ioctl->fd < 0) {
+    if (!dev_ioctl || dev_ioctl->fd < 0)
         return;
-    }
 
     linux_ioctl_set_max_speed(dev_ioctl);
 
@@ -739,12 +734,9 @@ ioctl_open(cdrom_t *dev, const char *drv)
 {
     linux_ioctl_t *dev_ioctl;
 
-    dev_ioctl = (linux_ioctl_t *) malloc(sizeof(linux_ioctl_t));
-    if (!dev_ioctl) {
+    dev_ioctl = (linux_ioctl_t *) calloc(1, sizeof(linux_ioctl_t));
+    if (!dev_ioctl)
         return NULL;
-    }
-
-    memset(dev_ioctl, 0, sizeof(linux_ioctl_t));
 
     dev_ioctl->dev = dev;
     dev_ioctl->fd  = -1;
