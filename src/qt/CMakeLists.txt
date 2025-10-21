@@ -352,8 +352,8 @@ endif()
 
 if(WIN32)
     target_sources(plat PRIVATE win_cdrom_ioctl.c)
-elseif(USE_IOCTL AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    target_sources(ui PRIVATE 
+elseif(UNIX AND NOT APPLE)
+    target_sources(plat PRIVATE
         linux_cdrom_ioctl.c
         qt_linuxcdromnotify.cpp
         qt_linuxcdromnotify.hpp
