@@ -352,6 +352,12 @@ endif()
 
 if(WIN32)
     target_sources(plat PRIVATE win_cdrom_ioctl.c)
+elseif(USE_IOCTL AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    target_sources(ui PRIVATE 
+        linux_cdrom_ioctl.c
+        qt_linuxcdromnotify.cpp
+        qt_linuxcdromnotify.hpp
+    )
 else()
 # Replace with proper *nix and mac handler files once they are done.
     target_sources(plat PRIVATE dummy_cdrom_ioctl.c)

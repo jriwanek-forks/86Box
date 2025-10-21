@@ -1595,6 +1595,19 @@ load_floppy_and_cdrom_drives(void)
             path_normalize(cdrom[c].image_path);
         }
 
+        sprintf(temp, "cdrom_%02i_ioctl_dev_path", c + 1);
+        p = ini_section_get_string(cat, temp, "");
+
+        if (!strcmp(p, usr_path))
+            p[0] = 0x00;
+
+        if (p[0] != 0x00) {
+            if (strlen(p) > 511)
+                fatal("Configuration: Length of cdrom_%02i_ioctl_dev_path is more than 511\n", c + 1);
+            else
+                strncpy(cdrom[c].ioctl_dev_path, p, 511);
+        }
+
         for (int i = 0; i < MAX_PREV_IMAGES; i++) {
             cdrom[c].image_history[i] = (char *) calloc((MAX_IMAGE_PATH_LEN + 1) << 1, sizeof(char));
             sprintf(temp, "cdrom_%02i_image_history_%02i", c + 1, i + 1);
@@ -2139,9 +2152,6 @@ config_load(void)
 
     memset(hdd, 0, sizeof(hard_disk_t));
     memset(cdrom, 0, sizeof(cdrom_t) * CDROM_NUM);
-#ifdef USE_IOCTL
-    memset(cdrom_ioctl, 0, sizeof(cdrom_ioctl_t) * CDROM_NUM);
-#endif
     memset(rdisk_drives, 0, sizeof(rdisk_drive_t));
 
     for (int i = 0; i < 768; i++)
@@ -3548,6 +3558,12 @@ save_floppy_and_cdrom_drives(void)
             else
                 ini_section_set_string(cat, temp, cdrom[c].image_path);
         }
+
+        sprintf(temp, "cdrom_%02i_ioctl_dev_path", c + 1);
+        if ((cdrom[c].bus_type == 0) || (strlen(cdrom[c].ioctl_dev_path) == 0))
+            ini_section_delete_var(cat, temp);
+        else
+            ini_section_set_string(cat, temp, cdrom[c].ioctl_dev_path);
 
         for (int i = 0; i < MAX_PREV_IMAGES; i++) {
             sprintf(temp, "cdrom_%02i_image_history_%02i", c + 1, i + 1);

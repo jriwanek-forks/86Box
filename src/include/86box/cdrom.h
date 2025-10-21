@@ -378,6 +378,9 @@ typedef struct cdrom {
 
     uint8_t            p_parity[172];
     uint8_t            q_parity[104];
+
+    /* Only used by linux ioctl for disk change notifications */
+    char               ioctl_dev_path[1024];
 } cdrom_t;
 
 extern cdrom_t cdrom[CDROM_NUM];
