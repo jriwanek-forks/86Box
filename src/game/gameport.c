@@ -288,7 +288,8 @@ gameport_write(UNUSED(uint16_t addr), UNUSED(uint8_t val), void *priv)
         gameport_time(joystick, i, joystick->intf->read_axis(joystick->dat, i));
 
     /* Notify the interface. */
-    joystick->intf->write(joystick->dat);
+    if (joystick->intf->write != NULL)
+        joystick->intf->write(joystick->dat);
 
     cycles -= ISA_CYCLES((8 << is_pcjr));
 }
@@ -319,7 +320,7 @@ timer_over(void *priv)
     axis->joystick->state &= ~(1 << axis->axis_nr);
 
     /* Notify the joystick when the first axis' period is finished. */
-    if (axis == &axis->joystick->axis[0])
+    if ((axis == &axis->joystick->axis[0]) && (axis->joystick->intf->a0_over != NULL))
         axis->joystick->intf->a0_over(axis->joystick->dat);
 }
 
@@ -332,9 +333,13 @@ gameport_update_joystick_type(uint8_t gp)
 
     /* Reset the joystick interface. */
     if (joystick_instance[gp]) {
-        joystick_instance[gp]->intf->close(joystick_instance[gp]->dat);
+        if (joystick_instance[gp]->intf->close != NULL)
+            joystick_instance[gp]->intf->close(joystick_instance[gp]->dat);
         joystick_instance[gp]->intf = joysticks[joystick_type[gp]].joystick;
-        joystick_instance[gp]->dat  = joystick_instance[gp]->intf->init();
+        if (joystick_instance[gp]->intf->init != NULL)
+            joystick_instance[gp]->dat  = joystick_instance[gp]->intf->init();
+        else
+            joystick_instance[gp]->dat  = NULL;
     }
 }
 
@@ -435,7 +440,10 @@ gameport_init(const device_t *info)
         }
 
         joystick_instance[joy_insn]->intf = joysticks[joystick_type[joy_insn]].joystick;
-        joystick_instance[joy_insn]->dat  = joystick_instance[joy_insn]->intf->init();
+        if (joystick_instance[joy_insn]->intf->init != NULL)
+            joystick_instance[joy_insn]->dat  = joystick_instance[joy_insn]->intf->init();
+        else
+            joystick_instance[joy_insn]->dat  = NULL;
     }
 
     dev->joystick = joystick_instance[joy_insn];
@@ -511,7 +519,8 @@ gameport_close(void *priv)
 
     /* Free the global instance here, if it wasn't already freed. */
     if (joystick_instance[joy_insn]) {
-        joystick_instance[joy_insn]->intf->close(joystick_instance[joy_insn]->dat);
+        if (joystick_instance[joy_insn]->intf->close != NULL)
+            joystick_instance[joy_insn]->intf->close(joystick_instance[joy_insn]->dat);
 
         free(joystick_instance[joy_insn]);
         joystick_instance[joy_insn] = NULL;
