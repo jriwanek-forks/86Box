@@ -8,12 +8,14 @@
  *
  *          Hayes AT-compliant modem emulation.
  *
- * Authors: Cacodemon345
- *          The DOSBox Team
+ * Authors: The DOSBox Team
+ *          Cacodemon345
+ *          Jasmine Iwanek, <jriwanek@gmail.com>
  *
- *          Copyright 2024 Cacodemon345
- *          Copyright (C) 2022       The DOSBox Staging Team
- *          Copyright (C) 2002-2021  The DOSBox Team
+ *          Copyright 2002-2021 The DOSBox Team.
+ *          Copyright 2022      The DOSBox Staging Team.
+ *          Copyright 2024      Cacodemon345.
+ *          Copyright 2025-2026 Jasmine Iwanek.
  */
 #include <stdarg.h>
 #include <stdio.h>
@@ -36,9 +38,12 @@
 #include <86box/version.h>
 #include <86box/plat_unused.h>
 #include <86box/plat_netsocket.h>
+#include <86box/net_modem_ppp.h>
+#include <86box/net_modem_cslip.h>
+#include <86box/net_modem_slip_auth.h>
 
 #ifdef ENABLE_MODEM_LOG
-int modem_do_log = ENABLE_MODEM_LOG;
+uint8_t modem_do_log = ENABLE_MODEM_LOG;
 
 static void
 modem_log(const char *fmt, ...)
@@ -55,7 +60,7 @@ modem_log(const char *fmt, ...)
 #    define modem_log(fmt, ...)
 #endif
 
-/* From RFC 1055. */
+/* From RFC 1055 (SLIP). */
 #define END     0300 /* indicates end of packet */
 #define ESC     0333 /* indicates byte stuffing */
 #define ESC_END 0334 /* ESC ESC_END means END data byte */
@@ -74,6 +79,7 @@ typedef enum ResTypes {
 } ResTypes;
 
 enum modem_types {
+    MODEM_TYPE_NONE  = 0,
     MODEM_TYPE_SLIP  = 1,
     MODEM_TYPE_PPP   = 2,
     MODEM_TYPE_TCPIP = 3
@@ -91,7 +97,8 @@ typedef enum modem_slip_stage_t {
 
 #define COMMAND_BUFFER_SIZE 512
 #define NUMBER_BUFFER_SIZE  128
-#define PHONEBOOK_SIZE      200
+#define PHONEBOOK_SIZE      256
+#define MODEM_REGS          100
 
 typedef struct modem_phonebook_entry_t {
     char phone[NUMBER_BUFFER_SIZE];
@@ -110,11 +117,11 @@ typedef struct modem_t {
     pc_timer_t dtr_timer;
     pc_timer_t cmdpause_timer;
 
-    uint8_t  tx_pkt_ser_line[0x10000]; /* SLIP-encoded. */
+    uint8_t  tx_pkt_ser_line[0x10000]; /* SLIP-encoded, or raw TCP/IP data. */
     uint32_t tx_count;
 
     Fifo8   rx_data; /* Data received from the network. */
-    uint8_t reg[100];
+    uint8_t reg[MODEM_REGS];
 
     Fifo8 data_pending; /* Data yet to be sent to the host. */
 
@@ -124,13 +131,18 @@ typedef struct modem_t {
     char     lastnumber[NUMBER_BUFFER_SIZE];
     uint32_t cmdpos;
     uint32_t port;
-    int      plusinc, flowcontrol;
-    int      in_warmup, dtrmode;
+    int      plusinc;
+    int      flowcontrol;
+    int      in_warmup;
+    int      dtrmode;
     int      dcdmode;
 
-    bool     connected, ringing;
-    bool     echo, numericresponse;
-    bool     tcpIpMode, tcpIpConnInProgress;
+    bool     connected;
+    bool     ringing;
+    bool     echo;
+    bool     numericresponse;
+    bool     tcpIpMode;
+    bool     tcpIpConnInProgress;
     bool     cooldown;
     bool     telnet_mode;
     bool     dtrstate;
@@ -159,6 +171,24 @@ typedef struct modem_t {
     uint32_t                entries_num;
 
     netcard_t *card;
+
+    /* Protocol mode */
+    int              connection_type;  /* MODEM_TYPE_SLIP, MODEM_TYPE_PPP, etc. */
+    bool             ppp_active;       /* Currently in PPP mode */
+    ppp_ctx_t       *ppp_ctx;          /* PPP context (when in PPP mode) */
+    cslip_ctx_t     *cslip_ctx;        /* CSLIP context (when VJ compression enabled) */
+    bool             cslip_enabled;    /* CSLIP VJ compression active */
+
+    /* SLIP authentication */
+    bool             slip_auth_enabled;
+    slip_auth_ctx_t *slip_auth_ctx;
+    char             slip_username[64];
+    char             slip_password[64];
+
+    /* PPP authentication settings */
+    int              ppp_auth_type;    /* ppp_auth_type_t value from config */
+    char             ppp_username[64];
+    char             ppp_password[64];
 } modem_t;
 
 #define MREG_AUTOANSWER_COUNT 0
@@ -172,6 +202,8 @@ typedef struct modem_t {
 
 static void modem_do_command(modem_t *modem, int repeat);
 static void modem_accept_incoming_call(modem_t *modem);
+static void modem_enter_idle_state(modem_t *modem);
+static void fifo8_resize_2x(Fifo8 *fifo);
 
 extern ssize_t local_getline(char **buf, size_t *bufsiz, FILE *fp);
 
@@ -226,14 +258,18 @@ trim(char *str)
 static void
 modem_read_phonebook_file(modem_t *modem, const char *path)
 {
-    FILE  *file = plat_fopen(path, "r");
     char  *buf  = NULL;
     char  *buf2 = NULL;
     size_t size = 0;
-    if (!file)
-        return;
 
     modem->entries_num = 0;
+
+    if (!path || path[0] == '\0')
+        return;
+
+    FILE *file = plat_fopen(path, "r");
+    if (!file)
+        return;
 
     modem_log("Modem: Reading phone book file %s...\n", path);
     while (local_getline(&buf, &size, file) != -1) {
@@ -350,6 +386,32 @@ modem_send_number(modem_t *modem, uint32_t val)
 }
 
 static void
+modem_ppp_serial_push(void *priv, const uint8_t *data, int len)
+{
+    modem_t *modem = (modem_t *) priv;
+
+    while (len >= (int) fifo8_num_free(&modem->rx_data))
+        fifo8_resize_2x(&modem->rx_data);
+
+    fifo8_push_all(&modem->rx_data, (uint8_t *) data, (uint32_t) len);
+}
+
+static void
+modem_ppp_network_send_ip(void *priv, const uint8_t *ip_pkt, int len)
+{
+    modem_t *modem = (modem_t *) priv;
+    uint8_t *buf   = calloc(len + 14, 1);
+
+    buf[0] = buf[1] = buf[2] = buf[3] = buf[4] = buf[5] = 0xFF;
+    buf[6] = buf[7] = buf[8] = buf[9] = buf[10] = buf[11] = 0xFC;
+    buf[12] = 0x08;
+    buf[13] = 0x00;
+    memcpy(buf + 14, ip_pkt, len);
+    network_tx(modem->card, buf, len + 14);
+    free(buf);
+}
+
+static void
 process_tx_packet(modem_t *modem, uint8_t *p, uint32_t len)
 {
     int      received            = 0;
@@ -393,14 +455,47 @@ process_tx_packet(modem_t *modem, uint8_t *p, uint32_t len)
 
 send_tx_packet:
     if (received) {
-        uint8_t *buf = calloc(received + 14, 1);
+        uint8_t *ip_data    = processed_tx_packet;
+        int      ip_len     = received;
+        uint8_t *decomp_buf = NULL;
+
+        /* CSLIP: VJ decompress if enabled */
+        if (modem->cslip_enabled && modem->cslip_ctx) {
+            int vj_type = VJ_TYPE_IP;
+
+            /* Determine VJ packet type from first byte */
+            if (ip_len > 0) {
+                uint8_t first = ip_data[0];
+                if (first & 0x80)
+                    vj_type = VJ_TYPE_COMPRESSED_TCP;
+                else if ((first & 0xF0) == VJ_TYPE_UNCOMPRESSED_TCP)
+                    vj_type = VJ_TYPE_UNCOMPRESSED_TCP;
+                else
+                    vj_type = VJ_TYPE_IP;
+            }
+
+            if (vj_type != VJ_TYPE_IP) {
+                decomp_buf = calloc(ip_len + VJ_MAX_HDR, 1);
+                ip_len     = cslip_decompress(modem->cslip_ctx, ip_data, ip_len, decomp_buf, vj_type);
+                if (ip_len <= 0) {
+                    free(decomp_buf);
+                    free(processed_tx_packet);
+                    return;
+                }
+                ip_data = decomp_buf;
+            }
+        }
+
+        uint8_t *buf = calloc(ip_len + 14, 1);
         buf[0] = buf[1] = buf[2] = buf[3] = buf[4] = buf[5] = 0xFF;
         buf[6] = buf[7] = buf[8] = buf[9] = buf[10] = buf[11] = 0xFC;
         buf[12]                                               = 0x08;
         buf[13]                                               = 0x00;
-        memcpy(buf + 14, processed_tx_packet, received);
-        network_tx(modem->card, buf, received + 14);
+        memcpy(buf + 14, ip_data, ip_len);
+        network_tx(modem->card, buf, ip_len + 14);
         free(buf);
+        if (decomp_buf)
+            free(decomp_buf);
     }
     free(processed_tx_packet);
     return;
@@ -417,6 +512,27 @@ modem_data_mode_process_byte(modem_t *modem, uint8_t data)
         }
     }
     modem->cmdpause = 0;
+
+    /* SLIP auth in progress - route bytes to auth handler */
+    if (modem->slip_auth_ctx && modem->slip_auth_ctx->active) {
+        if (slip_auth_rx_byte(modem->slip_auth_ctx, data)) {
+            if (modem->slip_auth_ctx->state == SLIP_AUTH_DONE_OK) {
+                /* Auth succeeded - enter SLIP data mode */
+                modem_log("SLIP auth succeeded, entering data mode\n");
+            } else {
+                /* Auth failed - hang up */
+                modem_log("SLIP auth failed, disconnecting\n");
+                modem_enter_idle_state(modem);
+            }
+        }
+        return;
+    }
+
+    /* PPP mode - route bytes to PPP HDLC framing */
+    if (modem->ppp_active && modem->ppp_ctx) {
+        ppp_rx_byte(modem->ppp_ctx, data);
+        return;
+    }
 
     if (modem->tx_count < 0x10000 && modem->connected) {
         modem->tx_pkt_ser_line[modem->tx_count++] = data;
@@ -588,6 +704,19 @@ modem_enter_idle_state(modem_t *modem)
     modem->tcpIpConnInProgress = 0;
     modem->tcpIpConnCounter    = 0;
 
+    /* Clean up PPP state */
+    if (modem->ppp_ctx) {
+        ppp_close(modem->ppp_ctx);
+        modem->ppp_ctx = NULL;
+    }
+    modem->ppp_active = false;
+
+    /* Clean up SLIP auth state */
+    if (modem->slip_auth_ctx) {
+        slip_auth_close(modem->slip_auth_ctx);
+        modem->slip_auth_ctx = NULL;
+    }
+
     if (modem->waitingclientsocket != (SOCKET) -1)
         plat_netsocket_close(modem->waitingclientsocket);
 
@@ -683,10 +812,35 @@ modem_dial(modem_t *modem, const char *str)
     modem->tcpIpConnCounter = 0;
     modem->tcpIpMode        = false;
     if (!strcmp(str, "0.0.0.0") || !strcmp(str, "0000")) {
-        modem_log("Turning on SLIP\n");
+        modem_log("Entering local IP mode (type=%d)\n", modem->connection_type);
         modem_enter_connected_state(modem);
         modem->numberinprogress[0] = 0;
-        modem->tcpIpMode           = false;
+
+        if (modem->connection_type == MODEM_TYPE_PPP) {
+            /* PPP mode */
+            modem->ppp_active = true;
+            modem->tcpIpMode  = false;
+            modem->ppp_ctx    = ppp_init(modem, modem_ppp_serial_push, modem_ppp_network_send_ip);
+            if (modem->ppp_ctx) {
+                /* Configure PPP auth from device settings */
+                modem->ppp_ctx->auth_type = (ppp_auth_type_t) modem->ppp_auth_type;
+                memcpy(modem->ppp_ctx->username, modem->ppp_username, sizeof(modem->ppp_ctx->username));
+                memcpy(modem->ppp_ctx->password, modem->ppp_password, sizeof(modem->ppp_ctx->password));
+                ppp_start(modem->ppp_ctx);
+            }
+        } else {
+            /* SLIP or CSLIP mode */
+            modem->tcpIpMode    = false;
+            modem->cslip_enabled = (modem->connection_type == 4); /* CSLIP */
+
+            /* Start SLIP auth if enabled */
+            if (modem->slip_auth_enabled && (modem->slip_username[0] || modem->slip_password[0])) {
+                modem->slip_auth_ctx = slip_auth_init(modem, modem_ppp_serial_push,
+                                                      modem->slip_username, modem->slip_password);
+                if (modem->slip_auth_ctx)
+                    slip_auth_start(modem->slip_auth_ctx);
+            }
+        }
     } else {
         char buf[NUMBER_BUFFER_SIZE] = "";
         strncpy(buf, str, sizeof(buf) - 1);
@@ -785,7 +939,26 @@ modem_do_command(modem_t *modem, int repeat)
         char chr = modem_fetch_character(&scanbuf);
         switch (chr) {
             case '+':
-                if (is_next_token("NET", sizeof("NET"), scanbuf)) {
+                if (is_next_token("FCLASS=?", sizeof("FCLASS=?"), scanbuf)) {
+                    scanbuf += 8;
+                    modem_send_line(modem, "+FCLASS: (0)");
+                    modem_send_res(modem, ResOK);
+                    return;
+                } else if (is_next_token("FCLASS?", sizeof("FCLASS?"), scanbuf)) {
+                    scanbuf += 7;
+                    modem_send_line(modem, "+FCLASS: 0");
+                    modem_send_res(modem, ResOK);
+                    return;
+                } else if (is_next_token("FCLASS=0", sizeof("FCLASS=0"), scanbuf)) {
+                    scanbuf += 8;
+                    modem_send_res(modem, ResOK);
+                    return;
+                } else if (is_next_token("FCLASS=", sizeof("FCLASS="), scanbuf)) {
+                    /* Catch any other FCLASS assignment attempt. */
+                    scanbuf += 8;
+                    modem_send_res(modem, ResERROR);
+                    return;
+                } else if (is_next_token("NET", sizeof("NET"), scanbuf)) {
                     // only walk the pointer ahead if the command matches
                     scanbuf += 3;
                     const uint32_t requested_mode = modem_scan_number(&scanbuf);
@@ -1006,7 +1179,7 @@ modem_do_command(modem_t *modem, int repeat)
             case 'S':
                 { // Registers
                     const uint32_t index = modem_scan_number(&scanbuf);
-                    if (index >= 100) {
+                    if (index >= MODEM_REGS) {
                         modem_send_res(modem, ResERROR);
                         return; // goto ret_none;
                     }
@@ -1294,7 +1467,20 @@ modem_rx(void *priv, uint8_t *buf, int io_len)
         return 0;
     }
 
-    while ((io_len) >= (fifo8_num_free(&modem->rx_data) / 2)) {
+    /* PPP mode: wrap IP packet in PPP HDLC framing */
+    if (modem->ppp_active && modem->ppp_ctx) {
+        if (!(buf[12] == 0x08 && buf[13] == 0x00))
+            return 0; /* Non-IP */
+
+        while ((io_len) >= (int) (fifo8_num_free(&modem->rx_data) / 2))
+            fifo8_resize_2x(&modem->rx_data);
+
+        modem_log("PPP: Receiving %d bytes\n", io_len - 14);
+        ppp_wrap_ip(modem->ppp_ctx, buf + 14, io_len - 14);
+        return 1;
+    }
+
+    while ((io_len) >= (int) (fifo8_num_free(&modem->rx_data) / 2)) {
         fifo8_resize_2x(&modem->rx_data);
     }
 
@@ -1308,8 +1494,39 @@ modem_rx(void *priv, uint8_t *buf, int io_len)
     io_len -= 14;
     buf += 14;
 
+    /* CSLIP: VJ compress before SLIP encoding */
+    if (modem->cslip_enabled && modem->cslip_ctx) {
+        uint8_t *comp_buf = calloc(io_len + VJ_MAX_HDR, 1);
+        int      comp_type;
+        int      comp_len = cslip_compress(modem->cslip_ctx, buf, io_len, comp_buf, &comp_type);
+
+        if (comp_len > 0) {
+            /* SLIP-encode the compressed packet */
+            fifo8_push(&modem->rx_data, END);
+            for (i = 0; i < (uint32_t) comp_len; i++) {
+                switch (comp_buf[i]) {
+                    case END:
+                        fifo8_push(&modem->rx_data, ESC);
+                        fifo8_push(&modem->rx_data, ESC_END);
+                        break;
+                    case ESC:
+                        fifo8_push(&modem->rx_data, ESC);
+                        fifo8_push(&modem->rx_data, ESC_ESC);
+                        break;
+                    default:
+                        fifo8_push(&modem->rx_data, comp_buf[i]);
+                        break;
+                }
+            }
+            fifo8_push(&modem->rx_data, END);
+        }
+        free(comp_buf);
+        return 1;
+    }
+
+    /* Standard SLIP encoding */
     fifo8_push(&modem->rx_data, END);
-    for (i = 0; i < io_len; i++) {
+    for (i = 0; i < (uint32_t) io_len; i++) {
         switch (buf[i]) {
             case END:
                 fifo8_push(&modem->rx_data, ESC);
@@ -1492,12 +1709,39 @@ modem_init(UNUSED(const device_t *info))
 {
     modem_t    *modem          = (modem_t *) calloc(1, sizeof(modem_t));
     const char *phonebook_file = NULL;
+
+    if (!modem)
+        return NULL;
+
     memset(modem->mac, 0xfc, 6);
 
     modem->port        = device_get_config_int("port");
     modem->baudrate    = device_get_config_int("baudrate");
     modem->listen_port = device_get_config_int("listen_port");
     modem->telnet_mode = device_get_config_int("telnet_mode");
+
+    modem->connection_type = device_get_config_int("connection_type");
+    modem->ppp_auth_type   = device_get_config_int("ppp_auth_type");
+
+    /* SLIP auth settings */
+    modem->slip_auth_enabled = device_get_config_int("slip_auth");
+    {
+        const char *u = device_get_config_string("slip_username");
+        const char *p = device_get_config_string("slip_password");
+        if (u) strncpy(modem->slip_username, u, sizeof(modem->slip_username) - 1);
+        if (p) strncpy(modem->slip_password, p, sizeof(modem->slip_password) - 1);
+    }
+
+    /* PPP auth settings */
+    {
+        const char *u = device_get_config_string("ppp_username");
+        const char *p = device_get_config_string("ppp_password");
+        if (u) strncpy(modem->ppp_username, u, sizeof(modem->ppp_username) - 1);
+        if (p) strncpy(modem->ppp_password, p, sizeof(modem->ppp_password) - 1);
+    }
+
+    /* Initialize CSLIP context (always available, used when connection_type selects CSLIP) */
+    modem->cslip_ctx = cslip_init();
 
     modem->clientsocket = modem->serversocket = modem->waitingclientsocket = -1;
 
@@ -1527,6 +1771,20 @@ modem_close(void *priv)
     modem_t *modem     = (modem_t *) priv;
     modem->listen_port = 0;
     modem_reset(modem);
+
+    if (modem->ppp_ctx) {
+        ppp_close(modem->ppp_ctx);
+        modem->ppp_ctx = NULL;
+    }
+    if (modem->cslip_ctx) {
+        cslip_close(modem->cslip_ctx);
+        modem->cslip_ctx = NULL;
+    }
+    if (modem->slip_auth_ctx) {
+        slip_auth_close(modem->slip_auth_ctx);
+        modem->slip_auth_ctx = NULL;
+    }
+
     fifo8_destroy(&modem->data_pending);
     fifo8_destroy(&modem->rx_data);
     netcard_close(modem->card);
@@ -1610,6 +1868,95 @@ static const device_config_t modem_config[] = {
         .description    = "Telnet emulation",
         .type           = CONFIG_BINARY,
         .default_string = NULL,
+        .default_int    = 0,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = { { 0 } },
+        .bios           = { { 0 } }
+    },
+    {
+        .name           = "connection_type",
+        .description    = "Connection Type",
+        .type           = CONFIG_SELECTION,
+        .default_string = NULL,
+        .default_int    = 1,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = {
+            { .description = "SLIP",  .value = 1 },
+            { .description = "PPP",   .value = 2 },
+            { .description = "CSLIP", .value = 4 },
+            { .description = ""                  }
+        },
+        .bios           = { { 0 } }
+    },
+    {
+        .name           = "slip_auth",
+        .description    = "SLIP Login Authentication",
+        .type           = CONFIG_BINARY,
+        .default_string = NULL,
+        .default_int    = 0,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = { { 0 } },
+        .bios           = { { 0 } }
+    },
+    {
+        .name           = "slip_username",
+        .description    = "SLIP Username",
+        .type           = CONFIG_STRING,
+        .default_string = "",
+        .default_int    = 0,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = { { 0 } },
+        .bios           = { { 0 } }
+    },
+    {
+        .name           = "slip_password",
+        .description    = "SLIP Password",
+        .type           = CONFIG_STRING,
+        .default_string = "",
+        .default_int    = 0,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = { { 0 } },
+        .bios           = { { 0 } }
+    },
+    {
+        .name           = "ppp_auth_type",
+        .description    = "PPP Authentication",
+        .type           = CONFIG_SELECTION,
+        .default_string = NULL,
+        .default_int    = 0,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = {
+            { .description = "None",       .value = 0 },
+            { .description = "PAP",        .value = 1 },
+            { .description = "CHAP (MD5)", .value = 2 },
+            { .description = "MS-CHAP",    .value = 3 },
+            { .description = "MS-CHAPv2",  .value = 4 },
+            { .description = ""                       }
+        },
+        .bios           = { { 0 } }
+    },
+    {
+        .name           = "ppp_username",
+        .description    = "PPP Username",
+        .type           = CONFIG_STRING,
+        .default_string = "",
+        .default_int    = 0,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = { { 0 } },
+        .bios           = { { 0 } }
+    },
+    {
+        .name           = "ppp_password",
+        .description    = "PPP Password",
+        .type           = CONFIG_STRING,
+        .default_string = "",
         .default_int    = 0,
         .file_filter    = NULL,
         .spinner        = { 0 },
