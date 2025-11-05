@@ -21,6 +21,7 @@ add_library(char OBJECT
     char_file.c
     char_fujinet.c
     char_loopback.c
+    char_modem.c
     char_pipe.c
     char_serial.c
     char_stdio.c
@@ -28,6 +29,46 @@ add_library(char OBJECT
 
 if(AUTOMATION)
     target_sources(char PRIVATE char_automation.c)
+endif()
+
+if(ENABLE_MODEM_ADVANCED_CONFIG)
+    target_compile_definitions(char PRIVATE ENABLE_MODEM_ADVANCED_CONFIG)
+endif()
+
+if(ENABLE_MODEM_IPV6)
+    target_compile_definitions(char PRIVATE ENABLE_MODEM_IPV6)
+endif()
+
+if(ENABLE_MODEM_WINS OR ENABLE_MODEM_SMB OR ENABLE_MODEM_NETBEUI OR ENABLE_MODEM_IPX OR ENABLE_MODEM_PPTP)
+    target_compile_definitions(char PRIVATE ENABLE_MODEM_WINS)
+endif()
+
+if(ENABLE_MODEM_SMB OR ENABLE_MODEM_NETBEUI OR ENABLE_MODEM_IPX OR ENABLE_MODEM_PPTP)
+    target_compile_definitions(char PRIVATE ENABLE_MODEM_SMB)
+endif()
+
+if(ENABLE_MODEM_NETBEUI)
+    target_compile_definitions(char PRIVATE ENABLE_MODEM_NETBEUI)
+endif()
+
+if(ENABLE_MODEM_IPX)
+    target_compile_definitions(char PRIVATE ENABLE_MODEM_IPX)
+endif()
+
+if(ENABLE_MODEM_PPTP)
+    target_compile_definitions(char PRIVATE ENABLE_MODEM_PPTP)
+endif()
+
+if(ENABLE_MODEM_RAW_CAPTURE)
+    target_compile_definitions(char PRIVATE ENABLE_MODEM_RAW_CAPTURE)
+endif()
+
+if(ENABLE_MODEM_LOG)
+    target_compile_definitions(char PRIVATE ENABLE_MODEM_LOG)
+endif()
+
+if(ENABLE_MODEM_DEBUG)
+    target_compile_definitions(char PRIVATE ENABLE_MODEM_DEBUG)
 endif()
 
 if(CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")

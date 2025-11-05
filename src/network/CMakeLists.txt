@@ -12,7 +12,7 @@
 #          Jasmine Iwanek, <jriwanek@gmail.com>
 #
 #          Copyright 2020-2021 David Hrdlička.
-#          Copyright 2024      Jasmine Iwanek.
+#          Copyright 2024-2026 Jasmine Iwanek.
 #
 set(net_sources)
 list(APPEND net_sources
@@ -42,7 +42,6 @@ list(APPEND net_sources
     net_i8255x.c
     net_l80225.c
     net_modem.c
-    utils/getline.c
 )
 
 find_package(PkgConfig REQUIRED)
@@ -65,6 +64,7 @@ endif()
 
 if(WIN32)
     target_link_libraries(86Box ws2_32)
+    target_link_libraries(86Box bcrypt)
 endif()
 
 if (UNIX)
@@ -93,3 +93,46 @@ if (UNIX AND NOT APPLE) # Support for TAP on Linux and BSD, supposedly.
 endif()
 
 add_library(net OBJECT ${net_sources})
+find_package(ZLIB REQUIRED)
+target_link_libraries(86Box ZLIB::ZLIB)
+
+if(ENABLE_MODEM_ADVANCED_CONFIG)
+    target_compile_definitions(net PRIVATE ENABLE_MODEM_ADVANCED_CONFIG)
+endif()
+
+if(ENABLE_MODEM_IPV6)
+    target_compile_definitions(net PRIVATE ENABLE_MODEM_IPV6)
+endif()
+
+if(ENABLE_MODEM_WINS OR ENABLE_MODEM_SMB OR ENABLE_MODEM_NETBEUI OR ENABLE_MODEM_IPX OR ENABLE_MODEM_PPTP)
+    target_compile_definitions(net PRIVATE ENABLE_MODEM_WINS)
+endif()
+
+if(ENABLE_MODEM_SMB OR ENABLE_MODEM_NETBEUI OR ENABLE_MODEM_IPX OR ENABLE_MODEM_PPTP)
+    target_compile_definitions(net PRIVATE ENABLE_MODEM_SMB)
+endif()
+
+if(ENABLE_MODEM_NETBEUI)
+    target_compile_definitions(net PRIVATE ENABLE_MODEM_NETBEUI)
+endif()
+
+if(ENABLE_MODEM_IPX)
+    target_compile_definitions(net PRIVATE ENABLE_MODEM_IPX)
+endif()
+
+if(ENABLE_MODEM_PPTP)
+    target_compile_definitions(net PRIVATE ENABLE_MODEM_PPTP)
+endif()
+
+if(ENABLE_MODEM_RAW_CAPTURE)
+    target_compile_definitions(net PRIVATE ENABLE_MODEM_RAW_CAPTURE)
+endif()
+
+if(ENABLE_MODEM_LOG)
+    target_compile_definitions(net PRIVATE ENABLE_MODEM_LOG)
+endif()
+
+if(ENABLE_MODEM_DEBUG)
+    target_compile_definitions(net PRIVATE ENABLE_MODEM_DEBUG)
+    target_compile_definitions(net PRIVATE ENABLE_SLIRP_LOG=1)
+endif()
