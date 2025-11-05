@@ -1,0 +1,61 @@
+/*
+ * 86Box    A hypervisor and IBM PC system emulator that specializes in
+ *          running old operating systems and software designed for IBM
+ *          PC systems and compatibles from 1981 through fairly recent
+ *          system designs based on the PCI bus.
+ *
+ *          This file is part of the 86Box distribution.
+ *
+ *          SLIP authentication - optional text-based login prompt
+ *          before entering SLIP data mode. Emulates a classic ISP
+ *          shell login for SLIP connections.
+ *
+ * Authors: Jasmine Iwanek, <jriwanek@gmail.com>
+ *
+ *          Copyright 2025-2026 Jasmine Iwanek.
+ */
+#ifndef NET_MODEM_SLIP_AUTH_H
+#define NET_MODEM_SLIP_AUTH_H
+
+//#include <stdint.h>
+//#include <stdbool.h>
+
+/* SLIP auth states */
+typedef enum {
+    SLIP_AUTH_SEND_USERNAME_PROMPT,
+    SLIP_AUTH_RECV_USERNAME,
+    SLIP_AUTH_SEND_PASSWORD_PROMPT,
+    SLIP_AUTH_RECV_PASSWORD,
+    SLIP_AUTH_DONE_OK,
+    SLIP_AUTH_DONE_FAIL
+} slip_auth_state_t;
+
+#define SLIP_AUTH_BUF_SIZE 64
+
+typedef struct {
+    slip_auth_state_t state;
+    char              username_buf[SLIP_AUTH_BUF_SIZE];
+    int               username_pos;
+    char              password_buf[SLIP_AUTH_BUF_SIZE];
+    int               password_pos;
+    char              expected_user[SLIP_AUTH_BUF_SIZE];
+    char              expected_pass[SLIP_AUTH_BUF_SIZE];
+    bool              active;
+
+    /* Callback to push bytes to the serial line */
+    void             *modem;
+    void            (*serial_push)(void *modem, const uint8_t *data, int len);
+} slip_auth_ctx_t;
+
+slip_auth_ctx_t *slip_auth_init(void *modem,
+                                void (*serial_push)(void *, const uint8_t *, int),
+                                const char *username,
+                                const char *password);
+void             slip_auth_close(slip_auth_ctx_t *ctx);
+void             slip_auth_start(slip_auth_ctx_t *ctx);
+
+/* Process one byte from the serial line during SLIP auth.
+   Returns true when auth is done (check ctx->state for result). */
+bool             slip_auth_rx_byte(slip_auth_ctx_t *ctx, uint8_t byte);
+
+#endif /* NET_MODEM_SLIP_AUTH_H */
