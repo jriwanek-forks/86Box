@@ -1,0 +1,410 @@
+/*
+ * 86Box    A hypervisor and IBM PC system emulator that specializes in
+ *          running old operating systems and software designed for IBM
+ *          PC systems and compatibles from 1981 through fairly recent
+ *          system designs based on the PCI bus.
+ *
+ *          This file is part of the 86Box distribution.
+ *
+ *          CHAP (Challenge-Handshake Authentication Protocol) implementation
+ *          for PPP modem emulation. Server-side processing for:
+ *            - CHAP/MD5 (RFC 1994)
+ *            - MS-CHAP (RFC 2433)
+ *            - MS-CHAPv2 (RFC 2759)
+ *
+ * Authors: Jasmine Iwanek, <jriwanek@gmail.com>
+ *
+ *          Copyright 2025-2026 Jasmine Iwanek.
+ */
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <86box/net_modem_chap.h>
+#include <86box/net_modem_crypto.h>
+
+#ifdef ENABLE_MODEM_LOG
+extern uint8_t modem_do_log;
+
+static void
+chap_log(const char *fmt, ...)
+{
+    va_list ap;
+    if (modem_do_log) {
+        va_start(ap, fmt);
+        pclog_ex(fmt, ap);
+        va_end(ap);
+    }
+}
+#else
+#    define chap_log(fmt, ...)
+#endif
+
+/* Simple PRNG for challenge generation */
+static uint32_t chap_rand_state = 0xDEADBEEF;
+
+static uint32_t
+chap_rand32(void)
+{
+    chap_rand_state ^= chap_rand_state << 13;
+    chap_rand_state ^= chap_rand_state >> 17;
+    chap_rand_state ^= chap_rand_state << 5;
+    return chap_rand_state;
+}
+
+static void
+chap_generate_challenge(uint8_t *buf, int len)
+{
+    for (int i = 0; i < len; i += 4) {
+        uint32_t r = chap_rand32();
+        int      n = (len - i > 4) ? 4 : (len - i);
+        for (int j = 0; j < n; j++)
+            buf[i + j] = (uint8_t) (r >> (j * 8));
+    }
+}
+
+/* Send CHAP Challenge packet */
+void
+ppp_chap_send_challenge(ppp_ctx_t *ctx)
+{
+    uint8_t pkt[64];
+    int     len;
+    uint8_t challenge_len;
+
+    if (ctx->auth_type == PPP_AUTH_MSCHAPV2)
+        challenge_len = 16;
+    else if (ctx->auth_type == PPP_AUTH_MSCHAP)
+        challenge_len = 8;
+    else
+        challenge_len = 16; /* CHAP/MD5 */
+
+    chap_generate_challenge(ctx->chap_challenge, challenge_len);
+    ctx->chap_challenge_len = challenge_len;
+
+    /* Build packet: Code(1) + ID(1) + Length(2) + Value-Size(1) + Value + Name */
+    ctx->auth_id = (uint8_t) (chap_rand32() & 0xFF);
+    pkt[0] = CHAP_CODE_CHALLENGE;
+    pkt[1] = ctx->auth_id;
+    /* Length at [2..3] filled later */
+    pkt[4] = challenge_len;
+    memcpy(pkt + 5, ctx->chap_challenge, challenge_len);
+
+    /* Append server name */
+    const char *name     = "86Box";
+    int         name_len = (int) strlen(name);
+    memcpy(pkt + 5 + challenge_len, name, name_len);
+
+    len    = 5 + challenge_len + name_len;
+    pkt[2] = (uint8_t) (len >> 8);
+    pkt[3] = (uint8_t) (len & 0xFF);
+
+    ppp_send_frame(ctx, PPP_PROTO_CHAP, pkt, len);
+    chap_log("CHAP: Sent Challenge (id=%d, algo=%d)\n", ctx->auth_id, ctx->auth_type);
+}
+
+/* Verify CHAP/MD5 response (RFC 1994) */
+static bool
+chap_verify_md5(ppp_ctx_t *ctx, uint8_t id, const uint8_t *response, int resp_len)
+{
+    uint8_t expected[MD5_DIGEST_LENGTH];
+    modem_md5_ctx_t md5;
+
+    if (resp_len != MD5_DIGEST_LENGTH)
+        return false;
+
+    /* Expected = MD5(ID + secret + challenge) */
+    modem_md5_init(&md5);
+    modem_md5_update(&md5, &id, 1);
+    modem_md5_update(&md5, (const uint8_t *) ctx->password, strlen(ctx->password));
+    modem_md5_update(&md5, ctx->chap_challenge, ctx->chap_challenge_len);
+    modem_md5_final(&md5, expected);
+
+    return (memcmp(response, expected, MD5_DIGEST_LENGTH) == 0);
+}
+
+/* Compute NT Password Hash: MD4(UTF-16LE(password)) */
+static void
+nt_password_hash(const char *password, uint8_t hash[MD4_DIGEST_LENGTH])
+{
+    /* Convert ASCII password to UTF-16LE */
+    size_t  pw_len = strlen(password);
+    size_t  ulen   = pw_len * 2;
+    uint8_t *ubuf  = (uint8_t *) calloc(ulen, 1);
+
+    for (size_t i = 0; i < pw_len; i++) {
+        ubuf[i * 2]     = (uint8_t) password[i];
+        ubuf[i * 2 + 1] = 0;
+    }
+
+    modem_md4(ubuf, ulen, hash);
+    memset(ubuf, 0, ulen);
+    free(ubuf);
+}
+
+/* Compute hash of NT Password Hash */
+static void
+hash_nt_password_hash(const uint8_t pw_hash[MD4_DIGEST_LENGTH], uint8_t hash_hash[MD4_DIGEST_LENGTH])
+{
+    modem_md4(pw_hash, MD4_DIGEST_LENGTH, hash_hash);
+}
+
+/* DES-encrypt using a 7-byte key segment from a 21-byte padded hash */
+static void
+challenge_response_des(const uint8_t challenge[8], const uint8_t hash21[21], uint8_t response[24])
+{
+    modem_des_encrypt_block(hash21 + 0,  challenge, response + 0);
+    modem_des_encrypt_block(hash21 + 7,  challenge, response + 8);
+    modem_des_encrypt_block(hash21 + 14, challenge, response + 16);
+}
+
+/* Verify MS-CHAP v1 response (RFC 2433) */
+static bool
+chap_verify_mschap(ppp_ctx_t *ctx, const uint8_t *response, int resp_len)
+{
+    uint8_t nt_hash[16];
+    uint8_t nt_hash_padded[21];
+    uint8_t expected[24];
+
+    /* MS-CHAP response is 49 bytes: 24 LM + 24 NT + 1 flags */
+    if (resp_len != 49)
+        return false;
+
+    /* We only verify the NT response (bytes 24-47), ignore LM */
+    uint8_t use_nt = response[48];
+    if (!use_nt) {
+        /* LM-only response - not supported */
+        chap_log("MS-CHAP: LM-only not supported\n");
+        return false;
+    }
+
+    nt_password_hash(ctx->password, nt_hash);
+    memset(nt_hash_padded, 0, sizeof(nt_hash_padded));
+    memcpy(nt_hash_padded, nt_hash, 16);
+
+    challenge_response_des(ctx->chap_challenge, nt_hash_padded, expected);
+
+    return (memcmp(response + 24, expected, 24) == 0);
+}
+
+/* MS-CHAPv2 ChallengeHash: SHA-1(PeerChallenge + AuthChallenge + UserName) truncated to 8 bytes */
+static void
+mschapv2_challenge_hash(const uint8_t peer_challenge[16],
+                        const uint8_t auth_challenge[16],
+                        const char *username,
+                        uint8_t challenge[8])
+{
+    modem_sha1_ctx_t sha1;
+    uint8_t          digest[SHA1_DIGEST_LENGTH];
+
+    modem_sha1_init(&sha1);
+    modem_sha1_update(&sha1, peer_challenge, 16);
+    modem_sha1_update(&sha1, auth_challenge, 16);
+    modem_sha1_update(&sha1, (const uint8_t *) username, strlen(username));
+    modem_sha1_final(&sha1, digest);
+
+    memcpy(challenge, digest, 8);
+}
+
+/* MS-CHAPv2 GenerateAuthenticatorResponse (RFC 2759 section 8.7) */
+static void
+mschapv2_generate_auth_response(const char *password,
+                                const uint8_t nt_response[24],
+                                const uint8_t peer_challenge[16],
+                                const uint8_t auth_challenge[16],
+                                const char *username,
+                                uint8_t auth_resp[20])
+{
+    static const uint8_t magic1[39] = {
+        0x4D, 0x61, 0x67, 0x69, 0x63, 0x20, 0x73, 0x65, 0x72, 0x76,
+        0x65, 0x72, 0x20, 0x74, 0x6F, 0x20, 0x63, 0x6C, 0x69, 0x65,
+        0x6E, 0x74, 0x20, 0x73, 0x69, 0x67, 0x6E, 0x69, 0x6E, 0x67,
+        0x20, 0x63, 0x6F, 0x6E, 0x73, 0x74, 0x61, 0x6E, 0x74, /* "Magic server to client signing constant" */
+    };
+    static const uint8_t magic2[41] = {
+        0x50, 0x61, 0x64, 0x20, 0x74, 0x6F, 0x20, 0x6D, 0x61, 0x6B,
+        0x65, 0x20, 0x69, 0x74, 0x20, 0x64, 0x6F, 0x20, 0x6D, 0x6F,
+        0x72, 0x65, 0x20, 0x74, 0x68, 0x61, 0x6E, 0x20, 0x6F, 0x6E,
+        0x65, 0x20, 0x69, 0x74, 0x65, 0x72, 0x61, 0x74, 0x69, 0x6F,
+        0x6E, /* "Pad to make it do more than one iteration" */
+    };
+
+    uint8_t          pw_hash[MD4_DIGEST_LENGTH];
+    uint8_t          pw_hash_hash[MD4_DIGEST_LENGTH];
+    uint8_t          challenge[8];
+    uint8_t          digest[SHA1_DIGEST_LENGTH];
+    modem_sha1_ctx_t sha1;
+
+    nt_password_hash(password, pw_hash);
+    hash_nt_password_hash(pw_hash, pw_hash_hash);
+
+    modem_sha1_init(&sha1);
+    modem_sha1_update(&sha1, pw_hash_hash, MD4_DIGEST_LENGTH);
+    modem_sha1_update(&sha1, nt_response, 24);
+    modem_sha1_update(&sha1, magic1, sizeof(magic1));
+    modem_sha1_final(&sha1, digest);
+
+    mschapv2_challenge_hash(peer_challenge, auth_challenge, username, challenge);
+
+    modem_sha1_init(&sha1);
+    modem_sha1_update(&sha1, digest, SHA1_DIGEST_LENGTH);
+    modem_sha1_update(&sha1, challenge, 8);
+    modem_sha1_update(&sha1, magic2, sizeof(magic2));
+    modem_sha1_final(&sha1, auth_resp);
+
+    memset(pw_hash, 0, sizeof(pw_hash));
+    memset(pw_hash_hash, 0, sizeof(pw_hash_hash));
+}
+
+/* Verify MS-CHAPv2 response (RFC 2759) */
+static bool
+chap_verify_mschapv2(ppp_ctx_t *ctx, const uint8_t *response, int resp_len,
+                     const char *peer_name, uint8_t auth_resp[20])
+{
+    uint8_t nt_hash[16];
+    uint8_t nt_hash_padded[21];
+    uint8_t challenge[8];
+    uint8_t expected[24];
+
+    /* MS-CHAPv2 response is 49 bytes: 16 PeerChallenge + 8 Reserved + 24 NT-Response + 1 Flags */
+    if (resp_len != 49)
+        return false;
+
+    const uint8_t *peer_challenge = response;
+    const uint8_t *nt_response    = response + 24;
+
+    /* Compute ChallengeHash */
+    mschapv2_challenge_hash(peer_challenge, ctx->chap_challenge, peer_name, challenge);
+
+    /* Compute expected NT-Response */
+    nt_password_hash(ctx->password, nt_hash);
+    memset(nt_hash_padded, 0, sizeof(nt_hash_padded));
+    memcpy(nt_hash_padded, nt_hash, 16);
+
+    challenge_response_des(challenge, nt_hash_padded, expected);
+
+    if (memcmp(nt_response, expected, 24) != 0) {
+        memset(nt_hash, 0, sizeof(nt_hash));
+        return false;
+    }
+
+    /* Generate authenticator response for Success message */
+    mschapv2_generate_auth_response(ctx->password, nt_response,
+                                    peer_challenge, ctx->chap_challenge,
+                                    peer_name, auth_resp);
+
+    memset(nt_hash, 0, sizeof(nt_hash));
+    return true;
+}
+
+/* Send CHAP Success/Failure */
+static void
+chap_send_result(ppp_ctx_t *ctx, uint8_t id, bool success, const char *message)
+{
+    uint8_t pkt[128];
+    int     msg_len = (int) strlen(message);
+    int     len     = 4 + msg_len;
+
+    pkt[0] = success ? CHAP_CODE_SUCCESS : CHAP_CODE_FAILURE;
+    pkt[1] = id;
+    pkt[2] = (uint8_t) (len >> 8);
+    pkt[3] = (uint8_t) (len & 0xFF);
+    memcpy(pkt + 4, message, msg_len);
+
+    ppp_send_frame(ctx, PPP_PROTO_CHAP, pkt, len);
+    chap_log("CHAP: Sent %s (id=%d)\n", success ? "Success" : "Failure", id);
+}
+
+/* Process CHAP Response from peer */
+void
+ppp_chap_process(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
+{
+    if (pkt_len < 4)
+        return;
+
+    uint8_t code  = pkt[0];
+    uint8_t id    = pkt[1];
+    int     total = (pkt[2] << 8) | pkt[3];
+
+    if (code != CHAP_CODE_RESPONSE) {
+        chap_log("CHAP: Unexpected code %d\n", code);
+        return;
+    }
+
+    if (total < 5 || total > pkt_len)
+        return;
+
+    int     pos       = 4;
+    uint8_t value_len = pkt[pos++];
+
+    if (pos + value_len > total)
+        return;
+
+    const uint8_t *value = pkt + pos;
+    pos += value_len;
+
+    /* Extract peer name */
+    int  name_len = total - pos;
+    char peer_name[64];
+    int  copy = (name_len < (int) sizeof(peer_name) - 1) ? name_len : (int) sizeof(peer_name) - 1;
+    if (copy > 0)
+        memcpy(peer_name, pkt + pos, copy);
+    peer_name[copy > 0 ? copy : 0] = '\0';
+
+    chap_log("CHAP: Response from '%s' (value_len=%d)\n", peer_name, value_len);
+
+    bool ok = false;
+
+    /* Check username first (if configured) */
+    if (ctx->username[0] != '\0' && strcmp(peer_name, ctx->username) != 0) {
+        chap_log("CHAP: Username mismatch\n");
+        chap_send_result(ctx, id, false, "E=691 R=0");
+        return;
+    }
+
+    switch (ctx->auth_type) {
+        case PPP_AUTH_CHAP_MD5:
+            ok = chap_verify_md5(ctx, id, value, value_len);
+            if (ok)
+                chap_send_result(ctx, id, true, "");
+            else
+                chap_send_result(ctx, id, false, "");
+            break;
+
+        case PPP_AUTH_MSCHAP:
+            ok = chap_verify_mschap(ctx, value, value_len);
+            if (ok)
+                chap_send_result(ctx, id, true, "");
+            else
+                chap_send_result(ctx, id, false, "E=691 R=0 V=2");
+            break;
+
+        case PPP_AUTH_MSCHAPV2:
+            {
+                uint8_t auth_resp[20];
+                char    success_msg[64];
+
+                ok = chap_verify_mschapv2(ctx, value, value_len, peer_name, auth_resp);
+                if (ok) {
+                    /* Build S= success message with hex-encoded authenticator response */
+                    success_msg[0] = 'S';
+                    success_msg[1] = '=';
+                    for (int i = 0; i < 20; i++)
+                        snprintf(success_msg + 2 + i * 2, 3, "%02X", auth_resp[i]);
+                    success_msg[42] = '\0';
+                    chap_send_result(ctx, id, true, success_msg);
+                } else {
+                    chap_send_result(ctx, id, false, "E=691 R=0 C=00000000000000000000000000000000 V=3");
+                }
+            }
+            break;
+
+        default:
+            chap_send_result(ctx, id, false, "");
+            break;
+    }
+
+    if (ok) {
+        ctx->auth_complete = true;
+        ppp_advance_state(ctx);
+    }
+}
