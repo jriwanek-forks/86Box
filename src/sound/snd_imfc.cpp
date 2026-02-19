@@ -79,7 +79,9 @@ extern "C"
 extern double cpuclock;
 }
 
+#if 0
 #include "SDL_thread.h"
+#endif
 
 // Enable to activate IMF_LOG calls
 #define IMFC_VERBOSE_LOGGING 0
