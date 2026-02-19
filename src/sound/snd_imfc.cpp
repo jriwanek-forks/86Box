@@ -5138,8 +5138,8 @@ void ym2151_device::sound_stream_update(const uint16_t requested_frames, int32_t
 
 	// First, send any frames we've queued since the last callback
 	while (frames_remaining && fifo.size()) {
-		buffer[(i * 2)] += fifo.front().outl * 32767.0;
-		buffer[(i * 2) + 1] += fifo.front().outr * 32767.0;
+		buffer[(i * 2)] += fifo.front().outl * 2.0;
+		buffer[(i * 2) + 1] += fifo.front().outr * 2.0;
 		i++;
 		fifo.pop();
 		--frames_remaining;
@@ -5147,8 +5147,8 @@ void ym2151_device::sound_stream_update(const uint16_t requested_frames, int32_t
 	// If the queue's run dry, render the remainder and sync-up our time datum
 	while (frames_remaining) {
 		const auto frame = RenderFrame();
-		buffer[(i * 2)] += frame.outl * 32767.0;
-		buffer[(i * 2) + 1] += frame.outr * 32767.0;
+		buffer[(i * 2)] += frame.outl * 2.0;
+		buffer[(i * 2) + 1] += frame.outr * 2.0;
 		i++;
 		--frames_remaining;
 	}
