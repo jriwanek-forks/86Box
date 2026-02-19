@@ -84,6 +84,8 @@ extern double cpuclock;
 // Enable to activate IMF_LOG calls
 #define IMFC_VERBOSE_LOGGING 0
 
+#define NDEBUG 1
+
 constexpr uint8_t AVAILABLE_MIDI_CHANNELS = 16;
 constexpr uint8_t AVAILABLE_INSTRUMENTS   = 8;
 
