@@ -11,6 +11,7 @@
 #include <86box/pic.h>
 #include <86box/pit.h>
 #include <86box/mem.h>
+#include <86box/nmi.h>
 #include <86box/rom.h>
 #include <86box/device.h>
 #include <86box/nvr.h>
@@ -227,7 +228,8 @@ ps2_isa_setup(int model, int cpu_type)
 
     device_add(&port_92_device);
 
-    mem_remap_top(384);
+    if (cpu_type == 286) /* for model 30-8086 */
+        mem_remap_top(384);
 
     device_add(&ps_nvr_device);
 
@@ -280,6 +282,39 @@ machine_ps2_isa_p1_handler(void)
     }
 
     return mem_p1;
+}
+
+int
+machine_ps2_m30_init(const machine_t *model)
+{
+    int ret;
+
+    ret = bios_load_interleaved("roms/machines/ibmps2_m30/33F4498.BIN",
+                                "roms/machines/ibmps2_m30/33F4499.BIN",
+                                0x000f0000, 0x10000, 0);
+
+    if (bios_only || !ret)
+        return ret;
+
+    machine_common_init(model);
+
+    device_add(&fdc_xt_device);
+
+#if 0
+    pit_ctr_set_out_func(&pit->counters[1], pit_refresh_timer_xt);
+#endif
+    pit_devs[0].set_out_func(pit_devs[0].data, 1, pit_refresh_timer_xt);
+
+    dma_init();
+    device_add(&kbc_ps2_xt_device);
+    pic_init();
+
+    ps2_isa_setup(30, 8086);
+    device_add(&mcga_device);
+
+    nmi_init();
+
+    return ret;
 }
 
 int

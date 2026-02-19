@@ -189,6 +189,7 @@ extern const device_t kbc_pc82_device;
 extern const device_t kbc_pravetz_device;
 extern const device_t kbc_xt_device;
 extern const device_t kbc_xt86_device;
+extern const device_t kbc_ps2_xt_device;
 extern const device_t kbc_xt_compaq_device;
 extern const device_t kbc_xt_t1x00_device;
 extern const device_t kbc_tandy_device;
