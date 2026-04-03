@@ -74,6 +74,7 @@
 #include <86box/isartc.h>
 #include <86box/lpt.h>
 #include <86box/serial.h>
+#include <86box/serial_loopback.h>
 #include <86box/serial_passthrough.h>
 #include <86box/keyboard.h>
 #include <86box/mouse.h>
@@ -182,6 +183,7 @@ int      video_vsync                            = 0;              /* (C) video *
 int      video_framerate                        = -1;             /* (C) video */
 bool     serial_passthrough_enabled[SERIAL_MAX - 1] = { 0, 0, 0, 0, 0, 0, 0 }; /* (C) activation and kind of
                                                                                   pass-through for serial ports */
+bool     serial_loopback_enabled[SERIAL_MAX - 1] = { 0, 0, 0, 0, 0, 0, 0 }; /* (C) activation of loopback for serial ports */
 int      bugger_enabled                         = 0;              /* (C) enable ISAbugger */
 int      novell_keycard_enabled                 = 0;              /* (C) enable Novell NetWare 2.x key card emulation. */
 int      postcard_enabled                       = 0;              /* (C) enable POST card */
@@ -1743,6 +1745,7 @@ pc_reset_hard_init(void)
     /* note: SLIP COM side has to be initialized before the network side */
     serial_standalone_init();
     serial_passthrough_init();
+    serial_loopback_init();
 
     /* Reset and reconfigure the Network Card layer. */
     network_reset();

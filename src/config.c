@@ -44,6 +44,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #define HAVE_STDARG_H
 #include <86box/86box.h>
 #include "cpu.h"
@@ -68,6 +69,7 @@
 #include <86box/fdc_ext.h>
 #include <86box/gameport.h>
 #include <86box/keyboard.h>
+#include <86box/serial_loopback.h>
 #include <86box/serial_passthrough.h>
 #include <86box/machine.h>
 #include <86box/mouse.h>
@@ -1032,6 +1034,13 @@ load_ports(void)
 
         if (serial_passthrough_enabled[c])
             config_log("Serial Port %d: passthrough enabled.\n\n", c + 1);
+
+        sprintf(temp, "serial%d_loopback_enabled", c + 1);
+        serial_loopback_enabled[c] = !!ini_section_get_int(cat, temp, 0);
+
+        if (serial_loopback_enabled[c])
+            config_log("Serial Port %d: loopback enabled.\n\n", c + 1);
+
     }
 
     for (int c = 0; c < PARALLEL_MAX; c++) {
@@ -3274,6 +3283,13 @@ save_ports(void)
             ini_section_set_int(cat, temp, 1);
         else
             ini_section_delete_var(cat, temp);
+
+        sprintf(temp, "serial%d_loopback_enabled", c + 1);
+        if (serial_loopback_enabled[c])
+            ini_section_set_int(cat, temp, 1);
+        else
+            ini_section_delete_var(cat, temp);
+
     }
 
     for (int c = 0; c < PARALLEL_MAX; c++) {
@@ -3838,20 +3854,20 @@ save_floppy_and_cdrom_drives(void)
             ini_section_delete_var(cat, temp);
 
         sprintf(temp, "cdrom_%02i_speed", c + 1);
-        if ((cdrom[c].bus_type == 0) || (cdrom[c].speed == 8))
+        if ((cdrom[c].bus_type == CDROM_BUS_DISABLED) || (cdrom[c].speed == 8))
             ini_section_delete_var(cat, temp);
         else
             ini_section_set_int(cat, temp, cdrom[c].speed);
 
         sprintf(temp, "cdrom_%02i_type", c + 1);
         char *tn = cdrom_get_internal_name(cdrom_get_type(c));
-        if ((cdrom[c].bus_type == 0) || (cdrom[c].bus_type == CDROM_BUS_MITSUMI) || !strcmp(tn, "86cd"))
+        if ((cdrom[c].bus_type == CDROM_BUS_DISABLED) || (cdrom[c].bus_type == CDROM_BUS_MITSUMI) || !strcmp(tn, "86cd"))
             ini_section_delete_var(cat, temp);
         else
             ini_section_set_string(cat, temp, tn);
 
         sprintf(temp, "cdrom_%02i_parameters", c + 1);
-        if (cdrom[c].bus_type == 0)
+        if (cdrom[c].bus_type == CDROM_BUS_DISABLED)
             ini_section_delete_var(cat, temp);
         else {
             /* In case one wants an ATAPI drive on SCSI and vice-versa. */
@@ -3893,7 +3909,7 @@ save_floppy_and_cdrom_drives(void)
         }
 
         sprintf(temp, "cdrom_%02i_image_path", c + 1);
-        if ((cdrom[c].bus_type == 0) || (strlen(cdrom[c].image_path) == 0))
+        if ((cdrom[c].bus_type == CDROM_BUS_DISABLED) || (strlen(cdrom[c].image_path) == 0))
             ini_section_delete_var(cat, temp);
         else
             save_image_file(cat, temp, cdrom[c].image_path);
