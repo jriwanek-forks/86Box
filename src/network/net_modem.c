@@ -227,12 +227,15 @@ trim(char *str)
 static void
 modem_read_phonebook_file(modem_t *modem, const char *path)
 {
-    FILE  *file        = plat_fopen(path, "r");
     char  *buf         = NULL;
     char  *buf2        = NULL;
     size_t size        = 0;
     modem->entries_num = 0;
 
+    if (!path || path[0] == '\0')
+        return;
+
+    FILE  *file = plat_fopen(path, "r");
     if (!file)
         return;
 
@@ -1511,6 +1514,10 @@ modem_init(UNUSED(const device_t *info))
 {
     modem_t    *modem          = (modem_t *) calloc(1, sizeof(modem_t));
     const char *phonebook_file = NULL;
+
+    if (!modem)
+        return NULL;
+
     memset(modem->mac, 0xfc, 6);
 
     modem->port        = device_get_config_int("port");
