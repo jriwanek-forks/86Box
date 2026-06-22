@@ -227,14 +227,14 @@ trim(char *str)
 static void
 modem_read_phonebook_file(modem_t *modem, const char *path)
 {
-    FILE  *file = plat_fopen(path, "r");
-    char  *buf  = NULL;
-    char  *buf2 = NULL;
-    size_t size = 0;
+    FILE  *file        = plat_fopen(path, "r");
+    char  *buf         = NULL;
+    char  *buf2        = NULL;
+    size_t size        = 0;
+    modem->entries_num = 0;
+
     if (!file)
         return;
-
-    modem->entries_num = 0;
 
     modem_log("Modem: Reading phone book file %s...\n", path);
     while (local_getline(&buf, &size, file) != -1) {
@@ -275,10 +275,10 @@ modem_read_phonebook_file(modem_t *modem, const char *path)
 }
 
 static void
-modem_echo(modem_t *modem, uint8_t c)
+modem_echo(modem_t *modem, uint8_t chr)
 {
     if (modem->echo && fifo8_num_free(&modem->data_pending))
-        fifo8_push(&modem->data_pending, c);
+        fifo8_push(&modem->data_pending, chr);
 }
 
 static uint32_t
@@ -737,8 +737,7 @@ is_next_token(const char *a, size_t N, const char *b)
 static const char *
 modem_get_address_from_phonebook(modem_t *modem, const char *input)
 {
-    int i = 0;
-    for (i = 0; i < modem->entries_num; i++) {
+    for (uint32_t i = 0; i < modem->entries_num; i++) {
         if (strcmp(input, modem->entries[i].phone) == 0)
             return modem->entries[i].address;
     }
