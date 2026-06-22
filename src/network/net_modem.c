@@ -799,6 +799,11 @@ modem_do_command(modem_t *modem, int repeat)
                     scanbuf += 8;
                     modem_send_res(modem, ResOK);
                     return;
+                } else if (is_next_token("FCLASS=", sizeof("FCLASS="), scanbuf)) {
+                    // Catch any other FCLASS assignment attempt
+                    scanbuf += 8; 
+                    modem_send_res(modem, ResERROR);
+                    return;
                 } else if (is_next_token("NET", sizeof("NET"), scanbuf)) {
                     // only walk the pointer ahead if the command matches
                     scanbuf += 3;
