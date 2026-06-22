@@ -93,6 +93,7 @@ typedef enum modem_slip_stage_t {
 #define COMMAND_BUFFER_SIZE 512
 #define NUMBER_BUFFER_SIZE  128
 #define PHONEBOOK_SIZE      200
+#define MODEM_REGS          100
 
 typedef struct modem_phonebook_entry_t {
     char phone[NUMBER_BUFFER_SIZE];
@@ -115,7 +116,7 @@ typedef struct modem_t {
     uint32_t tx_count;
 
     Fifo8   rx_data; /* Data received from the network. */
-    uint8_t reg[100];
+    uint8_t reg[MODEM_REGS];
 
     Fifo8 data_pending; /* Data yet to be sent to the host. */
 
@@ -1025,7 +1026,7 @@ modem_do_command(modem_t *modem, int repeat)
             case 'S':
                 { // Registers
                     const uint32_t index = modem_scan_number(&scanbuf);
-                    if (index >= 100) {
+                    if (index >= MODEM_REGS) {
                         modem_send_res(modem, ResERROR);
                         return; // goto ret_none;
                     }
