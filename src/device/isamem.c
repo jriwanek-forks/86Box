@@ -111,6 +111,7 @@
 #define ISAMEM_IBMPCJR_CARD    18
 #define ISAMEM_GENPCJR_CARD    19
 #define ISAMEM_JRIDE_CARD      20
+#define ISAMEM_XTMAX_EMS_CARD  21
 
 #define ISAMEM_DEBUG           0
 
@@ -122,10 +123,11 @@
 #define EV159_EXT_1536         (1536 << 10) /* start of EV-159 high memory in cs8220 mode*/
 #define EV159_EXT_1024         (1024 << 10) /* start of EV-159 high memory in backfill mode*/
 
-#define EMS_MAXSIZE            (2048 << 10) /* max EMS memory size */
-#define EMS_EV159_MAXSIZE      (3072 << 10) /* max EMS memory size for EV-159 cards */
-#define EMS_LOTECH_MAXSIZE     (4096 << 10) /* max EMS memory size for lotech cards */
-#define EMS_PGSIZE             (16 << 10)   /* one page is this big */
+#define EMS_MAXSIZE            (2048UL << 10) /* max EMS memory size */
+#define EMS_EV159_MAXSIZE      (3072UL << 10) /* max EMS memory size for EV-159 cards */
+#define EMS_LOTECH_MAXSIZE     (4096UL << 10) /* max EMS memory size for lotech cards */
+#define EMS_XTMAX_MAXSIZE      (32768UL << 10) /* max EMS memory size for xtmax cards */
+#define EMS_PGSIZE             (16UL << 10)   /* one page is this big */
 #define EMS_MAXPAGE            4            /* number of viewport pages */
 
 #define EXTRAM_CONVENTIONAL    0
@@ -613,6 +615,15 @@ isamem_init(const device_t *info)
             dev->flags         |= (FLAG_EMS | FLAG_CONFIG);
             break;
 
+        case ISAMEM_XTMAX_EMS_CARD: /* XTMAX EMS Memory Expansion */
+            ems_max = EMS_XTMAX_MAXSIZE;
+            dev->base_addr[0]   = device_get_config_hex16("base");
+            dev->total_size     = device_get_config_int("size");
+            dev->start_addr     = 0;
+            dev->frame_addr[0]  = device_get_config_hex20("frame");
+            dev->flags         |= (FLAG_EMS | FLAG_CONFIG);
+            break;
+
         default:
             break;
     }
@@ -839,7 +850,7 @@ isamem_init(const device_t *info)
             mem_mapping_disable(&dev->ems[i].mapping);
 
             /* Set up an I/O port handler. */
-            if (dev->board != ISAMEM_LOTECH_EMS_CARD)
+            if ((dev->board != ISAMEM_LOTECH_EMS_CARD) && (dev->board != ISAMEM_XTMAX_EMS_CARD))
                 io_sethandler(dev->base_addr[0] + (EMS_PGSIZE * i), 2,
                               ems_in, NULL, NULL, ems_out, NULL, NULL, &(dev->ems[i]));
 
@@ -870,7 +881,7 @@ isamem_init(const device_t *info)
             }
         }
 
-        if (dev->board == ISAMEM_LOTECH_EMS_CARD)
+        if ((dev->board == ISAMEM_LOTECH_EMS_CARD) || (dev->board == ISAMEM_XTMAX_EMS_CARD))
             io_sethandler(dev->base_addr[0], 4,
                           consecutive_ems_in, NULL, NULL, consecutive_ems_out, NULL, NULL, dev);
     }
@@ -2284,6 +2295,74 @@ static const device_t mplus2_device = {
     .config        = mplus2_config
 };
 
+static const device_config_t xtmax_ems_config[] = {
+  // clang-format off
+    {
+        .name           = "base",
+        .description    = "Address",
+        .type           = CONFIG_HEX16,
+        .default_string = NULL,
+        .default_int    = 0x0260,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = {
+            { .description = "260H", .value = 0x0260 },
+            { .description = "264H", .value = 0x0264 },
+            { .description = "268H", .value = 0x0268 },
+            { .description = "26CH", .value = 0x026C },
+            { .description = ""                      }
+        },
+        .bios           = { { 0 } }
+    },
+    {
+        .name           = "frame",
+        .description    = "Frame",
+        .type           = CONFIG_HEX20,
+        .default_string = NULL,
+        .default_int    = 0xe0000,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = {
+            { .description = "C000H", .value = 0xc0000 },
+            { .description = "D000H", .value = 0xd0000 },
+            { .description = "E000H", .value = 0xe0000 },
+            { .description = ""                        }
+        },
+        .bios           = { { 0 } }
+    },
+    {
+        .name           = "size",
+        .description    = "Memory size",
+        .type           = CONFIG_SPINNER,
+        .default_string = NULL,
+        .default_int    = 16384,
+        .file_filter    = NULL,
+        .spinner        = {
+            .min  = 512,
+            .max  = 32768,
+            .step = 512
+        },
+        .selection      = { { 0 } },
+        .bios           = { { 0 } }
+    },
+    { .name = "", .description = "", .type = CONFIG_END }
+  // clang-format on
+};
+
+static const device_t xtmax_ems_device = {
+    .name          = "XTMAX EMS Expansion",
+    .internal_name = "xtmax_ems",
+    .flags         = DEVICE_ISA,
+    .local         = ISAMEM_XTMAX_EMS_CARD,
+    .init          = isamem_init,
+    .close         = isamem_close,
+    .reset         = NULL,
+    .available     = NULL,
+    .speed_changed = NULL,
+    .force_redraw  = NULL,
+    .config        = xtmax_ems_config
+};
+
 static const struct {
     const device_t *dev;
 } boards[] = {
@@ -2321,6 +2400,7 @@ static const struct {
     { &iab_device          },
 #endif /* USE_ISAMEM_IAB */
     { &lotech_ems_device   },
+    { &xtmax_ems_device    },
     { &mplus2_device       },
     { NULL                 }
     // clang-format on
