@@ -111,6 +111,7 @@
 #define ISAMEM_IBMPCJR_CARD    18
 #define ISAMEM_GENPCJR_CARD    19
 #define ISAMEM_JRIDE_CARD      20
+#define ISAMEM_ABOVEBOARDPC_CARD 21
 
 #define ISAMEM_DEBUG           0
 
@@ -572,7 +573,19 @@ isamem_init(const device_t *info)
             dev->base_addr[0]  = device_get_config_hex16("base");
             dev->total_size    = device_get_config_int("size");
             dev->start_addr    = device_get_config_int("start");
-            tot                = device_get_config_int("length");
+            if ((dev->start_addr >= 256) && (dev->start_addr < 640))
+                tot                = device_get_config_int("length");
+            if (!!device_get_config_int("ems"))
+                dev->flags    |= FLAG_EMS;
+            dev->frame_addr[0] = 0xe0000;
+            break;
+
+        case ISAMEM_ABOVEBOARDPC_CARD: /* Intel Above Board PC */
+            dev->base_addr[0]  = device_get_config_hex16("base");
+            dev->total_size    = device_get_config_int("size");
+            dev->start_addr    = device_get_config_int("start");
+            if ((dev->start_addr >= 256) && (dev->start_addr < 640))
+                tot                = device_get_config_int("length");
             if (!!device_get_config_int("ems"))
                 dev->flags    |= FLAG_EMS;
             dev->frame_addr[0] = 0xe0000;
@@ -2132,6 +2145,106 @@ static const device_t rampage_device = {
 };
 #endif /* USE_ISAMEM_RAMPAGE */
 
+static const device_config_t iabpc_config[] = {
+  // clang-format off
+    {
+        .name           = "size",
+        .description    = "Memory size",
+        .type           = CONFIG_SPINNER,
+        .default_string = NULL,
+        .default_int    = 256,
+        .file_filter    = NULL,
+        .spinner        = {
+            .min  =    0,
+            .max  = 2048,
+            .step =   64
+        },
+        .selection      = { { 0 } },
+        .bios           = { { 0 } }
+    },
+    {
+        .name           = "start",
+        .description    = "Start Address",
+        .type           = CONFIG_SPINNER,
+        .default_string = NULL,
+        .default_int    = 256,
+        .file_filter    = NULL,
+        .spinner        = {
+            .min  = 256,
+            .max  = 640,
+            .step =  64
+        },
+        .selection      = { { 0 } },
+        .bios           = { { 0 } }
+    },
+    {
+        .name = "length",
+        .description = "Contiguous Size",
+        .type = CONFIG_SPINNER,
+        .default_string = NULL,
+        .default_int    = 0,
+        .file_filter    = NULL,
+        .spinner        = {
+            .min  =   0,
+            .max  = 384,
+            .step = 64
+        },
+        .selection      = { { 0 } },
+        .bios           = { { 0 } }
+    },
+    {
+        .name           = "ems",
+        .description    = "EMS mode",
+        .type           = CONFIG_SELECTION,
+        .default_string = NULL,
+        .default_int    = 0,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = {
+            { .description = "Disabled", .value = 0 },
+            { .description = "Enabled",  .value = 1 },
+            { .description = ""                     }
+        },
+        .bios           = { { 0 } }
+    },
+    {
+        .name           = "base",
+        .description    = "Address",
+        .type           = CONFIG_HEX16,
+        .default_string = NULL,
+        .default_int    = 0x0258,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = {
+            { .description = "208H", .value = 0x0208 },
+            { .description = "218H", .value = 0x0218 },
+            { .description = "258H", .value = 0x0258 },
+            { .description = "268H", .value = 0x0268 },
+            { .description = "2A8H", .value = 0x02A8 },
+            { .description = "2B8H", .value = 0x02B8 },
+            { .description = "2E8H", .value = 0x02E8 },
+            { .description = ""                      }
+        },
+        .bios           = { { 0 } }
+    },
+    { .name = "", .description = "", .type = CONFIG_END }
+  // clang-format on
+};
+
+static const device_t iabpc_device = {
+    .name          = "Intel Above Board PC",
+    .internal_name = "iab",
+    .flags         = DEVICE_ISA,
+    .local         = ISAMEM_ABOVEBOARDPC_CARD,
+    .init          = isamem_init,
+    .close         = isamem_close,
+    .reset         = NULL,
+    .available     = NULL,
+    .speed_changed = NULL,
+    .force_redraw  = NULL,
+    .config        = iabpc_config
+};
+
 #ifdef USE_ISAMEM_IAB
 static const device_config_t iab_config[] = {
   // clang-format off
@@ -2322,6 +2435,7 @@ static const struct {
 #endif /* USE_ISAMEM_IAB */
     { &lotech_ems_device   },
     { &mplus2_device       },
+    { &iabpc_device        },
     { NULL                 }
     // clang-format on
 };
