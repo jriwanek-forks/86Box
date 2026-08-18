@@ -424,11 +424,13 @@ ems_out(uint16_t port, uint8_t val, void *priv)
             *dev->frame_val = (*dev->frame_val & ~(1 << vpage)) | ((val >> 7) << vpage);
             *dev->frame_addr = 0x000c4000 + (*dev->frame_val << 14);
             isamem_log("ISAMEM: map port %04X page %i: frame_addr = %08X\n", port, vpage, *dev->frame_addr);
+#if 0
             /* Destroy the page registers. */
             for (uint8_t i = 0; i < 4; i ++) {
                 isamem_log("    ");
                 outb((port & 0x3ffe) + (i << 14), 0x00);
             }
+#endif
             break;
 
         default:
