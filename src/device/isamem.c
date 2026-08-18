@@ -36,11 +36,14 @@
  *          EV-158 (RAM 10000)
  *              http://web.archive.org/web/19961104093221/http://www.everex.com/supp/techlib/memmem.html
  *
+ *          EV-178-1 (RAM 8000)
+ *              https://theretroweb.com/expansioncards/s/everex-ev-178-1
+ *
  * Authors: Fred N. van Kempen, <decwiz@yahoo.com>
  *          Jasmine Iwanek <jriwanek@gmail.com>
  *
  *          Copyright 2018      Fred N. van Kempen.
- *          Copyright 2022-2025 Jasmine Iwanek.
+ *          Copyright 2022-2026 Jasmine Iwanek.
  *
  *          Redistribution and  use  in source  and binary forms, with
  *          or  without modification, are permitted  provided that the
@@ -72,18 +75,29 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING  IN ANY  WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#define ENABLE_ISAMEM_LOG 1
+#define ISAMEM_DEBUG      1
+
+/* Port 0x62 hack to allow the IAB PC driver to work on an AT class system */
+//#define IAB_5170_HACK     1
+
+#ifdef ENABLE_ISAMEM_LOG
 #include <stdarg.h>
+#endif
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
 #include <stdlib.h>
 #include <wchar.h>
-#define HAVE_STDARG_H
+//#define HAVE_STDARG_H
 #include <86box/86box.h>
 #include <86box/machine.h>
 #include <86box/io.h>
 #include <86box/mem.h>
 #include <86box/device.h>
+#ifdef ENABLE_ISAMEM_LOG
+#include <86box/log.h>
+#endif
 #include <86box/ui.h>
 #include <86box/plat.h>
 #include <86box/isamem.h>
@@ -100,19 +114,21 @@
 #define ISAMEM_P5PAK_CARD      7
 #define ISAMEM_A6PAK_CARD      8
 #define ISAMEM_EMS5150_CARD    9
-#define ISAMEM_EV159_CARD      10
-#define ISAMEM_RAMPAGEXT_CARD  11
-#define ISAMEM_ABOVEBOARD_CARD 12
-#define ISAMEM_BRXT_CARD       13
-#define ISAMEM_BRAT_CARD       14
-#define ISAMEM_EV165A_CARD     15
-#define ISAMEM_LOTECH_EMS_CARD 16
-#define ISAMEM_MPLUS2_CARD     17
-#define ISAMEM_IBMPCJR_CARD    18
-#define ISAMEM_GENPCJR_CARD    19
-#define ISAMEM_JRIDE_CARD      20
-
-#define ISAMEM_DEBUG           0
+#define ISAMEM_EV159_CARD      10 /* Ram 3000 Deluxe*/
+#define ISAMEM_RAMPAGEXT_CARD    11
+#define ISAMEM_RAMPAGEXTV1_CARD  12
+#define ISAMEM_ABOVEBOARD286_CARD 13
+#define ISAMEM_BRXT_CARD         14
+#define ISAMEM_BRAT_CARD         15
+#define ISAMEM_EV165A_CARD       16 /* Everex Maxi Magic EMS */
+#define ISAMEM_LOTECH_EMS_CARD   17
+#define ISAMEM_MPLUS2_CARD       18
+#define ISAMEM_IBMPCJR_CARD      19
+#define ISAMEM_GENPCJR_CARD      20
+#define ISAMEM_JRIDE_CARD        21
+#define ISAMEM_ABOVEBOARDPC_CARD 22
+#define ISAMEM_ABOVEBOARDAT_CARD 23
+#define ISAMEM_RAMPAGEAT_CARD    24
 
 #define RAM_TOPMEM             (640 << 10)  /* end of low memory */
 #define RAM_UMAMEM             (384 << 10)  /* upper memory block */
@@ -136,7 +152,7 @@ typedef struct emsreg_t {
     int8_t        enabled; /* 1=ENABLED */
     uint8_t       page;    /* page# in EMS RAM */
     uint8_t       frame;   /* (varies with board) */
-    char          pad;
+    uint8_t       raw_page; /* register readback shadow */
     uint8_t      *addr;    /* start addr in EMS RAM */
     mem_mapping_t mapping; /* mapping entry for page */
     uint8_t      *ram;
@@ -144,6 +160,8 @@ typedef struct emsreg_t {
     uint16_t     *ems_size;
     uint16_t     *ems_pages;
     uint32_t     *frame_addr;
+    struct memdev_t *owner;
+    void         *log;
 } emsreg_t;
 
 typedef struct ext_ram_t {
@@ -157,12 +175,21 @@ typedef struct memdev_t {
     uint8_t     reserved : 2;
 
     uint8_t  flags;
-#define FLAG_CONFIG 0x01 /* card is configured */
-#define FLAG_WIDE   0x10 /* card uses 16b mode */
-#define FLAG_FAST   0x20 /* fast (<= 120ns) chips */
-#define FLAG_EMS    0x40 /* card has EMS mode enabled */
+#define FLAG_CONFIG        0x01 /* card is configured */
+#define FLAG_RAMPAGE_DUAL  0x02 /* AST dual-page register banking */
+#define FLAG_WIDE          0x10 /* card uses 16b mode */
+#define FLAG_FAST          0x20 /* fast (<= 120ns) chips */
+#define FLAG_EMS           0x40 /* card has EMS mode enabled */
 
     uint8_t  frame_val[2];
+    uint8_t  rampage_switch_hi[EMS_MAXPAGE];
+
+     /* AST RAMpage-family boards expose 64 mapping registers per selector
+         bank.  Bit 6 of BASE+1 selects the alternate bank when dual-page
+         mode is enabled; bit 7 remains the XT movable-frame enable. */
+     uint8_t  rampage_map[128];
+    uint8_t  rampage_map_select;
+    uint8_t  rampage_board_select;
 
     uint16_t total_size;    /* configured size in KB */
     uint16_t base_addr[2];  /* configured I/O address */
@@ -182,25 +209,385 @@ typedef struct memdev_t {
     mem_mapping_t high_mapping; /* mapping for high mem */
 
     emsreg_t ems[EMS_MAXPAGE * 2]; /* EMS controller registers */
+
+    void    *log;
 } memdev_t;
 
 #ifdef ENABLE_ISAMEM_LOG
-int isamem_do_log = ENABLE_ISAMEM_LOG;
+uint8_t isamem_do_log = ENABLE_ISAMEM_LOG;
 
 static void
-isamem_log(const char *fmt, ...)
+isamem_log(void *priv, const char *fmt, ...)
 {
-    va_list ap;
-
     if (isamem_do_log) {
+        va_list ap;
+
         va_start(ap, fmt);
-        pclog_ex(fmt, ap);
+        log_out(priv, fmt, ap);
         va_end(ap);
     }
 }
 #else
-#    define isamem_log(fmt, ...)
+#    define isamem_log(priv, fmt, ...)
 #endif
+
+#if 0
+static uint8_t
+rampage_odd_readback(const emsreg_t *dev, int vpage)
+{
+    uint8_t ret = dev->frame & 0x0f;
+
+    /* The old code models the board's active-low switch/status inputs
+       through the odd register of the viewport pair.  Keep that behavior
+       for the four normal viewport aliases. */
+    if ((dev->owner != NULL) && (vpage == 2) && (vpage < EMS_MAXPAGE))
+        ret |= dev->owner->rampage_switch_hi[vpage];
+
+    return ret;
+}
+#endif
+
+/* Recalculate the four visible 16-KB windows from the selected EEMS
+   mapping-register set and group.  The supplied 1985 driver writes a set
+   number to BASE+8001, a logical group to BASE+1, then a page value to one
+   of BASE/+4000/+8000/+C000. */
+static void
+rampage_update_mappings(memdev_t *dev)
+{
+    const uint8_t first = dev->rampage_map_select & 0x3f;
+    const uint8_t bank = ((dev->flags & FLAG_RAMPAGE_DUAL) &&
+                          (dev->rampage_map_select & 0x40)) ? 64 : 0;
+    const uint8_t bank_limit = (uint8_t) (bank + 64);
+
+    /*
+     * RAMpage/XT encodes the page-frame location in the same six-bit
+     * selector used to choose the first logical mapping register.  The
+     * observed values are: B2->C8000, B3->CC000, ..., B8->E0000.
+     * Therefore:
+     *
+     *     frame = (selector & 3f) * 4000h
+     *
+     * Bit 7 is the frame-enable bit.  Do not leave a second hard-coded
+     * frame alias installed: the hardware has one movable 64-KB frame.
+     */
+    if ((dev->board == ISAMEM_RAMPAGEXT_CARD) ||
+        (dev->board == ISAMEM_RAMPAGEXTV1_CARD)) {
+        const uint32_t frame = ((uint32_t) first) * EMS_PGSIZE;
+        const int frame_enabled = !!(dev->rampage_map_select & 0x80);
+
+        dev->frame_addr[0] = frame;
+
+        isamem_log(dev->log,
+                   "[%04X:%08X] RAMpage frame selector=%02X -> %05X enabled=%u\n",
+                   CS, cpu_state.pc, dev->rampage_map_select, frame,
+                   frame_enabled);
+
+        for (uint8_t i = 0; i < EMS_MAXPAGE; i++) {
+            const uint8_t reg = (uint8_t) (bank + first + i);
+            const uint8_t val = (reg < bank_limit) ? dev->rampage_map[reg] : 0;
+            const uint8_t page = val & 0x7f;
+            const int enabled = frame_enabled && !!(val & 0x80) &&
+                                (page < dev->ems_pages[0]);
+
+            dev->ems[i].raw_page = val;
+            dev->ems[i].page = page;
+            dev->ems[i].enabled = enabled;
+            dev->ems[i].addr = enabled ?
+                dev->ram + dev->ems_start[0] + ((uint32_t) page * EMS_PGSIZE) :
+                NULL;
+
+            mem_mapping_set_addr(&dev->ems[i].mapping,
+                                 frame + ((uint32_t) i * EMS_PGSIZE),
+                                 EMS_PGSIZE);
+
+            if (enabled) {
+                mem_mapping_set_exec(&dev->ems[i].mapping, dev->ems[i].addr);
+                mem_mapping_enable(&dev->ems[i].mapping);
+            } else {
+                mem_mapping_disable(&dev->ems[i].mapping);
+            }
+        }
+        return;
+    }
+
+    /* Normal LIM-style cards retain their existing fixed frame handling. */
+    for (uint8_t i = 0; i < EMS_MAXPAGE; i++) {
+        const uint8_t reg = (uint8_t) (bank + first + i);
+        const uint8_t val = (reg < bank_limit) ? dev->rampage_map[reg] : 0;
+        const uint8_t page = val & 0x7f;
+        const int enabled = !!(val & 0x80) &&
+                            (page < dev->ems_pages[0]);
+
+        dev->ems[i].raw_page = val;
+        dev->ems[i].page = page;
+        dev->ems[i].enabled = enabled;
+        dev->ems[i].addr = enabled ?
+            dev->ram + dev->ems_start[0] + ((uint32_t) page * EMS_PGSIZE) :
+            NULL;
+
+        mem_mapping_set_addr(&dev->ems[i].mapping,
+                             dev->frame_addr[0] + ((uint32_t) i * EMS_PGSIZE),
+                             EMS_PGSIZE);
+
+        if (enabled) {
+            mem_mapping_set_exec(&dev->ems[i].mapping, dev->ems[i].addr);
+            mem_mapping_enable(&dev->ems[i].mapping);
+        } else {
+            mem_mapping_disable(&dev->ems[i].mapping);
+        }
+    }
+}
+
+/* BASE+8001 is an AST board-identification/status port.  The driver uses it
+   as a small board-number latch: it writes 0Fh and expects that value back,
+   then writes the board index and expects the low nibble to echo it. */
+static uint8_t
+rampage_board_nibble(const memdev_t *dev)
+{
+    const uint16_t banks = dev->total_size / 128U;
+
+    if (banks == 0)
+        return 0;
+
+    return (uint8_t) ((banks - 1U) & 0x0fU);
+}
+
+static uint8_t
+rampage_is_xt_family(const memdev_t *dev)
+{
+    return (uint8_t) ((dev->board == ISAMEM_RAMPAGEXT_CARD) ||
+                      (dev->board == ISAMEM_RAMPAGEXTV1_CARD));
+}
+
+static uint8_t
+rampage_eems_status(const memdev_t *dev)
+{
+    if (rampage_is_xt_family(dev))
+        return dev->rampage_board_select;
+
+    return (uint8_t) ((rampage_board_nibble(dev) << 4) |
+                      (dev->rampage_board_select & 0x0f));
+}
+
+static uint8_t
+rampage_4259_readback(const memdev_t *dev)
+{
+    if (rampage_is_xt_family(dev) && (dev->rampage_board_select == 0))
+        return 0xff;
+
+    return (uint8_t) ~dev->rampage_switch_hi[1];
+}
+
+static uint8_t
+rampage_selector_bank(const memdev_t *dev)
+{
+    return ((dev->flags & FLAG_RAMPAGE_DUAL) &&
+            (dev->rampage_map_select & 0x40)) ? 64 : 0;
+}
+
+static uint8_t
+rampage_xt_base_readback(uint16_t base)
+{
+    switch (base) {
+        case 0x0208:
+            return 0x0f;
+        case 0x0218:
+            return 0x07;
+        case 0x0258:
+            return 0x0b;
+        case 0x0268:
+            return 0x09;
+        case 0x02a8:
+            return 0x04;
+        case 0x02b8:
+            return 0x00;
+        case 0x02e8:
+            return 0x01;
+        default:
+            return 0x07;
+    }
+}
+
+static uint8_t
+rampage_at_sw2_readback(uint16_t start_kb)
+{
+    if (start_kb >= 15360)
+        return 0x00;
+
+    return (uint8_t) ((((start_kb / 128U) ^ 0x7fU) & 0x7fU) | 0x80U);
+}
+
+static uint8_t
+rampage_eems_in(uint16_t port, void *priv)
+{
+    memdev_t *dev = (memdev_t *) priv;
+    const uint16_t base = dev->base_addr[0];
+    const uint16_t off = (uint16_t) (port - base);
+    uint8_t ret = 0xff;
+
+    switch (off) {
+        case 0x0000:
+        case 0x4000:
+        case 0x8000:
+        case 0xc000: {
+            const uint8_t window = (uint8_t) (off >> 14);
+            const uint8_t bank = rampage_selector_bank(dev);
+            const uint8_t reg = (uint8_t) (bank + (dev->rampage_map_select & 0x3f) + window);
+            if (reg < (uint8_t) (bank + 64))
+                ret = dev->rampage_map[reg];
+            break;
+        }
+
+        case 0x0001:
+        case 0x4001:
+        case 0x8001:
+        case 0xc001:
+            if (off == 0x4001)
+                ret = rampage_4259_readback(dev);
+            else if (off == 0x8001)
+                ret = rampage_eems_status(dev);
+            else
+                ret = dev->rampage_map_select;
+            break;
+        default:
+            break;
+    }
+
+    isamem_log(dev->log,
+               "[%04X:%08X] RAMpage read(%04X) = %02X sel=%02X board=%02X status=%02X\n",
+               CS, cpu_state.pc, port, ret, dev->rampage_map_select,
+               dev->rampage_board_select, rampage_eems_status(dev));
+    return ret;
+}
+
+static void
+rampage_eems_out(uint16_t port, uint8_t val, void *priv)
+{
+    memdev_t *dev = (memdev_t *) priv;
+    const uint16_t base = dev->base_addr[0];
+    const uint16_t off = (uint16_t) (port - base);
+
+    switch (off) {
+        case 0x0000:
+        case 0x4000:
+        case 0x8000:
+        case 0xc000: {
+            const uint8_t window = (uint8_t) (off >> 14);
+            const uint8_t bank = rampage_selector_bank(dev);
+            const uint8_t reg = (uint8_t) (bank + (dev->rampage_map_select & 0x3f) + window);
+            if (reg < (uint8_t) (bank + 64)) {
+                dev->rampage_map[reg] = val;
+                dev->ems[window].raw_page = val;
+                isamem_log(dev->log,
+                           "[%04X:%08X] RAMpage TRACE OUT PAGE port=%04X reg=%02X val=%02X (bit7=%u page=%02X)\n",
+                           CS, cpu_state.pc, port, reg, val, !!(val & 0x80), val & 0x7f);
+                isamem_log(dev->log,
+                           "[%04X:%08X] RAMpage map sel=%02X reg=%02X window=%u val=%02X page=%u en=%u\n",
+                           CS, cpu_state.pc, dev->rampage_map_select, reg,
+                           window, val, val & 0x7f, !!(val & 0x80));
+                rampage_update_mappings(dev);
+            }
+            break;
+        }
+
+        case 0x0001:
+        case 0x4001:
+        case 0x8001:
+        case 0xc001:
+            if (off == 0x8001) {
+                     /* BASE+8001 stores the low-nibble board latch.  The high
+                         nibble reflects installed 128-KB banks. */
+                isamem_log(dev->log,
+                           "[%04X:%08X] RAMpage EXT WRITE port=%04X off=%04X val=%02X high=%X low=%X prior_status=%02X prior_board=%02X\n",
+                           CS, cpu_state.pc, port, off, val, val >> 4, val & 0x0f,
+                                    rampage_eems_status(dev), dev->rampage_board_select);
+                     dev->rampage_board_select = (uint8_t) (val & 0x0f);
+            } else {
+                     /* BASE+1 and its odd aliases select the first logical register
+                         that the four even window ports expose. */
+                dev->rampage_map_select = val;
+                isamem_log(dev->log,
+                           "[%04X:%08X] RAMpage EXT WRITE port=%04X off=%04X val=%02X (0259 selector bit7=%u bit6=%u group=%02X)\n",
+                           CS, cpu_state.pc, port, off, val, !!(val & 0x80), !!(val & 0x40),
+                           val & 0x3f);
+                rampage_update_mappings(dev);
+            }
+            break;
+        default:
+            break;
+    }
+}
+
+static uint8_t
+rampage_sw1_readback(uint16_t base_kb)
+{
+    uint8_t sw15 = 1;
+    uint8_t sw16 = 1;
+
+    if (base_kb > 0) {
+        if (base_kb <= 256) {
+            sw15 = 0;
+            sw16 = 1;
+        } else if (base_kb <= 512) {
+            sw15 = 1;
+            sw16 = 0;
+        } else {
+            sw15 = 0;
+            sw16 = 0;
+        }
+    }
+
+    return (uint8_t) ((1U << 4) | (1U << 5) | (sw15 << 6) | (sw16 << 7));
+}
+
+static uint8_t
+rampage_v1_4259_readback(uint16_t start_kb, uint16_t base_kb)
+{
+    uint8_t ret = 0xc0;
+
+    switch (start_kb) {
+        case 256:
+            ret |= 0x10;
+            break;
+        case 512:
+            ret |= 0x20;
+            break;
+        case 640:
+            ret |= 0x30;
+            break;
+        default:
+            break;
+    }
+
+    switch (base_kb) {
+        case 256:
+            ret = (uint8_t) ((ret & 0x3f) | 0x80);
+            break;
+        case 512:
+            ret = (uint8_t) ((ret & 0x3f) | 0x40);
+            break;
+        case 768:
+            ret &= 0x3f;
+            break;
+        default:
+            break;
+    }
+
+    return ret;
+}
+
+static uint8_t
+rampage_xt_switch_readback(uint16_t base, uint16_t start_kb, uint16_t base_kb)
+{
+    return (uint8_t) (rampage_xt_base_readback(base) |
+                      rampage_v1_4259_readback(start_kb, base_kb));
+}
+
+static uint8_t
+rampage_sw2_readback(uint16_t start_kb)
+{
+    return (uint8_t) (((start_kb / 64U) & 0x0fU) << 4);
+}
 
 /* Why this convoluted setup with the mem_dev stuff when it's much simpler
    to just pass the exec pointer as p as well, and then just use that. */
@@ -261,7 +648,7 @@ ems_readb(uint32_t addr, void *priv)
     ret = *(uint8_t *) (dev->addr + (addr & 0x3fff));
 #if ISAMEM_DEBUG
     if ((addr % 4096) == 0)
-        isamem_log("EMS readb(%06x) = %02x\n", addr & 0x3fff, ret);
+        isamem_log(dev->log, "[%04X:%08X] EMS readb(%06x) = %02x\n", CS, cpu_state.pc, addr & 0x3fff, ret);
 #endif
 
     return ret;
@@ -278,7 +665,7 @@ ems_readw(uint32_t addr, void *priv)
     ret = *(uint16_t *) (dev->addr + (addr & 0x3fff));
 #if ISAMEM_DEBUG
     if ((addr % 4096) == 0)
-        isamem_log("EMS readw(%06x) = %04x\n", addr & 0x3fff, ret);
+        isamem_log(dev->log, "[%04X:%08X] EMS readw(%06x) = %04x\n", CS, cpu_state.pc, addr & 0x3fff, ret);
 #endif
 
     return ret;
@@ -293,7 +680,7 @@ ems_writeb(uint32_t addr, uint8_t val, void *priv)
     /* Write the data. */
 #if ISAMEM_DEBUG
     if ((addr % 4096) == 0)
-        isamem_log("EMS writeb(%06x, %02x)\n", addr & 0x3fff, val);
+        isamem_log(dev->log, "[%04X:%08X] EMS writeb(%06x, %02x)\n", CS, cpu_state.pc, addr & 0x3fff, val);
 #endif
     *(uint8_t *) (dev->addr + (addr & 0x3fff)) = val;
 }
@@ -307,10 +694,66 @@ ems_writew(uint32_t addr, uint16_t val, void *priv)
     /* Write the data. */
 #if ISAMEM_DEBUG
     if ((addr % 4096) == 0)
-        isamem_log("EMS writew(%06x, %04x)\n", addr & 0x3fff, val);
+        isamem_log(dev->log, "[%04X:%08X] EMS writew(%06x, %04x)\n", CS, cpu_state.pc, addr & 0x3fff, val);
 #endif
     *(uint16_t *) (dev->addr + (addr & 0x3fff)) = val;
 }
+
+static void
+ems_map_page(emsreg_t *dev, uint8_t val, int vpage, int origport)
+{
+    dev->enabled = (val & 0x80);
+    dev->page    = (val & 0x7f);
+
+    if (dev->enabled && (dev->page < *dev->ems_pages)) {
+        dev->addr = dev->ram + ((val & 0x7f) * EMS_PGSIZE);
+
+        isamem_log(dev->log, "[%04X:%08X] (e) map port %04X, page %i, starting at %08X: %08X -> %08X\n",
+                   CS, cpu_state.pc,
+                   origport & (EMS_PGSIZE - 1), vpage, *dev->frame_addr,
+                   *dev->frame_addr + (EMS_PGSIZE * vpage), dev->addr - dev->ram);
+        mem_mapping_set_addr(&dev->mapping, *dev->frame_addr + (EMS_PGSIZE * vpage), EMS_PGSIZE);
+        mem_mapping_set_exec(&dev->mapping, dev->addr);
+        mem_mapping_enable(&dev->mapping);
+    } else {
+        isamem_log(dev->log, "[%04X:%08X] (d) map port %04X, page %i, starting at %08X: %08X -> N/A\n",
+                   CS, cpu_state.pc,
+                   origport & (EMS_PGSIZE - 1), vpage, *dev->frame_addr,
+                   *dev->frame_addr + (EMS_PGSIZE * vpage));
+        mem_mapping_disable(&dev->mapping);
+    }
+}
+
+#if 0
+static void
+rampage_ems_map_page(emsreg_t *dev, uint8_t val, int vpage, int origport)
+{
+    dev->enabled = (val & 0x80);
+    dev->page    = (val & 0x7f);
+
+    uint32_t target_addr = *dev->frame_addr + (EMS_PGSIZE * vpage);
+
+    if (dev->enabled && (dev->page < *dev->ems_pages)) {
+        dev->addr = dev->ram + ((val & 0x7f) * EMS_PGSIZE);
+
+        isamem_log(dev->log, "[%04X:%08X] (e) map port %04X, page %i, starting at %08X: %08X -> %08X\n",
+                   CS, cpu_state.pc,
+                   origport & (EMS_PGSIZE - 1), vpage, *dev->frame_addr,
+                   target_addr, dev->addr - dev->ram);
+                   
+        mem_mapping_set_addr(&dev->mapping, target_addr, EMS_PGSIZE);
+        mem_mapping_set_exec(&dev->mapping, dev->addr);
+        mem_mapping_enable(&dev->mapping);
+    } else {
+        isamem_log(dev->log, "[%04X:%08X] (d) map port %04X, page %i, starting at %08X: %08X -> N/A\n",
+                   CS, cpu_state.pc,
+                   origport & (EMS_PGSIZE - 1), vpage, *dev->frame_addr,
+                   target_addr);
+                   
+        mem_mapping_disable(&dev->mapping);
+    }
+}
+#endif
 
 /* Handle a READ operation from one of our registers. */
 static uint8_t
@@ -339,7 +782,7 @@ ems_in(uint16_t port, void *priv)
             break;
     }
 
-    isamem_log("ISAMEM: read(%04x) = %02x) page=%d\n", port, ret, vpage);
+    isamem_log(dev->log, "[%04X:%08X] read(%04x) = %02x) page=%d\n", CS, cpu_state.pc, port, ret, vpage);
 
     return ret;
 }
@@ -357,10 +800,23 @@ consecutive_ems_in(uint16_t port, void *priv)
     if (dev->ems[vpage].enabled)
         ret |= 0x80;
 
-    isamem_log("ISAMEM: read(%04x) = %02x) page=%d\n", port, ret, vpage);
+    isamem_log(dev->log, "[%04X:%08X] read(%04x) = %02x) page=%d\n", CS, cpu_state.pc, port, ret, vpage);
 
     return ret;
 }
+
+#ifdef IAB_5170_HACK
+/* Some EMS drivers sample XT/AT diagnostic ports and treat bit 6 as a hard
+    failure signal after page tests. On machines where the probed port is
+    otherwise unclaimed, 86Box returns 0xff and every tested bank looks bad.
+    Force only that bit low and let read-handler combining preserve any other
+    device-owned bits. */
+static uint8_t
+ems_diag_in(UNUSED(uint16_t port), UNUSED(void *priv))
+{
+    return 0xbf;
+}
+#endif
 
 /* Handle a WRITE operation to one of our registers. */
 static void
@@ -370,35 +826,12 @@ ems_out(uint16_t port, uint8_t val, void *priv)
     /* Get the viewport page number. */
     int       vpage = (port / EMS_PGSIZE);
 
+    int       origport = port;
     port &= (EMS_PGSIZE - 1);
 
     switch (port & 0x0001) {
         case 0x0000: /* page mapping registers */
-            /* Set the page number. */
-            dev->enabled = (val & 0x80);
-            dev->page    = (val & 0x7f);
-
-            if (dev->enabled && (dev->page < *dev->ems_pages)) {
-                /* Pre-calculate the page address in EMS RAM. */
-                dev->addr = dev->ram + ((val & 0x7f) * EMS_PGSIZE);
-
-                isamem_log("ISAMEM: map port %04X, page %i, starting at %08X: %08X -> %08X\n", port,
-                           vpage, *dev->frame_addr,
-                           *dev->frame_addr + (EMS_PGSIZE * (vpage & 3)), dev->addr - dev->ram);
-                mem_mapping_set_addr(&dev->mapping, *dev->frame_addr + (EMS_PGSIZE * vpage), EMS_PGSIZE);
-
-                /* Update the EMS RAM address for this page. */
-                mem_mapping_set_exec(&dev->mapping, dev->addr);
-
-                /* Enable this page. */
-                mem_mapping_enable(&dev->mapping);
-            } else {
-                isamem_log("ISAMEM: map port %04X, page %i, starting at %08X: %08X -> N/A\n",
-                           port, vpage, *dev->frame_addr, *dev->frame_addr + (EMS_PGSIZE * vpage));
-
-                /* Disable this page. */
-                mem_mapping_disable(&dev->mapping);
-            }
+            ems_map_page(dev, val, vpage, origport);
             break;
 
         case 0x0001: /* page frame registers */
@@ -422,18 +855,21 @@ ems_out(uint16_t port, uint8_t val, void *priv)
             dev->frame = val;
             *dev->frame_val = (*dev->frame_val & ~(1 << vpage)) | ((val >> 7) << vpage);
             *dev->frame_addr = 0x000c4000 + (*dev->frame_val << 14);
-            isamem_log("ISAMEM: map port %04X page %i: frame_addr = %08X\n", port, vpage, *dev->frame_addr);
+            isamem_log(dev->log, "[%04X:%08X] map port %04X page %i: frame_addr = %08X\n", CS, cpu_state.pc, port, vpage, *dev->frame_addr);
+#if 0
             /* Destroy the page registers. */
             for (uint8_t i = 0; i < 4; i ++) {
-                isamem_log("    ");
+                isamem_log(dev->log, "    ");
                 outb((port & 0x3ffe) + (i << 14), 0x00);
             }
+#endif
             break;
 
         default:
             break;
     }
 }
+
 
 /* Handle a WRITE operation to one of our registers. */
 static void
@@ -443,7 +879,7 @@ consecutive_ems_out(uint16_t port, uint8_t val, void *priv)
     /* Get the viewport page number. */
     int       vpage = (port - dev->base_addr[0]);
 
-    isamem_log("ISAMEM: write(%04x, %02x) to page mapping registers! (page=%d)\n", port, val, vpage);
+    isamem_log(dev->log, "[%04X:%08X] write(%04x, %02x) to page mapping registers! (page=%d)\n", CS, cpu_state.pc, port, val, vpage);
 
     /* Set the page number. */
     dev->ems[vpage].enabled = 1;
@@ -491,8 +927,19 @@ isamem_init(const device_t *info)
     dev->name  = info->name;
     dev->board = info->local;
 
+#ifdef ENABLE_ISAMEM_LOG
+    dev->log = log_open("ISAMEM");
+#endif
+
     dev->base_addr[1]  = 0x0000;
     dev->frame_addr[1] = 0x00000000;
+
+    /* Default RAMpage/EEMS state.  A fully populated original Rampage has
+       32 alternate mapping-register sets; the driver derives this from the
+       high nibble of BASE+8001. */
+    dev->rampage_map_select = 0xB8;
+    dev->rampage_board_select = 0;
+    memset(dev->rampage_map, 0, sizeof(dev->rampage_map));
 
     /* Do per-board initialization. */
     tot = 0;
@@ -572,27 +1019,93 @@ isamem_init(const device_t *info)
             dev->base_addr[0]  = device_get_config_hex16("base");
             dev->total_size    = device_get_config_int("size");
             dev->start_addr    = device_get_config_int("start");
-            tot                = device_get_config_int("length");
+            if ((dev->start_addr >= 256) && (dev->start_addr < 640))
+                tot                = device_get_config_int("length");
             if (!!device_get_config_int("ems"))
                 dev->flags    |= FLAG_EMS;
             dev->frame_addr[0] = 0xe0000;
             break;
 
-        case ISAMEM_RAMPAGEXT_CARD:  /* AST RAMpage/XT */
+        case ISAMEM_ABOVEBOARDPC_CARD: /* Intel Above Board PC */
             dev->base_addr[0]  = device_get_config_hex16("base");
             dev->total_size    = device_get_config_int("size");
             dev->start_addr    = device_get_config_int("start");
-            tot                = dev->total_size;
-            dev->flags        |= FLAG_EMS;
+            if ((dev->start_addr >= 256) && (dev->start_addr < 640))
+                tot                = device_get_config_int("length");
+            if (!!device_get_config_int("ems"))
+                dev->flags    |= FLAG_EMS;
             dev->frame_addr[0] = 0xe0000;
             break;
 
-        case ISAMEM_ABOVEBOARD_CARD: /* Intel AboveBoard */
+        case ISAMEM_ABOVEBOARDAT_CARD: /* Intel Above Board/AT */
+            dev->base_addr[0]  = device_get_config_hex16("base");
+            dev->total_size    = device_get_config_int("size");
+            dev->start_addr    = device_get_config_int("start");
+            if ((dev->start_addr >= 512) && (dev->start_addr < 640))
+                tot                = device_get_config_int("length");
+            if (!!device_get_config_int("ems"))
+                dev->flags    |= FLAG_EMS;
+            dev->flags        |= FLAG_WIDE;
+            dev->frame_addr[0] = 0xd0000;
+            break;
+
+        case ISAMEM_RAMPAGEXT_CARD:   /* AST RAMpage/XT */
+        case ISAMEM_RAMPAGEXTV1_CARD: /* AST RAMpage/XT (/V=1 family) */
+            dev->base_addr[0]  = device_get_config_hex16("base");
+            dev->total_size    = device_get_config_int("size");
+            dev->start_addr    = device_get_config_int("start");
+            if (dev->start_addr < 640)
+                tot                = device_get_config_int("length");
+            dev->flags        |= (FLAG_EMS | FLAG_RAMPAGE_DUAL);
+            dev->frame_addr[0] = 0xe0000;
+            if (dev->board == ISAMEM_RAMPAGEXTV1_CARD)
+                dev->rampage_switch_hi[1] = rampage_xt_switch_readback(dev->base_addr[0],
+                                                                       (uint16_t) dev->start_addr,
+                                                                       (uint16_t) tot);
+            else
+                dev->rampage_switch_hi[1] = rampage_sw2_readback((uint16_t) dev->start_addr);
+            dev->rampage_switch_hi[2] = rampage_sw1_readback((uint16_t) tot);
+            if (!device_get_config_int("dual_page"))
+                dev->flags &= ~FLAG_RAMPAGE_DUAL;
+//              dev->rampage_switch_hi[1] = 0b11111111;
+//             SW1-1   SW1-2   SW1-3   SW1-4
+//        0K   OFF     OFF     OFF     OFF
+//       64K    ON     OFF     OFF     OFF
+//      128K   OFF      ON     OFF     OFF
+//      192K    ON      ON     OFF     OFF
+//      256K   OFF     OFF      ON     OFF
+//      320K    ON     OFF      ON     OFF
+//      384K   OFF      ON      ON     OFF
+//      448K    ON      ON      ON     OFF
+//      512K   OFF     OFF     OFF      ON
+//      576K    ON     OFF     OFF      ON
+//      640K   OFF      ON     OFF      ON
+//               1111 = Invalid
+//              dev->rampage_switch_hi[2] = 0b11110100;
+            break;
+
+        case ISAMEM_RAMPAGEAT_CARD: /* AST Rampage AT */
+            dev->base_addr[0]  = device_get_config_hex16("base");
+            dev->total_size    = device_get_config_int("size");
+            dev->start_addr    = device_get_config_int("start");
+            if ((dev->start_addr < 640) ||
+                ((dev->start_addr >= 1024) && (dev->start_addr < 15360)))
+                tot                = device_get_config_int("length");
+            dev->flags        |= (FLAG_EMS | FLAG_WIDE | FLAG_RAMPAGE_DUAL);
+            dev->frame_addr[0] = device_get_config_hex20("frame");
+            dev->rampage_switch_hi[1] = rampage_at_sw2_readback((uint16_t) dev->start_addr);
+            if (!device_get_config_int("dual_page"))
+                dev->flags &= ~FLAG_RAMPAGE_DUAL;
+            break;
+
+        case ISAMEM_ABOVEBOARD286_CARD: /* Intel AboveBoard 286 */
         case ISAMEM_BRAT_CARD:       /* BocaRAM/AT */
             dev->base_addr[0]   = device_get_config_hex16("base");
             dev->total_size     = device_get_config_int("size");
             if (!!device_get_config_int("start"))
                 dev->start_addr = device_get_config_int("start");
+            if ((dev->start_addr >= 1024) && (dev->start_addr < 14336))
+                tot                = device_get_config_int("length");
             dev->frame_addr[0]  = device_get_config_hex20("frame");
             dev->flags         |= FLAG_EMS;
             if (!!device_get_config_int("width"))
@@ -621,19 +1134,27 @@ isamem_init(const device_t *info)
     dev->start_addr <<= 10;
 
     /* Say hello! */
-    isamem_log("ISAMEM: %s (%iKB", info->name, dev->total_size);
-    if (tot && (dev->total_size != tot))
-        isamem_log(", %iKB for RAM", tot);
-    if (dev->flags & FLAG_FAST)
-        isamem_log(", FAST");
-    if (dev->flags & FLAG_WIDE)
-        isamem_log(", 16BIT");
+    char log_suffix[48] = "";
 
-    isamem_log(")\n");
+    if (tot && (dev->total_size != tot))
+        snprintf(log_suffix + strlen(log_suffix),
+                 sizeof(log_suffix) - strlen(log_suffix),
+                 ", %iKB for RAM", tot);
+    if (dev->flags & FLAG_FAST)
+        snprintf(log_suffix + strlen(log_suffix),
+                 sizeof(log_suffix) - strlen(log_suffix),
+                 ", FAST");
+    if (dev->flags & FLAG_WIDE)
+        snprintf(log_suffix + strlen(log_suffix),
+                 sizeof(log_suffix) - strlen(log_suffix),
+                 ", 16BIT");
+
+    isamem_log(dev->log, "%s (%iKB%s)\n", info->name, dev->total_size,
+               log_suffix);
 
     /* Force (back to) 8-bit bus if needed. */
     if ((!is286) && (dev->flags & FLAG_WIDE)) {
-        isamem_log("ISAMEM: not AT+ system, forcing 8-bit mode!\n");
+        isamem_log(dev->log, "not AT+ system, forcing 8-bit mode!\n");
         dev->flags &= ~FLAG_WIDE;
     }
 
@@ -676,7 +1197,7 @@ isamem_init(const device_t *info)
              */
             if (t > tot)
                 t = tot;
-            isamem_log("ISAMEM: RAM at %05iKB (%iKB)\n", addr >> 10, t >> 10);
+            isamem_log(dev->log, "RAM at %05iKB (%iKB)\n", addr >> 10, t >> 10);
 
             dev->ext_ram[EXTRAM_CONVENTIONAL].ptr  = ptr;
             dev->ext_ram[EXTRAM_CONVENTIONAL].base = addr;
@@ -720,7 +1241,7 @@ isamem_init(const device_t *info)
              */
             t = RAM_UMAMEM; /* 384KB */
 
-            isamem_log("ISAMEM: RAM at %05iKB (%iKB)\n", addr >> 10, t >> 10);
+            isamem_log(dev->log, "RAM at %05iKB (%iKB)\n", addr >> 10, t >> 10);
 
             dev->ext_ram[EXTRAM_HIGH].ptr  = ptr;
             dev->ext_ram[EXTRAM_HIGH].base = addr + tot;
@@ -754,7 +1275,7 @@ isamem_init(const device_t *info)
      */
     if (is286 && addr > 0 && tot > 0) {
         t = tot;
-        isamem_log("ISAMEM: RAM at %05iKB (%iKB)\n", addr >> 10, t >> 10);
+        isamem_log(dev->log, "RAM at %05iKB (%iKB)\n", addr >> 10, t >> 10);
 
         dev->ext_ram[EXTRAM_XMS].ptr  = ptr;
         dev->ext_ram[EXTRAM_XMS].base = addr;
@@ -792,23 +1313,23 @@ isamem_init(const device_t *info)
             dev->ems_size[0]  = t >> 10;
             dev->ems_pages[0] = t / EMS_PGSIZE;
         }
-        isamem_log("ISAMEM: EMS #1 enabled, I/O=%04XH, %iKB (%i pages)",
+        isamem_log(dev->log, "EMS #1 enabled, I/O=%04XH, %iKB (%i pages)",
                    dev->base_addr[0], dev->ems_size[0], dev->ems_pages[0]);
         if (dev->frame_addr[0] > 0)
-            isamem_log(", Frame[0]=%05XH", dev->frame_addr[0]);
+            isamem_log(dev->log, ", Frame[0]=%05XH", dev->frame_addr[0]);
 
-        isamem_log("\n");
+        isamem_log(dev->log, "\n");
 
         if ((dev->board == ISAMEM_EV159_CARD) && (t > (2 << 20))) {
             dev->ems_start[1] = dev->ems_start[0] + (2 << 20);
             dev->ems_size[1]  = (t - (2 << 20)) >> 10;
             dev->ems_pages[1] = (t - (2 << 20)) / EMS_PGSIZE;
-            isamem_log("ISAMEM: EMS #2 enabled, I/O=%04XH, %iKB (%i pages)",
+            isamem_log(dev->log, "EMS #2 enabled, I/O=%04XH, %iKB (%i pages)",
                        dev->base_addr[1], dev->ems_size[1], dev->ems_pages[1]);
             if (dev->frame_addr[1] > 0)
-                isamem_log(", Frame[1]=%05XH", dev->frame_addr[1]);
+                isamem_log(dev->log, ", Frame[1]=%05XH", dev->frame_addr[1]);
 
-            isamem_log("\n");
+            isamem_log(dev->log, "\n");
         }
 
         /*
@@ -822,6 +1343,8 @@ isamem_init(const device_t *info)
             dev->ems[i].ems_size   = &dev->ems_size[0];
             dev->ems[i].ems_pages  = &dev->ems_pages[0];
             dev->ems[i].frame_addr = &dev->frame_addr[0];
+            dev->ems[i].owner      = dev;
+            dev->ems[i].log        = dev->log;
 
             /* Create and initialize a page mapping. */
             mem_mapping_add(&dev->ems[i].mapping,
@@ -838,10 +1361,22 @@ isamem_init(const device_t *info)
             /* For now, disable it. */
             mem_mapping_disable(&dev->ems[i].mapping);
 
-            /* Set up an I/O port handler. */
-            if (dev->board != ISAMEM_LOTECH_EMS_CARD)
-                io_sethandler(dev->base_addr[0] + (EMS_PGSIZE * i), 2,
-                              ems_in, NULL, NULL, ems_out, NULL, NULL, &(dev->ems[i]));
+            /* Set up an I/O port handler.  RAMpage is not the same as the
+               simple LIM 3.2 register pair: its four viewport ports are
+               4000h apart and its odd ports include EEMS control/status. */
+            if (dev->board != ISAMEM_LOTECH_EMS_CARD) {
+                if ((dev->board == ISAMEM_RAMPAGEXT_CARD) ||
+                    (dev->board == ISAMEM_RAMPAGEXTV1_CARD) ||
+                    (dev->board == ISAMEM_RAMPAGEAT_CARD)) {
+                    io_sethandler(dev->base_addr[0] + (EMS_PGSIZE * i), 2,
+                                  &rampage_eems_in, NULL, NULL,
+                                  &rampage_eems_out, NULL, NULL, dev);
+                } else {
+                    io_sethandler(dev->base_addr[0] + (EMS_PGSIZE * i), 2,
+                                  &ems_in, NULL, NULL, &ems_out,
+                                  NULL, NULL, &(dev->ems[i]));
+                }
+            }
 
             if ((dev->board == ISAMEM_EV159_CARD) && (t > (2 << 20))) {
                 dev->ems[i | 4].ram        = dev->ram + dev->ems_start[1];
@@ -849,6 +1384,7 @@ isamem_init(const device_t *info)
                 dev->ems[i | 4].ems_size   = &dev->ems_size[1];
                 dev->ems[i | 4].ems_pages  = &dev->ems_pages[1];
                 dev->ems[i | 4].frame_addr = &dev->frame_addr[1];
+                dev->ems[i | 4].log        = dev->log;
 
                 /* Create and initialize a page mapping. */
                 mem_mapping_add(&dev->ems[i | 4].mapping,
@@ -875,6 +1411,18 @@ isamem_init(const device_t *info)
                           consecutive_ems_in, NULL, NULL, consecutive_ems_out, NULL, NULL, dev);
     }
 
+#ifdef IAB_5170_HACK
+    if (dev->board == ISAMEM_ABOVEBOARDPC_CARD)
+        io_sethandler(0x0062, 1, ems_diag_in, NULL, NULL, NULL, NULL, NULL, dev);
+
+    if ((dev->board == ISAMEM_RAMPAGEXT_CARD) ||
+        (dev->board == ISAMEM_RAMPAGEXTV1_CARD) ||
+        (dev->board == ISAMEM_RAMPAGEAT_CARD)) {
+        io_sethandler(0x0061, 1, ems_diag_in, NULL, NULL, NULL, NULL, NULL, dev);
+        io_sethandler(0x0062, 1, ems_diag_in, NULL, NULL, NULL, NULL, NULL, dev);
+    }
+#endif
+
     /* Let them know our device instance. */
     return ((void *) dev);
 }
@@ -885,8 +1433,25 @@ isamem_close(void *priv)
 {
     memdev_t *dev = (memdev_t *) priv;
 
+#ifdef IAB_5170_HACK
+    if (dev->board == ISAMEM_ABOVEBOARDPC_CARD)
+        io_removehandler(0x0062, 1, ems_diag_in, NULL, NULL, NULL, NULL, NULL, dev);
+
+    if ((dev->board == ISAMEM_RAMPAGEXT_CARD) ||
+        (dev->board == ISAMEM_RAMPAGEXTV1_CARD) ||
+        (dev->board == ISAMEM_RAMPAGEAT_CARD)) {
+        io_removehandler(0x0061, 1, ems_diag_in, NULL, NULL, NULL, NULL, NULL, dev);
+        io_removehandler(0x0062, 1, ems_diag_in, NULL, NULL, NULL, NULL, NULL, dev);
+    }
+#endif
+
     if (dev->ram != NULL)
         free(dev->ram);
+
+#ifdef ENABLE_ISAMEM_LOG
+    if (dev->log)
+        log_close(dev->log);
+#endif
 
     free(dev);
 }
@@ -1876,7 +2441,6 @@ static const device_t brxt_device = {
     .config        = brxt_config
 };
 
-#ifdef USE_ISAMEM_BRAT
 static const device_config_t brat_config[] = {
   // clang-format off
     {
@@ -1971,6 +2535,21 @@ static const device_config_t brat_config[] = {
         .selection      = { { 0 } },
         .bios           = { { 0 } }
     },
+    {
+        .name = "length",
+        .description = "Contiguous Size",
+        .type = CONFIG_SPINNER,
+        .default_string = NULL,
+        .default_int    = 0,
+        .file_filter    = NULL,
+        .spinner        = {
+            .min  =    0,
+            .max  = 4096,
+            .step =  512
+        },
+        .selection      = { { 0 } },
+        .bios           = { { 0 } }
+    },
     { .name = "", .description = "", .type = CONFIG_END }
   // clang-format on
 };
@@ -1988,7 +2567,6 @@ static const device_t brat_device = {
     .force_redraw  = NULL,
     .config        = brat_config
 };
-#endif /* USE_ISAMEM_BRAT */
 
 static const device_config_t lotech_config[] = {
 // clang-format off
@@ -2058,10 +2636,9 @@ static const device_t lotech_ems_device = {
     .config        = lotech_config
 };
 
-#ifdef USE_ISAMEM_RAMPAGE
 // TODO: Dual Paging support
-// TODO: Conventional memory suppport
-static const device_config_t rampage_config[] = {
+// TODO: Conventional memory suppport (Should be done now)
+static const device_config_t rampagext_config[] = {
   // clang-format off
     {
         .name           = "base",
@@ -2091,9 +2668,9 @@ static const device_config_t rampage_config[] = {
         .default_int    = 256, /* Technically 128k, but banks 2-7 must be 256, headaches elsewise */
         .file_filter    = NULL,
         .spinner        = {
-            .min  =  256,
+            .min  =  128,
             .max  = 2048,
-            .step =  256
+            .step =  128
         },
         .selection      = { { 0 } },
         .bios           = { { 0 } }
@@ -2108,16 +2685,46 @@ static const device_config_t rampage_config[] = {
         .spinner        = {
             .min  =   0,
             .max  = 640,
-            .step =  64
+            .step = 64
         },
         .selection      = { { 0 } },
+        .bios           = { { 0 } }
+    },
+    {
+        .name = "length",
+        .description = "Contiguous Size",
+        .type = CONFIG_SPINNER,
+        .default_string = NULL,
+        .default_int    = 0,
+        .file_filter    = NULL,
+        .spinner        = {
+            .min  =   0,
+            .max  = 640,
+            .step = 64
+        },
+        .selection      = { { 0 } },
+        .bios           = { { 0 } }
+    },
+    {
+        .name           = "dual_page",
+        .description    = "Dual Page Mode",
+        .type           = CONFIG_SELECTION,
+        .default_string = NULL,
+        .default_int    = 1,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = {
+            { .description = "Disabled", .value = 0 },
+            { .description = "Enabled",  .value = 1 },
+            { .description = ""                     }
+        },
         .bios           = { { 0 } }
     },
     { .name = "", .description = "", .type = CONFIG_END }
   // clang-format on
 };
 
-static const device_t rampage_device = {
+static const device_t rampagext_device = {
     .name          = "AST RAMpage/XT",
     .internal_name = "rampage",
     .flags         = DEVICE_ISA,
@@ -2128,12 +2735,431 @@ static const device_t rampage_device = {
     .available     = NULL,
     .speed_changed = NULL,
     .force_redraw  = NULL,
-    .config        = rampage_config
+    .config        = rampagext_config
 };
-#endif /* USE_ISAMEM_RAMPAGE */
+
+static const device_config_t rampagextv1_config[] = {
+  // clang-format off
+    {
+        .name           = "base",
+        .description    = "Address",
+        .type           = CONFIG_HEX16,
+        .default_string = NULL,
+        .default_int    = 0x0218,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = {
+            { .description = "208H", .value = 0x0208 },
+            { .description = "218H", .value = 0x0218 },
+            { .description = "258H", .value = 0x0258 },
+            { .description = "268H", .value = 0x0268 },
+            { .description = "2A8H", .value = 0x02A8 },
+            { .description = "2B8H", .value = 0x02B8 },
+            { .description = "2E8H", .value = 0x02E8 },
+            { .description = ""                      }
+        },
+        .bios           = { { 0 } }
+    },
+    {
+        .name           = "size",
+        .description    = "Memory size",
+        .type           = CONFIG_SPINNER,
+        .default_string = NULL,
+        .default_int    = 256,
+        .file_filter    = NULL,
+        .spinner        = {
+            .min  =  128,
+            .max  = 2048,
+            .step =  128
+        },
+        .selection      = { { 0 } },
+        .bios           = { { 0 } }
+    },
+    {
+        .name           = "start",
+        .description    = "Start Address",
+        .type           = CONFIG_SELECTION,
+        .default_string = NULL,
+        .default_int    = 640,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = {
+            { .description = "0 KB",   .value =   0 },
+            { .description = "256 KB", .value = 256 },
+            { .description = "512 KB", .value = 512 },
+            { .description = "640 KB", .value = 640 },
+            { .description = ""                     }
+        },
+        .bios           = { { 0 } }
+    },
+    {
+        .name           = "length",
+        .description    = "Conventional Memory",
+        .type           = CONFIG_SELECTION,
+        .default_string = NULL,
+        .default_int    = 0,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = {
+            { .description = "0 KB",   .value =   0 },
+            { .description = "256 KB", .value = 256 },
+            { .description = "512 KB", .value = 512 },
+            { .description = "768 KB", .value = 768 },
+            { .description = ""                     }
+        },
+        .bios           = { { 0 } }
+    },
+    {
+        .name           = "dual_page",
+        .description    = "Dual Page Mode",
+        .type           = CONFIG_SELECTION,
+        .default_string = NULL,
+        .default_int    = 1,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = {
+            { .description = "Disabled", .value = 0 },
+            { .description = "Enabled",  .value = 1 },
+            { .description = ""                     }
+        },
+        .bios           = { { 0 } }
+    },
+    { .name = "", .description = "", .type = CONFIG_END }
+  // clang-format on
+};
+
+static const device_t rampagextv1_device = {
+    .name          = "AST RAMpage/XT (/V=1)",
+    .internal_name = "rampagev1",
+    .flags         = DEVICE_ISA,
+    .local         = ISAMEM_RAMPAGEXTV1_CARD,
+    .init          = isamem_init,
+    .close         = isamem_close,
+    .reset         = NULL,
+    .available     = NULL,
+    .speed_changed = NULL,
+    .force_redraw  = NULL,
+    .config        = rampagextv1_config
+};
+
+static const device_config_t rampageat_config[] = {
+  // clang-format off
+    {
+        .name           = "base",
+        .description    = "Address",
+        .type           = CONFIG_HEX16,
+        .default_string = NULL,
+        .default_int    = 0x0218,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = {
+            { .description = "208H", .value = 0x0208 },
+            { .description = "218H", .value = 0x0218 },
+            { .description = "258H", .value = 0x0258 },
+            { .description = "268H", .value = 0x0268 },
+            { .description = "2A8H", .value = 0x02A8 },
+            { .description = "2B8H", .value = 0x02B8 },
+            { .description = "2E8H", .value = 0x02E8 },
+            { .description = ""                      }
+        },
+        .bios           = { { 0 } }
+    },
+    {
+        .name           = "frame",
+        .description    = "Frame Address",
+        .type           = CONFIG_HEX20,
+        .default_string = NULL,
+        .default_int    = 0xE0000,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = {
+            { .description = "C000H", .value = 0xC0000 },
+            { .description = "D000H", .value = 0xD0000 },
+            { .description = "E000H", .value = 0xE0000 },
+            { .description = ""                      }
+        },
+        .bios           = { { 0 } }
+    },
+    {
+        .name           = "size",
+        .description    = "Memory size",
+        .type           = CONFIG_SPINNER,
+        .default_string = NULL,
+        .default_int    = 512,
+        .file_filter    = NULL,
+        .spinner        = {
+            .min  =  512,
+            .max  = 2048,
+            .step =  128
+        },
+        .selection      = { { 0 } },
+        .bios           = { { 0 } }
+    },
+    {
+        .name           = "start",
+        .description    = "Start Address",
+        .type           = CONFIG_SPINNER,
+        .default_string = NULL,
+        .default_int    = 1024,
+        .file_filter    = NULL,
+        .spinner        = {
+            .min  =     0,
+            .max  = 15360,
+            .step =   128
+        },
+        .selection      = { { 0 } },
+        .bios           = { { 0 } }
+    },
+    {
+        .name           = "length",
+        .description    = "Contiguous Size",
+        .type           = CONFIG_SPINNER,
+        .default_string = NULL,
+        .default_int    = 0,
+        .file_filter    = NULL,
+        .spinner        = {
+            .min  =    0,
+            .max  = 2048,
+            .step =  128
+        },
+        .selection      = { { 0 } },
+        .bios           = { { 0 } }
+    },
+    {
+        .name           = "dual_page",
+        .description    = "Dual Page Mode",
+        .type           = CONFIG_SELECTION,
+        .default_string = NULL,
+        .default_int    = 1,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = {
+            { .description = "Disabled", .value = 0 },
+            { .description = "Enabled",  .value = 1 },
+            { .description = ""                     }
+        },
+        .bios           = { { 0 } }
+    },
+    { .name = "", .description = "", .type = CONFIG_END }
+  // clang-format on
+};
+
+static const device_t rampageat_device = {
+    .name          = "AST Rampage AT",
+    .internal_name = "rampageat",
+    .flags         = DEVICE_ISA16,
+    .local         = ISAMEM_RAMPAGEAT_CARD,
+    .init          = isamem_init,
+    .close         = isamem_close,
+    .reset         = NULL,
+    .available     = NULL,
+    .speed_changed = NULL,
+    .force_redraw  = NULL,
+    .config        = rampageat_config
+};
+
+static const device_config_t iabpc_config[] = {
+  // clang-format off
+    {
+        .name           = "size",
+        .description    = "Memory size",
+        .type           = CONFIG_SPINNER,
+        .default_string = NULL,
+        .default_int    = 256,
+        .file_filter    = NULL,
+        .spinner        = {
+            .min  =    0,
+            .max  = 2048,
+            .step =   64
+        },
+        .selection      = { { 0 } },
+        .bios           = { { 0 } }
+    },
+    {
+        .name           = "start",
+        .description    = "Start Address",
+        .type           = CONFIG_SPINNER,
+        .default_string = NULL,
+        .default_int    = 256,
+        .file_filter    = NULL,
+        .spinner        = {
+            .min  = 256,
+            .max  = 640,
+            .step =  64
+        },
+        .selection      = { { 0 } },
+        .bios           = { { 0 } }
+    },
+    {
+        .name = "length",
+        .description = "Contiguous Size",
+        .type = CONFIG_SPINNER,
+        .default_string = NULL,
+        .default_int    = 0,
+        .file_filter    = NULL,
+        .spinner        = {
+            .min  =   0,
+            .max  = 384,
+            .step = 64
+        },
+        .selection      = { { 0 } },
+        .bios           = { { 0 } }
+    },
+    {
+        .name           = "ems",
+        .description    = "EMS mode",
+        .type           = CONFIG_SELECTION,
+        .default_string = NULL,
+        .default_int    = 0,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = {
+            { .description = "Disabled", .value = 0 },
+            { .description = "Enabled",  .value = 1 },
+            { .description = ""                     }
+        },
+        .bios           = { { 0 } }
+    },
+    {
+        .name           = "base",
+        .description    = "Address",
+        .type           = CONFIG_HEX16,
+        .default_string = NULL,
+        .default_int    = 0x0258,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = {
+            { .description = "208H", .value = 0x0208 },
+            { .description = "218H", .value = 0x0218 },
+            { .description = "258H", .value = 0x0258 },
+            { .description = "268H", .value = 0x0268 },
+            { .description = "2A8H", .value = 0x02A8 },
+            { .description = "2B8H", .value = 0x02B8 },
+            { .description = "2E8H", .value = 0x02E8 },
+            { .description = ""                      }
+        },
+        .bios           = { { 0 } }
+    },
+    { .name = "", .description = "", .type = CONFIG_END }
+  // clang-format on
+};
+
+static const device_t iabpc_device = {
+    .name          = "Intel Above Board/PC",
+    .internal_name = "iabpc",
+    .flags         = DEVICE_ISA,
+    .local         = ISAMEM_ABOVEBOARDPC_CARD,
+    .init          = isamem_init,
+    .close         = isamem_close,
+    .reset         = NULL,
+    .available     = NULL,
+    .speed_changed = NULL,
+    .force_redraw  = NULL,
+    .config        = iabpc_config
+};
+
+static const device_config_t iabat_config[] = {
+  // clang-format off
+    {
+        .name           = "size",
+        .description    = "Memory size",
+        .type           = CONFIG_SPINNER,
+        .default_string = NULL,
+        .default_int    = 256,
+        .file_filter    = NULL,
+        .spinner        = {
+            .min  =    0,
+            .max  = 2048,
+            .step =  128
+        },
+        .selection      = { { 0 } },
+        .bios           = { { 0 } }
+    },
+    {
+        .name           = "start",
+        .description    = "Start Address",
+        .type           = CONFIG_SPINNER,
+        .default_string = NULL,
+        .default_int    = 512,
+        .file_filter    = NULL,
+        .spinner        = {
+            .min  = 512,
+            .max  = 640,
+            .step = 128
+        },
+        .selection      = { { 0 } },
+        .bios           = { { 0 } }
+    },
+    {
+        .name = "length",
+        .description = "Contiguous Size",
+        .type = CONFIG_SPINNER,
+        .default_string = NULL,
+        .default_int    = 0,
+        .file_filter    = NULL,
+        .spinner        = {
+            .min  =   0,
+            .max  = 2048,
+            .step =  128
+        },
+        .selection      = { { 0 } },
+        .bios           = { { 0 } }
+    },
+    {
+        .name           = "ems",
+        .description    = "EMS mode",
+        .type           = CONFIG_SELECTION,
+        .default_string = NULL,
+        .default_int    = 0,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = {
+            { .description = "Disabled", .value = 0 },
+            { .description = "Enabled",  .value = 1 },
+            { .description = ""                     }
+        },
+        .bios           = { { 0 } }
+    },
+    {
+        .name           = "base",
+        .description    = "Address",
+        .type           = CONFIG_HEX16,
+        .default_string = NULL,
+        .default_int    = 0x0258,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = {
+            { .description = "208H", .value = 0x0208 },
+            { .description = "218H", .value = 0x0218 },
+            { .description = "258H", .value = 0x0258 },
+            { .description = "268H", .value = 0x0268 },
+            { .description = "2A8H", .value = 0x02A8 },
+            { .description = "2B8H", .value = 0x02B8 },
+            { .description = "2E8H", .value = 0x02E8 },
+            { .description = ""                      }
+        },
+        .bios           = { { 0 } }
+    },
+    { .name = "", .description = "", .type = CONFIG_END }
+  // clang-format on
+};
+
+static const device_t iabat_device = {
+    .name          = "Intel Above Board/AT",
+    .internal_name = "iabat",
+    .flags         = DEVICE_ISA16,
+    .local         = ISAMEM_ABOVEBOARDAT_CARD,
+    .init          = isamem_init,
+    .close         = isamem_close,
+    .reset         = NULL,
+    .available     = NULL,
+    .speed_changed = NULL,
+    .force_redraw  = NULL,
+    .config        = iabat_config
+};
 
 #ifdef USE_ISAMEM_IAB
-static const device_config_t iab_config[] = {
+static const device_config_t iab286_config[] = {
   // clang-format off
     {
         .name           = "base",
@@ -2221,18 +3247,18 @@ static const device_config_t iab_config[] = {
   // clang-format on
 };
 
-static const device_t iab_device = {
-    .name          = "Intel AboveBoard",
-    .internal_name = "iab",
+static const device_t iab286_device = {
+    .name          = "Intel Above Board 286",
+    .internal_name = "iab286",
     .flags         = DEVICE_ISA,
-    .local         = ISAMEM_ABOVEBOARD_CARD,
+    .local         = ISAMEM_ABOVEBOARD286_CARD,
     .init          = isamem_init,
     .close         = isamem_close,
     .reset         = NULL,
     .available     = NULL,
     .speed_changed = NULL,
     .force_redraw  = NULL,
-    .config        = iab_config
+    .config        = iab286_config
 };
 #endif /* USE_ISAMEM_IAB */
 
@@ -2311,17 +3337,19 @@ static const struct {
     { &ev159_device        },
     { &ev165a_device       },
     { &brxt_device         },
-#ifdef USE_ISAMEM_BRAT
     { &brat_device         },
-#endif /* USE_ISAMEM_BRAT */
+    { &rampagext_device    },
+    { &rampagextv1_device  },
 #ifdef USE_ISAMEM_RAMPAGE
-    { &rampage_device      },
+    { &rampageat_device     },
 #endif /* USE_ISAMEM_RAMPAGE */
 #ifdef USE_ISAMEM_IAB
-    { &iab_device          },
+    { &iab286_device       },
 #endif /* USE_ISAMEM_IAB */
     { &lotech_ems_device   },
     { &mplus2_device       },
+    { &iabpc_device        },
+    { &iabat_device        },
     { NULL                 }
     // clang-format on
 };
