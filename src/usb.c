@@ -481,7 +481,7 @@ usb_init(UNUSED(const device_t *info))
                     ohci_mmio_write, NULL, NULL,
                     NULL, MEM_MAPPING_EXTERNAL, dev);
     dev->usb_uhci_priv = usb_uhci_init_ext(info, (void *) info->local);
-    dev->usb_ohci_priv = device_add_params(&usb_ohci_device, (void *) info->local);
+    dev->usb_ohci_priv = device_add_inst_params(&usb_ohci_device, device_get_instance(), (void *) info->local);
     usb_reset(dev);
 
     return dev;
