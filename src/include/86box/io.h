@@ -54,7 +54,7 @@ extern void io_sethandler_common(uint16_t base, uint16_t size,
                                  void (*outb)(uint16_t port, uint8_t val, void *priv),
                                  void (*outw)(uint16_t port, uint16_t val, void *priv),
                                  void (*outl)(uint16_t port, uint32_t val, void *priv),
-                                 void *priv, int step);
+                                 void *priv, uint8_t step);
 
 extern void io_removehandler_common(uint16_t base, uint16_t size,
                                     uint8_t (*inb)(uint16_t port, void *priv),
