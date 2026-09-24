@@ -1229,15 +1229,15 @@ void uhci_register_usb(usb_t *dev)
 }
 
 void *
-usb_uhci_init_ext(UNUSED(const device_t *info), void* params)
+usb_uhci_init_ext(UNUSED(const device_t *info))
 {
     bx_uhci_core_t *hub;
-    usb_params_t* usb_params = params;
+    usb_params_t* usb_params = (usb_params_t*)info->local;
     usb_device_c* mouse_device;
 
     hub = (bx_uhci_core_t *) calloc(1, sizeof(bx_uhci_core_t));
     hub->max_bandwidth = 1280;
-    if (params) {
+    if (info->local) {
       hub->devfunc = usb_params->pci_dev;
       hub->pci_conf = usb_params->pci_conf;
     }
@@ -1257,7 +1257,7 @@ const device_t usb_uhci_device = {
     .internal_name = "usb_uhci",
     .flags         = DEVICE_PCI,
     .local         = 0,
-    .init_ext      = usb_uhci_init_ext,
+    .init          = usb_uhci_init_ext,
     .close         = usb_uhci_close,
     .reset         = usb_uhci_reset,
     .available     = NULL,
