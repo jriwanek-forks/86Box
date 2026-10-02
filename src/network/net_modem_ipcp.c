@@ -19,22 +19,23 @@
 #include <stdio.h>
 #include <string.h>
 #include <86box/net_modem_ipcp.h>
+#include <86box/log.h>
 
 #ifdef ENABLE_MODEM_LOG
 extern uint8_t modem_do_log;
 
 static void
-ipcp_log(const char *fmt, ...)
+ipcp_log(void *priv, const char *fmt, ...)
 {
     va_list ap;
     if (modem_do_log) {
         va_start(ap, fmt);
-        pclog_ex(fmt, ap);
+        log_out(priv, fmt, ap);
         va_end(ap);
     }
 }
 #else
-#    define ipcp_log(fmt, ...)
+#    define ipcp_log(priv, fmt, ...)
 #endif
 
 static inline void
@@ -74,7 +75,7 @@ ppp_ipcp_send_config_request(ppp_ctx_t *ctx)
 
     ppp_send_frame(ctx, PPP_PROTO_IPCP, pkt, len);
     ctx->ipcp_req_sent = true;
-    ipcp_log("IPCP: Sent Configure-Request (our_ip=%d.%d.%d.%d)\n",
+    ipcp_log(ctx->log, "IPCP: Sent Configure-Request (our_ip=%d.%d.%d.%d)\n",
              (ctx->our_ip >> 24) & 0xFF, (ctx->our_ip >> 16) & 0xFF,
              (ctx->our_ip >> 8) & 0xFF, ctx->our_ip & 0xFF);
 }
@@ -91,7 +92,7 @@ ipcp_handle_config_request(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
     int     total   = (pkt[2] << 8) | pkt[3];
     int     pos     = 4;
 
-    ipcp_log("IPCP: Received Configure-Request (id=%d)\n", id);
+    ipcp_log(ctx->log, "IPCP: Received Configure-Request (id=%d)\n", id);
 
     while (pos < total && pos < pkt_len) {
         uint8_t opt_type = pkt[pos];
@@ -181,14 +182,14 @@ ipcp_handle_config_request(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
         rej[2] = (uint8_t) (rej_len >> 8);
         rej[3] = (uint8_t) (rej_len & 0xFF);
         ppp_send_frame(ctx, PPP_PROTO_IPCP, rej, rej_len);
-        ipcp_log("IPCP: Sent Configure-Reject\n");
+        ipcp_log(ctx->log, "IPCP: Sent Configure-Reject\n");
     } else if (nak_len > 4) {
         nak[0] = PPP_CODE_CONFIGURE_NAK;
         nak[1] = id;
         nak[2] = (uint8_t) (nak_len >> 8);
         nak[3] = (uint8_t) (nak_len & 0xFF);
         ppp_send_frame(ctx, PPP_PROTO_IPCP, nak, nak_len);
-        ipcp_log("IPCP: Sent Configure-Nak\n");
+        ipcp_log(ctx->log, "IPCP: Sent Configure-Nak\n");
     } else {
         ack[0] = PPP_CODE_CONFIGURE_ACK;
         ack[1] = id;
@@ -196,7 +197,7 @@ ipcp_handle_config_request(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
         ack[3] = (uint8_t) (ack_len & 0xFF);
         ppp_send_frame(ctx, PPP_PROTO_IPCP, ack, ack_len);
         ctx->ipcp_ack_sent = true;
-        ipcp_log("IPCP: Sent Configure-Ack\n");
+        ipcp_log(ctx->log, "IPCP: Sent Configure-Ack\n");
     }
 }
 
@@ -206,7 +207,7 @@ ipcp_handle_config_ack(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
 {
     (void) pkt;
     (void) pkt_len;
-    ipcp_log("IPCP: Received Configure-Ack\n");
+    ipcp_log(ctx->log, "IPCP: Received Configure-Ack\n");
     ctx->ipcp_ack_received = true;
     ppp_advance_state(ctx);
 }
@@ -218,7 +219,7 @@ ipcp_handle_config_nak(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
     int total = (pkt[2] << 8) | pkt[3];
     int pos   = 4;
 
-    ipcp_log("IPCP: Received Configure-Nak\n");
+    ipcp_log(ctx->log, "IPCP: Received Configure-Nak\n");
 
     while (pos < total && pos < pkt_len) {
         uint8_t opt_type = pkt[pos];
@@ -229,7 +230,7 @@ ipcp_handle_config_nak(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
 
         if (opt_type == IPCP_OPT_IP_ADDRESS && opt_len == 6) {
             ctx->our_ip = ipcp_get_ip(pkt + pos + 2);
-            ipcp_log("IPCP: Peer suggests our IP = %d.%d.%d.%d\n",
+            ipcp_log(ctx->log, "IPCP: Peer suggests our IP = %d.%d.%d.%d\n",
                      (ctx->our_ip >> 24) & 0xFF, (ctx->our_ip >> 16) & 0xFF,
                      (ctx->our_ip >> 8) & 0xFF, ctx->our_ip & 0xFF);
         }
@@ -246,7 +247,7 @@ ipcp_handle_config_reject(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
 {
     (void) pkt;
     (void) pkt_len;
-    ipcp_log("IPCP: Received Configure-Reject\n");
+    ipcp_log(ctx->log, "IPCP: Received Configure-Reject\n");
 
     /* Resend without rejected options - for simplicity, just ack ourselves */
     ctx->ipcp_ack_received = true;
@@ -286,7 +287,7 @@ ppp_ipcp_process(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
             }
             break;
         default:
-            ipcp_log("IPCP: Unknown code %d\n", code);
+            ipcp_log(ctx->log, "IPCP: Unknown code %d\n", code);
             break;
     }
 }

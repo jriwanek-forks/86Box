@@ -22,22 +22,23 @@
 #include <86box/net_modem_pap.h>
 #include <86box/net_modem_chap.h>
 #include <86box/net_modem_ipcp.h>
+#include <86box/log.h>
 
 #ifdef ENABLE_MODEM_LOG
 extern uint8_t modem_do_log;
 
 static void
-ppp_log(const char *fmt, ...)
+ppp_log(void *priv, const char *fmt, ...)
 {
     va_list ap;
     if (modem_do_log) {
         va_start(ap, fmt);
-        pclog_ex(fmt, ap);
+        log_out(priv, fmt, ap);
         va_end(ap);
     }
 }
 #else
-#    define ppp_log(fmt, ...)
+#    define ppp_log(priv, fmt, ...)
 #endif
 
 /* FCS-16 lookup table (CRC-CCITT reflected, polynomial 0x8408) from RFC 1662 */
@@ -101,18 +102,25 @@ ppp_rand32(void)
 void
 ppp_send_frame(ppp_ctx_t *ctx, uint16_t protocol, const uint8_t *data, int len)
 {
-    uint8_t  frame[PPP_MAX_FRAME * 2];
+    uint8_t  frame[(PPP_MAX_FRAME * 2) + 2];
     uint8_t  raw[PPP_MAX_FRAME];
     int      raw_len = 0;
     int      out_len = 0;
     uint16_t fcs;
+
+    if (len < 0 || len > PPP_MAX_FRAME - 6) {
+        ppp_log(ctx->log, "PPP: Dropping oversized frame (%d bytes)\n", len);
+        return;
+    }
 
     /* Build unescaped frame: Address + Control + Protocol + Data */
     raw[raw_len++] = PPP_ADDRESS;
     raw[raw_len++] = PPP_CONTROL;
     raw[raw_len++] = (uint8_t) (protocol >> 8);
     raw[raw_len++] = (uint8_t) (protocol & 0xFF);
-    if (data && len > 0) {
+    if (len > 0) {
+        if (!data)
+            return;
         memcpy(raw + raw_len, data, len);
         raw_len += len;
     }
@@ -200,7 +208,7 @@ ppp_send_lcp_config_request(ppp_ctx_t *ctx)
 
     ppp_send_frame(ctx, PPP_PROTO_LCP, pkt, len);
     ctx->lcp_req_sent = true;
-    ppp_log("PPP: Sent LCP Configure-Request (id=%d)\n", pkt[1]);
+    ppp_log(ctx->log, "PPP: Sent LCP Configure-Request (id=%d)\n", pkt[1]);
 }
 
 /* Handle LCP Configure-Request from peer */
@@ -215,7 +223,7 @@ ppp_handle_lcp_config_request(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
     int     total   = (pkt[2] << 8) | pkt[3];
     int     pos     = 4;
 
-    ppp_log("PPP: Received LCP Configure-Request (id=%d, len=%d)\n", id, total);
+    ppp_log(ctx->log, "PPP: Received LCP Configure-Request (id=%d, len=%d)\n", id, total);
 
     while (pos < total && pos < pkt_len) {
         uint8_t opt_type = pkt[pos];
@@ -299,7 +307,7 @@ ppp_handle_lcp_config_request(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
         rej[2] = (uint8_t) (rej_len >> 8);
         rej[3] = (uint8_t) (rej_len & 0xFF);
         ppp_send_frame(ctx, PPP_PROTO_LCP, rej, rej_len);
-        ppp_log("PPP: Sent LCP Configure-Reject\n");
+        ppp_log(ctx->log, "PPP: Sent LCP Configure-Reject\n");
     } else if (nak_len > 4) {
         /* Send Configure-Nak */
         nak[0] = PPP_CODE_CONFIGURE_NAK;
@@ -307,7 +315,7 @@ ppp_handle_lcp_config_request(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
         nak[2] = (uint8_t) (nak_len >> 8);
         nak[3] = (uint8_t) (nak_len & 0xFF);
         ppp_send_frame(ctx, PPP_PROTO_LCP, nak, nak_len);
-        ppp_log("PPP: Sent LCP Configure-Nak\n");
+        ppp_log(ctx->log, "PPP: Sent LCP Configure-Nak\n");
     } else {
         /* Send Configure-Ack */
         ack[0] = PPP_CODE_CONFIGURE_ACK;
@@ -316,7 +324,7 @@ ppp_handle_lcp_config_request(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
         ack[3] = (uint8_t) (ack_len & 0xFF);
         ppp_send_frame(ctx, PPP_PROTO_LCP, ack, ack_len);
         ctx->lcp_ack_sent = true;
-        ppp_log("PPP: Sent LCP Configure-Ack\n");
+        ppp_log(ctx->log, "PPP: Sent LCP Configure-Ack\n");
     }
 }
 
@@ -326,7 +334,7 @@ ppp_handle_lcp_config_ack(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
 {
     (void) pkt;
     (void) pkt_len;
-    ppp_log("PPP: Received LCP Configure-Ack\n");
+    ppp_log(ctx->log, "PPP: Received LCP Configure-Ack\n");
     ctx->lcp_ack_received = true;
     ppp_advance_state(ctx);
 }
@@ -338,7 +346,7 @@ ppp_handle_lcp_config_nak(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
     int total = (pkt[2] << 8) | pkt[3];
     int pos   = 4;
 
-    ppp_log("PPP: Received LCP Configure-Nak\n");
+    ppp_log(ctx->log, "PPP: Received LCP Configure-Nak\n");
 
     while (pos < total && pos < pkt_len) {
         uint8_t opt_type = pkt[pos];
@@ -385,7 +393,7 @@ ppp_handle_lcp_config_reject(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
     int total = (pkt[2] << 8) | pkt[3];
     int pos   = 4;
 
-    ppp_log("PPP: Received LCP Configure-Reject\n");
+    ppp_log(ctx->log, "PPP: Received LCP Configure-Reject\n");
 
     while (pos < total && pos < pkt_len) {
         uint8_t opt_type = pkt[pos];
@@ -415,8 +423,8 @@ ppp_handle_lcp_echo_request(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
     uint8_t reply[PPP_MAX_FRAME];
     int     total = (pkt[2] << 8) | pkt[3];
 
-    if (total > (int) sizeof(reply))
-        total = sizeof(reply);
+    if (total < 4 || total > pkt_len)
+        return;
 
     memcpy(reply, pkt, total);
     reply[0] = PPP_CODE_ECHO_REPLY;
@@ -430,7 +438,7 @@ ppp_handle_lcp_echo_request(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
     }
 
     ppp_send_frame(ctx, PPP_PROTO_LCP, reply, total);
-    ppp_log("PPP: Sent LCP Echo-Reply\n");
+    ppp_log(ctx->log, "PPP: Sent LCP Echo-Reply\n");
 }
 
 /* Handle LCP Terminate-Request */
@@ -441,7 +449,7 @@ ppp_handle_lcp_terminate_request(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len
 
     (void) pkt_len;
 
-    ppp_log("PPP: Received LCP Terminate-Request\n");
+    ppp_log(ctx->log, "PPP: Received LCP Terminate-Request\n");
     reply[0] = PPP_CODE_TERMINATE_ACK;
     reply[1] = pkt[1]; /* echo identifier */
     reply[2] = 0;
@@ -486,10 +494,10 @@ ppp_process_lcp(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
             /* Silently ignore */
             break;
         case PPP_CODE_PROTOCOL_REJECT:
-            ppp_log("PPP: Received Protocol-Reject\n");
+            ppp_log(ctx->log, "PPP: Received Protocol-Reject\n");
             break;
         default:
-            ppp_log("PPP: Unknown LCP code %d\n", code);
+            ppp_log(ctx->log, "PPP: Unknown LCP code %d\n", code);
             break;
     }
 }
@@ -501,7 +509,7 @@ ppp_advance_state(ppp_ctx_t *ctx)
     switch (ctx->state) {
         case PPP_STATE_LCP_NEGOTIATE:
             if (ctx->lcp_ack_sent && ctx->lcp_ack_received) {
-                ppp_log("PPP: LCP opened, moving to auth phase\n");
+                ppp_log(ctx->log, "PPP: LCP opened, moving to auth phase\n");
                 if (ctx->auth_type != PPP_AUTH_NONE && !ctx->auth_complete) {
                     ctx->state = PPP_STATE_AUTH;
                     if (ctx->auth_type == PPP_AUTH_CHAP_MD5
@@ -520,7 +528,7 @@ ppp_advance_state(ppp_ctx_t *ctx)
 
         case PPP_STATE_AUTH:
             if (ctx->auth_complete) {
-                ppp_log("PPP: Auth complete, moving to IPCP\n");
+                ppp_log(ctx->log, "PPP: Auth complete, moving to IPCP\n");
                 ctx->state = PPP_STATE_IPCP_NEGOTIATE;
                 ppp_ipcp_send_config_request(ctx);
             }
@@ -528,7 +536,7 @@ ppp_advance_state(ppp_ctx_t *ctx)
 
         case PPP_STATE_IPCP_NEGOTIATE:
             if (ctx->ipcp_ack_sent && ctx->ipcp_ack_received) {
-                ppp_log("PPP: IPCP opened, entering network phase\n");
+                ppp_log(ctx->log, "PPP: IPCP opened, entering network phase\n");
                 ctx->state = PPP_STATE_NETWORK;
             }
             break;
@@ -565,14 +573,14 @@ ppp_process_frame(ppp_ctx_t *ctx, const uint8_t *frame, int frame_len)
             data_offset = 2;
         }
     } else {
-        ppp_log("PPP: Frame missing Address/Control fields\n");
+        ppp_log(ctx->log, "PPP: Frame missing Address/Control fields\n");
         return;
     }
 
     const uint8_t *data     = frame + data_offset;
     int            data_len = frame_len - data_offset;
 
-    ppp_log("PPP: Received frame proto=0x%04X len=%d (state=%d)\n", protocol, data_len, ctx->state);
+    ppp_log(ctx->log, "PPP: Received frame proto=0x%04X len=%d (state=%d)\n", protocol, data_len, ctx->state);
 
     switch (protocol) {
         case PPP_PROTO_LCP:
@@ -619,7 +627,7 @@ ppp_process_frame(ppp_ctx_t *ctx, const uint8_t *frame, int frame_len)
                 reject[2] = (uint8_t) (rlen >> 8);
                 reject[3] = (uint8_t) (rlen & 0xFF);
                 ppp_send_frame(ctx, PPP_PROTO_LCP, reject, rlen);
-                ppp_log("PPP: Sent Protocol-Reject for 0x%04X\n", protocol);
+                ppp_log(ctx->log, "PPP: Sent Protocol-Reject for 0x%04X\n", protocol);
             }
             break;
     }
@@ -639,7 +647,7 @@ ppp_rx_byte(ppp_ctx_t *ctx, uint8_t byte)
             if (calc_fcs == recv_fcs) {
                 ppp_process_frame(ctx, ctx->rx_buf, ctx->rx_len - 2);
             } else {
-                ppp_log("PPP: FCS error (calc=0x%04X recv=0x%04X)\n", calc_fcs, recv_fcs);
+                ppp_log(ctx->log, "PPP: FCS error (calc=0x%04X recv=0x%04X)\n", calc_fcs, recv_fcs);
             }
         }
         /* Start new frame */
@@ -678,7 +686,7 @@ ppp_wrap_ip(ppp_ctx_t *ctx, const uint8_t *ip_pkt, int len)
 
 /* Initialize PPP context */
 ppp_ctx_t *
-ppp_init(void *modem,
+ppp_init(void *modem, void *log,
          void (*serial_push)(void *, const uint8_t *, int),
          void (*network_send_ip)(void *, const uint8_t *, int))
 {
@@ -687,6 +695,7 @@ ppp_init(void *modem,
         return NULL;
 
     ctx->modem           = modem;
+    ctx->log             = log;
     ctx->serial_push     = serial_push;
     ctx->network_send_ip = network_send_ip;
     ctx->state           = PPP_STATE_DEAD;
