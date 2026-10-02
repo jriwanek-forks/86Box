@@ -19,22 +19,23 @@
 #include <stdio.h>
 #include <string.h>
 #include <86box/net_modem_pap.h>
+#include <86box/log.h>
 
 #ifdef ENABLE_MODEM_LOG
 extern uint8_t modem_do_log;
 
 static void
-pap_log(const char *fmt, ...)
+pap_log(void *priv, const char *fmt, ...)
 {
     va_list ap;
     if (modem_do_log) {
         va_start(ap, fmt);
-        pclog_ex(fmt, ap);
+        log_out(priv, fmt, ap);
         va_end(ap);
     }
 }
 #else
-#    define pap_log(fmt, ...)
+#    define pap_log(priv, fmt, ...)
 #endif
 
 /* Send a PAP Authenticate-Ack or Authenticate-Nak */
@@ -54,7 +55,7 @@ ppp_pap_send_response(ppp_ctx_t *ctx, uint8_t id, bool success)
     memcpy(pkt + 5, msg, msg_len);
 
     ppp_send_frame(ctx, PPP_PROTO_PAP, pkt, len);
-    pap_log("PAP: Sent %s (id=%d)\n", success ? "Ack" : "Nak", id);
+    pap_log(ctx->log, "PAP: Sent %s (id=%d)\n", success ? "Ack" : "Nak", id);
 }
 
 void
@@ -68,7 +69,7 @@ ppp_pap_process(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
     int     total = (pkt[2] << 8) | pkt[3];
 
     if (code != PAP_CODE_AUTHENTICATE_REQUEST) {
-        pap_log("PAP: Unexpected code %d\n", code);
+        pap_log(ctx->log, "PAP: Unexpected code %d\n", code);
         return;
     }
 
@@ -97,7 +98,7 @@ ppp_pap_process(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
     memcpy(passwd, pkt + pos, copy);
     passwd[copy] = '\0';
 
-    pap_log("PAP: Authenticate-Request user='%s'\n", peer_id);
+    pap_log(ctx->log, "PAP: Authenticate-Request user='%s'\n", peer_id);
 
     /* Validate credentials */
     bool ok = false;

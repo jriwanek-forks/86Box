@@ -22,22 +22,23 @@
 #include <stdlib.h>
 #include <86box/net_modem_chap.h>
 #include <86box/net_modem_crypto.h>
+#include <86box/log.h>
 
 #ifdef ENABLE_MODEM_LOG
 extern uint8_t modem_do_log;
 
 static void
-chap_log(const char *fmt, ...)
+chap_log(void *priv, const char *fmt, ...)
 {
     va_list ap;
     if (modem_do_log) {
         va_start(ap, fmt);
-        pclog_ex(fmt, ap);
+        log_out(priv, fmt, ap);
         va_end(ap);
     }
 }
 #else
-#    define chap_log(fmt, ...)
+#    define chap_log(priv, fmt, ...)
 #endif
 
 /* Simple PRNG for challenge generation */
@@ -99,7 +100,7 @@ ppp_chap_send_challenge(ppp_ctx_t *ctx)
     pkt[3] = (uint8_t) (len & 0xFF);
 
     ppp_send_frame(ctx, PPP_PROTO_CHAP, pkt, len);
-    chap_log("CHAP: Sent Challenge (id=%d, algo=%d)\n", ctx->auth_id, ctx->auth_type);
+    chap_log(ctx->log, "CHAP: Sent Challenge (id=%d, algo=%d)\n", ctx->auth_id, ctx->auth_type);
 }
 
 /* Verify CHAP/MD5 response (RFC 1994) */
@@ -173,7 +174,7 @@ chap_verify_mschap(ppp_ctx_t *ctx, const uint8_t *response, int resp_len)
     uint8_t use_nt = response[48];
     if (!use_nt) {
         /* LM-only response - not supported */
-        chap_log("MS-CHAP: LM-only not supported\n");
+        chap_log(ctx->log, "MS-CHAP: LM-only not supported\n");
         return false;
     }
 
@@ -311,7 +312,7 @@ chap_send_result(ppp_ctx_t *ctx, uint8_t id, bool success, const char *message)
     memcpy(pkt + 4, message, msg_len);
 
     ppp_send_frame(ctx, PPP_PROTO_CHAP, pkt, len);
-    chap_log("CHAP: Sent %s (id=%d)\n", success ? "Success" : "Failure", id);
+    chap_log(ctx->log, "CHAP: Sent %s (id=%d)\n", success ? "Success" : "Failure", id);
 }
 
 /* Process CHAP Response from peer */
@@ -326,7 +327,7 @@ ppp_chap_process(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
     int     total = (pkt[2] << 8) | pkt[3];
 
     if (code != CHAP_CODE_RESPONSE) {
-        chap_log("CHAP: Unexpected code %d\n", code);
+        chap_log(ctx->log, "CHAP: Unexpected code %d\n", code);
         return;
     }
 
@@ -350,13 +351,13 @@ ppp_chap_process(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
         memcpy(peer_name, pkt + pos, copy);
     peer_name[copy > 0 ? copy : 0] = '\0';
 
-    chap_log("CHAP: Response from '%s' (value_len=%d)\n", peer_name, value_len);
+    chap_log(ctx->log, "CHAP: Response from '%s' (value_len=%d)\n", peer_name, value_len);
 
     bool ok = false;
 
     /* Check username first (if configured) */
     if (ctx->username[0] != '\0' && strcmp(peer_name, ctx->username) != 0) {
-        chap_log("CHAP: Username mismatch\n");
+        chap_log(ctx->log, "CHAP: Username mismatch\n");
         chap_send_result(ctx, id, false, "E=691 R=0");
         return;
     }

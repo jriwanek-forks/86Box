@@ -17,8 +17,8 @@
 #ifndef NET_MODEM_SLIP_AUTH_H
 #define NET_MODEM_SLIP_AUTH_H
 
-//#include <stdint.h>
-//#include <stdbool.h>
+#include <stdbool.h>
+#include <stdint.h>
 
 /* SLIP auth states */
 typedef enum {
@@ -44,10 +44,12 @@ typedef struct {
 
     /* Callback to push bytes to the serial line */
     void             *modem;
+    void             *log;
     void            (*serial_push)(void *modem, const uint8_t *data, int len);
 } slip_auth_ctx_t;
 
 slip_auth_ctx_t *slip_auth_init(void *modem,
+                                void *log,
                                 void (*serial_push)(void *, const uint8_t *, int),
                                 const char *username,
                                 const char *password);

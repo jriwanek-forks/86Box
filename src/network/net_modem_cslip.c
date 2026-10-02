@@ -24,22 +24,23 @@
 #include <string.h>
 #include <stdbool.h>
 #include <86box/net_modem_cslip.h>
+#include <86box/log.h>
 
 #ifdef ENABLE_MODEM_LOG
 extern uint8_t modem_do_log;
 
 static void
-cslip_log(const char *fmt, ...)
+cslip_log(void *priv, const char *fmt, ...)
 {
     va_list ap;
     if (modem_do_log) {
         va_start(ap, fmt);
-        pclog_ex(fmt, ap);
+        log_out(priv, fmt, ap);
         va_end(ap);
     }
 }
 #else
-#    define cslip_log(fmt, ...)
+#    define cslip_log(priv, fmt, ...)
 #endif
 
 /* IP header field offsets */
@@ -160,7 +161,7 @@ vj_recompute_ip_cksum(uint8_t *ip_hdr, int ip_hdr_len)
 }
 
 cslip_ctx_t *
-cslip_init(void)
+cslip_init(void *log)
 {
     cslip_ctx_t *ctx = (cslip_ctx_t *) calloc(1, sizeof(cslip_ctx_t));
     if (!ctx)
@@ -172,6 +173,7 @@ cslip_init(void)
     ctx->last_cs         = 0;
     ctx->compress_slot_id = true;
     ctx->flags           = 0;
+    ctx->log             = log;
 
     for (int i = 0; i < VJ_MAX_SLOTS; i++) {
         ctx->slots[i].conn_id = (uint8_t) i;
@@ -255,7 +257,7 @@ cslip_compress(cslip_ctx_t *ctx, const uint8_t *in, int in_len,
 
     const uint8_t *tcp = in + ip_hdr_len;
     tcp_hdr_len = (tcp[TCP_DOFF] >> 4) * 4;
-    if (tcp_hdr_len < 20) {
+    if (tcp_hdr_len < 20 || tcp_hdr_len > in_len - ip_hdr_len) {
         *type = VJ_TYPE_IP;
         memcpy(out, in, in_len);
         return in_len;
@@ -455,7 +457,7 @@ send_uncompressed:
 
         /* Output: full IP packet with connection number in protocol field */
         memcpy(out, in, in_len);
-        out[IP_PROTO] = slot->conn_id;
+        out[IP_PROTO] = VJ_TYPE_UNCOMPRESSED_TCP | slot->conn_id;
 
         *type = VJ_TYPE_UNCOMPRESSED_TCP;
         return in_len;
@@ -480,10 +482,18 @@ cslip_decompress(cslip_ctx_t *ctx, const uint8_t *in, int in_len,
         if (in_len < 20)
             return 0;
 
+        int ip_hdr_len = (in[IP_VHL] & 0x0F) * 4;
+        if ((in[IP_VHL] >> 4) != 4 || ip_hdr_len < 20 || in_len < ip_hdr_len + 20)
+            return 0;
+
+        int tcp_hdr_len = (in[ip_hdr_len + TCP_DOFF] >> 4) * 4;
+        if (tcp_hdr_len < 20 || tcp_hdr_len > in_len - ip_hdr_len)
+            return 0;
+
         /* Connection ID is in IP protocol field */
-        uint8_t conn_id = in[IP_PROTO];
+        uint8_t conn_id = in[IP_PROTO] & (VJ_MAX_SLOTS - 1);
         if (conn_id >= ctx->num_slots) {
-            cslip_log("VJ: Bad connection ID %d in uncompressed TCP\n", conn_id);
+            cslip_log(ctx->log, "VJ: Bad connection ID %d in uncompressed TCP\n", conn_id);
             ctx->flags |= VJ_FLAG_TOSS;
             return 0;
         }
@@ -496,14 +506,7 @@ cslip_decompress(cslip_ctx_t *ctx, const uint8_t *in, int in_len,
         out[IP_PROTO] = 6; /* TCP */
 
         vj_slot_t *cs = &ctx->slots[conn_id];
-        int ip_hdr_len = (out[IP_VHL] & 0x0F) * 4;
-        int tcp_hdr_len = 20; /* Minimum */
-        if (in_len >= ip_hdr_len + 13) {
-            tcp_hdr_len = (out[ip_hdr_len + TCP_DOFF] >> 4) * 4;
-        }
         int total_hdr = ip_hdr_len + tcp_hdr_len;
-        if (total_hdr > VJ_MAX_HDR)
-            total_hdr = VJ_MAX_HDR;
         memcpy(cs->hdr, out, total_hdr);
         cs->hdr_len = total_hdr;
 
@@ -517,7 +520,7 @@ cslip_decompress(cslip_ctx_t *ctx, const uint8_t *in, int in_len,
 
     /* Compressed TCP */
     if (ctx->flags & VJ_FLAG_TOSS) {
-        cslip_log("VJ: Tossing packet (error recovery)\n");
+        cslip_log(ctx->log, "VJ: Tossing packet (error recovery)\n");
         return 0;
     }
 
@@ -548,7 +551,7 @@ cslip_decompress(cslip_ctx_t *ctx, const uint8_t *in, int in_len,
 
     vj_slot_t *cs = &ctx->slots[conn_id];
     if (cs->hdr_len == 0) {
-        cslip_log("VJ: No saved state for connection %d\n", conn_id);
+        cslip_log(ctx->log, "VJ: No saved state for connection %d\n", conn_id);
         ctx->flags |= VJ_FLAG_TOSS;
         return 0;
     }

@@ -17,7 +17,7 @@
 #ifndef NET_MODEM_CHAP_H
 #define NET_MODEM_CHAP_H
 
-//#include <86box/net_modem_ppp.h>
+#include <86box/net_modem_ppp.h>
 
 /* CHAP codes */
 #define CHAP_CODE_CHALLENGE 1

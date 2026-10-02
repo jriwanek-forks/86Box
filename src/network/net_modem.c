@@ -35,6 +35,7 @@
 #include <86box/serial.h>
 #include <86box/plat.h>
 #include <86box/network.h>
+#include <86box/log.h>
 #include <86box/version.h>
 #include <86box/plat_unused.h>
 #include <86box/plat_netsocket.h>
@@ -46,18 +47,18 @@
 uint8_t modem_do_log = ENABLE_MODEM_LOG;
 
 static void
-modem_log(const char *fmt, ...)
+modem_log(void *priv, const char *fmt, ...)
 {
     va_list ap;
 
     if (modem_do_log) {
         va_start(ap, fmt);
-        pclog_ex(fmt, ap);
+        log_out(priv, fmt, ap);
         va_end(ap);
     }
 }
 #else
-#    define modem_log(fmt, ...)
+#    define modem_log(priv, fmt, ...)
 #endif
 
 /* From RFC 1055 (SLIP). */
@@ -106,6 +107,7 @@ typedef struct modem_phonebook_entry_t {
 } modem_phonebook_entry_t;
 
 typedef struct modem_t {
+    void      *log;
     uint8_t   mac[6];
     serial_t *serial;
     uint32_t  baudrate;
@@ -271,7 +273,7 @@ modem_read_phonebook_file(modem_t *modem, const char *path)
     if (!file)
         return;
 
-    modem_log("Modem: Reading phone book file %s...\n", path);
+    modem_log(modem->log, "Modem: Reading phone book file %s...\n", path);
     while (local_getline(&buf, &size, file) != -1) {
         modem_phonebook_entry_t entry = { { 0 }, { 0 } };
         buf[strcspn(buf, "\r\n")]     = '\0';
@@ -291,17 +293,17 @@ modem_read_phonebook_file(modem_t *modem, const char *path)
 
         if ((entry.phone[0] == '\0') || (entry.address[0] == '\0')) {
             /* Appears to be a bad line. */
-            modem_log("Modem: Skipped a bad line\n");
+            modem_log(modem->log, "Modem: Skipped a bad line\n");
             continue;
         }
 
         if (strspn(entry.phone, "01234567890*=,;#+>") != strlen(entry.phone)) {
             /* Invalid characters. */
-            modem_log("Modem: Invalid character in phone number %s\n", entry.phone);
+            modem_log(modem->log, "Modem: Invalid character in phone number %s\n", entry.phone);
             continue;
         }
 
-        modem_log("Modem: Mapped phone number %s to address %s\n", entry.phone, entry.address);
+        modem_log(modem->log, "Modem: Mapped phone number %s to address %s\n", entry.phone, entry.address);
         modem->entries[modem->entries_num++] = entry;
         if (modem->entries_num >= PHONEBOOK_SIZE)
             break;
@@ -402,6 +404,9 @@ modem_ppp_network_send_ip(void *priv, const uint8_t *ip_pkt, int len)
     modem_t *modem = (modem_t *) priv;
     uint8_t *buf   = calloc(len + 14, 1);
 
+    if (!buf)
+        return;
+
     buf[0] = buf[1] = buf[2] = buf[3] = buf[4] = buf[5] = 0xFF;
     buf[6] = buf[7] = buf[8] = buf[9] = buf[10] = buf[11] = 0xFC;
     buf[12] = 0x08;
@@ -419,7 +424,10 @@ process_tx_packet(modem_t *modem, uint8_t *p, uint32_t len)
     uint8_t *processed_tx_packet = calloc(len, 1);
     uint8_t  c                   = 0;
 
-    modem_log("Processing SLIP packet of %u bytes\n", len);
+    if (!processed_tx_packet)
+        return;
+
+    modem_log(modem->log, "Processing SLIP packet of %u bytes\n", len);
 
     while (pos < len) {
         c = p[pos];
@@ -433,6 +441,9 @@ process_tx_packet(modem_t *modem, uint8_t *p, uint32_t len)
 
             case ESC:
                 {
+                    if (pos >= len)
+                        goto send_tx_packet;
+
                     c = p[pos];
                     pos++;
 
@@ -463,12 +474,13 @@ send_tx_packet:
         if (modem->cslip_enabled && modem->cslip_ctx) {
             int vj_type = VJ_TYPE_IP;
 
-            /* Determine VJ packet type from first byte */
+            /* Determine VJ packet type from the compressed frame marker. */
             if (ip_len > 0) {
                 uint8_t first = ip_data[0];
                 if (first & 0x80)
                     vj_type = VJ_TYPE_COMPRESSED_TCP;
-                else if ((first & 0xF0) == VJ_TYPE_UNCOMPRESSED_TCP)
+                else if (ip_len > 9 && (first >> 4) == 4
+                         && (ip_data[9] & 0xF0) == VJ_TYPE_UNCOMPRESSED_TCP)
                     vj_type = VJ_TYPE_UNCOMPRESSED_TCP;
                 else
                     vj_type = VJ_TYPE_IP;
@@ -487,6 +499,12 @@ send_tx_packet:
         }
 
         uint8_t *buf = calloc(ip_len + 14, 1);
+        if (!buf) {
+            free(decomp_buf);
+            free(processed_tx_packet);
+            return;
+        }
+
         buf[0] = buf[1] = buf[2] = buf[3] = buf[4] = buf[5] = 0xFF;
         buf[6] = buf[7] = buf[8] = buf[9] = buf[10] = buf[11] = 0xFC;
         buf[12]                                               = 0x08;
@@ -518,10 +536,10 @@ modem_data_mode_process_byte(modem_t *modem, uint8_t data)
         if (slip_auth_rx_byte(modem->slip_auth_ctx, data)) {
             if (modem->slip_auth_ctx->state == SLIP_AUTH_DONE_OK) {
                 /* Auth succeeded - enter SLIP data mode */
-                modem_log("SLIP auth succeeded, entering data mode\n");
+                modem_log(modem->log, "SLIP auth succeeded, entering data mode\n");
             } else {
                 /* Auth failed - hang up */
-                modem_log("SLIP auth failed, disconnecting\n");
+                modem_log(modem->log, "SLIP auth failed, disconnecting\n");
                 modem_enter_idle_state(modem);
             }
         }
@@ -595,7 +613,7 @@ modem_write(UNUSED(serial_t *s), void *priv, uint8_t txval)
                 if (txval == '/') {
                     // Repeat the last command.
                     modem_echo(modem, txval);
-                    modem_log("Repeat last command (%s)\n", modem->prevcmdbuf);
+                    modem_log(modem->log, "Repeat last command (%s)\n", modem->prevcmdbuf);
                     modem_do_command(modem, 1);
                 } else {
                     modem_echo(modem, modem->reg[MREG_BACKSPACE_CHAR]);
@@ -684,7 +702,7 @@ modem_send_res(modem_t *modem, const ResTypes response)
         if (modem->doresponse == 2 && (response == ResRING || response == ResCONNECT || response == ResNOCARRIER)) {
             return;
         }
-        modem_log("Modem response: %s\n", response_str);
+        modem_log(modem->log, "Modem response: %s\n", response_str);
         if (modem->numericresponse && code != ~0) {
             modem_send_number(modem, code);
         } else if (response_str != NULL) {
@@ -744,7 +762,7 @@ modem_enter_idle_state(modem_t *modem)
     if (modem->listen_port) {
         modem->serversocket = plat_netsocket_create_server(NET_SOCKET_TCP, modem->listen_port);
         if (modem->serversocket == (SOCKET) -1) {
-            modem_log("Failed to set up server on port %d\n", modem->listen_port);
+            modem_log(modem->log, "Failed to set up server on port %d\n", modem->listen_port);
         }
     }
 
@@ -812,7 +830,7 @@ modem_dial(modem_t *modem, const char *str)
     modem->tcpIpConnCounter = 0;
     modem->tcpIpMode        = false;
     if (!strcmp(str, "0.0.0.0") || !strcmp(str, "0000")) {
-        modem_log("Entering local IP mode (type=%d)\n", modem->connection_type);
+        modem_log(modem->log, "Entering local IP mode (type=%d)\n", modem->connection_type);
         modem_enter_connected_state(modem);
         modem->numberinprogress[0] = 0;
 
@@ -820,7 +838,7 @@ modem_dial(modem_t *modem, const char *str)
             /* PPP mode */
             modem->ppp_active = true;
             modem->tcpIpMode  = false;
-            modem->ppp_ctx    = ppp_init(modem, modem_ppp_serial_push, modem_ppp_network_send_ip);
+            modem->ppp_ctx    = ppp_init(modem, modem->log, modem_ppp_serial_push, modem_ppp_network_send_ip);
             if (modem->ppp_ctx) {
                 /* Configure PPP auth from device settings */
                 modem->ppp_ctx->auth_type = (ppp_auth_type_t) modem->ppp_auth_type;
@@ -835,7 +853,7 @@ modem_dial(modem_t *modem, const char *str)
 
             /* Start SLIP auth if enabled */
             if (modem->slip_auth_enabled && (modem->slip_username[0] || modem->slip_password[0])) {
-                modem->slip_auth_ctx = slip_auth_init(modem, modem_ppp_serial_push,
+                modem->slip_auth_ctx = slip_auth_init(modem, modem->log, modem_ppp_serial_push,
                                                       modem->slip_username, modem->slip_password);
                 if (modem->slip_auth_ctx)
                     slip_auth_start(modem->slip_auth_ctx);
@@ -845,7 +863,7 @@ modem_dial(modem_t *modem, const char *str)
         char buf[NUMBER_BUFFER_SIZE] = "";
         strncpy(buf, str, sizeof(buf) - 1);
         strncpy(modem->lastnumber, str, sizeof(modem->lastnumber) - 1);
-        modem_log("Connecting to %s...\n", buf);
+        modem_log(modem->log, "Connecting to %s...\n", buf);
 
         // Scan host for port
         uint16_t port;
@@ -860,14 +878,14 @@ modem_dial(modem_t *modem, const char *str)
         modem->numberinprogress[0] = 0;
         modem->clientsocket        = plat_netsocket_create(NET_SOCKET_TCP);
         if (modem->clientsocket == -1) {
-            modem_log("Failed to create client socket\n");
+            modem_log(modem->log, "Failed to create client socket\n");
             modem_send_res(modem, ResNOCARRIER);
             modem_enter_idle_state(modem);
             return;
         }
 
         if (-1 == plat_netsocket_connect(modem->clientsocket, buf, port)) {
-            modem_log("Failed to connect to %s\n", buf);
+            modem_log(modem->log, "Failed to connect to %s\n", buf);
             modem_send_res(modem, ResNOCARRIER);
             modem_enter_idle_state(modem);
             return;
@@ -931,7 +949,7 @@ modem_do_command(modem_t *modem, int repeat)
         return;
     }
 
-    modem_log("Command received: %s (doresponse = %d)\n", modem->cmdbuf, modem->doresponse);
+    modem_log(modem->log, "Command received: %s (doresponse = %d)\n", modem->cmdbuf, modem->doresponse);
 
     scanbuf = &modem->cmdbuf[2];
 
@@ -990,7 +1008,7 @@ modem_do_command(modem_t *modem, int repeat)
                         if (modem->lastnumber[0] == 0)
                             modem_send_res(modem, ResERROR);
                         else {
-                            modem_log("Redialing number %s\n", modem->lastnumber);
+                            modem_log(modem->log, "Redialing number %s\n", modem->lastnumber);
                             modem_dial(modem, modem->lastnumber);
                         }
                         return;
@@ -1008,7 +1026,7 @@ modem_do_command(modem_t *modem, int repeat)
                     // Check for ; and return to command mode if found
                     char *semicolon = strchr(foundstr, ';');
                     if (semicolon != NULL) {
-                        modem_log("Semicolon found in number, returning to command mode\n");
+                        modem_log(modem->log, "Semicolon found in number, returning to command mode\n");
                         strncat(modem->numberinprogress, foundstr, strcspn(foundstr, ";"));
                         scanbuf = semicolon + 1;
                         break;
@@ -1017,7 +1035,7 @@ modem_do_command(modem_t *modem, int repeat)
                         foundstr = modem->numberinprogress;
                     }
 
-                    modem_log("Dialing number %s\n", foundstr);
+                    modem_log(modem->log, "Dialing number %s\n", foundstr);
                     mappedaddr = modem_get_address_from_phonebook(modem, foundstr);
                     if (mappedaddr) {
                         modem_dial(modem, mappedaddr);
@@ -1286,16 +1304,16 @@ modem_dtr_callback_timer(void *priv)
     if (dev->connected) {
         switch (dev->dtrmode) {
             case 1:
-                modem_log("DTR dropped, returning to command mode (dtrmode = %i)\n", dev->dtrmode);
+                modem_log(dev->log, "DTR dropped, returning to command mode (dtrmode = %i)\n", dev->dtrmode);
                 dev->mode = MODEM_MODE_COMMAND;
                 break;
             case 2:
-                modem_log("DTR dropped, hanging up (dtrmode = %i)\n", dev->dtrmode);
+                modem_log(dev->log, "DTR dropped, hanging up (dtrmode = %i)\n", dev->dtrmode);
                 modem_send_res(dev, ResNOCARRIER);
                 modem_enter_idle_state(dev);
                 break;
             case 3:
-                modem_log("DTR dropped, resetting modem (dtrmode = %i)\n", dev->dtrmode);
+                modem_log(dev->log, "DTR dropped, resetting modem (dtrmode = %i)\n", dev->dtrmode);
                 modem_send_res(dev, ResNOCARRIER);
                 modem_reset(dev);
                 break;
@@ -1348,7 +1366,7 @@ modem_process_telnet(modem_t *modem, uint8_t *data, uint32_t size)
         uint8_t c = data[i];
         if (modem->telClient.inIAC) {
             if (modem->telClient.recCommand) {
-                modem_log("modem_process_telnet: received command %i, option %i\n", modem->telClient.command, c);
+                modem_log(modem->log, "modem_process_telnet: received command %i, option %i\n", modem->telClient.command, c);
 
                 if ((c != 0) && (c != 1) && (c != 3)) {
                     /* Reject anything we don't recognize */
@@ -1458,12 +1476,15 @@ modem_rx(void *priv, uint8_t *buf, int io_len)
     modem_t *modem = (modem_t *) priv;
     uint32_t i     = 0;
 
+    if (!buf || io_len < 14)
+        return 0;
+
     if (modem->tcpIpMode)
         return 0;
 
     if (!modem->connected) {
         /* Drop packet. */
-        modem_log("Dropping %d bytes\n", io_len - 14);
+        modem_log(modem->log, "Dropping %d bytes\n", io_len - 14);
         return 0;
     }
 
@@ -1475,7 +1496,7 @@ modem_rx(void *priv, uint8_t *buf, int io_len)
         while ((io_len) >= (int) (fifo8_num_free(&modem->rx_data) / 2))
             fifo8_resize_2x(&modem->rx_data);
 
-        modem_log("PPP: Receiving %d bytes\n", io_len - 14);
+        modem_log(modem->log, "PPP: Receiving %d bytes\n", io_len - 14);
         ppp_wrap_ip(modem->ppp_ctx, buf + 14, io_len - 14);
         return 1;
     }
@@ -1485,11 +1506,11 @@ modem_rx(void *priv, uint8_t *buf, int io_len)
     }
 
     if (!(buf[12] == 0x08 && buf[13] == 0x00)) {
-        modem_log("Dropping %d bytes (non-IP packet (ethtype 0x%02X%02X))\n", io_len - 14, buf[12], buf[13]);
+        modem_log(modem->log, "Dropping %d bytes (non-IP packet (ethtype 0x%02X%02X))\n", io_len - 14, buf[12], buf[13]);
         return 0;
     }
 
-    modem_log("Receiving %d bytes\n", io_len - 14);
+    modem_log(modem->log, "Receiving %d bytes\n", io_len - 14);
     /* Strip the Ethernet header. */
     io_len -= 14;
     buf += 14;
@@ -1695,7 +1716,7 @@ modem_cmdpause_timer_callback(void *priv)
         if (modem->plusinc == 0) {
             modem->plusinc = 1;
         } else if (modem->plusinc == 4) {
-            modem_log("Escape sequence triggered, returning to command mode\n");
+            modem_log(modem->log, "Escape sequence triggered, returning to command mode\n");
             modem->mode = MODEM_MODE_COMMAND;
             modem_send_res(modem, ResOK);
             modem->plusinc = 0;
@@ -1741,7 +1762,9 @@ modem_init(UNUSED(const device_t *info))
     }
 
     /* Initialize CSLIP context (always available, used when connection_type selects CSLIP) */
-    modem->cslip_ctx = cslip_init();
+    modem->log       = log_open("MODEM");
+    modem_log(modem->log, "init()\n");
+    modem->cslip_ctx = cslip_init(modem->log);
 
     modem->clientsocket = modem->serversocket = modem->waitingclientsocket = -1;
 
@@ -1785,6 +1808,8 @@ modem_close(void *priv)
         modem->slip_auth_ctx = NULL;
     }
 
+    modem_log(modem->log, "close()\n");
+    log_close(modem->log);
     fifo8_destroy(&modem->data_pending);
     fifo8_destroy(&modem->rx_data);
     netcard_close(modem->card);

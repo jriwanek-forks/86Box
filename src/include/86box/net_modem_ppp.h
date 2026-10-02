@@ -17,9 +17,8 @@
 #ifndef NET_MODEM_PPP_H
 #define NET_MODEM_PPP_H
 
-//#include <stdint.h>
-//#include <stdbool.h>
-//#include <stddef.h>
+#include <stdbool.h>
+#include <stdint.h>
 
 /* PPP HDLC framing constants */
 #define PPP_FLAG     0x7E
@@ -146,12 +145,13 @@ typedef struct ppp_ctx_t {
 
     /* Back-pointer and callbacks */
     void           *modem;
+    void           *log;
     void          (*serial_push)(void *modem, const uint8_t *data, int len);
     void          (*network_send_ip)(void *modem, const uint8_t *ip_pkt, int len);
 } ppp_ctx_t;
 
 /* PPP core functions */
-ppp_ctx_t *ppp_init(void *modem,
+ppp_ctx_t *ppp_init(void *modem, void *log,
                     void (*serial_push)(void *, const uint8_t *, int),
                     void (*network_send_ip)(void *, const uint8_t *, int));
 void       ppp_close(ppp_ctx_t *ctx);
