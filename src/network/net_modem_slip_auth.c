@@ -18,23 +18,24 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "net_modem_slip_auth.h"
+#include <86box/net_modem_slip_auth.h>
+#include <86box/log.h>
 
 #ifdef ENABLE_MODEM_LOG
 extern uint8_t modem_do_log;
 
 static void
-slip_auth_log(const char *fmt, ...)
+slip_auth_log(void *priv, const char *fmt, ...)
 {
     va_list ap;
     if (modem_do_log) {
         va_start(ap, fmt);
-        pclog_ex(fmt, ap);
+        log_out(priv, fmt, ap);
         va_end(ap);
     }
 }
 #else
-#    define slip_auth_log(fmt, ...)
+#    define slip_auth_log(priv, fmt, ...)
 #endif
 
 static void
@@ -44,7 +45,7 @@ slip_auth_send_string(slip_auth_ctx_t *ctx, const char *str)
 }
 
 slip_auth_ctx_t *
-slip_auth_init(void *modem,
+slip_auth_init(void *modem, void *log,
                void (*serial_push)(void *, const uint8_t *, int),
                const char *username,
                const char *password)
@@ -54,6 +55,7 @@ slip_auth_init(void *modem,
         return NULL;
 
     ctx->modem       = modem;
+    ctx->log         = log;
     ctx->serial_push = serial_push;
     ctx->state       = SLIP_AUTH_SEND_USERNAME_PROMPT;
     ctx->active      = false;
@@ -89,7 +91,7 @@ slip_auth_start(slip_auth_ctx_t *ctx)
     slip_auth_send_string(ctx, "\r\n86Box SLIP Server\r\nUsername: ");
     ctx->state = SLIP_AUTH_RECV_USERNAME;
 
-    slip_auth_log("SLIP Auth: Started, waiting for username\n");
+    slip_auth_log(ctx->log, "SLIP Auth: Started, waiting for username\n");
 }
 
 bool
@@ -99,7 +101,7 @@ slip_auth_rx_byte(slip_auth_ctx_t *ctx, uint8_t byte)
         case SLIP_AUTH_RECV_USERNAME:
             if (byte == '\r' || byte == '\n') {
                 ctx->username_buf[ctx->username_pos] = '\0';
-                slip_auth_log("SLIP Auth: Got username '%s'\n", ctx->username_buf);
+                slip_auth_log(ctx->log, "SLIP Auth: Got username '%s'\n", ctx->username_buf);
 
                 slip_auth_send_string(ctx, "\r\nPassword: ");
                 ctx->state = SLIP_AUTH_RECV_PASSWORD;
@@ -119,7 +121,7 @@ slip_auth_rx_byte(slip_auth_ctx_t *ctx, uint8_t byte)
         case SLIP_AUTH_RECV_PASSWORD:
             if (byte == '\r' || byte == '\n') {
                 ctx->password_buf[ctx->password_pos] = '\0';
-                slip_auth_log("SLIP Auth: Got password, verifying...\n");
+                slip_auth_log(ctx->log, "SLIP Auth: Got password, verifying...\n");
 
                 /* Verify credentials */
                 bool ok = false;
@@ -139,12 +141,12 @@ slip_auth_rx_byte(slip_auth_ctx_t *ctx, uint8_t byte)
                     slip_auth_send_string(ctx, "\r\nSLIP session starting...\r\n");
                     ctx->state  = SLIP_AUTH_DONE_OK;
                     ctx->active = false;
-                    slip_auth_log("SLIP Auth: Success\n");
+                    slip_auth_log(ctx->log, "SLIP Auth: Success\n");
                 } else {
                     slip_auth_send_string(ctx, "\r\nLogin incorrect.\r\n");
                     ctx->state  = SLIP_AUTH_DONE_FAIL;
                     ctx->active = false;
-                    slip_auth_log("SLIP Auth: Failed\n");
+                    slip_auth_log(ctx->log, "SLIP Auth: Failed\n");
                 }
                 return true; /* Auth phase complete */
             } else if (byte == '\b' || byte == 0x7F) {

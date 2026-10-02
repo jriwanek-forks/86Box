@@ -17,8 +17,8 @@
 #ifndef NET_MODEM_CRYPTO_H
 #define NET_MODEM_CRYPTO_H
 
-//#include <stdint.h>
-//#include <stddef.h>
+#include <stddef.h>
+#include <stdint.h>
 
 /* MD4 - used by MS-CHAP NT hash */
 #define MD4_DIGEST_LENGTH 16

@@ -16,7 +16,8 @@
 #ifndef NET_MODEM_CSLIP_H
 #define NET_MODEM_CSLIP_H
 
-//#include <stdint.h>
+#include <stdbool.h>
+#include <stdint.h>
 
 /* VJ compression packet types */
 #define VJ_TYPE_IP               0x40
@@ -55,11 +56,12 @@ typedef struct {
     int       last_cs;         /* Last compress slot index */
     bool      compress_slot_id; /* Whether to compress slot ID */
     int       flags;           /* Error flags */
+    void     *log;
 } cslip_ctx_t;
 
 #define VJ_FLAG_TOSS 1  /* Discard next incoming packet (error recovery) */
 
-cslip_ctx_t *cslip_init(void);
+cslip_ctx_t *cslip_init(void *log);
 void         cslip_close(cslip_ctx_t *ctx);
 
 /* Compress an outgoing IP packet. Returns the compressed packet type
