@@ -1,26 +1,30 @@
 /*
- * 86Box     A hypervisor and IBM PC system emulator that specializes in
- *           running old operating systems and software designed for IBM
- *           PC systems and compatibles from 1981 through fairly recent
- *           system designs based on the PCI bus.
+ * 86Box    A hypervisor and IBM PC system emulator that specializes in
+ *          running old operating systems and software designed for IBM
+ *          PC systems and compatibles from 1981 through fairly recent
+ *          system designs based on the PCI bus.
  *
- *           This file is part of the 86Box distribution.
+ *          This file is part of the 86Box distribution.
  *
- *           Emulation of Micro Solutions CompatiCard I/II/IV.
+ *          Emulation of Micro Solutions CompatiCard I/II/IV.
  *
- * Authors:  Jasmine Iwanek, <jasmine@iwanek.co.uk>
+ * Authors: Jasmine Iwanek, <jasmine@iwanek.co.uk>
  *
- *           Copyright 2022-2025 Jasmine Iwanek.
+ *          Copyright 2022-2026 Jasmine Iwanek.
  */
+#define ENABLE_COMPATICARD_LOG 1
+
+#ifdef ENABLE_COMPATICARD_LOG
 #include <stdarg.h>
+#endif
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <wchar.h>
-#define HAVE_STDARG_H
 #include <86box/86box.h>
 #include <86box/device.h>
+#include "cpu.h"
 #include <86box/io.h>
 #include <86box/mem.h>
 #include <86box/rom.h>
@@ -29,6 +33,7 @@
 #include <86box/fdd.h>
 #include <86box/fdc.h>
 #include <86box/fdc_ext.h>
+#include <86box/log.h>
 #include <86box/plat_unused.h>
 
 #define DEVICE_COMPATICARD_I  0
@@ -44,6 +49,7 @@ typedef struct compaticard_s {
     rom_t   bios_rom;
     fdc_t  *fdc;
     /*
+     * cr_2 (Control Register 2) - CompatiCard I/II specific
      * 7 - Reserved - Set to 0
      * 6 - Reserved - Set to 0
      * 5 - Programmable Pin 2 Logic I sets Pin 2 low (TODO)
@@ -52,14 +58,38 @@ typedef struct compaticard_s {
      *       0000---250 Kbps
      *       0001-300 Kbps
      *       1111-500 Kbps
-	 */
+     */
     uint8_t cr_2;
+
+#ifdef ENABLE_COMPATICARD_LOG
+    void *log;
+#endif
 } compaticard_t;
+
+#ifdef ENABLE_COMPATICARD_LOG
+uint8_t compaticard_do_log = ENABLE_COMPATICARD_LOG;
+
+static void
+compaticard_log(void *priv, const char *fmt, ...)
+{
+    if (compaticard_do_log) {
+        va_list ap;
+
+        va_start(ap, fmt);
+        log_out(priv, fmt, ap);
+        va_end(ap);
+    }
+}
+#else
+#    define compaticard_log(priv, fmt, ...)
+#endif
 
 static void
 compaticard_out(UNUSED(uint16_t port), uint8_t val, void *priv)
 {
     compaticard_t *dev = (compaticard_t *) priv;
+
+    compaticard_log(dev->log, "[%04X:%08X] Write CompatiCard I/II %04X %02X\n", CS, cpu_state.pc, port, val);
 
     dev->cr_2 = (val & CR_2_MASK);
 }
@@ -70,6 +100,8 @@ compaticard_in(UNUSED(uint16_t port), void *priv)
     compaticard_t *dev  = (compaticard_t *) priv;
     uint8_t        ret  = (dev->cr_2 &CR_2_MASK);
 
+    compaticard_log(dev->log, "[%04X:%08X] Read CompatiCard I/II %04X %02X\n", CS, cpu_state.pc, port, ret);
+
     return ret;
 }
 
@@ -77,6 +109,10 @@ static void
 compaticard_close(void *priv)
 {
     compaticard_t *dev = (compaticard_t *) priv;
+
+#ifdef ENABLE_COMPATICARD_LOG
+    log_close(dev->log);
+#endif
 
     free(dev);
 }
@@ -89,6 +125,10 @@ compaticard_init(const device_t *info)
     uint8_t        irq       = 6;
     uint8_t        dma       = 2;
     uint16_t       cr2_addr  = 0x7f2; // Control Register 2
+
+#ifdef ENABLE_COMPATICARD_LOG
+    dev->log = log_open("Compaticard");
+#endif
 
     // CompatiCard II & IV have configurable IRQ and DMA
     if (info->local >= DEVICE_COMPATICARD_II) {
@@ -328,7 +368,7 @@ const device_t fdc_compaticard_i_device = {
     .name          = "Micro Solutions CompatiCard I",
     .internal_name = "compaticard_i",
     .flags         = DEVICE_ISA,
-    .local         = 0,
+    .local         = DEVICE_COMPATICARD_I,
     .init          = compaticard_init,
     .close         = compaticard_close,
     .reset         = NULL,
@@ -342,7 +382,7 @@ const device_t fdc_compaticard_ii_device = {
     .name          = "Micro Solutions CompatiCard II",
     .internal_name = "compaticard_ii",
     .flags         = DEVICE_ISA,
-    .local         = 1,
+    .local         = DEVICE_COMPATICARD_II,
     .init          = compaticard_init,
     .close         = compaticard_close,
     .reset         = NULL,
@@ -356,7 +396,7 @@ const device_t fdc_compaticard_iv_device = {
     .name          = "Micro Solutions CompatiCard IV",
     .internal_name = "compaticard_iv",
     .flags         = DEVICE_ISA,
-    .local         = 2,
+    .local         = DEVICE_COMPATICARD_IV,
     .init          = compaticard_init,
     .close         = compaticard_close,
     .reset         = NULL,

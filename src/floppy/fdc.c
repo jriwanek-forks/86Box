@@ -14,7 +14,7 @@
  *          Toni Riikonen, <riikonen.toni@gmail.com>
  *
  *          Copyright 2008-2020 Sarah Walker.
- *          Copyright 2016-2020 Miran Grca.
+ *          Copyright 2016-2026 Miran Grca.
  *          Copyright 2025 Toni Riikonen.
  */
 #include <stdio.h>
@@ -933,7 +933,7 @@ fdc_write(uint16_t addr, uint8_t val, void *priv)
     int drive;
     int drive_num;
 
-    fdc_log("Write FDC %04X %02X\n", addr, val);
+    fdc_log("[%04X:%08X] Write FDC %04X %02X\n", CS, cpu_state.pc, addr, val);
 
     cycles -= ISA_CYCLES(8);
 
@@ -1891,6 +1891,7 @@ fdc_read(uint16_t addr, void *priv)
                 ret = 0xff;
         }
     fdc_log("[%04X:%08X] Read FDC %04X %02X [%i:%02X]\n", CS, cpu_state.pc, addr, ret, drive, fdc->dor & (0x10 << drive));
+
     return ret;
 }
 
