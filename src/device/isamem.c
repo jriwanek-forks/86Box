@@ -36,11 +36,14 @@
  *          EV-158 (RAM 10000)
  *              http://web.archive.org/web/19961104093221/http://www.everex.com/supp/techlib/memmem.html
  *
+ *          EV-178-1 (RAM 8000)
+ *              https://theretroweb.com/expansioncards/s/everex-ev-178-1
+ *
  * Authors: Fred N. van Kempen, <decwiz@yahoo.com>
  *          Jasmine Iwanek <jriwanek@gmail.com>
  *
  *          Copyright 2018      Fred N. van Kempen.
- *          Copyright 2022-2025 Jasmine Iwanek.
+ *          Copyright 2022-2026 Jasmine Iwanek.
  *
  *          Redistribution and  use  in source  and binary forms, with
  *          or  without modification, are permitted  provided that the
@@ -72,18 +75,25 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING  IN ANY  WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#define ENABLE_ISAMEM_LOG 1
+#define ISAMEM_DEBUG      1
+
+#ifdef ENABLE_ISAMEM_LOG
 #include <stdarg.h>
+#endif
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
 #include <stdlib.h>
 #include <wchar.h>
-#define HAVE_STDARG_H
 #include <86box/86box.h>
 #include <86box/machine.h>
 #include <86box/io.h>
 #include <86box/mem.h>
 #include <86box/device.h>
+#ifdef ENABLE_ISAMEM_LOG
+#include <86box/log.h>
+#endif
 #include <86box/ui.h>
 #include <86box/plat.h>
 #include <86box/isamem.h>
@@ -100,19 +110,17 @@
 #define ISAMEM_P5PAK_CARD      7
 #define ISAMEM_A6PAK_CARD      8
 #define ISAMEM_EMS5150_CARD    9
-#define ISAMEM_EV159_CARD      10
+#define ISAMEM_EV159_CARD      10 /* Ram 3000 Deluxe*/
 #define ISAMEM_RAMPAGEXT_CARD  11
 #define ISAMEM_ABOVEBOARD_CARD 12
 #define ISAMEM_BRXT_CARD       13
 #define ISAMEM_BRAT_CARD       14
-#define ISAMEM_EV165A_CARD     15
+#define ISAMEM_EV165A_CARD     15 /* Everex Maxi Magic EMS */
 #define ISAMEM_LOTECH_EMS_CARD 16
 #define ISAMEM_MPLUS2_CARD     17
 #define ISAMEM_IBMPCJR_CARD    18
 #define ISAMEM_GENPCJR_CARD    19
 #define ISAMEM_JRIDE_CARD      20
-
-#define ISAMEM_DEBUG           0
 
 #define RAM_TOPMEM             (640 << 10)  /* end of low memory */
 #define RAM_UMAMEM             (384 << 10)  /* upper memory block */
@@ -122,11 +130,11 @@
 #define EV159_EXT_1536         (1536 << 10) /* start of EV-159 high memory in cs8220 mode*/
 #define EV159_EXT_1024         (1024 << 10) /* start of EV-159 high memory in backfill mode*/
 
-#define EMS_MAXSIZE            (2048 << 10) /* max EMS memory size */
-#define EMS_EV159_MAXSIZE      (3072 << 10) /* max EMS memory size for EV-159 cards */
-#define EMS_LOTECH_MAXSIZE     (4096 << 10) /* max EMS memory size for lotech cards */
-#define EMS_PGSIZE             (16 << 10)   /* one page is this big */
-#define EMS_MAXPAGE            4            /* number of viewport pages */
+#define EMS_MAXSIZE            (2048UL << 10) /* max EMS memory size */
+#define EMS_EV159_MAXSIZE      (3072UL << 10) /* max EMS memory size for EV-159 cards */
+#define EMS_LOTECH_MAXSIZE     (4096UL << 10) /* max EMS memory size for lotech cards */
+#define EMS_PGSIZE             (16UL << 10)   /* one page is this big */
+#define EMS_MAXPAGE            4              /* number of viewport pages */
 
 #define EXTRAM_CONVENTIONAL    0
 #define EXTRAM_HIGH            1
@@ -144,6 +152,7 @@ typedef struct emsreg_t {
     uint16_t     *ems_size;
     uint16_t     *ems_pages;
     uint32_t     *frame_addr;
+    void         *log;
 } emsreg_t;
 
 typedef struct ext_ram_t {
@@ -182,24 +191,25 @@ typedef struct memdev_t {
     mem_mapping_t high_mapping; /* mapping for high mem */
 
     emsreg_t ems[EMS_MAXPAGE * 2]; /* EMS controller registers */
+    void    *log;
 } memdev_t;
 
 #ifdef ENABLE_ISAMEM_LOG
-int isamem_do_log = ENABLE_ISAMEM_LOG;
+uint8_t isamem_do_log = ENABLE_ISAMEM_LOG;
 
 static void
-isamem_log(const char *fmt, ...)
+isamem_log(void *priv, const char *fmt, ...)
 {
-    va_list ap;
-
     if (isamem_do_log) {
+        va_list ap;
+
         va_start(ap, fmt);
-        pclog_ex(fmt, ap);
+        log_out(priv, fmt, ap);
         va_end(ap);
     }
 }
 #else
-#    define isamem_log(fmt, ...)
+#    define isamem_log(priv, fmt, ...)
 #endif
 
 /* Why this convoluted setup with the mem_dev stuff when it's much simpler
@@ -261,7 +271,7 @@ ems_readb(uint32_t addr, void *priv)
     ret = *(uint8_t *) (dev->addr + (addr & 0x3fff));
 #if ISAMEM_DEBUG
     if ((addr % 4096) == 0)
-        isamem_log("EMS readb(%06x) = %02x\n", addr & 0x3fff, ret);
+        isamem_log(dev->log, "[%04X:%08X] EMS readb(%06x) = %02x\n", CS, cpu_state.pc, addr & 0x3fff, ret);
 #endif
 
     return ret;
@@ -278,7 +288,7 @@ ems_readw(uint32_t addr, void *priv)
     ret = *(uint16_t *) (dev->addr + (addr & 0x3fff));
 #if ISAMEM_DEBUG
     if ((addr % 4096) == 0)
-        isamem_log("EMS readw(%06x) = %04x\n", addr & 0x3fff, ret);
+        isamem_log(dev->log, "[%04X:%08X] EMS readw(%06x) = %04x\n", CS, cpu_state.pc, addr & 0x3fff, ret);
 #endif
 
     return ret;
@@ -293,7 +303,7 @@ ems_writeb(uint32_t addr, uint8_t val, void *priv)
     /* Write the data. */
 #if ISAMEM_DEBUG
     if ((addr % 4096) == 0)
-        isamem_log("EMS writeb(%06x, %02x)\n", addr & 0x3fff, val);
+        isamem_log(dev->log, "[%04X:%08X] EMS writeb(%06x, %02x)\n", CS, cpu_state.pc, addr & 0x3fff, val);
 #endif
     *(uint8_t *) (dev->addr + (addr & 0x3fff)) = val;
 }
@@ -307,7 +317,7 @@ ems_writew(uint32_t addr, uint16_t val, void *priv)
     /* Write the data. */
 #if ISAMEM_DEBUG
     if ((addr % 4096) == 0)
-        isamem_log("EMS writew(%06x, %04x)\n", addr & 0x3fff, val);
+        isamem_log(dev->log, "[%04X:%08X] EMS writew(%06x, %04x)\n", CS, cpu_state.pc, addr & 0x3fff, val);
 #endif
     *(uint16_t *) (dev->addr + (addr & 0x3fff)) = val;
 }
@@ -339,7 +349,7 @@ ems_in(uint16_t port, void *priv)
             break;
     }
 
-    isamem_log("ISAMEM: read(%04x) = %02x) page=%d\n", port, ret, vpage);
+    isamem_log(dev->log, "[%04X:%08X] read(%04x) = %02x) page=%d\n", CS, cpu_state.pc, port, ret, vpage);
 
     return ret;
 }
@@ -357,7 +367,7 @@ consecutive_ems_in(uint16_t port, void *priv)
     if (dev->ems[vpage].enabled)
         ret |= 0x80;
 
-    isamem_log("ISAMEM: read(%04x) = %02x) page=%d\n", port, ret, vpage);
+    isamem_log(dev->log, "[%04X:%08X] read(%04x) = %02x) page=%d\n", CS, cpu_state.pc, port, ret, vpage);
 
     return ret;
 }
@@ -382,7 +392,7 @@ ems_out(uint16_t port, uint8_t val, void *priv)
                 /* Pre-calculate the page address in EMS RAM. */
                 dev->addr = dev->ram + ((val & 0x7f) * EMS_PGSIZE);
 
-                isamem_log("ISAMEM: map port %04X, page %i, starting at %08X: %08X -> %08X\n", port,
+                isamem_log(dev->log, "map port %04X, page %i, starting at %08X: %08X -> %08X\n", port,
                            vpage, *dev->frame_addr,
                            *dev->frame_addr + (EMS_PGSIZE * (vpage & 3)), dev->addr - dev->ram);
                 mem_mapping_set_addr(&dev->mapping, *dev->frame_addr + (EMS_PGSIZE * vpage), EMS_PGSIZE);
@@ -393,7 +403,7 @@ ems_out(uint16_t port, uint8_t val, void *priv)
                 /* Enable this page. */
                 mem_mapping_enable(&dev->mapping);
             } else {
-                isamem_log("ISAMEM: map port %04X, page %i, starting at %08X: %08X -> N/A\n",
+                isamem_log(dev->log, "map port %04X, page %i, starting at %08X: %08X -> N/A\n",
                            port, vpage, *dev->frame_addr, *dev->frame_addr + (EMS_PGSIZE * vpage));
 
                 /* Disable this page. */
@@ -422,10 +432,10 @@ ems_out(uint16_t port, uint8_t val, void *priv)
             dev->frame = val;
             *dev->frame_val = (*dev->frame_val & ~(1 << vpage)) | ((val >> 7) << vpage);
             *dev->frame_addr = 0x000c4000 + (*dev->frame_val << 14);
-            isamem_log("ISAMEM: map port %04X page %i: frame_addr = %08X\n", port, vpage, *dev->frame_addr);
+            isamem_log(dev->log, "map port %04X page %i: frame_addr = %08X\n", port, vpage, *dev->frame_addr);
             /* Destroy the page registers. */
             for (uint8_t i = 0; i < 4; i ++) {
-                isamem_log("    ");
+                isamem_log(dev->log, "    ");
                 outb((port & 0x3ffe) + (i << 14), 0x00);
             }
             break;
@@ -443,7 +453,7 @@ consecutive_ems_out(uint16_t port, uint8_t val, void *priv)
     /* Get the viewport page number. */
     int       vpage = (port - dev->base_addr[0]);
 
-    isamem_log("ISAMEM: write(%04x, %02x) to page mapping registers! (page=%d)\n", port, val, vpage);
+    isamem_log(dev->log, "[%04X:%08X] write(%04x, %02x) to page mapping registers! (page=%d)\n", CS, cpu_state.pc, port, val, vpage);
 
     /* Set the page number. */
     dev->ems[vpage].enabled = 1;
@@ -490,6 +500,10 @@ isamem_init(const device_t *info)
     dev = (memdev_t *) calloc(1, sizeof(memdev_t));
     dev->name  = info->name;
     dev->board = info->local;
+
+#ifdef ENABLE_ISAMEM_LOG
+    dev->log = log_open("ISAMEM");
+#endif
 
     dev->base_addr[1]  = 0x0000;
     dev->frame_addr[1] = 0x00000000;
@@ -621,19 +635,27 @@ isamem_init(const device_t *info)
     dev->start_addr <<= 10;
 
     /* Say hello! */
-    isamem_log("ISAMEM: %s (%iKB", info->name, dev->total_size);
-    if (tot && (dev->total_size != tot))
-        isamem_log(", %iKB for RAM", tot);
-    if (dev->flags & FLAG_FAST)
-        isamem_log(", FAST");
-    if (dev->flags & FLAG_WIDE)
-        isamem_log(", 16BIT");
+    char log_suffix[48] = "";
 
-    isamem_log(")\n");
+    if (tot && (dev->total_size != tot))
+        snprintf(log_suffix + strlen(log_suffix),
+                 sizeof(log_suffix) - strlen(log_suffix),
+                 ", %iKB for RAM", tot);
+    if (dev->flags & FLAG_FAST)
+        snprintf(log_suffix + strlen(log_suffix),
+                 sizeof(log_suffix) - strlen(log_suffix),
+                 ", FAST");
+    if (dev->flags & FLAG_WIDE)
+        snprintf(log_suffix + strlen(log_suffix),
+                 sizeof(log_suffix) - strlen(log_suffix),
+                 ", 16BIT");
+
+    isamem_log(dev->log, "%s (%iKB%s)\n", info->name, dev->total_size,
+               log_suffix);
 
     /* Force (back to) 8-bit bus if needed. */
     if ((!is286) && (dev->flags & FLAG_WIDE)) {
-        isamem_log("ISAMEM: not AT+ system, forcing 8-bit mode!\n");
+        isamem_log(dev->log, "not AT+ system, forcing 8-bit mode!\n");
         dev->flags &= ~FLAG_WIDE;
     }
 
@@ -676,7 +698,7 @@ isamem_init(const device_t *info)
              */
             if (t > tot)
                 t = tot;
-            isamem_log("ISAMEM: RAM at %05iKB (%iKB)\n", addr >> 10, t >> 10);
+            isamem_log(dev->log, "RAM at %05iKB (%iKB)\n", addr >> 10, t >> 10);
 
             dev->ext_ram[EXTRAM_CONVENTIONAL].ptr  = ptr;
             dev->ext_ram[EXTRAM_CONVENTIONAL].base = addr;
@@ -720,7 +742,7 @@ isamem_init(const device_t *info)
              */
             t = RAM_UMAMEM; /* 384KB */
 
-            isamem_log("ISAMEM: RAM at %05iKB (%iKB)\n", addr >> 10, t >> 10);
+            isamem_log(dev->log, "RAM at %05iKB (%iKB)\n", addr >> 10, t >> 10);
 
             dev->ext_ram[EXTRAM_HIGH].ptr  = ptr;
             dev->ext_ram[EXTRAM_HIGH].base = addr + tot;
@@ -754,7 +776,7 @@ isamem_init(const device_t *info)
      */
     if (is286 && addr > 0 && tot > 0) {
         t = tot;
-        isamem_log("ISAMEM: RAM at %05iKB (%iKB)\n", addr >> 10, t >> 10);
+        isamem_log(dev->log, "RAM at %05iKB (%iKB)\n", addr >> 10, t >> 10);
 
         dev->ext_ram[EXTRAM_XMS].ptr  = ptr;
         dev->ext_ram[EXTRAM_XMS].base = addr;
@@ -792,23 +814,23 @@ isamem_init(const device_t *info)
             dev->ems_size[0]  = t >> 10;
             dev->ems_pages[0] = t / EMS_PGSIZE;
         }
-        isamem_log("ISAMEM: EMS #1 enabled, I/O=%04XH, %iKB (%i pages)",
+        isamem_log(dev->log, "EMS #1 enabled, I/O=%04XH, %iKB (%i pages)",
                    dev->base_addr[0], dev->ems_size[0], dev->ems_pages[0]);
         if (dev->frame_addr[0] > 0)
-            isamem_log(", Frame[0]=%05XH", dev->frame_addr[0]);
+            isamem_log(dev->log, ", Frame[0]=%05XH", dev->frame_addr[0]);
 
-        isamem_log("\n");
+        isamem_log(dev->log, "\n");
 
         if ((dev->board == ISAMEM_EV159_CARD) && (t > (2 << 20))) {
             dev->ems_start[1] = dev->ems_start[0] + (2 << 20);
             dev->ems_size[1]  = (t - (2 << 20)) >> 10;
             dev->ems_pages[1] = (t - (2 << 20)) / EMS_PGSIZE;
-            isamem_log("ISAMEM: EMS #2 enabled, I/O=%04XH, %iKB (%i pages)",
+            isamem_log(dev->log, "EMS #2 enabled, I/O=%04XH, %iKB (%i pages)",
                        dev->base_addr[1], dev->ems_size[1], dev->ems_pages[1]);
             if (dev->frame_addr[1] > 0)
-                isamem_log(", Frame[1]=%05XH", dev->frame_addr[1]);
+                isamem_log(dev->log, ", Frame[1]=%05XH", dev->frame_addr[1]);
 
-            isamem_log("\n");
+            isamem_log(dev->log, "\n");
         }
 
         /*
@@ -822,6 +844,7 @@ isamem_init(const device_t *info)
             dev->ems[i].ems_size   = &dev->ems_size[0];
             dev->ems[i].ems_pages  = &dev->ems_pages[0];
             dev->ems[i].frame_addr = &dev->frame_addr[0];
+            dev->ems[i].log        = dev->log;
 
             /* Create and initialize a page mapping. */
             mem_mapping_add(&dev->ems[i].mapping,
@@ -849,6 +872,7 @@ isamem_init(const device_t *info)
                 dev->ems[i | 4].ems_size   = &dev->ems_size[1];
                 dev->ems[i | 4].ems_pages  = &dev->ems_pages[1];
                 dev->ems[i | 4].frame_addr = &dev->frame_addr[1];
+                dev->ems[i | 4].log        = dev->log;
 
                 /* Create and initialize a page mapping. */
                 mem_mapping_add(&dev->ems[i | 4].mapping,
@@ -887,6 +911,11 @@ isamem_close(void *priv)
 
     if (dev->ram != NULL)
         free(dev->ram);
+
+#ifdef ENABLE_ISAMEM_LOG
+    if (dev->log)
+        log_close(dev->log);
+#endif
 
     free(dev);
 }
