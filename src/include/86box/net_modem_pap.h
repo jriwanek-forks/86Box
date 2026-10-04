@@ -16,13 +16,21 @@
 #ifndef NET_MODEM_PAP_H
 #define NET_MODEM_PAP_H
 
-#include <86box/net_modem_ppp.h>
+struct ppp_ctx_t;
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* PAP codes */
 #define PAP_CODE_AUTHENTICATE_REQUEST 1
 #define PAP_CODE_AUTHENTICATE_ACK     2
 #define PAP_CODE_AUTHENTICATE_NAK     3
 
-void ppp_pap_process(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len);
+void ppp_pap_process(struct ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* NET_MODEM_PAP_H */

@@ -97,18 +97,10 @@ protected:
         dma_accesses = 0;
         tsc = 0;
         io_handlers.clear();
-        std::memset(fdd, 0, sizeof(fdd));
         std::memset(drives, 0, sizeof(drives));
-        std::memset(motoron, 0, sizeof(motoron));
-        std::memset(fdd_seek_in_progress, 0, sizeof(fdd_seek_in_progress));
-        std::memset(fdd_seek_timer, 0, sizeof(fdd_seek_timer));
-        std::memset(fdd_pending, 0, sizeof(fdd_pending));
-        std::memset(writeprot, 0, sizeof(writeprot));
-        std::memset(ui_writeprot, 0, sizeof(ui_writeprot));
-        fdd_notfound = 0;
         for (int drive = 0; drive < FDD_NUM; ++drive) {
             drives[drive].id = drive;
-            timer_add(&fdd_poll_time[drive], fdd_poll, &drives[drive], 0);
+            timer_add(&drives[drive].poll_time, fdd_poll, &drives[drive], 0);
         }
         std::error_code error;
         const auto      root = std::filesystem::temp_directory_path(error);
@@ -128,12 +120,13 @@ protected:
         controller.densel_polarity = 1;
         controller.drv2en = 1;
         controller.max_track = 79;
+        for (int drive = 0; drive < 4; ++drive) {
+            controller.fdd[drive] = &drives[drive];
+            drives[drive].fdc = &controller;
+        }
         controller.fifo_p = fifo16_init();
         timer_add(&controller.timer, fdc_callback, &controller, 0);
         timer_add(&controller.watchdog_timer, fdc_watchdog_poll, &controller, 0);
-        fdd_set_fdc(&controller);
-        img_set_fdc(&controller);
-        d86f_set_fdc(&controller);
         fdc_pcjx_dor(&controller, 0x80);
         run_motion_timers();
         command(0x03, { 0xef, 0x03 });
@@ -142,18 +135,17 @@ protected:
     void TearDown() override
     {
         for (int drive = 0; drive < FDD_NUM; ++drive) {
-            timer_disable(&fdd_poll_time[drive]);
-            timer_disable(&fdd_seek_timer[drive]);
-            img_close(drive);
+            timer_disable(&drives[drive].poll_time);
+            timer_disable(&drives[drive].seek_timer);
+            img_close(&drives[drive]);
             if (engine_created[drive])
-                d86f_destroy(drive);
+                d86f_destroy(&drives[drive]);
         }
         timer_disable(&controller.timer);
         timer_disable(&controller.watchdog_timer);
         fifo_close(controller.fifo_p);
-        fdd_set_fdc(nullptr);
-        img_set_fdc(nullptr);
-        d86f_set_fdc(nullptr);
+        for (int drive = 0; drive < FDD_NUM; ++drive)
+            drives[drive].fdc = nullptr;
         if (!directory.empty()) {
             std::error_code error;
             std::filesystem::remove_all(directory, error);
@@ -181,16 +173,16 @@ protected:
                     ASSERT_EQ(std::fwrite(data.data(), 1, data.size(), file), data.size());
                 }
         ASSERT_EQ(std::fclose(file), 0);
-        fdd_set_type(drive, fdd_get_from_internal_name(const_cast<char *>("35_2dd")));
-        fdd_set_check_bpb(drive, 0);
-        fdd_set_turbo(drive, turbo);
+        fdd_set_type(&drives[drive], fdd_get_from_internal_name(const_cast<char *>("35_2dd")));
+        fdd_set_check_bpb(&drives[drive], 0);
+        fdd_set_turbo(&drives[drive], turbo);
         if (!engine_created[drive]) {
-            d86f_setup(drive);
+            d86f_setup(&drives[drive]);
             engine_created[drive] = true;
         }
-        img_load(drive, const_cast<char *>(path.c_str()));
+        img_load(&drives[drive], const_cast<char *>(path.c_str()));
         ASSERT_NE(drives[drive].seek, nullptr);
-        fdd_do_seek(drive, 0);
+        fdd_do_seek(&drives[drive], 0);
         fdc_write(0xf2, controller.dor | (1 << drive), &controller);
     }
 
@@ -205,9 +197,10 @@ protected:
     {
         for (unsigned remaining = 32; remaining; --remaining) {
             pc_timer_t *next = timer_is_enabled(&controller.timer) ? &controller.timer : nullptr;
-            for (auto &timer : fdd_seek_timer)
-                if (timer_is_enabled(&timer) && (!next || timer.ts_integer < next->ts_integer))
-                    next = &timer;
+            for (auto &drive : drives)
+                if (timer_is_enabled(&drive.seek_timer)
+                    && (!next || drive.seek_timer.ts_integer < next->ts_integer))
+                    next = &drive.seek_timer;
             if (!next)
                 return;
             tsc = next->ts_integer;
@@ -258,7 +251,7 @@ protected:
                 timer_disable(&controller.timer);
                 controller.timer.callback(controller.timer.priv);
             }
-            d86f_poll(drive);
+            d86f_poll(&drives[drive]);
         }
         ADD_FAILURE() << "Controller never entered result phase";
         return input;
@@ -294,7 +287,7 @@ TEST_F(PcjxFloppy, SkippedTracksHaveLogicalIdsWithoutOddTrackAliases)
 {
     mount(0);
     for (bool turbo : { false, true }) {
-        fdd_set_turbo(0, turbo);
+        fdd_set_turbo(&drives[0], turbo);
         seek(0, 2);
         auto id = read_id(0, 0);
         ASSERT_EQ(id.size(), 7u);
@@ -347,13 +340,13 @@ TEST_F(PcjxFloppy, PlacementIsScopedToMachineAndEligiblePhysicalDrive)
 {
     mount(0);
     for (const char *type : { "35_2dd", "35_2hd" }) {
-        fdd_set_type(0, fdd_get_from_internal_name(const_cast<char *>(type)));
+        fdd_set_type(&drives[0], fdd_get_from_internal_name(const_cast<char *>(type)));
         for (bool turbo : { false, true }) {
             SCOPED_TRACE(::testing::Message() << type << ", turbo=" << turbo);
-            fdd_set_turbo(0, turbo);
+            fdd_set_turbo(&drives[0], turbo);
             seek(0, 0);
             jx_machine = false;
-            EXPECT_FALSE(fdd_is_pcjx_360(0));
+            EXPECT_FALSE(fdd_is_pcjx_360(&drives[0]));
             seek(0, 1);
             EXPECT_EQ(read_sector(0, 1), std::vector<uint8_t>(512, pattern(1, 0, 1, 0)));
             expect_success();
@@ -363,7 +356,7 @@ TEST_F(PcjxFloppy, PlacementIsScopedToMachineAndEligiblePhysicalDrive)
 
             seek(0, 0);
             jx_machine = true;
-            EXPECT_TRUE(fdd_is_pcjx_360(0));
+            EXPECT_TRUE(fdd_is_pcjx_360(&drives[0]));
             seek(0, 2);
             EXPECT_EQ(read_sector(0, 1), std::vector<uint8_t>(512, pattern(1, 0, 1, 0)));
             expect_success();
@@ -374,12 +367,12 @@ TEST_F(PcjxFloppy, PlacementIsScopedToMachineAndEligiblePhysicalDrive)
             EXPECT_NE(status[0] & 0x40, 0);
         }
     }
-    fdd_set_type(0, fdd_get_from_internal_name(const_cast<char *>("525_2hd")));
-    EXPECT_FALSE(fdd_is_pcjx_360(0));
-    fdd_set_type(0, fdd_get_from_internal_name(const_cast<char *>("35_1dd")));
-    EXPECT_FALSE(fdd_is_pcjx_360(0));
-    fdd_set_type(0, fdd_get_from_internal_name(const_cast<char *>("35_2hd")));
-    EXPECT_TRUE(fdd_is_pcjx_360(0));
+    fdd_set_type(&drives[0], fdd_get_from_internal_name(const_cast<char *>("525_2hd")));
+    EXPECT_FALSE(fdd_is_pcjx_360(&drives[0]));
+    fdd_set_type(&drives[0], fdd_get_from_internal_name(const_cast<char *>("35_1dd")));
+    EXPECT_FALSE(fdd_is_pcjx_360(&drives[0]));
+    fdd_set_type(&drives[0], fdd_get_from_internal_name(const_cast<char *>("35_2hd")));
+    EXPECT_TRUE(fdd_is_pcjx_360(&drives[0]));
 }
 
 TEST_F(PcjxFloppy, F2MotorsAndBinaryUnitsAreIndependent)
@@ -398,14 +391,14 @@ TEST_F(PcjxFloppy, F2MotorsAndBinaryUnitsAreIndependent)
     auto disabled = result();
     ASSERT_EQ(disabled.size(), 7u);
     EXPECT_NE(disabled[0] & 0x40, 0);
-    fdd_set_type(3, fdd_get_from_internal_name(const_cast<char *>("35_2dd")));
+    fdd_set_type(&drives[3], fdd_get_from_internal_name(const_cast<char *>("35_2dd")));
     fdc_write(0xf2, 0x9f, &controller);
     command(0x0f, { 3, 2 });
     command(0x08);
     auto absent = result();
     ASSERT_EQ(absent.size(), 2u);
     EXPECT_EQ(absent[0] & 0x73, 0x73);
-    EXPECT_EQ(fdd_current_track(3), 0);
+    EXPECT_EQ(fdd_current_track(&drives[3]), 0);
 }
 
 TEST_F(PcjxFloppy, WatchdogIsTheOnlySystemInterruptAndResetAbortsSeek)
@@ -416,8 +409,8 @@ TEST_F(PcjxFloppy, WatchdogIsTheOnlySystemInterruptAndResetAbortsSeek)
     EXPECT_EQ(fdc_read(0xf4, &controller), 0);
     fdc_write(0xf2, 0x81, &controller);
     run_motion_timers();
-    EXPECT_EQ(fdd_current_track(0), 20);
-    EXPECT_FALSE(timer_is_enabled(&fdd_seek_timer[0]));
+    EXPECT_EQ(fdd_current_track(&drives[0]), 20);
+    EXPECT_FALSE(timer_is_enabled(&drives[0].seek_timer));
     fdc_write(0xf2, 0xe1, &controller);
     fdc_write(0xf2, 0xa1, &controller);
     for (int ms = 0; ms < 999; ++ms) {
@@ -465,15 +458,15 @@ TEST_F(PcjxFloppy, EvenTrackWritesPersistAndOddWritesCannotCorruptPreviousTrack)
     auto failed = result();
     ASSERT_EQ(failed.size(), 7u);
     EXPECT_NE(failed[0] & 0x40, 0);
-    img_close(0);
-    img_load(0, const_cast<char *>(paths[0].c_str()));
+    img_close(&drives[0]);
+    img_load(&drives[0], const_cast<char *>(paths[0].c_str()));
     seek(0, 0);
     EXPECT_EQ(read_sector(0, 0), std::vector<uint8_t>(512, pattern(0, 0, 1, 0)));
     expect_success();
     seek(0, 2);
     EXPECT_EQ(read_sector(0, 1), std::vector<uint8_t>(512, 0xa5));
     expect_success();
-    writeprot[0] = 1;
+    drives[0].writeprot = 1;
     command(0x45, { 0, 1, 0, 1, 2, 1, 0x2a, 0xff });
     transfer(0, std::vector<uint8_t>(512, 0x11));
     auto protected_result = result();
@@ -539,16 +532,16 @@ int dma_channel_write(int, uint16_t) { ++dma_accesses; return DMA_NODATA; }
 int dma_mode(int) { ++dma_accesses; return 0; }
 void ui_sb_update_icon(int, int) {}
 void ui_sb_update_icon_write(int, int) {}
-int fdd_tape_present(int) { return 0; }
-int fdd_tape_track0(int) { return 0; }
-int fdd_tape_get_flags(int) { return 0; }
-int fdd_tape_step(int, int) { return 0; }
-double fdd_audio_get_seek_time(int, int, int) { return 10000.0; }
-void fdd_audio_set_motor_enable(int, int) {}
-void fdd_audio_play_multi_track_seek(int, int, int) {}
-int floppy_ioctl_read_sector(int, int, int, int, uint8_t *) { return 0; }
-int floppy_ioctl_write_sector(int, int, int, int, const uint8_t *) { return 0; }
-void floppy_ioctl_close(int) {}
+int fdd_tape_present(void *) { return 0; }
+int fdd_tape_track0(void *) { return 0; }
+int fdd_tape_get_flags(void *) { return 0; }
+int fdd_tape_step(void *, int) { return 0; }
+double fdd_audio_get_seek_time(void *, int, int) { return 10000.0; }
+void fdd_audio_set_motor_enable(void *, int) {}
+void fdd_audio_play_multi_track_seek(void *, int, int) {}
+int floppy_ioctl_read_sector(void *, int, int, int, uint8_t *) { return 0; }
+int floppy_ioctl_write_sector(void *, int, int, int, const uint8_t *) { return 0; }
+void floppy_ioctl_close(void *) {}
 FILE *plat_fopen(const char *path, const char *mode) { return std::fopen(path, mode); }
 char *path_get_extension(char *path)
 {

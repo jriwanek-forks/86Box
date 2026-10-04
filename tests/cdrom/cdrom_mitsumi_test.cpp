@@ -344,6 +344,7 @@ TEST_F(MitsumiTest, InsertAbortsReadUpdatesTrayAndSignalsChange)
 extern "C" {
 
 dma_t dma[8];
+cdrom_t cdrom[CDROM_NUM];
 uint8_t dma_e;
 uint8_t dma_m;
 uint64_t TIMER_USEC = 1ULL << 32;
@@ -354,6 +355,16 @@ volatile int is_quit;
 int hard_reset_pending;
 
 void ui_sb_update_icon(int, int) {}
+int device_get_config_int(const char *) { return 0; }
+void io_sethandler(uint16_t, uint16_t,
+                   uint8_t (*)(uint16_t, void *),
+                   uint16_t (*)(uint16_t, void *),
+                   uint32_t (*)(uint16_t, void *),
+                   void (*)(uint16_t, uint8_t, void *),
+                   void (*)(uint16_t, uint16_t, void *),
+                   void (*)(uint16_t, uint32_t, void *), void *)
+{
+}
 
 void picint_common(uint16_t mask, int, int set, uint8_t *)
 {

@@ -2062,7 +2062,7 @@ fdc_callback(void *priv)
                 }
             }
             return;
-        case 0x04: /* Sense drive status */
+        case 0x04: { /* Sense drive status */
             fdc->res[10] = (fdc->params[0] & 7) | 0x20;
             if (fdd_is_double_sided(fdc->fdd[real_drive(fdc, fdc->drive)]))
                 fdc->res[10] |= 0x08;
@@ -2083,6 +2083,7 @@ fdc_callback(void *priv)
             fdc->paramstogo = 1;
             fdc->interrupt  = 0;
             return;
+        }
         case 0x05: /* Write data */
         case 0x09: /* Write deleted data */
         case 0x06: /* Read data */

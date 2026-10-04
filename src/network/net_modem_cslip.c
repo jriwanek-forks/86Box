@@ -23,8 +23,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <86box/net_modem_cslip.h>
 #include <86box/log.h>
+#include "net_modem_debug.h"
 
 #ifdef ENABLE_MODEM_LOG
 extern uint8_t modem_do_log;
@@ -189,6 +191,19 @@ cslip_close(cslip_ctx_t *ctx)
     free(ctx);
 }
 
+#if defined(ENABLE_MODEM_LOG) && defined(ENABLE_MODEM_DEBUG)
+static const char *
+cslip_vj_type_name(int type)
+{
+    switch (type) {
+        case VJ_TYPE_IP:               return "plain-IP";
+        case VJ_TYPE_UNCOMPRESSED_TCP: return "uncompressed-TCP";
+        case VJ_TYPE_COMPRESSED_TCP:   return "compressed-TCP";
+        default:                       return "unknown";
+    }
+}
+#endif
+
 /*
  * Compress an outgoing IP packet for transmission to the guest.
  * This is the "compressor" - it takes a normal IP packet and produces
@@ -211,6 +226,12 @@ cslip_compress(cslip_ctx_t *ctx, const uint8_t *in, int in_len,
     int      out_len = 0;
     uint8_t  delta_buf[16];
     int      delta_len = 0;
+
+    if (!ctx || !in || in_len <= 0 || !out || !type)
+        return 0;
+
+    MODEM_DEBUG_LOG(ctx->log, "VJ: compress input length=%d slots=%u\n",
+                    in_len, (unsigned) ctx->num_slots);
 
     /* Minimum IP header check */
     if (in_len < 20) {
@@ -265,9 +286,12 @@ cslip_compress(cslip_ctx_t *ctx, const uint8_t *in, int in_len,
 
     total_hdr = ip_hdr_len + tcp_hdr_len;
 
-    /* SYN, FIN, or RST: send uncompressed to establish/tear down state */
-    if (tcp[TCP_FLAGS] & (TCP_FLAG_SYN | TCP_FLAG_FIN | TCP_FLAG_RST)) {
-        goto send_uncompressed;
+    /* VJ only compresses established TCP data and acknowledgment packets. */
+    if (!(tcp[TCP_FLAGS] & TCP_FLAG_ACK)
+        || (tcp[TCP_FLAGS] & (TCP_FLAG_SYN | TCP_FLAG_FIN | TCP_FLAG_RST))) {
+        *type = VJ_TYPE_IP;
+        memcpy(out, in, in_len);
+        return in_len;
     }
 
     /* Search for a matching connection (src/dst IP + src/dst port) */
@@ -292,10 +316,20 @@ cslip_compress(cslip_ctx_t *ctx, const uint8_t *in, int in_len,
     }
 
     /* Found a match - compute deltas */
-    const uint8_t *old_tcp = cs->hdr + ip_hdr_len;
+    int old_ip_hdr_len = (cs->hdr[IP_VHL] & 0x0F) * 4;
+    if (old_ip_hdr_len != ip_hdr_len
+        || in[IP_TOS] != cs->hdr[IP_TOS]
+        || in[IP_TTL] != cs->hdr[IP_TTL]
+        || vj_get16(in + IP_FLAGS_OFF) != vj_get16(cs->hdr + IP_FLAGS_OFF)
+        || memcmp(in + 20, cs->hdr + 20, ip_hdr_len - 20) != 0)
+        goto send_uncompressed;
 
-    /* Check for TCP options change - if options changed, send uncompressed */
-    if (tcp_hdr_len != (int) ((old_tcp[TCP_DOFF] >> 4) * 4)) {
+    const uint8_t *old_tcp = cs->hdr + old_ip_hdr_len;
+
+    /* Header options and unencoded flags must remain identical. */
+    if (tcp_hdr_len != (int) ((old_tcp[TCP_DOFF] >> 4) * 4)
+        || memcmp(tcp + 20, old_tcp + 20, tcp_hdr_len - 20) != 0
+        || ((tcp[TCP_FLAGS] ^ old_tcp[TCP_FLAGS]) & ~(TCP_FLAG_PSH | TCP_FLAG_URG)) != 0) {
         goto send_uncompressed;
     }
 
@@ -365,27 +399,41 @@ cslip_compress(cslip_ctx_t *ctx, const uint8_t *in, int in_len,
 
     /* Check for special cases */
     {
-        int      payload_len = in_len - total_hdr;
+        int      previous_payload_len = (int) vj_get16(cs->hdr + IP_LEN) - total_hdr;
         uint16_t did          = vj_get16(in + IP_ID) - vj_get16(cs->hdr + IP_ID);
 
-        /* Check for special "interactive" case: only ack changed by data length */
-        if (changes == VJ_SPECIAL_I) {
+        if (changes == VJ_NEW_S) {
+            uint32_t dseq2 = vj_get32(tcp + TCP_SEQ) - vj_get32(old_tcp + TCP_SEQ);
+            uint32_t dack2 = vj_get32(tcp + TCP_ACK) - vj_get32(old_tcp + TCP_ACK);
+            if (previous_payload_len >= 0
+                && dseq2 == (uint32_t) previous_payload_len && dack2 == 0 && did == 1) {
+                changes = VJ_SPECIAL_D;
+                delta_len = 0;
+            }
+        } else if (changes == (VJ_NEW_S | VJ_NEW_A)) {
             uint32_t dack2 = vj_get32(tcp + TCP_ACK) - vj_get32(old_tcp + TCP_ACK);
             uint32_t dseq2 = vj_get32(tcp + TCP_SEQ) - vj_get32(old_tcp + TCP_SEQ);
             int16_t  dwin2 = (int16_t) (vj_get16(tcp + TCP_WIN) - vj_get16(old_tcp + TCP_WIN));
-            if (dack2 == (uint32_t) dseq2 && dwin2 == 0 && did == 1) {
-                /* Swap to special encoding */
+            if (previous_payload_len >= 0 && dack2 == (uint32_t) dseq2
+                && dseq2 == (uint32_t) previous_payload_len && dwin2 == 0 && did == 1) {
                 changes = VJ_SPECIAL_I;
                 delta_len = 0;
-                int n = vj_encode_delta(delta_buf, (uint16_t) dack2);
-                delta_len = n;
             }
-        } else if (changes == VJ_SPECIAL_D) {
-            uint32_t dseq2 = vj_get32(tcp + TCP_SEQ) - vj_get32(old_tcp + TCP_SEQ);
-            uint32_t dack2 = vj_get32(tcp + TCP_ACK) - vj_get32(old_tcp + TCP_ACK);
-            if (dseq2 == (uint32_t) payload_len && dack2 == 0 && did == 1) {
-                changes = VJ_SPECIAL_D;
-                delta_len = 0;
+        } else if (changes == VJ_SPECIAL_I || changes == VJ_SPECIAL_D) {
+            goto send_uncompressed;
+        }
+
+        uint8_t ip_id_delta[3];
+        int ip_id_delta_len = 0;
+        if (did != 1) {
+            changes |= VJ_NEW_I;
+            if (did == 0) {
+                ip_id_delta[0] = 0;
+                ip_id_delta[1] = 0;
+                ip_id_delta[2] = 0;
+                ip_id_delta_len = 3;
+            } else {
+                ip_id_delta_len = vj_encode_delta(ip_id_delta, did);
             }
         }
 
@@ -394,7 +442,7 @@ cslip_compress(cslip_ctx_t *ctx, const uint8_t *in, int in_len,
             changes |= VJ_TCP_PUSH_BIT;
 
         /* Connection ID */
-        if (cs->conn_id != ctx->last_conn_send) {
+        if (!ctx->compress_slot_id || cs->conn_id != ctx->last_conn_send) {
             changes |= VJ_NEW_C;
             ctx->last_conn_send = cs->conn_id;
         }
@@ -407,15 +455,11 @@ cslip_compress(cslip_ctx_t *ctx, const uint8_t *in, int in_len,
         out[out_len++] = tcp[TCP_CKSUM];
         out[out_len++] = tcp[TCP_CKSUM + 1];
 
-        /* IP ID delta if not +1 */
-        if (did != 1) {
-            int n = vj_encode_delta(out + out_len, did);
-            out_len += n;
-        }
-
-        /* Delta values */
+        /* TCP deltas precede the optional IP ID delta on the wire. */
         memcpy(out + out_len, delta_buf, delta_len);
         out_len += delta_len;
+        memcpy(out + out_len, ip_id_delta, ip_id_delta_len);
+        out_len += ip_id_delta_len;
 
         /* Payload */
         if (in_len > total_hdr) {
@@ -464,6 +508,23 @@ send_uncompressed:
     }
 }
 
+int
+cslip_compress_logged(cslip_ctx_t *ctx, const uint8_t *in, int in_len,
+                      uint8_t *out, int *type)
+{
+    if (!ctx || !type)
+        return 0;
+
+    int output_len = cslip_compress(ctx, in, in_len, out, type);
+    if (output_len <= 0)
+        return output_len;
+
+    MODEM_DEBUG_LOG(ctx->log, "CSLIP: TX VJ type=%s (%d) input=%d output=%d saved=%d\n",
+                    cslip_vj_type_name(*type), *type, in_len, output_len,
+                    output_len > 0 ? in_len - output_len : 0);
+    return output_len;
+}
+
 /*
  * Decompress an incoming packet from the guest.
  * type indicates the VJ packet type.
@@ -473,6 +534,12 @@ int
 cslip_decompress(cslip_ctx_t *ctx, const uint8_t *in, int in_len,
                  uint8_t *out, int type)
 {
+    if (!ctx || !in || in_len <= 0 || !out)
+        return 0;
+
+    MODEM_DEBUG_LOG(ctx->log, "VJ: decompress type=%d input length=%d last-connection=%u flags=0x%02X\n",
+                    type, in_len, (unsigned) ctx->last_conn_recv, (unsigned) ctx->flags);
+
     if (type == VJ_TYPE_IP) {
         memcpy(out, in, in_len);
         return in_len;
@@ -490,6 +557,13 @@ cslip_decompress(cslip_ctx_t *ctx, const uint8_t *in, int in_len,
         if (tcp_hdr_len < 20 || tcp_hdr_len > in_len - ip_hdr_len)
             return 0;
 
+        int total_hdr = ip_hdr_len + tcp_hdr_len;
+        uint16_t ip_total_len = vj_get16(in + IP_LEN);
+        if (ip_total_len < total_hdr || ip_total_len > in_len) {
+            ctx->flags |= VJ_FLAG_TOSS;
+            return 0;
+        }
+
         /* Connection ID is in IP protocol field */
         uint8_t conn_id = in[IP_PROTO] & (VJ_MAX_SLOTS - 1);
         if (conn_id >= ctx->num_slots) {
@@ -506,7 +580,6 @@ cslip_decompress(cslip_ctx_t *ctx, const uint8_t *in, int in_len,
         out[IP_PROTO] = 6; /* TCP */
 
         vj_slot_t *cs = &ctx->slots[conn_id];
-        int total_hdr = ip_hdr_len + tcp_hdr_len;
         memcpy(cs->hdr, out, total_hdr);
         cs->hdr_len = total_hdr;
 
@@ -549,6 +622,11 @@ cslip_decompress(cslip_ctx_t *ctx, const uint8_t *in, int in_len,
         conn_id = ctx->last_conn_recv;
     }
 
+    if (conn_id >= ctx->num_slots) {
+        ctx->flags |= VJ_FLAG_TOSS;
+        return 0;
+    }
+
     vj_slot_t *cs = &ctx->slots[conn_id];
     if (cs->hdr_len == 0) {
         cslip_log(ctx->log, "VJ: No saved state for connection %d\n", conn_id);
@@ -582,18 +660,15 @@ cslip_decompress(cslip_ctx_t *ctx, const uint8_t *in, int in_len,
     uint8_t change_bits = changes & 0x0F; /* Lower 4 bits (excluding C and PUSH) */
 
     switch (change_bits) {
-        case VJ_SPECIAL_I: /* Interactive: ack += delta, seq += delta */
+        case VJ_SPECIAL_I: /* Interactive: advance ack and seq by prior payload length */
             {
-                uint16_t delta;
-                int      n = vj_decode_delta(in + pos, in_len - pos, &delta);
-                if (n < 0) { ctx->flags |= VJ_FLAG_TOSS; return 0; }
-                pos += n;
-                {
-                    uint32_t ack = vj_get32(tcp_hdr + TCP_ACK) + delta;
-                    vj_put32(tcp_hdr + TCP_ACK, ack);
-                    uint32_t seq = vj_get32(tcp_hdr + TCP_SEQ) + delta;
-                    vj_put32(tcp_hdr + TCP_SEQ, seq);
-                }
+                uint16_t old_ip_len = vj_get16(cs->hdr + IP_LEN);
+                if (old_ip_len < total_hdr) { ctx->flags |= VJ_FLAG_TOSS; return 0; }
+                uint16_t payload = old_ip_len - (uint16_t) total_hdr;
+                uint32_t ack = vj_get32(tcp_hdr + TCP_ACK) + payload;
+                vj_put32(tcp_hdr + TCP_ACK, ack);
+                uint32_t seq = vj_get32(tcp_hdr + TCP_SEQ) + payload;
+                vj_put32(tcp_hdr + TCP_SEQ, seq);
             }
             break;
 
@@ -647,9 +722,16 @@ cslip_decompress(cslip_ctx_t *ctx, const uint8_t *in, int in_len,
             break;
     }
 
-    /* IP ID always increments by 1 for compressed packets */
+    uint16_t ip_id_delta = 1;
+    if (changes & VJ_NEW_I) {
+        int n = vj_decode_delta(in + pos, in_len - pos, &ip_id_delta);
+        if (n < 0) { ctx->flags |= VJ_FLAG_TOSS; return 0; }
+        pos += n;
+    }
+
+    /* IP ID increments by one unless the packet carries an explicit delta. */
     {
-        uint16_t id = vj_get16(hdr + IP_ID) + 1;
+        uint16_t id = vj_get16(hdr + IP_ID) + ip_id_delta;
         vj_put16(hdr + IP_ID, id);
     }
 
@@ -672,4 +754,38 @@ cslip_decompress(cslip_ctx_t *ctx, const uint8_t *in, int in_len,
         memcpy(out + total_hdr, in + pos, payload);
 
     return total_hdr + payload;
+}
+
+int
+cslip_decompress_packet(cslip_ctx_t *ctx, const uint8_t *in, int in_len,
+                        uint8_t *out)
+{
+    if (!ctx || !in || in_len <= 0 || !out)
+        return 0;
+
+    int type = VJ_TYPE_IP;
+
+    if (in_len > 0) {
+        uint8_t first = in[0];
+        if (first & 0x80)
+            type = VJ_TYPE_COMPRESSED_TCP;
+        else if (in_len > 9 && (first >> 4) == 4
+                 && (in[IP_PROTO] & 0xF0) == VJ_TYPE_UNCOMPRESSED_TCP)
+            type = VJ_TYPE_UNCOMPRESSED_TCP;
+    }
+
+    MODEM_DEBUG_LOG(ctx->log, "CSLIP: RX VJ type=%s (%d) input=%d toss=%u\n",
+                    cslip_vj_type_name(type), type, in_len,
+                    (unsigned) !!(ctx->flags & VJ_FLAG_TOSS));
+    int output_len = cslip_decompress(ctx, in, in_len, out, type);
+    if (output_len <= 0) {
+        MODEM_DEBUG_LOG(ctx->log, "CSLIP: RX decompression failed type=%s toss=%u\n",
+                        cslip_vj_type_name(type),
+                        (unsigned) !!(ctx->flags & VJ_FLAG_TOSS));
+        return output_len;
+    }
+
+    MODEM_DEBUG_LOG(ctx->log, "CSLIP: RX decoded IPv4 type=%s bytes=%d\n",
+                    cslip_vj_type_name(type), output_len);
+    return output_len;
 }
