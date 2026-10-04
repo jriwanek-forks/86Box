@@ -7,8 +7,8 @@
  *          This file is part of the 86Box distribution.
  *
  *          SLIP authentication - optional text-based login prompt
- *          before entering SLIP data mode. Emulates a classic ISP
- *          shell login for SLIP connections.
+ *          before entering SLIP data mode. This is an emulator-specific
+ *          login extension; SLIP framing is specified by RFC 1055.
  *
  * Authors: Jasmine Iwanek, <jriwanek@gmail.com>
  *
@@ -16,9 +16,6 @@
  */
 #ifndef NET_MODEM_SLIP_AUTH_H
 #define NET_MODEM_SLIP_AUTH_H
-
-#include <stdbool.h>
-#include <stdint.h>
 
 /* SLIP auth states */
 typedef enum {
@@ -38,6 +35,8 @@ typedef struct {
     int               username_pos;
     char              password_buf[SLIP_AUTH_BUF_SIZE];
     int               password_pos;
+    bool              invalid_input;
+    bool              ignore_lf;
     char              expected_user[SLIP_AUTH_BUF_SIZE];
     char              expected_pass[SLIP_AUTH_BUF_SIZE];
     bool              active;
@@ -47,6 +46,10 @@ typedef struct {
     void             *log;
     void            (*serial_push)(void *modem, const uint8_t *data, int len);
 } slip_auth_ctx_t;
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 slip_auth_ctx_t *slip_auth_init(void *modem,
                                 void *log,
@@ -59,5 +62,9 @@ void             slip_auth_start(slip_auth_ctx_t *ctx);
 /* Process one byte from the serial line during SLIP auth.
    Returns true when auth is done (check ctx->state for result). */
 bool             slip_auth_rx_byte(slip_auth_ctx_t *ctx, uint8_t byte);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* NET_MODEM_SLIP_AUTH_H */

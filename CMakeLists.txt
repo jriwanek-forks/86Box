@@ -129,6 +129,8 @@ option(AUTOMATION   "Enable the automation control socket"                      
 option(DISASM       "Disassembler in the memory viewer (Zydis)"                   ON)
 option(DEV_BRANCH   "Development branch"                                         OFF)
 option(DISCORD      "Discord Rich Presence support"                              ON)
+option(ENABLE_MODEM_LOG "Enable modem logging"                                   ON)
+option(ENABLE_MODEM_DEBUG "Enable detailed modem logging (requires ENABLE_MODEM_LOG)" ON)
 option(LIBASAN      "Enable compilation with the addresss sanitizer"             OFF)
 option(QT           "Use the Qt-based user interface"                            ON)
 option(SDL2         "Use SDL2 instead of SDL3"                                   OFF)

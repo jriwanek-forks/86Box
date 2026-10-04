@@ -7,8 +7,9 @@
  *          This file is part of the 86Box distribution.
  *
  *          CHAP (Challenge-Handshake Authentication Protocol) for PPP
- *          modem emulation. Supports CHAP/MD5 (RFC 1994), MS-CHAP
- *          (RFC 2433), and MS-CHAPv2 (RFC 2759).
+ *          modem emulation. Supports CHAP/MD5, CHAP/SHA-1, CHAP/SHA-256,
+ *          CHAP/SHA-384, CHAP/SHA-512, MS-CHAP (RFC 2433), and MS-CHAPv2
+ *          (RFC 2759). CHAP packet format follows RFC 1994.
  *
  * Authors: Jasmine Iwanek, <jriwanek@gmail.com>
  *
@@ -17,7 +18,11 @@
 #ifndef NET_MODEM_CHAP_H
 #define NET_MODEM_CHAP_H
 
-#include <86box/net_modem_ppp.h>
+struct ppp_ctx_t;
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* CHAP codes */
 #define CHAP_CODE_CHALLENGE 1
@@ -25,7 +30,11 @@
 #define CHAP_CODE_SUCCESS   3
 #define CHAP_CODE_FAILURE   4
 
-void ppp_chap_send_challenge(ppp_ctx_t *ctx);
-void ppp_chap_process(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len);
+void ppp_chap_send_challenge(struct ppp_ctx_t *ctx);
+void ppp_chap_process(struct ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* NET_MODEM_CHAP_H */

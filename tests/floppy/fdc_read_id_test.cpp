@@ -33,18 +33,10 @@ protected:
     void SetUp() override
     {
         tsc = 0;
-        std::memset(fdd, 0, sizeof(fdd));
         std::memset(drives, 0, sizeof(drives));
-        std::memset(motoron, 0, sizeof(motoron));
-        std::memset(fdd_seek_in_progress, 0, sizeof(fdd_seek_in_progress));
-        std::memset(fdd_seek_timer, 0, sizeof(fdd_seek_timer));
-        std::memset(fdd_pending, 0, sizeof(fdd_pending));
-        std::memset(writeprot, 0, sizeof(writeprot));
-        std::memset(ui_writeprot, 0, sizeof(ui_writeprot));
-        fdd_notfound = 0;
         for (int drive = 0; drive < FDD_NUM; ++drive) {
             drives[drive].id = drive;
-            timer_add(&fdd_poll_time[drive], fdd_poll, &drives[drive], 0);
+            timer_add(&drives[drive].poll_time, fdd_poll, &drives[drive], 0);
         }
 
         controller.irq       = 6;
@@ -52,12 +44,13 @@ protected:
         controller.rate      = 2;
         controller.drv2en    = 1;
         controller.max_track = 79;
+        for (int drive = 0; drive < 4; ++drive) {
+            controller.fdd[drive] = &drives[drive];
+            drives[drive].fdc = &controller;
+        }
         controller.fifo_p    = fifo16_init();
         timer_add(&controller.timer, fdc_callback, &controller, 0);
         timer_add(&controller.watchdog_timer, fdc_watchdog_poll, &controller, 0);
-        fdd_set_fdc(&controller);
-        img_set_fdc(&controller);
-        d86f_set_fdc(&controller);
 
         std::error_code error;
         const auto      root = std::filesystem::temp_directory_path(error);
@@ -83,13 +76,13 @@ protected:
         ASSERT_EQ(close_result, 0);
 
         // A two-headed physical drive containing a 180 KiB, one-headed image.
-        fdd_set_type(0, fdd_get_from_internal_name(const_cast<char *>("35_2dd")));
-        fdd_set_check_bpb(0, 0);
-        fdd_set_turbo(0, 0);
-        d86f_setup(0);
-        img_load(0, const_cast<char *>(path.c_str()));
+        fdd_set_type(&drives[0], fdd_get_from_internal_name(const_cast<char *>("35_2dd")));
+        fdd_set_check_bpb(&drives[0], 0);
+        fdd_set_turbo(&drives[0], 0);
+        d86f_setup(&drives[0]);
+        img_load(&drives[0], const_cast<char *>(path.c_str()));
         ASSERT_NE(drives[0].seek, nullptr);
-        fdd_do_seek(0, 0);
+        fdd_do_seek(&drives[0], 0);
         fdc_write(0x3f2, 0x1c, &controller);
         for (unsigned remaining = 16; timer_is_enabled(&controller.timer); --remaining) {
             ASSERT_GT(remaining, 0u) << "Controller reset did not quiesce";
@@ -102,17 +95,16 @@ protected:
     void TearDown() override
     {
         for (int drive = 0; drive < FDD_NUM; ++drive) {
-            timer_disable(&fdd_poll_time[drive]);
-            timer_disable(&fdd_seek_timer[drive]);
+            timer_disable(&drives[drive].poll_time);
+            timer_disable(&drives[drive].seek_timer);
         }
         timer_disable(&controller.timer);
         timer_disable(&controller.watchdog_timer);
-        img_close(0);
-        d86f_destroy(0);
+        img_close(&drives[0]);
+        d86f_destroy(&drives[0]);
         fifo_close(controller.fifo_p);
-        fdd_set_fdc(nullptr);
-        img_set_fdc(nullptr);
-        d86f_set_fdc(nullptr);
+        for (int drive = 0; drive < FDD_NUM; ++drive)
+            drives[drive].fdc = nullptr;
         if (!directory.empty()) {
             std::error_code error;
             std::filesystem::remove_all(directory, error);
@@ -167,7 +159,7 @@ TEST_F(FdcReadId, PresentHeadCompletesThroughRealBitstream)
         // Advance the real non-turbo engine until it decodes an ID field.
         for (unsigned remaining = 200000; remaining && fdc_read(0x3f4, &controller) != 0xd0; --remaining) {
             tsc += 2;
-            d86f_poll(0);
+            d86f_poll(&drives[0]);
         }
         ASSERT_EQ(fdc_read(0x3f4, &controller), 0xd0);
         const auto status = result();
@@ -202,7 +194,7 @@ TEST_F(FdcReadId, NoMovementSeekInterruptIsOptInAndRespectsDorGate)
             ASSERT_EQ(status.size(), 2u);
             EXPECT_EQ(status[0], 0x20);
             EXPECT_EQ(status[1], 0);
-            EXPECT_EQ(fdd_current_track(0), 0);
+            EXPECT_EQ(fdd_current_track(&drives[0]), 0);
         }
     }
 }
@@ -285,50 +277,50 @@ ui_sb_update_icon_write(int, int)
 {
 }
 int
-fdd_tape_present(int)
+fdd_tape_present(void *)
 {
     return 0;
 }
 int
-fdd_tape_track0(int)
+fdd_tape_track0(void *)
 {
     return 0;
 }
 int
-fdd_tape_get_flags(int)
+fdd_tape_get_flags(void *)
 {
     return 0;
 }
 int
-fdd_tape_step(int, int)
+fdd_tape_step(void *, int)
 {
     return 0;
 }
 double
-fdd_audio_get_seek_time(int, int, int)
+fdd_audio_get_seek_time(void *, int, int)
 {
     return 10000.0;
 }
 void
-fdd_audio_set_motor_enable(int, int)
+fdd_audio_set_motor_enable(void *, int)
 {
 }
 void
-fdd_audio_play_multi_track_seek(int, int, int)
+fdd_audio_play_multi_track_seek(void *, int, int)
 {
 }
 int
-floppy_ioctl_read_sector(int, int, int, int, uint8_t *)
+floppy_ioctl_read_sector(void *, int, int, int, uint8_t *)
 {
     return 0;
 }
 int
-floppy_ioctl_write_sector(int, int, int, int, const uint8_t *)
+floppy_ioctl_write_sector(void *, int, int, int, const uint8_t *)
 {
     return 0;
 }
 void
-floppy_ioctl_close(int)
+floppy_ioctl_close(void *)
 {
 }
 FILE *
