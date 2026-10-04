@@ -42,8 +42,14 @@ list(APPEND net_sources
     net_modem_ppp.c
     net_modem_pap.c
     net_modem_chap.c
+    net_modem_ccp.c
+    net_modem_ccp_codec.c
+    net_modem_mppe.c
+    net_modem_eap.c
     net_modem_ipcp.c
     net_modem_cslip.c
+    net_modem_mppp.c
+    net_modem_slip.c
     net_modem_slip_auth.c
     utils/getline.c
 )
@@ -68,6 +74,7 @@ endif()
 
 if(WIN32)
     target_link_libraries(86Box ws2_32)
+    target_link_libraries(86Box bcrypt)
 endif()
 
 if (UNIX)
@@ -96,3 +103,14 @@ if (UNIX AND NOT APPLE) # Support for TAP on Linux and BSD, supposedly.
 endif()
 
 add_library(net OBJECT ${net_sources})
+find_package(ZLIB REQUIRED)
+target_link_libraries(86Box ZLIB::ZLIB)
+
+if(ENABLE_MODEM_LOG)
+    target_compile_definitions(net PRIVATE ENABLE_MODEM_LOG)
+endif()
+
+if(ENABLE_MODEM_DEBUG)
+    target_compile_definitions(net PRIVATE ENABLE_MODEM_DEBUG)
+    target_compile_definitions(net PRIVATE ENABLE_SLIRP_LOG=1)
+endif()

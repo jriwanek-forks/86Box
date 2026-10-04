@@ -7,7 +7,8 @@
  *          This file is part of the 86Box distribution.
  *
  *          IPCP (Internet Protocol Control Protocol) for PPP modem
- *          emulation. RFC 1332, RFC 1877.
+ *          emulation, including address, DNS, NetBIOS name-server, and
+ *          Van Jacobson compression options. RFC 1332, RFC 1877.
  *
  * Authors: Jasmine Iwanek, <jriwanek@gmail.com>
  *
@@ -16,9 +17,19 @@
 #ifndef NET_MODEM_IPCP_H
 #define NET_MODEM_IPCP_H
 
-#include <86box/net_modem_ppp.h>
+/* IPv4 address negotiation: RFC 1332; DNS options: RFC 1877. */
 
-void ppp_ipcp_send_config_request(ppp_ctx_t *ctx);
-void ppp_ipcp_process(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len);
+struct ppp_ctx_t;
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+void ppp_ipcp_send_config_request(struct ppp_ctx_t *ctx);
+void ppp_ipcp_process(struct ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* NET_MODEM_IPCP_H */

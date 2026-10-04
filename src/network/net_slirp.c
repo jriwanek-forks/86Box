@@ -120,6 +120,236 @@ slirp_log(const char *fmt, ...)
 #    define slirp_log(fmt, ...)
 #endif
 
+#ifdef ENABLE_SLIRP_LOG
+static uint16_t
+slirp_read_be16(const uint8_t *data)
+{
+    return (uint16_t) (((uint16_t) data[0] << 8) | data[1]);
+}
+
+static const char *
+slirp_ethertype_name(uint16_t ethertype)
+{
+    switch (ethertype) {
+        case 0x0800: return "IPv4";
+        case 0x0806: return "ARP";
+        case 0x86DD: return "IPv6";
+        default:     return "other";
+    }
+}
+
+static const char *
+slirp_ipv4_protocol_name(uint8_t protocol)
+{
+    switch (protocol) {
+        case 1:   return "ICMP";
+        case 2:   return "IGMP";
+        case 4:   return "IPv4 encapsulation";
+        case 6:   return "TCP";
+        case 17:  return "UDP";
+        case 41:  return "IPv6 encapsulation";
+        case 47:  return "GRE";
+        case 50:  return "ESP";
+        case 51:  return "AH";
+        case 58:  return "ICMPv6";
+        case 89:  return "OSPF";
+        case 132: return "SCTP";
+        default:  return "Unknown";
+    }
+}
+
+static const char *
+slirp_ipv4_port_name(uint16_t port)
+{
+    switch (port) {
+        case 20:  return "FTP-data";
+        case 21:  return "FTP-control";
+        case 22:  return "SSH";
+        case 23:  return "Telnet";
+        case 25:  return "SMTP";
+        case 53:  return "DNS";
+        case 67:  return "DHCP-server";
+        case 68:  return "DHCP-client";
+        case 80:  return "HTTP";
+        case 110: return "POP3";
+        case 123: return "NTP";
+        case 137: return "NetBIOS-NS";
+        case 138: return "NetBIOS-DGM";
+        case 139: return "NetBIOS-SSN";
+        case 143: return "IMAP";
+        case 161: return "SNMP";
+        case 443: return "HTTPS";
+        case 445: return "SMB";
+        default:  return NULL;
+    }
+}
+
+static const char *
+slirp_icmp_type_name(uint8_t type)
+{
+    switch (type) {
+        case 0:  return "Echo Reply";
+        case 3:  return "Destination Unreachable";
+        case 8:  return "Echo Request";
+        case 10: return "Router Solicitation";
+        default: return "Unknown";
+    }
+}
+
+static const char *
+slirp_icmp_code_name(uint8_t type, uint8_t code)
+{
+    if ((type == 0 || type == 8 || type == 10) && code == 0)
+        return "No additional code";
+    if (type == 3 && code == 3)
+        return "Port Unreachable";
+
+    return NULL;
+}
+
+static const char *
+slirp_arp_operation_name(uint16_t operation)
+{
+    switch (operation) {
+        case 1:  return "Request";
+        case 2:  return "Reply";
+        default: return "Unknown";
+    }
+}
+
+static void
+slirp_log_dns(const char *direction, const uint8_t *dns, size_t dns_len)
+{
+    if (dns_len < 12) {
+        slirp_log("SLiRP: %s DNS malformed header bytes=%u\n",
+                  direction, (unsigned) dns_len);
+        return;
+    }
+
+    uint16_t flags = slirp_read_be16(dns + 2);
+    uint16_t qdcount = slirp_read_be16(dns + 4);
+    uint16_t ancount = slirp_read_be16(dns + 6);
+    slirp_log("SLiRP: %s DNS %s id=0x%04X opcode=%u rcode=%u questions=%u answers=%u bytes=%u\n",
+              direction, (flags & 0x8000) ? "response" : "query",
+              (unsigned) slirp_read_be16(dns), (unsigned) ((flags >> 11) & 0x0F),
+              (unsigned) (flags & 0x0F), (unsigned) qdcount, (unsigned) ancount,
+              (unsigned) dns_len);
+
+    if (qdcount > 0) {
+        char   name[256];
+        size_t pos = 12;
+        size_t name_len = 0;
+        bool   complete = false;
+
+        while (pos < dns_len) {
+            uint8_t label_len = dns[pos++];
+            if (label_len == 0) {
+                complete = true;
+                break;
+            }
+            if ((label_len & 0xC0) != 0 || label_len > dns_len - pos)
+                break;
+            if (name_len && name_len < sizeof(name) - 1)
+                name[name_len++] = '.';
+            for (uint8_t i = 0; i < label_len && name_len < sizeof(name) - 1; i++) {
+                uint8_t c = dns[pos++];
+                name[name_len++] = (c >= 33 && c <= 126 && c != '.') ? (char) c : '?';
+            }
+        }
+
+        name[name_len] = '\0';
+        if (complete && pos + 4 <= dns_len) {
+            slirp_log("SLiRP: %s DNS question=%s type=%u class=%u\n",
+                      direction, name, (unsigned) slirp_read_be16(dns + pos),
+                      (unsigned) slirp_read_be16(dns + pos + 2));
+        } else {
+            slirp_log("SLiRP: %s DNS question malformed or compressed\n", direction);
+        }
+    }
+}
+
+static void
+slirp_log_packet_summary(const char *direction, const uint8_t *packet, size_t packet_len)
+{
+    if (!packet || packet_len < 14) {
+        slirp_log("SLiRP: %s short Ethernet frame bytes=%u\n",
+                  direction, (unsigned) packet_len);
+        return;
+    }
+
+    uint16_t ethertype = slirp_read_be16(packet + 12);
+    slirp_log("SLiRP: %s Ethernet type=%s (0x%04X) bytes=%u\n",
+              direction, slirp_ethertype_name(ethertype), (unsigned) ethertype,
+              (unsigned) packet_len);
+
+    if (ethertype == 0x0806 && packet_len >= 42) {
+        const uint8_t *arp = packet + 14;
+        if (arp[4] == 6 && arp[5] == 4 && slirp_read_be16(arp + 2) == 0x0800) {
+            uint16_t operation = slirp_read_be16(arp + 6);
+            slirp_log("SLiRP: %s ARP op=%s (%u) %u.%u.%u.%u -> %u.%u.%u.%u\n",
+                      direction, slirp_arp_operation_name(operation), (unsigned) operation,
+                      (unsigned) arp[14], (unsigned) arp[15], (unsigned) arp[16], (unsigned) arp[17],
+                      (unsigned) arp[24], (unsigned) arp[25], (unsigned) arp[26], (unsigned) arp[27]);
+        }
+        return;
+    }
+
+    if (ethertype != 0x0800 || packet_len < 34)
+        return;
+
+    const uint8_t *ip = packet + 14;
+    size_t         ip_available = packet_len - 14;
+    size_t         ip_header_len = (size_t) (ip[0] & 0x0F) * 4;
+    uint16_t       ip_total_len = slirp_read_be16(ip + 2);
+    if ((ip[0] >> 4) != 4 || ip_header_len < 20 || ip_header_len > ip_available) {
+        slirp_log("SLiRP: %s malformed IPv4 header bytes=%u\n",
+                  direction, (unsigned) ip_available);
+        return;
+    }
+
+    slirp_log("SLiRP: %s IPv4 %u.%u.%u.%u -> %u.%u.%u.%u protocol=%s (%u) total=%u\n",
+              direction,
+              (unsigned) ip[12], (unsigned) ip[13], (unsigned) ip[14], (unsigned) ip[15],
+              (unsigned) ip[16], (unsigned) ip[17], (unsigned) ip[18], (unsigned) ip[19],
+              slirp_ipv4_protocol_name(ip[9]), (unsigned) ip[9], (unsigned) ip_total_len);
+
+    size_t ip_len = ip_total_len < ip_available ? ip_total_len : ip_available;
+    if (ip[9] == 1 && ip_len >= ip_header_len + 2) {
+        uint8_t type = ip[ip_header_len];
+        uint8_t code = ip[ip_header_len + 1];
+        const char *code_name = slirp_icmp_code_name(type, code);
+        slirp_log("SLiRP: %s ICMP type=%u (%s) code=%u%s%s%s\n", direction,
+                  (unsigned) type, slirp_icmp_type_name(type), (unsigned) code,
+                  code_name ? " (" : "", code_name ? code_name : "",
+                  code_name ? ")" : "");
+    } else if (ip[9] == 17 && ip_len >= ip_header_len + 8) {
+        const uint8_t *udp = ip + ip_header_len;
+        uint16_t       source_port = slirp_read_be16(udp);
+        uint16_t       dest_port = slirp_read_be16(udp + 2);
+        uint16_t       udp_len = slirp_read_be16(udp + 4);
+        const char    *source_name = slirp_ipv4_port_name(source_port);
+        const char    *dest_name = slirp_ipv4_port_name(dest_port);
+        slirp_log("SLiRP: %s UDP %u%s%s%s -> %u%s%s%s length=%u\n", direction,
+              (unsigned) source_port, source_name ? " (" : "",
+              source_name ? source_name : "", source_name ? ")" : "",
+              (unsigned) dest_port, dest_name ? " (" : "",
+              dest_name ? dest_name : "", dest_name ? ")" : "", (unsigned) udp_len);
+
+        if ((source_port == 53 || dest_port == 53) && udp_len >= 20
+            && udp_len <= ip_len - ip_header_len) {
+            slirp_log_dns(direction, udp + 8, udp_len - 8);
+        }
+    } else if (ip[9] == 6 && ip_len >= ip_header_len + 20) {
+        const uint8_t *tcp = ip + ip_header_len;
+        slirp_log("SLiRP: %s TCP %u -> %u flags=0x%02X\n", direction,
+                  (unsigned) slirp_read_be16(tcp), (unsigned) slirp_read_be16(tcp + 2),
+                  (unsigned) tcp[13]);
+    }
+}
+#else
+#    define slirp_log_packet_summary(direction, packet, packet_len) ((void) 0)
+#endif
+
 static void
 net_slirp_guest_error(UNUSED(const char *msg), UNUSED(void *opaque))
 {
@@ -190,7 +420,7 @@ net_slirp_send_packet(const void *qp, size_t pkt_len, void *opaque)
 {
     net_slirp_t *slirp = (net_slirp_t *) opaque;
 
-    slirp_log("SLiRP: received %d-byte packet\n", pkt_len);
+    slirp_log_packet_summary("from SLiRP", (const uint8_t *) qp, pkt_len);
 
     memcpy(slirp->pkt.data, (uint8_t *) qp, pkt_len);
     slirp->pkt.len = pkt_len;
@@ -346,7 +576,7 @@ net_slirp_in(net_slirp_t *slirp, uint8_t *pkt, int pkt_len)
     if (!slirp)
         return;
 
-    slirp_log("SLiRP: sending %d-byte packet to host network\n", pkt_len);
+    slirp_log_packet_summary("to SLiRP", pkt, (size_t) pkt_len);
 
     slirp_input(slirp->slirp, (const uint8_t *) pkt, pkt_len);
 }

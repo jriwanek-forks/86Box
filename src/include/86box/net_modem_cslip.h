@@ -16,8 +16,9 @@
 #ifndef NET_MODEM_CSLIP_H
 #define NET_MODEM_CSLIP_H
 
-#include <stdbool.h>
-#include <stdint.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /* VJ compression packet types */
 #define VJ_TYPE_IP               0x40
@@ -26,6 +27,7 @@
 
 /* Change mask flags for compressed TCP */
 #define VJ_NEW_C 0x40 /* Connection number changed */
+#define VJ_NEW_I 0x20 /* IP ID changed by a value other than one */
 #define VJ_TCP_PUSH_BIT 0x10
 #define VJ_NEW_S 0x08 /* Sequence changed */
 #define VJ_NEW_A 0x04 /* Ack changed */
@@ -33,8 +35,8 @@
 #define VJ_NEW_U 0x01 /* Urgent changed */
 
 /* Special combined flags */
-#define VJ_SPECIAL_I (VJ_NEW_S | VJ_NEW_W | VJ_NEW_A) /* Interactive echoed character */
-#define VJ_SPECIAL_D (VJ_NEW_S | VJ_NEW_A)            /* Unidirectional data */
+#define VJ_SPECIAL_I (VJ_NEW_S | VJ_NEW_W | VJ_NEW_U) /* Interactive echoed character */
+#define VJ_SPECIAL_D (VJ_NEW_S | VJ_NEW_A | VJ_NEW_W | VJ_NEW_U) /* Unidirectional data */
 
 #define VJ_MAX_SLOTS 16
 #define VJ_MAX_HDR   128
@@ -48,7 +50,7 @@ typedef struct {
 } vj_slot_t;
 
 /* VJ compressor/decompressor context */
-typedef struct {
+typedef struct cslip_ctx_t {
     vj_slot_t slots[VJ_MAX_SLOTS];
     int       num_slots;
     uint8_t   last_conn_recv;  /* Last connection ID received (decompress) */
@@ -69,11 +71,19 @@ void         cslip_close(cslip_ctx_t *ctx);
    Returns length of compressed data, or 0 if not compressible. */
 int cslip_compress(cslip_ctx_t *ctx, const uint8_t *in, int in_len,
                    uint8_t *out, int *type);
+int cslip_compress_logged(cslip_ctx_t *ctx, const uint8_t *in, int in_len,
+                          uint8_t *out, int *type);
 
 /* Decompress an incoming packet. type is VJ_TYPE_*.
    Returns length of decompressed IP packet, or 0 on error.
    out_buf must be large enough (in_len + VJ_MAX_HDR). */
 int cslip_decompress(cslip_ctx_t *ctx, const uint8_t *in, int in_len,
                      uint8_t *out, int type);
+int cslip_decompress_packet(cslip_ctx_t *ctx, const uint8_t *in, int in_len,
+                            uint8_t *out);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* NET_MODEM_CSLIP_H */

@@ -15,11 +15,15 @@
  *          Copyright 2025-2026 Jasmine Iwanek.
  */
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <86box/net_modem_crypto.h>
 #include <86box/net_modem_slip_auth.h>
 #include <86box/log.h>
+#include "net_modem_debug.h"
 
 #ifdef ENABLE_MODEM_LOG
 extern uint8_t modem_do_log;
@@ -84,6 +88,7 @@ slip_auth_start(slip_auth_ctx_t *ctx)
     ctx->state        = SLIP_AUTH_SEND_USERNAME_PROMPT;
     ctx->username_pos = 0;
     ctx->password_pos = 0;
+    ctx->invalid_input = false;
     ctx->active       = true;
     memset(ctx->username_buf, 0, sizeof(ctx->username_buf));
     memset(ctx->password_buf, 0, sizeof(ctx->password_buf));
@@ -92,16 +97,26 @@ slip_auth_start(slip_auth_ctx_t *ctx)
     ctx->state = SLIP_AUTH_RECV_USERNAME;
 
     slip_auth_log(ctx->log, "SLIP Auth: Started, waiting for username\n");
+    MODEM_DEBUG_LOG(ctx->log, "SLIP Auth: prompt sent, state=%d\n", ctx->state);
 }
 
 bool
 slip_auth_rx_byte(slip_auth_ctx_t *ctx, uint8_t byte)
 {
+    if (ctx->ignore_lf) {
+        ctx->ignore_lf = false;
+        if (byte == '\n')
+            return false;
+    }
+
     switch (ctx->state) {
         case SLIP_AUTH_RECV_USERNAME:
             if (byte == '\r' || byte == '\n') {
+                ctx->ignore_lf = byte == '\r';
                 ctx->username_buf[ctx->username_pos] = '\0';
                 slip_auth_log(ctx->log, "SLIP Auth: Got username '%s'\n", ctx->username_buf);
+                MODEM_DEBUG_LOG(ctx->log, "SLIP Auth: username field length=%u\n",
+                                (unsigned) ctx->username_pos);
 
                 slip_auth_send_string(ctx, "\r\nPassword: ");
                 ctx->state = SLIP_AUTH_RECV_PASSWORD;
@@ -111,31 +126,45 @@ slip_auth_rx_byte(slip_auth_ctx_t *ctx, uint8_t byte)
                     /* Echo backspace */
                     slip_auth_send_string(ctx, "\b \b");
                 }
+            } else if (byte == '\0') {
+                ctx->invalid_input = true;
             } else if (ctx->username_pos < SLIP_AUTH_BUF_SIZE - 1) {
                 ctx->username_buf[ctx->username_pos++] = (char) byte;
                 /* Echo character */
                 ctx->serial_push(ctx->modem, &byte, 1);
+            } else {
+                ctx->invalid_input = true;
             }
             break;
 
         case SLIP_AUTH_RECV_PASSWORD:
             if (byte == '\r' || byte == '\n') {
+                ctx->ignore_lf = byte == '\r';
                 ctx->password_buf[ctx->password_pos] = '\0';
                 slip_auth_log(ctx->log, "SLIP Auth: Got password, verifying...\n");
+                MODEM_DEBUG_LOG(ctx->log, "SLIP Auth: password field length=%u\n",
+                                (unsigned) ctx->password_pos);
 
                 /* Verify credentials */
                 bool ok = false;
-                if (ctx->expected_user[0] == '\0' && ctx->expected_pass[0] == '\0') {
+                if (!ctx->invalid_input && ctx->expected_user[0] == '\0'
+                    && ctx->expected_pass[0] == '\0') {
                     ok = true; /* No credentials configured */
-                } else {
+                } else if (!ctx->invalid_input) {
+                    size_t password_len = strlen(ctx->password_buf);
                     if (strcmp(ctx->username_buf, ctx->expected_user) == 0
-                     && strcmp(ctx->password_buf, ctx->expected_pass) == 0) {
+                     && password_len == strlen(ctx->expected_pass)
+                     && modem_constant_time_equal(
+                            (const uint8_t *) ctx->password_buf,
+                            (const uint8_t *) ctx->expected_pass, password_len)) {
                         ok = true;
                     }
                 }
 
                 /* Securely clear password buffer */
                 memset(ctx->password_buf, 0, sizeof(ctx->password_buf));
+                MODEM_DEBUG_LOG(ctx->log, "SLIP Auth: credential check %s\n",
+                                ok ? "accepted" : "rejected");
 
                 if (ok) {
                     slip_auth_send_string(ctx, "\r\nSLIP session starting...\r\n");
@@ -153,11 +182,15 @@ slip_auth_rx_byte(slip_auth_ctx_t *ctx, uint8_t byte)
                 if (ctx->password_pos > 0)
                     ctx->password_pos--;
                 /* Don't echo password characters */
+            } else if (byte == '\0') {
+                ctx->invalid_input = true;
             } else if (ctx->password_pos < SLIP_AUTH_BUF_SIZE - 1) {
                 ctx->password_buf[ctx->password_pos++] = (char) byte;
                 /* Echo asterisk for password */
                 uint8_t star = '*';
                 ctx->serial_push(ctx->modem, &star, 1);
+            } else {
+                ctx->invalid_input = true;
             }
             break;
 

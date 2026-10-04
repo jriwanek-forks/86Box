@@ -7,18 +7,33 @@
  *          This file is part of the 86Box distribution.
  *
  *          Cryptographic primitives for modem authentication protocols.
- *          MD4 (RFC 1320), MD5 (RFC 1321), SHA-1 (FIPS 180-1), and
- *          DES (FIPS 46-3) implementations for PAP, CHAP, MS-CHAP,
- *          and MS-CHAPv2.
+ *          MD4 (RFC 1320), MD5 (RFC 1321), SHA-1 (FIPS 180-1),
+ *          SHA-256, SHA-384, and SHA-512 (FIPS 180-4), and DES (FIPS 46-3)
+ *          implementations for PAP, CHAP, MS-CHAP, and MS-CHAPv2.
  *
  * Authors: Jasmine Iwanek, <jriwanek@gmail.com>
  *
  *          Copyright 2025-2026 Jasmine Iwanek.
  */
+#include <stddef.h>
+#include <stdint.h>
 #include <string.h>
 #include <86box/net_modem_crypto.h>
 
 #define ROTL32(x, n) (((x) << (n)) | ((x) >> (32 - (n))))
+
+bool
+modem_constant_time_equal(const uint8_t *left, const uint8_t *right, size_t length)
+{
+    if (!left || !right)
+        return false;
+
+    volatile uint8_t difference = 0;
+    for (size_t index = 0; index < length; index++)
+        difference |= left[index] ^ right[index];
+
+    return difference == 0;
+}
 
 /* Little-endian helpers (MD4, MD5) */
 static inline uint32_t
@@ -59,6 +74,12 @@ be32_store(uint8_t *p, uint32_t v)
     p[1] = (uint8_t) (v >> 16);
     p[2] = (uint8_t) (v >> 8);
     p[3] = (uint8_t) v;
+}
+
+static inline uint64_t
+be64_load(const uint8_t *p)
+{
+    return ((uint64_t) be32_load(p) << 32) | be32_load(p + 4);
 }
 
 static inline void
@@ -416,6 +437,300 @@ modem_sha1(const uint8_t *data, size_t len, uint8_t digest[SHA1_DIGEST_LENGTH])
     modem_sha1_final(&ctx, digest);
 }
 
+/* ========== SHA-256 (FIPS 180-4) ========== */
+
+#define SHA256_ROTR32(x, n) (((x) >> (n)) | ((x) << (32 - (n))))
+
+static void
+sha256_transform(uint32_t state[8], const uint8_t block[64])
+{
+    static const uint32_t k[64] = {
+        0x428A2F98, 0x71374491, 0xB5C0FBCF, 0xE9B5DBA5, 0x3956C25B, 0x59F111F1, 0x923F82A4, 0xAB1C5ED5,
+        0xD807AA98, 0x12835B01, 0x243185BE, 0x550C7DC3, 0x72BE5D74, 0x80DEB1FE, 0x9BDC06A7, 0xC19BF174,
+        0xE49B69C1, 0xEFBE4786, 0x0FC19DC6, 0x240CA1CC, 0x2DE92C6F, 0x4A7484AA, 0x5CB0A9DC, 0x76F988DA,
+        0x983E5152, 0xA831C66D, 0xB00327C8, 0xBF597FC7, 0xC6E00BF3, 0xD5A79147, 0x06CA6351, 0x14292967,
+        0x27B70A85, 0x2E1B2138, 0x4D2C6DFC, 0x53380D13, 0x650A7354, 0x766A0ABB, 0x81C2C92E, 0x92722C85,
+        0xA2BFE8A1, 0xA81A664B, 0xC24B8B70, 0xC76C51A3, 0xD192E819, 0xD6990624, 0xF40E3585, 0x106AA070,
+        0x19A4C116, 0x1E376C08, 0x2748774C, 0x34B0BCB5, 0x391C0CB3, 0x4ED8AA4A, 0x5B9CCA4F, 0x682E6FF3,
+        0x748F82EE, 0x78A5636F, 0x84C87814, 0x8CC70208, 0x90BEFFFA, 0xA4506CEB, 0xBEF9A3F7, 0xC67178F2
+    };
+    uint32_t w[64];
+    uint32_t a, b, c, d, e, f, g, h;
+
+    for (int i = 0; i < 16; i++)
+        w[i] = be32_load(block + i * 4);
+    for (int i = 16; i < 64; i++) {
+        uint32_t s0 = SHA256_ROTR32(w[i - 15], 7) ^ SHA256_ROTR32(w[i - 15], 18) ^ (w[i - 15] >> 3);
+        uint32_t s1 = SHA256_ROTR32(w[i - 2], 17) ^ SHA256_ROTR32(w[i - 2], 19) ^ (w[i - 2] >> 10);
+        w[i] = w[i - 16] + s0 + w[i - 7] + s1;
+    }
+
+    a = state[0]; b = state[1]; c = state[2]; d = state[3];
+    e = state[4]; f = state[5]; g = state[6]; h = state[7];
+    for (int i = 0; i < 64; i++) {
+        uint32_t sum1 = SHA256_ROTR32(e, 6) ^ SHA256_ROTR32(e, 11) ^ SHA256_ROTR32(e, 25);
+        uint32_t choice = (e & f) ^ (~e & g);
+        uint32_t temp1 = h + sum1 + choice + k[i] + w[i];
+        uint32_t sum0 = SHA256_ROTR32(a, 2) ^ SHA256_ROTR32(a, 13) ^ SHA256_ROTR32(a, 22);
+        uint32_t majority = (a & b) ^ (a & c) ^ (b & c);
+        uint32_t temp2 = sum0 + majority;
+
+        h = g; g = f; f = e; e = d + temp1;
+        d = c; c = b; b = a; a = temp1 + temp2;
+    }
+
+    state[0] += a; state[1] += b; state[2] += c; state[3] += d;
+    state[4] += e; state[5] += f; state[6] += g; state[7] += h;
+}
+
+void
+modem_sha256_init(modem_sha256_ctx_t *ctx)
+{
+    ctx->state[0] = 0x6A09E667;
+    ctx->state[1] = 0xBB67AE85;
+    ctx->state[2] = 0x3C6EF372;
+    ctx->state[3] = 0xA54FF53A;
+    ctx->state[4] = 0x510E527F;
+    ctx->state[5] = 0x9B05688C;
+    ctx->state[6] = 0x1F83D9AB;
+    ctx->state[7] = 0x5BE0CD19;
+    ctx->count = 0;
+}
+
+void
+modem_sha256_update(modem_sha256_ctx_t *ctx, const uint8_t *data, size_t len)
+{
+    size_t idx = (size_t) (ctx->count & 0x3F);
+    ctx->count += len;
+
+    for (size_t i = 0; i < len; i++) {
+        ctx->buffer[idx++] = data[i];
+        if (idx == SHA256_BLOCK_LENGTH) {
+            sha256_transform(ctx->state, ctx->buffer);
+            idx = 0;
+        }
+    }
+}
+
+void
+modem_sha256_final(modem_sha256_ctx_t *ctx, uint8_t digest[SHA256_DIGEST_LENGTH])
+{
+    uint8_t  pad[SHA256_BLOCK_LENGTH];
+    size_t   idx  = (size_t) (ctx->count & 0x3F);
+    uint64_t bits = ctx->count * 8;
+
+    memset(pad, 0, sizeof(pad));
+    pad[0] = 0x80;
+    if (idx < 56)
+        modem_sha256_update(ctx, pad, 56 - idx);
+    else
+        modem_sha256_update(ctx, pad, 120 - idx);
+
+    be64_store(pad, bits);
+    modem_sha256_update(ctx, pad, 8);
+
+    for (int i = 0; i < 8; i++)
+        be32_store(digest + i * 4, ctx->state[i]);
+}
+
+void
+modem_sha256(const uint8_t *data, size_t len, uint8_t digest[SHA256_DIGEST_LENGTH])
+{
+    modem_sha256_ctx_t ctx;
+    modem_sha256_init(&ctx);
+    modem_sha256_update(&ctx, data, len);
+    modem_sha256_final(&ctx, digest);
+}
+
+/* ========== SHA-384 and SHA-512 (FIPS 180-4) ========== */
+
+#define SHA512_ROTR64(x, n) (((x) >> (n)) | ((x) << (64 - (n))))
+
+static void
+sha512_transform(uint64_t state[8], const uint8_t block[SHA512_BLOCK_LENGTH])
+{
+    static const uint64_t k[80] = {
+        UINT64_C(0x428A2F98D728AE22), UINT64_C(0x7137449123EF65CD),
+        UINT64_C(0xB5C0FBCFEC4D3B2F), UINT64_C(0xE9B5DBA58189DBBC),
+        UINT64_C(0x3956C25BF348B538), UINT64_C(0x59F111F1B605D019),
+        UINT64_C(0x923F82A4AF194F9B), UINT64_C(0xAB1C5ED5DA6D8118),
+        UINT64_C(0xD807AA98A3030242), UINT64_C(0x12835B0145706FBE),
+        UINT64_C(0x243185BE4EE4B28C), UINT64_C(0x550C7DC3D5FFB4E2),
+        UINT64_C(0x72BE5D74F27B896F), UINT64_C(0x80DEB1FE3B1696B1),
+        UINT64_C(0x9BDC06A725C71235), UINT64_C(0xC19BF174CF692694),
+        UINT64_C(0xE49B69C19EF14AD2), UINT64_C(0xEFBE4786384F25E3),
+        UINT64_C(0x0FC19DC68B8CD5B5), UINT64_C(0x240CA1CC77AC9C65),
+        UINT64_C(0x2DE92C6F592B0275), UINT64_C(0x4A7484AA6EA6E483),
+        UINT64_C(0x5CB0A9DCBD41FBD4), UINT64_C(0x76F988DA831153B5),
+        UINT64_C(0x983E5152EE66DFAB), UINT64_C(0xA831C66D2DB43210),
+        UINT64_C(0xB00327C898FB213F), UINT64_C(0xBF597FC7BEEF0EE4),
+        UINT64_C(0xC6E00BF33DA88FC2), UINT64_C(0xD5A79147930AA725),
+        UINT64_C(0x06CA6351E003826F), UINT64_C(0x142929670A0E6E70),
+        UINT64_C(0x27B70A8546D22FFC), UINT64_C(0x2E1B21385C26C926),
+        UINT64_C(0x4D2C6DFC5AC42AED), UINT64_C(0x53380D139D95B3DF),
+        UINT64_C(0x650A73548BAF63DE), UINT64_C(0x766A0ABB3C77B2A8),
+        UINT64_C(0x81C2C92E47EDAEE6), UINT64_C(0x92722C851482353B),
+        UINT64_C(0xA2BFE8A14CF10364), UINT64_C(0xA81A664BBC423001),
+        UINT64_C(0xC24B8B70D0F89791), UINT64_C(0xC76C51A30654BE30),
+        UINT64_C(0xD192E819D6EF5218), UINT64_C(0xD69906245565A910),
+        UINT64_C(0xF40E35855771202A), UINT64_C(0x106AA07032BBD1B8),
+        UINT64_C(0x19A4C116B8D2D0C8), UINT64_C(0x1E376C085141AB53),
+        UINT64_C(0x2748774CDF8EEB99), UINT64_C(0x34B0BCB5E19B48A8),
+        UINT64_C(0x391C0CB3C5C95A63), UINT64_C(0x4ED8AA4AE3418ACB),
+        UINT64_C(0x5B9CCA4F7763E373), UINT64_C(0x682E6FF3D6B2B8A3),
+        UINT64_C(0x748F82EE5DEFB2FC), UINT64_C(0x78A5636F43172F60),
+        UINT64_C(0x84C87814A1F0AB72), UINT64_C(0x8CC702081A6439EC),
+        UINT64_C(0x90BEFFFA23631E28), UINT64_C(0xA4506CEBDE82BDE9),
+        UINT64_C(0xBEF9A3F7B2C67915), UINT64_C(0xC67178F2E372532B),
+        UINT64_C(0xCA273ECEEA26619C), UINT64_C(0xD186B8C721C0C207),
+        UINT64_C(0xEADA7DD6CDE0EB1E), UINT64_C(0xF57D4F7FEE6ED178),
+        UINT64_C(0x06F067AA72176FBA), UINT64_C(0x0A637DC5A2C898A6),
+        UINT64_C(0x113F9804BEF90DAE), UINT64_C(0x1B710B35131C471B),
+        UINT64_C(0x28DB77F523047D84), UINT64_C(0x32CAAB7B40C72493),
+        UINT64_C(0x3C9EBE0A15C9BEBC), UINT64_C(0x431D67C49C100D4C),
+        UINT64_C(0x4CC5D4BECB3E42B6), UINT64_C(0x597F299CFC657E2A),
+        UINT64_C(0x5FCB6FAB3AD6FAEC), UINT64_C(0x6C44198C4A475817)
+    };
+    uint64_t w[80];
+    uint64_t a, b, c, d, e, f, g, h;
+
+    for (int i = 0; i < 16; i++)
+        w[i] = be64_load(block + i * 8);
+    for (int i = 16; i < 80; i++) {
+        uint64_t s0 = SHA512_ROTR64(w[i - 15], 1) ^ SHA512_ROTR64(w[i - 15], 8) ^ (w[i - 15] >> 7);
+        uint64_t s1 = SHA512_ROTR64(w[i - 2], 19) ^ SHA512_ROTR64(w[i - 2], 61) ^ (w[i - 2] >> 6);
+        w[i] = w[i - 16] + s0 + w[i - 7] + s1;
+    }
+
+    a = state[0]; b = state[1]; c = state[2]; d = state[3];
+    e = state[4]; f = state[5]; g = state[6]; h = state[7];
+    for (int i = 0; i < 80; i++) {
+        uint64_t sum1 = SHA512_ROTR64(e, 14) ^ SHA512_ROTR64(e, 18) ^ SHA512_ROTR64(e, 41);
+        uint64_t choice = (e & f) ^ (~e & g);
+        uint64_t temp1 = h + sum1 + choice + k[i] + w[i];
+        uint64_t sum0 = SHA512_ROTR64(a, 28) ^ SHA512_ROTR64(a, 34) ^ SHA512_ROTR64(a, 39);
+        uint64_t majority = (a & b) ^ (a & c) ^ (b & c);
+        uint64_t temp2 = sum0 + majority;
+
+        h = g; g = f; f = e; e = d + temp1;
+        d = c; c = b; b = a; a = temp1 + temp2;
+    }
+
+    state[0] += a; state[1] += b; state[2] += c; state[3] += d;
+    state[4] += e; state[5] += f; state[6] += g; state[7] += h;
+}
+
+static void
+sha512_init_state(modem_sha512_ctx_t *ctx, const uint64_t state[8])
+{
+    memcpy(ctx->state, state, sizeof(ctx->state));
+    ctx->count_hi = 0;
+    ctx->count_lo = 0;
+}
+
+void
+modem_sha512_init(modem_sha512_ctx_t *ctx)
+{
+    static const uint64_t initial_state[8] = {
+        UINT64_C(0x6A09E667F3BCC908), UINT64_C(0xBB67AE8584CAA73B),
+        UINT64_C(0x3C6EF372FE94F82B), UINT64_C(0xA54FF53A5F1D36F1),
+        UINT64_C(0x510E527FADE682D1), UINT64_C(0x9B05688C2B3E6C1F),
+        UINT64_C(0x1F83D9ABFB41BD6B), UINT64_C(0x5BE0CD19137E2179)
+    };
+
+    sha512_init_state(ctx, initial_state);
+}
+
+void
+modem_sha384_init(modem_sha384_ctx_t *ctx)
+{
+    static const uint64_t initial_state[8] = {
+        UINT64_C(0xCBBB9D5DC1059ED8), UINT64_C(0x629A292A367CD507),
+        UINT64_C(0x9159015A3070DD17), UINT64_C(0x152FECD8F70E5939),
+        UINT64_C(0x67332667FFC00B31), UINT64_C(0x8EB44A8768581511),
+        UINT64_C(0xDB0C2E0D64F98FA7), UINT64_C(0x47B5481DBEFA4FA4)
+    };
+
+    sha512_init_state(ctx, initial_state);
+}
+
+void
+modem_sha512_update(modem_sha512_ctx_t *ctx, const uint8_t *data, size_t len)
+{
+    uint64_t old_count = ctx->count_lo;
+    size_t idx = (size_t) (ctx->count_lo & (SHA512_BLOCK_LENGTH - 1));
+    ctx->count_lo += (uint64_t) len;
+    if (ctx->count_lo < old_count)
+        ctx->count_hi++;
+
+    for (size_t i = 0; i < len; i++) {
+        ctx->buffer[idx++] = data[i];
+        if (idx == SHA512_BLOCK_LENGTH) {
+            sha512_transform(ctx->state, ctx->buffer);
+            idx = 0;
+        }
+    }
+}
+
+void
+modem_sha384_update(modem_sha384_ctx_t *ctx, const uint8_t *data, size_t len)
+{
+    modem_sha512_update(ctx, data, len);
+}
+
+static void
+sha512_final_words(modem_sha512_ctx_t *ctx, uint8_t *digest, int words)
+{
+    uint8_t  pad[SHA512_BLOCK_LENGTH];
+    size_t   idx = (size_t) (ctx->count_lo & (SHA512_BLOCK_LENGTH - 1));
+    uint64_t bit_hi = (ctx->count_hi << 3) | (ctx->count_lo >> 61);
+    uint64_t bit_lo = ctx->count_lo << 3;
+
+    memset(pad, 0, sizeof(pad));
+    pad[0] = 0x80;
+    if (idx < 112)
+        modem_sha512_update(ctx, pad, 112 - idx);
+    else
+        modem_sha512_update(ctx, pad, 240 - idx);
+
+    be64_store(pad, bit_hi);
+    be64_store(pad + 8, bit_lo);
+    modem_sha512_update(ctx, pad, 16);
+
+    for (int i = 0; i < words; i++)
+        be64_store(digest + i * 8, ctx->state[i]);
+}
+
+void
+modem_sha384_final(modem_sha384_ctx_t *ctx, uint8_t digest[SHA384_DIGEST_LENGTH])
+{
+    sha512_final_words(ctx, digest, SHA384_DIGEST_LENGTH / 8);
+}
+
+void
+modem_sha512_final(modem_sha512_ctx_t *ctx, uint8_t digest[SHA512_DIGEST_LENGTH])
+{
+    sha512_final_words(ctx, digest, SHA512_DIGEST_LENGTH / 8);
+}
+
+void
+modem_sha384(const uint8_t *data, size_t len, uint8_t digest[SHA384_DIGEST_LENGTH])
+{
+    modem_sha384_ctx_t ctx;
+    modem_sha384_init(&ctx);
+    modem_sha384_update(&ctx, data, len);
+    modem_sha384_final(&ctx, digest);
+}
+
+void
+modem_sha512(const uint8_t *data, size_t len, uint8_t digest[SHA512_DIGEST_LENGTH])
+{
+    modem_sha512_ctx_t ctx;
+    modem_sha512_init(&ctx);
+    modem_sha512_update(&ctx, data, len);
+    modem_sha512_final(&ctx, digest);
+}
+
 /* ========== DES (FIPS 46-3) ========== */
 
 /* Initial Permutation */
@@ -501,7 +816,7 @@ static const uint8_t des_sbox[8][64] = {
        6, 11, 13,  8,  1,  4, 10,  7,  9,  5,  0, 15, 14,  2,  3, 12 },
     /* S8 */
     { 13,  2,  8,  4,  6, 15, 11,  1, 10,  9,  3, 14,  5,  0, 12,  7,
-       1, 15, 13,  8, 10,  3,  7,  4, 12,  5,  6,  2,  0, 14,  9, 11,
+         1, 15, 13,  8, 10,  3,  7,  4, 12,  5,  6, 11,  0, 14,  9,  2,
        7, 11,  4,  1,  9, 12, 14,  2,  0,  6, 10, 13, 15,  3,  5,  8,
        2,  1, 14,  7,  4, 10,  8, 13, 15, 12,  9,  0,  3,  5,  6, 11 }
 };
@@ -631,16 +946,11 @@ modem_des_encrypt_block(const uint8_t key[7], const uint8_t plaintext[8], uint8_
         uint8_t  R_bytes[4];
         uint32_t f_result = 0;
 
-        /* Convert R to bytes for expansion */
         R_bytes[0] = (uint8_t) (R >> 24);
         R_bytes[1] = (uint8_t) (R >> 16);
         R_bytes[2] = (uint8_t) (R >> 8);
         R_bytes[3] = (uint8_t) R;
-
-        /* E-expand R from 32 to 48 bits */
         des_permute(R_bytes, expanded, des_e, 48);
-
-        /* XOR with subkey */
         for (int i = 0; i < 6; i++)
             expanded[i] ^= subkeys[round][i];
 
@@ -651,12 +961,10 @@ modem_des_encrypt_block(const uint8_t key[7], const uint8_t plaintext[8], uint8_
             int bit_pos    = bit_offset & 7;
             uint8_t val;
 
-            /* Extract 6 bits */
-            if (bit_pos <= 2) {
+            if (bit_pos <= 2)
                 val = (expanded[byte_off] >> (2 - bit_pos)) & 0x3F;
-            } else {
+            else
                 val = ((expanded[byte_off] << (bit_pos - 2)) | (expanded[byte_off + 1] >> (10 - bit_pos))) & 0x3F;
-            }
 
             /* Row = bits 0,5; Column = bits 1..4 */
             int row = ((val >> 5) << 1) | (val & 1);
@@ -690,6 +998,5 @@ modem_des_encrypt_block(const uint8_t key[7], const uint8_t plaintext[8], uint8_
     block[4] = (uint8_t) (L >> 24); block[5] = (uint8_t) (L >> 16);
     block[6] = (uint8_t) (L >> 8);  block[7] = (uint8_t) L;
 
-    /* Apply Final Permutation */
     des_permute(block, ciphertext, des_fp, 64);
 }
