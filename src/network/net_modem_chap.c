@@ -8,7 +8,8 @@
  *
  *          CHAP (Challenge-Handshake Authentication Protocol) implementation
  *          for PPP modem emulation. Server-side processing for:
- *            - CHAP/MD5 (RFC 1994)
+ *            - CHAP/MD5 and CHAP/SHA-1, SHA-256, SHA-384, and SHA-512
+ *              (RFC 1994)
  *            - MS-CHAP (RFC 2433)
  *            - MS-CHAPv2 (RFC 2759)
  *
@@ -16,13 +17,48 @@
  *
  *          Copyright 2025-2026 Jasmine Iwanek.
  */
+/*
+ * The MS-CHAP response helpers are adapted from pppd 2.5.2's chap_ms.c.
+ * Copyright (c) 1995 Eric Rosenquist. All rights reserved.
+ * Copyright (c) 2002 Google, Inc. All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in
+ *    the documentation and/or other materials provided with the
+ *    distribution.
+ *
+ * 3. The name(s) of the authors of this software must not be used to
+ *    endorse or promote products derived from this software without
+ *    prior written permission.
+ *
+ * THE AUTHORS OF THIS SOFTWARE DISCLAIM ALL WARRANTIES WITH REGARD TO
+ * THIS SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ * AND FITNESS, IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY
+ * SPECIAL, INDIRECT OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN
+ * AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING
+ * OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
 #include <stdarg.h>
+#include <stdbool.h>
+#include <stddef.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <string.h>
 #include <stdlib.h>
+#include <86box/net_modem_ppp.h>
 #include <86box/net_modem_chap.h>
 #include <86box/net_modem_crypto.h>
+#include <86box/net_modem_mppe.h>
 #include <86box/log.h>
+#include "net_modem_debug.h"
 
 #ifdef ENABLE_MODEM_LOG
 extern uint8_t modem_do_log;
@@ -41,34 +77,12 @@ chap_log(void *priv, const char *fmt, ...)
 #    define chap_log(priv, fmt, ...)
 #endif
 
-/* Simple PRNG for challenge generation */
-static uint32_t chap_rand_state = 0xDEADBEEF;
-
-static uint32_t
-chap_rand32(void)
-{
-    chap_rand_state ^= chap_rand_state << 13;
-    chap_rand_state ^= chap_rand_state >> 17;
-    chap_rand_state ^= chap_rand_state << 5;
-    return chap_rand_state;
-}
-
-static void
-chap_generate_challenge(uint8_t *buf, int len)
-{
-    for (int i = 0; i < len; i += 4) {
-        uint32_t r = chap_rand32();
-        int      n = (len - i > 4) ? 4 : (len - i);
-        for (int j = 0; j < n; j++)
-            buf[i + j] = (uint8_t) (r >> (j * 8));
-    }
-}
-
 /* Send CHAP Challenge packet */
 void
 ppp_chap_send_challenge(ppp_ctx_t *ctx)
 {
     uint8_t pkt[64];
+    uint8_t random[17];
     int     len;
     uint8_t challenge_len;
 
@@ -79,11 +93,16 @@ ppp_chap_send_challenge(ppp_ctx_t *ctx)
     else
         challenge_len = 16; /* CHAP/MD5 */
 
-    chap_generate_challenge(ctx->chap_challenge, challenge_len);
+    if (!ppp_random_bytes(random, sizeof(random))) {
+        ctx->state = PPP_STATE_DEAD;
+        return;
+    }
+
+    memcpy(ctx->chap_challenge, random, challenge_len);
     ctx->chap_challenge_len = challenge_len;
 
     /* Build packet: Code(1) + ID(1) + Length(2) + Value-Size(1) + Value + Name */
-    ctx->auth_id = (uint8_t) (chap_rand32() & 0xFF);
+    ctx->auth_id = random[challenge_len];
     pkt[0] = CHAP_CODE_CHALLENGE;
     pkt[1] = ctx->auth_id;
     /* Length at [2..3] filled later */
@@ -101,6 +120,8 @@ ppp_chap_send_challenge(ppp_ctx_t *ctx)
 
     ppp_send_frame(ctx, PPP_PROTO_CHAP, pkt, len);
     chap_log(ctx->log, "CHAP: Sent Challenge (id=%d, algo=%d)\n", ctx->auth_id, ctx->auth_type);
+    MODEM_DEBUG_LOG(ctx->log, "CHAP: challenge length=%d algorithm=%d\n",
+                    challenge_len, ctx->auth_type);
 }
 
 /* Verify CHAP/MD5 response (RFC 1994) */
@@ -123,6 +144,82 @@ chap_verify_md5(ppp_ctx_t *ctx, uint8_t id, const uint8_t *response, int resp_le
     return (memcmp(response, expected, MD5_DIGEST_LENGTH) == 0);
 }
 
+/* Verify CHAP/SHA-1 response using Hash(ID + secret + challenge). */
+static bool
+chap_verify_sha1(ppp_ctx_t *ctx, uint8_t id, const uint8_t *response, int resp_len)
+{
+    uint8_t expected[SHA1_DIGEST_LENGTH];
+    modem_sha1_ctx_t sha1;
+
+    if (resp_len != SHA1_DIGEST_LENGTH)
+        return false;
+
+    modem_sha1_init(&sha1);
+    modem_sha1_update(&sha1, &id, 1);
+    modem_sha1_update(&sha1, (const uint8_t *) ctx->password, strlen(ctx->password));
+    modem_sha1_update(&sha1, ctx->chap_challenge, ctx->chap_challenge_len);
+    modem_sha1_final(&sha1, expected);
+
+    return memcmp(response, expected, SHA1_DIGEST_LENGTH) == 0;
+}
+
+/* Verify CHAP/SHA-256 response using Hash(ID + secret + challenge). */
+static bool
+chap_verify_sha256(ppp_ctx_t *ctx, uint8_t id, const uint8_t *response, int resp_len)
+{
+    uint8_t expected[SHA256_DIGEST_LENGTH];
+    modem_sha256_ctx_t sha256;
+
+    if (resp_len != SHA256_DIGEST_LENGTH)
+        return false;
+
+    modem_sha256_init(&sha256);
+    modem_sha256_update(&sha256, &id, 1);
+    modem_sha256_update(&sha256, (const uint8_t *) ctx->password, strlen(ctx->password));
+    modem_sha256_update(&sha256, ctx->chap_challenge, ctx->chap_challenge_len);
+    modem_sha256_final(&sha256, expected);
+
+    return memcmp(response, expected, SHA256_DIGEST_LENGTH) == 0;
+}
+
+/* Verify CHAP/SHA-384 response using Hash(ID + secret + challenge). */
+static bool
+chap_verify_sha384(ppp_ctx_t *ctx, uint8_t id, const uint8_t *response, int resp_len)
+{
+    uint8_t expected[SHA384_DIGEST_LENGTH];
+    modem_sha384_ctx_t sha384;
+
+    if (resp_len != SHA384_DIGEST_LENGTH)
+        return false;
+
+    modem_sha384_init(&sha384);
+    modem_sha384_update(&sha384, &id, 1);
+    modem_sha384_update(&sha384, (const uint8_t *) ctx->password, strlen(ctx->password));
+    modem_sha384_update(&sha384, ctx->chap_challenge, ctx->chap_challenge_len);
+    modem_sha384_final(&sha384, expected);
+
+    return memcmp(response, expected, SHA384_DIGEST_LENGTH) == 0;
+}
+
+/* Verify CHAP/SHA-512 response using Hash(ID + secret + challenge). */
+static bool
+chap_verify_sha512(ppp_ctx_t *ctx, uint8_t id, const uint8_t *response, int resp_len)
+{
+    uint8_t expected[SHA512_DIGEST_LENGTH];
+    modem_sha512_ctx_t sha512;
+
+    if (resp_len != SHA512_DIGEST_LENGTH)
+        return false;
+
+    modem_sha512_init(&sha512);
+    modem_sha512_update(&sha512, &id, 1);
+    modem_sha512_update(&sha512, (const uint8_t *) ctx->password, strlen(ctx->password));
+    modem_sha512_update(&sha512, ctx->chap_challenge, ctx->chap_challenge_len);
+    modem_sha512_final(&sha512, expected);
+
+    return memcmp(response, expected, SHA512_DIGEST_LENGTH) == 0;
+}
+
 /* Compute NT Password Hash: MD4(UTF-16LE(password)) */
 static void
 nt_password_hash(const char *password, uint8_t hash[MD4_DIGEST_LENGTH])
@@ -130,7 +227,12 @@ nt_password_hash(const char *password, uint8_t hash[MD4_DIGEST_LENGTH])
     /* Convert ASCII password to UTF-16LE */
     size_t  pw_len = strlen(password);
     size_t  ulen   = pw_len * 2;
-    uint8_t *ubuf  = (uint8_t *) calloc(ulen, 1);
+    uint8_t ubuf[128] = { 0 };
+
+    if (ulen > sizeof(ubuf)) {
+        memset(hash, 0, MD4_DIGEST_LENGTH);
+        return;
+    }
 
     for (size_t i = 0; i < pw_len; i++) {
         ubuf[i * 2]     = (uint8_t) password[i];
@@ -139,7 +241,6 @@ nt_password_hash(const char *password, uint8_t hash[MD4_DIGEST_LENGTH])
 
     modem_md4(ubuf, ulen, hash);
     memset(ubuf, 0, ulen);
-    free(ubuf);
 }
 
 /* Compute hash of NT Password Hash */
@@ -156,6 +257,32 @@ challenge_response_des(const uint8_t challenge[8], const uint8_t hash21[21], uin
     modem_des_encrypt_block(hash21 + 0,  challenge, response + 0);
     modem_des_encrypt_block(hash21 + 7,  challenge, response + 8);
     modem_des_encrypt_block(hash21 + 14, challenge, response + 16);
+}
+
+static bool
+lm_password_hash(const char *password, uint8_t hash[16])
+{
+    static const uint8_t magic[8] = { 'K', 'G', 'S', '!', '@', '#', '$', '%' };
+    uint8_t upper_password[14] = { 0 };
+    size_t password_len = strlen(password);
+
+    if (password_len > sizeof(upper_password))
+        password_len = sizeof(upper_password);
+    for (size_t index = 0; index < password_len; index++) {
+        uint8_t value = (uint8_t) password[index];
+        if (value >= 0x80) {
+            memset(upper_password, 0, sizeof(upper_password));
+            return false;
+        }
+        if (value >= 'a' && value <= 'z')
+            value = (uint8_t) (value - 'a' + 'A');
+        upper_password[index] = value;
+    }
+
+    modem_des_encrypt_block(upper_password, magic, hash);
+    modem_des_encrypt_block(upper_password + 7, magic, hash + 8);
+    memset(upper_password, 0, sizeof(upper_password));
+    return true;
 }
 
 /* Verify MS-CHAP v1 response (RFC 2433) */
@@ -184,7 +311,22 @@ chap_verify_mschap(ppp_ctx_t *ctx, const uint8_t *response, int resp_len)
 
     challenge_response_des(ctx->chap_challenge, nt_hash_padded, expected);
 
-    return (memcmp(response + 24, expected, 24) == 0);
+    if (memcmp(response + 24, expected, 24) != 0)
+        return false;
+
+    uint8_t password_hash_hash[MD4_DIGEST_LENGTH];
+    uint8_t lm_hash[16];
+    hash_nt_password_hash(nt_hash, password_hash_hash);
+    if (lm_password_hash(ctx->password, lm_hash)) {
+        ppp_mppe_derive_mschapv1_keys(password_hash_hash, lm_hash,
+                                      ctx->chap_challenge,
+                                      &ctx->mppe_tx, &ctx->mppe_rx);
+        ctx->mppe_keys_ready = true;
+    }
+    memset(nt_hash, 0, sizeof(nt_hash));
+    memset(password_hash_hash, 0, sizeof(password_hash_hash));
+    memset(lm_hash, 0, sizeof(lm_hash));
+    return true;
 }
 
 /* MS-CHAPv2 ChallengeHash: SHA-1(PeerChallenge + AuthChallenge + UserName) truncated to 8 bytes */
@@ -196,6 +338,10 @@ mschapv2_challenge_hash(const uint8_t peer_challenge[16],
 {
     modem_sha1_ctx_t sha1;
     uint8_t          digest[SHA1_DIGEST_LENGTH];
+    const char      *user = strrchr(username, '\\');
+
+    if (user)
+        username = user + 1;
 
     modem_sha1_init(&sha1);
     modem_sha1_update(&sha1, peer_challenge, 16);
@@ -293,6 +439,13 @@ chap_verify_mschapv2(ppp_ctx_t *ctx, const uint8_t *response, int resp_len,
                                     peer_challenge, ctx->chap_challenge,
                                     peer_name, auth_resp);
 
+    uint8_t nt_hash_hash[MD4_DIGEST_LENGTH];
+    hash_nt_password_hash(nt_hash, nt_hash_hash);
+    ppp_mppe_derive_mschapv2_keys(nt_hash_hash, nt_response,
+                                  &ctx->mppe_tx, &ctx->mppe_rx);
+    ctx->mppe_keys_ready = true;
+    memset(nt_hash_hash, 0, sizeof(nt_hash_hash));
+
     memset(nt_hash, 0, sizeof(nt_hash));
     return true;
 }
@@ -325,13 +478,15 @@ ppp_chap_process(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
     uint8_t code  = pkt[0];
     uint8_t id    = pkt[1];
     int     total = (pkt[2] << 8) | pkt[3];
+    MODEM_DEBUG_LOG(ctx->log, "CHAP: packet code=%d id=%d declared=%d received=%d algorithm=%d\n",
+                    code, id, total, pkt_len, ctx->auth_type);
 
     if (code != CHAP_CODE_RESPONSE) {
         chap_log(ctx->log, "CHAP: Unexpected code %d\n", code);
         return;
     }
 
-    if (total < 5 || total > pkt_len)
+    if (total < 5 || total > pkt_len || id != ctx->auth_id)
         return;
 
     int     pos       = 4;
@@ -346,17 +501,25 @@ ppp_chap_process(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
     /* Extract peer name */
     int  name_len = total - pos;
     char peer_name[64];
+    if (name_len >= (int) sizeof(peer_name)) {
+        chap_send_result(ctx, id, false, "E=691 R=0");
+        return;
+    }
     int  copy = (name_len < (int) sizeof(peer_name) - 1) ? name_len : (int) sizeof(peer_name) - 1;
     if (copy > 0)
         memcpy(peer_name, pkt + pos, copy);
     peer_name[copy > 0 ? copy : 0] = '\0';
 
     chap_log(ctx->log, "CHAP: Response from '%s' (value_len=%d)\n", peer_name, value_len);
+    MODEM_DEBUG_LOG(ctx->log, "CHAP: response value length=%d peer-name length=%d\n",
+                    value_len, name_len);
 
     bool ok = false;
 
     /* Check username first (if configured) */
-    if (ctx->username[0] != '\0' && strcmp(peer_name, ctx->username) != 0) {
+    if (ctx->username[0] != '\0'
+        && ((size_t) name_len != strlen(ctx->username)
+            || memcmp(pkt + pos, ctx->username, (size_t) name_len) != 0)) {
         chap_log(ctx->log, "CHAP: Username mismatch\n");
         chap_send_result(ctx, id, false, "E=691 R=0");
         return;
@@ -365,6 +528,38 @@ ppp_chap_process(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
     switch (ctx->auth_type) {
         case PPP_AUTH_CHAP_MD5:
             ok = chap_verify_md5(ctx, id, value, value_len);
+            if (ok)
+                chap_send_result(ctx, id, true, "");
+            else
+                chap_send_result(ctx, id, false, "");
+            break;
+
+        case PPP_AUTH_CHAP_SHA1:
+            ok = chap_verify_sha1(ctx, id, value, value_len);
+            if (ok)
+                chap_send_result(ctx, id, true, "");
+            else
+                chap_send_result(ctx, id, false, "");
+            break;
+
+        case PPP_AUTH_CHAP_SHA256:
+            ok = chap_verify_sha256(ctx, id, value, value_len);
+            if (ok)
+                chap_send_result(ctx, id, true, "");
+            else
+                chap_send_result(ctx, id, false, "");
+            break;
+
+        case PPP_AUTH_CHAP_SHA384:
+            ok = chap_verify_sha384(ctx, id, value, value_len);
+            if (ok)
+                chap_send_result(ctx, id, true, "");
+            else
+                chap_send_result(ctx, id, false, "");
+            break;
+
+        case PPP_AUTH_CHAP_SHA512:
+            ok = chap_verify_sha512(ctx, id, value, value_len);
             if (ok)
                 chap_send_result(ctx, id, true, "");
             else
@@ -408,4 +603,5 @@ ppp_chap_process(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
         ctx->auth_complete = true;
         ppp_advance_state(ctx);
     }
+    MODEM_DEBUG_LOG(ctx->log, "CHAP: credential check %s\n", ok ? "accepted" : "rejected");
 }

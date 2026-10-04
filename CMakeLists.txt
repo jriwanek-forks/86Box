@@ -131,6 +131,8 @@ option(MINITRACE    "Enable Chrome tracing using the modified minitrace library"
 option(GDBSTUB      "Enable GDB stub server for debugging"                       OFF)
 option(DEV_BRANCH   "Development branch"                                         OFF)
 option(DISCORD      "Discord Rich Presence support"                              ON)
+option(ENABLE_MODEM_LOG "Enable modem logging"                                   ON)
+option(ENABLE_MODEM_DEBUG "Enable detailed modem logging (requires ENABLE_MODEM_LOG)" ON)
 option(DEBUGREGS486 "Enable debug register opeartion on 486+ CPUs"               OFF)
 option(LIBASAN      "Enable compilation with the addresss sanitizer"             OFF)
 option(QT           "Use the Qt-based user interface"                            ON)

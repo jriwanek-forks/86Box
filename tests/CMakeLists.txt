@@ -4,7 +4,11 @@ add_subdirectory(device)
 add_subdirectory(disk)
 add_subdirectory(video)
 add_subdirectory(scsi)
+add_subdirectory(network)
 add_subdirectory(mem)
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/sound/CMakeLists.txt")
+    add_subdirectory(sound)
+endif()
 
 if(BUILD_TESTING)
     add_library(pcjx_floppy_engine OBJECT
