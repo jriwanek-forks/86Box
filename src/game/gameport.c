@@ -135,6 +135,11 @@ static const struct {
     { &joystick_tm_fcs_rcs                         },
     { &joystick_tm_formula_t1t2                    },
     { &joystick_tm_formula_t1t2wa                  },
+    { &joystick_creative_cobra                     },
+    { &joystick_gravis_gamepad_pro                 },
+    { &joystick_gravis_blackhawk_digital           },
+    { &joystick_gravis_xterminator_digital         },
+    { &joystick_gravis_xterminator_dualcontrol     },
     { NULL                                         }
 };
 
