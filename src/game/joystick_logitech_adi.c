@@ -65,15 +65,14 @@ typedef struct adi_data {
     pc_timer_t       packet_timer;
     pc_timer_t       reset_timer;
     const adi_profile *profile;
-    uint128_t        packet;
-    uint128_t        high_mask;
-    uint128_t        low_mask;
+    uint128_t        packet[2];
+    uint128_t        packet_mask[2];
     uint8_t          sequence[ADI_SEQUENCE_LENGTH];
     uint8_t          sequence_count;
     uint8_t          button_lines[2];
-    uint8_t          packet_bits;
-    uint8_t          high_bits;
-    uint8_t          low_bits;
+    uint8_t          packet_bits[2];
+    uint8_t          marker_bits[2];
+    uint8_t          marker_pending[2];
     uint8_t          digital_mode;
     uint8_t          has_last_write;
 } adi_data;
@@ -104,22 +103,24 @@ adi_packet_timer_over(void *priv)
 {
     adi_data *adi = (adi_data *) priv;
 
-    if (!adi->digital_mode || !adi->low_mask)
+    if (!adi->digital_mode)
         return;
 
-    if (adi->low_bits) {
-        adi->button_lines[1] ^= (adi->packet & adi->low_mask) ? 2 : 1;
-        adi->low_bits--;
-        adi->low_mask = adi->low_bits ? adi->low_mask >> 1 : 0;
+    int packet_active = 0;
+    for (uint8_t lane = 0; lane < 2; lane++) {
+        if (adi->marker_pending[lane]) {
+            adi->button_lines[lane] ^= adi->marker_bits[lane] ? 2 : 1;
+            adi->marker_pending[lane] = 0;
+        } else if (adi->packet_bits[lane]) {
+            adi->button_lines[lane] ^= (adi->packet[lane] & adi->packet_mask[lane]) ? 2 : 1;
+            adi->packet_bits[lane]--;
+            adi->packet_mask[lane] = adi->packet_bits[lane] ? adi->packet_mask[lane] >> 1 : 0;
+        }
+
+        packet_active |= adi->marker_pending[lane] || adi->packet_bits[lane];
     }
 
-    if (adi->high_bits) {
-        adi->button_lines[0] ^= (adi->packet & adi->high_mask) ? 2 : 1;
-        adi->high_bits--;
-        adi->high_mask = adi->high_bits ? adi->high_mask >> 1 : 0;
-    }
-
-    if (adi->low_bits)
+    if (packet_active)
         timer_advance_u64(&adi->packet_timer, TIMER_USEC * ADI_CLOCK_HALF_PERIOD_US);
 }
 
@@ -131,11 +132,8 @@ adi_reset_timer_over(void *priv)
     adi->digital_mode = 0;
     adi->sequence_count = 0;
     adi->has_last_write = 0;
-    adi->low_mask = 0;
-    adi->high_mask = 0;
-    adi->packet_bits = 0;
-    adi->low_bits = 0;
-    adi->high_bits = 0;
+    memset(adi->packet_bits, 0, sizeof(adi->packet_bits));
+    memset(adi->marker_pending, 0, sizeof(adi->marker_pending));
     timer_disable(&adi->packet_timer);
 }
 
@@ -218,9 +216,9 @@ adi_close(void *priv)
 }
 
 static int
-adi_has_input(void)
+adi_has_input(uint8_t joystick)
 {
-    return JOYSTICK_PRESENT(0, 0);
+    return JOYSTICK_PRESENT(0, joystick);
 }
 
 static uint8_t
@@ -228,16 +226,21 @@ adi_read(void *priv)
 {
     adi_data *adi = (adi_data *) priv;
 
-    if (!adi_has_input())
+    if (!adi_has_input(0) && !adi_has_input(1))
         return 0xff;
 
     if (adi->digital_mode)
         return (uint8_t) ((adi->button_lines[0] << 4) | (adi->button_lines[1] << 6));
 
     uint8_t result = 0xf0;
-    for (uint8_t button = 0; button < 4; button++) {
-        if (joystick_state[0][0].button[button])
-            result &= (uint8_t) ~(0x10 << button);
+    for (uint8_t joystick = 0; joystick < 2; joystick++) {
+        if (!adi_has_input(joystick))
+            continue;
+
+        for (uint8_t button = 0; button < 2; button++) {
+            if (joystick_state[0][joystick].button[button])
+                result &= (uint8_t) ~(0x10 << (joystick * 2 + button));
+        }
     }
 
     return result;
@@ -248,10 +251,10 @@ adi_read_axis(void *priv, int axis)
 {
     adi_data *adi = (adi_data *) priv;
 
-    if ((axis < 0) || (axis >= adi->profile->axis_count) || !adi_has_input() || adi->digital_mode)
+    if ((axis < 0) || (axis >= 4) || !adi_has_input(axis / 2) || adi->digital_mode)
         return AXIS_NOT_PRESENT;
 
-    return joystick_state[0][0].axis[axis];
+    return joystick_state[0][axis / 2].axis[axis % 2];
 }
 
 static void
@@ -307,14 +310,14 @@ adi_axis_to_10bit(int axis)
     return (uint16_t) (((int64_t) (axis + 32768) * 1023) / 65535);
 }
 
-static void
-adi_start_packet(adi_data *adi, int send_id)
+static uint8_t
+adi_build_packet(adi_data *adi, uint8_t joystick, int send_id, uint128_t *packet)
 {
-    const adi_profile *profile = adi->profile;
-    const joystick_state_t *state = &joystick_state[0][0];
-    uint8_t packet_bits = 0;
+    const adi_profile *profile    = adi->profile;
+    const joystick_state_t *state = &joystick_state[0][joystick];
+    uint8_t packet_bits           = 0;
 
-    adi->packet = 0;
+    *packet = 0;
 
     if (send_id) {
         uint8_t flags = ADI_FLAG_10BIT;
@@ -322,56 +325,96 @@ adi_start_packet(adi_data *adi, int send_id)
         if (profile->pov_count && (profile->pad_index < 0))
             flags |= ADI_FLAG_HAT;
 
-        adi_append_bits(&adi->packet, &packet_bits, ADI_ID_PACKET_BITS, 10);
-        adi_append_bits(&adi->packet, &packet_bits, profile->id, 8);
-        adi_append_bits(&adi->packet, &packet_bits, flags, 4);
-        adi_append_bits(&adi->packet, &packet_bits,
+        adi_append_bits(packet, &packet_bits, ADI_ID_PACKET_BITS, 10);
+        adi_append_bits(packet, &packet_bits, profile->id, 8);
+        adi_append_bits(packet, &packet_bits, flags, 4);
+        adi_append_bits(packet, &packet_bits,
                         8 + profile->axis_count * 10 + profile->button_count +
                             ((profile->pad_index >= 0) ? 4 : 0) +
                             ((profile->pad_index < 0) ? profile->pov_count * 4 : 0),
                         10);
-        adi_append_bits(&adi->packet, &packet_bits, profile->axis_count, 4);
-        adi_append_bits(&adi->packet, &packet_bits,
+        adi_append_bits(packet, &packet_bits, profile->axis_count, 4);
+        adi_append_bits(packet, &packet_bits,
                         profile->button_count + ((profile->pad_index >= 0) ? 4 : 0), 6);
-        adi_append_bits(&adi->packet, &packet_bits,
+        adi_append_bits(packet, &packet_bits,
                         ((profile->pov_count && (profile->pad_index < 0)) ? 8 : 0), 6);
-        adi_append_bits(&adi->packet, &packet_bits, 0, 6);
-        adi_append_bits(&adi->packet, &packet_bits,
+        adi_append_bits(packet, &packet_bits, 0, 6);
+        adi_append_bits(packet, &packet_bits,
                         (profile->pad_index < 0 && profile->pov_count)
                             ? profile->pov_count - 1
                             : 0,
                         4);
-        adi_append_bits(&adi->packet, &packet_bits, 0, 4);
-        adi_append_bits(&adi->packet, &packet_bits, 0, 4);
+        adi_append_bits(packet, &packet_bits, 0, 4);
+        adi_append_bits(packet, &packet_bits, 0, 4);
     } else {
-        adi_append_bits(&adi->packet, &packet_bits, profile->id, 8);
+        adi_append_bits(packet, &packet_bits, profile->id, 8);
 
         for (uint8_t axis = 0; axis < profile->axis_count; axis++)
-            adi_append_bits(&adi->packet, &packet_bits, adi_axis_to_10bit(state->axis[axis]), 10);
+            adi_append_bits(packet, &packet_bits, adi_axis_to_10bit(state->axis[axis]), 10);
 
         for (uint8_t button = 0; button < profile->button_count; button++) {
             if (button == profile->pad_index)
-                adi_append_bits(&adi->packet, &packet_bits, adi_hat_buttons(state->pov[0]), 4);
+                adi_append_bits(packet, &packet_bits, adi_hat_buttons(state->pov[0]), 4);
 
-            adi_append_bits(&adi->packet, &packet_bits, !!state->button[button], 1);
+            adi_append_bits(packet, &packet_bits, !!state->button[button], 1);
         }
 
         if (profile->pad_index >= profile->button_count)
-            adi_append_bits(&adi->packet, &packet_bits, adi_hat_buttons(state->pov[0]), 4);
+            adi_append_bits(packet, &packet_bits, adi_hat_buttons(state->pov[0]), 4);
 
         if (profile->pad_index < 0) {
             for (uint8_t pov = 0; pov < profile->pov_count; pov++)
-                adi_append_bits(&adi->packet, &packet_bits, adi_hat_direction(state->pov[pov]), 4);
+                adi_append_bits(packet, &packet_bits, adi_hat_direction(state->pov[pov]), 4);
         }
     }
 
-    adi->packet_bits = packet_bits;
-    adi->button_lines[0] = 0;
-    adi->button_lines[1] = 0;
-    adi->low_bits = (packet_bits + 1) / 2;
-    adi->high_bits = packet_bits / 2;
-    adi->high_mask = adi->high_bits ? (uint128_t) 1 << (packet_bits - 1) : 0;
-    adi->low_mask = adi->low_bits ? (uint128_t) 1 << (adi->low_bits - 1) : 0;
+    return packet_bits;
+}
+
+static void
+adi_queue_lane(adi_data *adi, uint8_t lane, uint128_t packet, uint8_t first_bit, uint8_t bit_count,
+               uint8_t marker)
+{
+    adi->packet[lane] = packet;
+    adi->packet_mask[lane] = bit_count ? (uint128_t) 1 << first_bit : 0;
+    adi->packet_bits[lane] = bit_count;
+    adi->marker_bits[lane] = marker;
+    adi->marker_pending[lane] = 1;
+}
+
+static void
+adi_start_packets(adi_data *adi, int send_id)
+{
+    const int first_present  = adi_has_input(0);
+    const int second_present = adi_has_input(1);
+
+    memset(adi->packet_bits, 0, sizeof(adi->packet_bits));
+    memset(adi->marker_pending, 0, sizeof(adi->marker_pending));
+    adi->button_lines[0] = adi->button_lines[1] = 3;
+
+    if (first_present && second_present) {
+        for (uint8_t joystick = 0; joystick < 2; joystick++) {
+            uint128_t packet;
+            uint8_t   packet_bits = adi_build_packet(adi, joystick, send_id, &packet);
+
+            adi_queue_lane(adi, joystick, packet, packet_bits - 1, packet_bits, 1);
+        }
+    } else if (first_present) {
+        uint128_t packet;
+        uint8_t   packet_bits = adi_build_packet(adi, 0, send_id, &packet);
+        uint8_t   first_lane_bits = (packet_bits + 1) / 2;
+        uint8_t   second_lane_bits = packet_bits / 2;
+
+        adi_queue_lane(adi, 0, packet, packet_bits - 1, first_lane_bits, 1);
+        adi_queue_lane(adi, 1, packet, second_lane_bits - 1, second_lane_bits, 0);
+    } else if (second_present) {
+        uint128_t packet;
+        uint8_t   packet_bits = adi_build_packet(adi, 1, send_id, &packet);
+
+        adi_queue_lane(adi, 1, packet, packet_bits - 1, packet_bits, 1);
+    } else
+        return;
+
     timer_set_delay_u64(&adi->packet_timer, TIMER_USEC * ADI_CLOCK_HALF_PERIOD_US);
 }
 
@@ -390,7 +433,7 @@ adi_append_interval(adi_data *adi, uint8_t interval)
         adi->digital_mode = 1;
         adi->sequence_count = 0;
         timer_set_delay_u64(&adi->reset_timer, TIMER_USEC * ADI_PACKET_TIMEOUT_US);
-        adi_start_packet(adi, 1);
+        adi_start_packets(adi, 1);
     }
 }
 
@@ -401,7 +444,7 @@ adi_write(void *priv)
 
     if (adi->digital_mode) {
         timer_set_delay_u64(&adi->reset_timer, TIMER_USEC * ADI_PACKET_TIMEOUT_US);
-        adi_start_packet(adi, 0);
+        adi_start_packets(adi, 0);
         return;
     }
 
@@ -456,7 +499,7 @@ const joystick_t joystick_logitech_wingman = {
     .name = "Logitech WingMan Extreme Digital",
     .internal_name = "logitech_wingman_extreme_digital",
     JOYSTICK_ADI_WINGMAN_EXTREME_DIGITAL,
-    .axis_count = 3, .button_count = 6, .pov_count = 1, .max_joysticks = 1,
+    .axis_count = 3, .button_count = 6, .pov_count = 1, .max_joysticks = 2,
     .axis_names = ADI_AXIS_NAMES
 };
 
@@ -464,7 +507,7 @@ const joystick_t joystick_logitech_thunderpad = {
     .name = "Logitech ThunderPad Digital",
     .internal_name = "logitech_thunderpad_digital",
     JOYSTICK_ADI_THUNDERPAD_DIGITAL,
-    .axis_count = 2, .button_count = 7, .pov_count = 1, .max_joysticks = 1,
+    .axis_count = 2, .button_count = 7, .pov_count = 1, .max_joysticks = 2,
     .axis_names = ADI_AXIS_NAMES
 };
 
@@ -472,7 +515,7 @@ const joystick_t joystick_logitech_sidecar = {
     .name = "Logitech SideCar",
     .internal_name = "logitech_sidecar",
     JOYSTICK_ADI_SIDECAR,
-    .axis_count = 6, .button_count = 8, .pov_count = 0, .max_joysticks = 1,
+    .axis_count = 6, .button_count = 8, .pov_count = 0, .max_joysticks = 2,
     .axis_names = ADI_AXIS_NAMES
 };
 
@@ -480,7 +523,7 @@ const joystick_t joystick_logitech_cyberman_2 = {
     .name = "Logitech CyberMan 2",
     .internal_name = "logitech_cyberman_2",
     JOYSTICK_ADI_CYBERMAN_2,
-    .axis_count = 6, .button_count = 8, .pov_count = 0, .max_joysticks = 1,
+    .axis_count = 6, .button_count = 8, .pov_count = 0, .max_joysticks = 2,
     .axis_names = ADI_AXIS_NAMES
 };
 
@@ -488,7 +531,7 @@ const joystick_t joystick_logitech_wingman_interceptor = {
     .name = "Logitech WingMan Interceptor",
     .internal_name = "logitech_wingman_interceptor",
     JOYSTICK_ADI_WINGMAN_INTERCEPTOR,
-    .axis_count = 3, .button_count = 9, .pov_count = 3, .max_joysticks = 1,
+    .axis_count = 3, .button_count = 9, .pov_count = 3, .max_joysticks = 2,
     .axis_names = ADI_AXIS_NAMES
 };
 
@@ -496,7 +539,7 @@ const joystick_t joystick_logitech_wingman_formula = {
     .name = "Logitech WingMan Formula",
     .internal_name = "logitech_wingman_formula",
     JOYSTICK_ADI_WINGMAN_FORMULA,
-    .axis_count = 3, .button_count = 8, .pov_count = 3, .max_joysticks = 1,
+    .axis_count = 3, .button_count = 8, .pov_count = 3, .max_joysticks = 2,
     .axis_names = { "Wheel", "Gas", "Brake" }
 };
 
@@ -504,7 +547,7 @@ const joystick_t joystick_logitech_wingman_gamepad = {
     .name = "Logitech WingMan GamePad",
     .internal_name = "logitech_wingman_gamepad",
     JOYSTICK_ADI_WINGMAN_GAMEPAD,
-    .axis_count = 2, .button_count = 7, .pov_count = 1, .max_joysticks = 1,
+    .axis_count = 2, .button_count = 7, .pov_count = 1, .max_joysticks = 2,
     .axis_names = ADI_AXIS_NAMES
 };
 
@@ -512,7 +555,7 @@ const joystick_t joystick_logitech_wingman_extreme_3d = {
     .name = "Logitech WingMan Extreme Digital 3D",
     .internal_name = "logitech_wingman_extreme_digital_3d",
     JOYSTICK_ADI_WINGMAN_EXTREME_DIGITAL_3D,
-    .axis_count = 4, .button_count = 7, .pov_count = 1, .max_joysticks = 1,
+    .axis_count = 4, .button_count = 7, .pov_count = 1, .max_joysticks = 2,
     .axis_names = ADI_AXIS_NAMES
 };
 
@@ -520,6 +563,6 @@ const joystick_t joystick_logitech_wingman_gamepad_extreme = {
     .name = "Logitech WingMan GamePad Extreme",
     .internal_name = "logitech_wingman_gamepad_extreme",
     JOYSTICK_ADI_WINGMAN_GAMEPAD_EXTREME,
-    .axis_count = 2, .button_count = 11, .pov_count = 1, .max_joysticks = 1,
+    .axis_count = 2, .button_count = 11, .pov_count = 1, .max_joysticks = 2,
     .axis_names = ADI_AXIS_NAMES
 };
