@@ -234,6 +234,14 @@ extern const joystick_t joystick_ch_virtual_pilot_pro_ch_pedals_pro;
 
 extern const joystick_t joystick_sw_pad;
 extern const joystick_t joystick_logitech_wingman;
+extern const joystick_t joystick_logitech_thunderpad;
+extern const joystick_t joystick_logitech_sidecar;
+extern const joystick_t joystick_logitech_cyberman_2;
+extern const joystick_t joystick_logitech_wingman_interceptor;
+extern const joystick_t joystick_logitech_wingman_formula;
+extern const joystick_t joystick_logitech_wingman_gamepad;
+extern const joystick_t joystick_logitech_wingman_extreme_3d;
+extern const joystick_t joystick_logitech_wingman_gamepad_extreme;
 
 extern const joystick_t joystick_tm_fcs;
 extern const joystick_t joystick_tm_fcs_rcs;
