@@ -131,6 +131,7 @@ static const struct {
     { &joystick_ch_virtual_pilot_pro_ch_pedals     },
     { &joystick_ch_virtual_pilot_pro_ch_pedals_pro },
     { &joystick_sw_pad                             },
+    { &joystick_logitech_wingman                   },
     { &joystick_tm_fcs                             },
     { &joystick_tm_fcs_rcs                         },
     { &joystick_tm_formula_t1t2                    },

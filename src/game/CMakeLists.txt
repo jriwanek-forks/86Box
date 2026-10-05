@@ -20,5 +20,6 @@ add_library(game OBJECT
     joystick_standard.c
     joystick_ch_flightstick_pro.c
     joystick_sw_pad.c
+    joystick_logitech_wingman.c
     joystick_tm_fcs.c
 )
