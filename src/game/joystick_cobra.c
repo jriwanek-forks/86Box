@@ -12,6 +12,8 @@
  */
 #include <stdint.h>
 #include <stdlib.h>
+#include <86box/86box.h>
+#include <86box/device.h>
 #include <86box/gameport.h>
 #include <86box/plat_unused.h>
 
