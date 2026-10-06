@@ -396,6 +396,52 @@ TEST(ModemPpp, EncryptsNegotiatedPayloadAndRejectsPlaintext)
     EXPECT_TRUE(received.empty());
 }
 
+TEST(ModemPpp, TransportsStacLzsAndUsesNativeProtocolWhenItExpands)
+{
+    ppp_ctx_t tx = make_context();
+    ppp_ctx_t rx = make_context();
+    std::vector<uint8_t> wire;
+    std::vector<uint8_t> received;
+    tx.state = PPP_STATE_NETWORK;
+    tx.modem = &wire;
+    tx.serial_push = capture_serial;
+    tx.ccp_open = true;
+    tx.ccp_tx_method = PPP_CCP_METHOD_LZS;
+    rx.state = PPP_STATE_NETWORK;
+    rx.modem = &received;
+    rx.network_send_ip = capture_network;
+    rx.ccp_open = true;
+    rx.ccp_rx_method = PPP_CCP_METHOD_LZS;
+    ASSERT_TRUE(ppp_ccp_codec_set(&tx, true, PPP_CCP_METHOD_LZS));
+    ASSERT_TRUE(ppp_ccp_codec_set(&rx, false, PPP_CCP_METHOD_LZS));
+
+    std::vector<uint8_t> compressible(128);
+    for (size_t index = 0; index < compressible.size(); index++)
+        compressible[index] = static_cast<uint8_t>((index / 8) % 4);
+    ppp_send_frame(&tx, PPP_PROTO_IP, compressible.data(),
+                   static_cast<int>(compressible.size()));
+
+    uint16_t protocol = 0;
+    std::vector<uint8_t> payload = decode_captured_frame(wire, protocol);
+    ASSERT_EQ(protocol, PPP_PROTO_MPPE);
+    send_frame(&rx, payload, false, protocol);
+    EXPECT_EQ(received, compressible);
+
+    wire.clear();
+    received.clear();
+    const std::vector<uint8_t> incompressible = { 0x45, 0xA3 };
+    ppp_send_frame(&tx, PPP_PROTO_IP, incompressible.data(),
+                   static_cast<int>(incompressible.size()));
+    payload = decode_captured_frame(wire, protocol);
+    ASSERT_EQ(protocol, PPP_PROTO_IP);
+    EXPECT_EQ(payload, incompressible);
+    send_frame(&rx, payload, false, protocol);
+    EXPECT_EQ(received, incompressible);
+
+    ppp_ccp_codec_close(&tx);
+    ppp_ccp_codec_close(&rx);
+}
+
 TEST(ModemPpp, DeliversFragmentedAndConcatenatedPredictor2Records)
 {
     ppp_ctx_t tx = make_context();

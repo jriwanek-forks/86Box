@@ -6,8 +6,8 @@
  *
  *          This file is part of the 86Box distribution.
  *
- *          CCP negotiation and data compression for NT31 RAS, MPPC (RFC 2118),
- *          Deflate (RFC 1979), BSD-Compress (RFC 1977), Predictor (RFC 1978),
+ *          CCP negotiation and data compression for NT31 RAS, Stac LZS (RFC 1974),
+ *          MPPC (RFC 2118), Deflate (RFC 1979), BSD-Compress (RFC 1977), Predictor (RFC 1978),
  *          and stateful/stateless 40-, 56-, and 128-bit MPPE (RFC 3078).
  *
  * Authors: Jasmine Iwanek, <jriwanek@gmail.com>
@@ -25,6 +25,7 @@
 #define CCP_OPT_MPPE 18
 #define CCP_OPT_PREDICTOR1 1
 #define CCP_OPT_PREDICTOR2 2
+#define CCP_OPT_LZS 17
 #define CCP_OPT_BSD 21
 #define CCP_OPT_DEFLATE 26
 #define CCP_OPT_NT31RAS PPP_CCP_METHOD_NT31RAS
@@ -101,6 +102,7 @@ ppp_ccp_method_name(uint8_t method)
         case PPP_CCP_METHOD_NONE:       return "none";
         case PPP_CCP_METHOD_PREDICTOR1: return "Predictor-1";
         case PPP_CCP_METHOD_PREDICTOR2: return "Predictor-2";
+        case PPP_CCP_METHOD_LZS:        return "Stac LZS";
         case PPP_CCP_METHOD_MPPE:       return "MPPE";
         case PPP_CCP_METHOD_MPPC:       return "MPPC";
         case PPP_CCP_METHOD_BSD:        return "BSD-Compress";
@@ -133,6 +135,7 @@ ccp_option_name(uint8_t type, uint32_t value)
     switch (type) {
         case CCP_OPT_PREDICTOR1: return "Predictor-1";
         case CCP_OPT_PREDICTOR2: return "Predictor-2";
+        case CCP_OPT_LZS:        return "Stac LZS";
         case CCP_OPT_MPPE:       return value == 1 ? "MPPC" : "MPPE";
         case CCP_OPT_BSD:        return "BSD-Compress";
         case CCP_OPT_DEFLATE:    return "Deflate";
@@ -193,6 +196,10 @@ ccp_log_packet(ppp_ctx_t *ctx, const char *direction, const uint8_t *pkt, int to
                             pkt[pos + 2], pkt[pos + 3]);
         } else if (type == CCP_OPT_BSD && option_len == 3) {
             MODEM_DEBUG_LOG(ctx->log, " version-and-bits=0x%02X", pkt[pos + 2]);
+        } else if (type == CCP_OPT_LZS && option_len == 5) {
+            MODEM_DEBUG_LOG(ctx->log, " history-count=%u check-mode=%u",
+                            (unsigned) (((uint16_t) pkt[pos + 2] << 8) | pkt[pos + 3]),
+                            (unsigned) pkt[pos + 4]);
         } else if (type == CCP_OPT_NT31RAS && option_len == 22) {
             uint32_t receive_features = ccp_get_le_u32(pkt + pos + 6);
             uint32_t maximum_send = ccp_get_le_u32(pkt + pos + 10);
@@ -282,6 +289,13 @@ ccp_send_codec_request(ppp_ctx_t *ctx, uint8_t method)
             request[request_len++] = CCP_OPT_PREDICTOR2;
             request[request_len++] = 2;
             break;
+        case PPP_CCP_METHOD_LZS:
+            request[request_len++] = CCP_OPT_LZS;
+            request[request_len++] = 5;
+            request[request_len++] = 0;
+            request[request_len++] = 0;
+            request[request_len++] = 0;
+            break;
         case PPP_CCP_METHOD_BSD:
             request[request_len++] = CCP_OPT_BSD;
             request[request_len++] = 3;
@@ -337,6 +351,8 @@ ccp_try_next_codec(ppp_ctx_t *ctx)
         case PPP_CCP_METHOD_MPPE:
             return ccp_send_codec_request(ctx, PPP_CCP_METHOD_DEFLATE);
         case PPP_CCP_METHOD_DEFLATE:
+            return ccp_send_codec_request(ctx, PPP_CCP_METHOD_LZS);
+        case PPP_CCP_METHOD_LZS:
             return ccp_send_codec_request(ctx, PPP_CCP_METHOD_BSD);
         case PPP_CCP_METHOD_BSD:
             return ccp_send_codec_request(ctx, PPP_CCP_METHOD_PREDICTOR2);
@@ -487,6 +503,7 @@ ccp_handle_config_request(ppp_ctx_t *ctx, const uint8_t *pkt, int total)
     bool saw_mppe = false;
     bool saw_predictor1 = false;
     bool saw_predictor2 = false;
+    bool saw_lzs = false;
     bool saw_bsd = false;
     bool saw_deflate = false;
     bool saw_nt31ras = false;
@@ -508,6 +525,23 @@ ccp_handle_config_request(ppp_ctx_t *ctx, const uint8_t *pkt, int total)
                    && selected_method == PPP_CCP_METHOD_NONE) {
             saw_predictor2 = true;
             selected_method = PPP_CCP_METHOD_PREDICTOR2;
+        } else if (pkt[pos] == CCP_OPT_LZS && option_len == 5 && !saw_lzs) {
+            uint16_t history_count = (uint16_t) (((uint16_t) pkt[pos + 2] << 8)
+                                                | pkt[pos + 3]);
+            uint8_t check_mode = pkt[pos + 4];
+            saw_lzs = true;
+            if (selected_method != PPP_CCP_METHOD_NONE || ctx->mppe_min_bits > 0) {
+                memcpy(rej + rej_len, pkt + pos, option_len);
+                rej_len += option_len;
+            } else if (history_count != 0 || check_mode != 0) {
+                nak[nak_len++] = CCP_OPT_LZS;
+                nak[nak_len++] = 5;
+                nak[nak_len++] = 0;
+                nak[nak_len++] = 0;
+                nak[nak_len++] = 0;
+            } else {
+                selected_method = PPP_CCP_METHOD_LZS;
+            }
         } else if (pkt[pos] == CCP_OPT_DEFLATE && option_len == 4 && !saw_deflate
                    && pkt[pos + 2] == 0x78 && pkt[pos + 3] == 0
                    && selected_method == PPP_CCP_METHOD_NONE) {
@@ -746,7 +780,14 @@ ppp_ccp_process(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
             break;
 
         case PPP_CODE_RESET_REQUEST:
-            ccp_send_response(ctx, PPP_CODE_RESET_ACK, pkt[1], NULL, 0);
+            if (ctx->ccp_tx_method == PPP_CCP_METHOD_LZS && total == 6
+                && pkt[4] == 0 && pkt[5] == 1) {
+                static const uint8_t lzs_history[] = { 0, 1 };
+                ccp_send_response(ctx, PPP_CODE_RESET_ACK, pkt[1], lzs_history,
+                                  sizeof(lzs_history));
+            } else {
+                ccp_send_response(ctx, PPP_CODE_RESET_ACK, pkt[1], NULL, 0);
+            }
             ppp_mppe_request_rekey(&ctx->mppe_tx);
             if (ctx->ccp_tx_method != PPP_CCP_METHOD_NONE)
                 ppp_ccp_codec_set_window(ctx, true, ctx->ccp_tx_method,

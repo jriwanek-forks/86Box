@@ -8,8 +8,8 @@
  *
  *          PPP (Point-to-Point Protocol) definitions for modem emulation.
  *          HDLC-like framing, FCS-16, LCP (RFC 1661/1662), IPCP (RFC 1332),
- *          CCP (RFC 1962), MPPC (RFC 2118), BSD-Compress (RFC 1977), Deflate
- *          (RFC 1979), Predictor (RFC 1978), MPPE (RFC 3078), PAP (RFC 1334),
+ *          CCP (RFC 1962), Stac LZS (RFC 1974), MPPC (RFC 2118), BSD-Compress
+ *          (RFC 1977), Deflate (RFC 1979), Predictor (RFC 1978), MPPE (RFC 3078), PAP (RFC 1334),
  *          CHAP (RFC 1994), EAP (RFC 3748), and Van Jacobson compression.
  *
  * Authors: Jasmine Iwanek, <jriwanek@gmail.com>
@@ -191,6 +191,7 @@ struct ppp_mppp_bundle_t;
 #define PPP_CCP_METHOD_NONE       0
 #define PPP_CCP_METHOD_PREDICTOR1 1
 #define PPP_CCP_METHOD_PREDICTOR2 2
+#define PPP_CCP_METHOD_LZS       17
 #define PPP_CCP_METHOD_MPPE       18
 #define PPP_CCP_METHOD_MPPC       19
 #define PPP_CCP_METHOD_BSD        21

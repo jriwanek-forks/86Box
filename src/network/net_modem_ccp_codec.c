@@ -29,6 +29,7 @@
 #define MPPC_AT_FRONT 0x40
 #define MPPC_COMPRESSED 0x20
 #define MPPC_RESERVED 0x10
+#define LZS_WINDOW_SIZE 2047
 #define NT31RAS_DEFAULT_WINDOW_SIZE 8192
 #define NT31RAS_MAX_WINDOW_SIZE 65536
 #define NT31RAS_HASH_SIZE 65536
@@ -664,6 +665,161 @@ mppc_read_bits(const uint8_t *input, int input_bits, int *bit_pos,
 }
 
 static void
+lzs_write_length(uint8_t *output, int *bit_pos, uint16_t length)
+{
+    if (length <= 4) {
+        mppc_write_bits(output, bit_pos, length - 2, 2);
+    } else if (length <= 7) {
+        mppc_write_bits(output, bit_pos, 12 + length - 5, 4);
+    } else {
+        uint16_t remainder = (uint16_t) (length - 8);
+        mppc_write_bits(output, bit_pos, 15, 4);
+        while (remainder >= 15) {
+            mppc_write_bits(output, bit_pos, 15, 4);
+            remainder = (uint16_t) (remainder - 15);
+        }
+        mppc_write_bits(output, bit_pos, remainder, 4);
+    }
+}
+
+static bool
+lzs_read_length(const uint8_t *input, int input_bits, int *bit_pos, uint16_t *length)
+{
+    uint32_t value;
+
+    if (!mppc_read_bits(input, input_bits, bit_pos, 2, &value))
+        return false;
+    if (value < 3) {
+        *length = (uint16_t) (value + 2);
+        return true;
+    }
+    if (!mppc_read_bits(input, input_bits, bit_pos, 2, &value))
+        return false;
+    if (value < 3) {
+        *length = (uint16_t) (value + 5);
+        return true;
+    }
+
+    uint32_t decoded_length = 8;
+    do {
+        if (!mppc_read_bits(input, input_bits, bit_pos, 4, &value)
+            || decoded_length > PPP_MAX_FRAME - value)
+            return false;
+        decoded_length += value;
+    } while (value == 15);
+    *length = (uint16_t) decoded_length;
+    return true;
+}
+
+static bool
+lzs_compress(const uint8_t *input, int input_len, uint8_t *output,
+             int output_capacity, int *output_len)
+{
+    uint8_t encoded[PPP_MAX_FRAME * 2];
+    int bit_pos = 0;
+
+    if (!input || !output || !output_len || input_len < 0
+        || input_len > PPP_MAX_FRAME || output_capacity < 0)
+        return false;
+    memset(encoded, 0, sizeof(encoded));
+
+    for (int pos = 0; pos < input_len;) {
+        int best_length = 0;
+        int best_offset = 0;
+        int max_offset = pos < LZS_WINDOW_SIZE ? pos : LZS_WINDOW_SIZE;
+
+        for (int offset = 1; offset <= max_offset; offset++) {
+            int length = 0;
+            while (pos + length < input_len
+                   && input[pos + length] == input[pos + length - offset])
+                length++;
+            if (length > best_length) {
+                best_length = length;
+                best_offset = offset;
+            }
+            if (best_length == input_len - pos)
+                break;
+        }
+
+        if (best_length >= 2) {
+            mppc_write_bits(encoded, &bit_pos, 1, 1);
+            if (best_offset <= 127) {
+                mppc_write_bits(encoded, &bit_pos, 1, 1);
+                mppc_write_bits(encoded, &bit_pos, (uint32_t) best_offset, 7);
+            } else {
+                mppc_write_bits(encoded, &bit_pos, 0, 1);
+                mppc_write_bits(encoded, &bit_pos, (uint32_t) best_offset, 11);
+            }
+            lzs_write_length(encoded, &bit_pos, (uint16_t) best_length);
+            pos += best_length;
+        } else {
+            mppc_write_bits(encoded, &bit_pos, 0, 1);
+            mppc_write_bits(encoded, &bit_pos, input[pos++], 8);
+        }
+    }
+
+    mppc_write_bits(encoded, &bit_pos, 1, 1);
+    mppc_write_bits(encoded, &bit_pos, 1, 1);
+    mppc_write_bits(encoded, &bit_pos, 0, 7);
+    *output_len = (bit_pos + 7) / 8;
+    if (*output_len > output_capacity)
+        return false;
+    memcpy(output, encoded, (size_t) *output_len);
+    return true;
+}
+
+static bool
+lzs_decompress(const uint8_t *input, int input_len, uint8_t *output,
+               int output_capacity, int *output_len)
+{
+    int bit_pos = 0;
+    int input_bits;
+
+    if (!input || !output || !output_len || input_len <= 0
+        || input_len > PPP_MAX_FRAME || output_capacity < 0)
+        return false;
+    input_bits = input_len * 8;
+
+    for (;;) {
+        uint32_t flag;
+        if (!mppc_read_bits(input, input_bits, &bit_pos, 1, &flag))
+            return false;
+        if (flag == 0) {
+            uint32_t value;
+            if (!mppc_read_bits(input, input_bits, &bit_pos, 8, &value)
+                || *output_len >= output_capacity)
+                return false;
+            output[(*output_len)++] = (uint8_t) value;
+            continue;
+        }
+
+        uint32_t short_offset;
+        uint32_t offset;
+        if (!mppc_read_bits(input, input_bits, &bit_pos, 1, &short_offset))
+            return false;
+        if (short_offset) {
+            if (!mppc_read_bits(input, input_bits, &bit_pos, 7, &offset))
+                return false;
+            if (offset == 0)
+                return true;
+        } else if (!mppc_read_bits(input, input_bits, &bit_pos, 11, &offset)) {
+            return false;
+        }
+
+        uint16_t length;
+        if (offset == 0 || offset > LZS_WINDOW_SIZE
+            || offset > (uint32_t) *output_len
+            || !lzs_read_length(input, input_bits, &bit_pos, &length)
+            || length > output_capacity - *output_len)
+            return false;
+        for (uint16_t index = 0; index < length; index++) {
+            output[*output_len] = output[*output_len - offset];
+            (*output_len)++;
+        }
+    }
+}
+
+static void
 mppc_history_reset(uint8_t *history, uint16_t *position, uint16_t *history_length)
 {
     memset(history, 0, MPPC_HISTORY_SIZE);
@@ -849,6 +1005,7 @@ ppp_ccp_codec_set_window(ppp_ctx_t *ctx, bool transmit, uint8_t method,
     if (method == PPP_CCP_METHOD_NONE)
         return true;
     if (method != PPP_CCP_METHOD_PREDICTOR1 && method != PPP_CCP_METHOD_PREDICTOR2
+        && method != PPP_CCP_METHOD_LZS
         && method != PPP_CCP_METHOD_DEFLATE
         && method != PPP_CCP_METHOD_MPPC && method != PPP_CCP_METHOD_BSD
         && method != PPP_CCP_METHOD_NT31RAS)
@@ -1084,6 +1241,7 @@ ppp_ccp_codec_compress(ppp_ctx_t *ctx, const uint8_t *input, int input_len,
 
     if (!codec || (codec->method != PPP_CCP_METHOD_PREDICTOR1
                    && codec->method != PPP_CCP_METHOD_PREDICTOR2
+                   && codec->method != PPP_CCP_METHOD_LZS
                    && codec->method != PPP_CCP_METHOD_DEFLATE
                    && codec->method != PPP_CCP_METHOD_MPPC
                    && codec->method != PPP_CCP_METHOD_BSD
@@ -1094,6 +1252,8 @@ ppp_ccp_codec_compress(ppp_ctx_t *ctx, const uint8_t *input, int input_len,
     if (codec->method == PPP_CCP_METHOD_NT31RAS)
         return nt31ras_compress_source_format(codec, input, input_len, output,
                                               output_capacity, output_len);
+    if (codec->method == PPP_CCP_METHOD_LZS)
+        return lzs_compress(input, input_len, output, output_capacity, output_len);
 
     if (codec->method == PPP_CCP_METHOD_MPPC) {
         uint8_t encoded[PPP_MAX_FRAME * 2];
@@ -1283,6 +1443,10 @@ ppp_ccp_codec_decompress(ppp_ctx_t *ctx, const uint8_t *input, int input_len,
     if (codec->method == PPP_CCP_METHOD_NT31RAS)
         return nt31ras_decompress_source_format(codec, input, input_len, output,
                                                 output_capacity, output_len);
+    if (codec->method == PPP_CCP_METHOD_LZS) {
+        *output_len = 0;
+        return lzs_decompress(input, input_len, output, output_capacity, output_len);
+    }
 
     if (codec->method == PPP_CCP_METHOD_PREDICTOR2)
         return predictor2_decompress(codec, input, input_len, output, output_capacity,

@@ -8,7 +8,7 @@
  *
  *          PPP (Point-to-Point Protocol) implementation for modem emulation.
  *          HDLC-like and NT31 RAS framing, FCS-16 (RFC 1662), LCP (RFC 1661), PAP,
- *          CHAP, EAP, IPCP, CCP codecs (MPPC, Deflate, BSD-Compress, Predictor),
+ *          CHAP, EAP, IPCP, CCP codecs (Stac LZS, MPPC, Deflate, BSD-Compress, Predictor),
  *          MPPE, and Van Jacobson compression.
  *
  * Authors: Jasmine Iwanek, <jriwanek@gmail.com>
@@ -600,7 +600,7 @@ ppp_send_frame(ppp_ctx_t *ctx, uint16_t protocol, const uint8_t *data, int len)
 {
     uint8_t  frame[((PPP_MAX_FRAME + 264) * 2) + 2];
     uint8_t  raw[PPP_MAX_FRAME + 264];
-    uint8_t  encrypted[PPP_MAX_FRAME + 256];
+    uint8_t  encrypted[PPP_MAX_FRAME * 2];
     uint8_t  plaintext[PPP_MAX_FRAME];
     int      raw_len = 0;
     int      out_len = 0;
@@ -655,6 +655,7 @@ ppp_send_frame(ppp_ctx_t *ctx, uint16_t protocol, const uint8_t *data, int len)
     } else if (!multilink_frame && ctx->ccp_open
                && (ctx->ccp_tx_method == PPP_CCP_METHOD_PREDICTOR1
                 || ctx->ccp_tx_method == PPP_CCP_METHOD_PREDICTOR2
+                || ctx->ccp_tx_method == PPP_CCP_METHOD_LZS
                 || ctx->ccp_tx_method == PPP_CCP_METHOD_DEFLATE
                 || ctx->ccp_tx_method == PPP_CCP_METHOD_MPPC
                 || ctx->ccp_tx_method == PPP_CCP_METHOD_BSD)
@@ -684,10 +685,18 @@ ppp_send_frame(ppp_ctx_t *ctx, uint16_t protocol, const uint8_t *data, int len)
         if (!ppp_ccp_codec_compress(ctx, plaintext, plaintext_len, encrypted,
                                     sizeof(encrypted), &compressed_len))
             return;
-        wire_protocol = PPP_PROTO_MPPE;
-        wire_data = encrypted;
-        wire_len = compressed_len;
-        compress_protocol = ctx->state >= PPP_STATE_AUTH && ctx->peer_pfc;
+        if (ctx->ccp_tx_method == PPP_CCP_METHOD_LZS
+            && compressed_len + (ctx->peer_pfc ? 1 : 2)
+               >= len + (compress_protocol ? 1 : 2)) {
+            wire_protocol = protocol;
+            wire_data = data;
+            wire_len = len;
+        } else {
+            wire_protocol = PPP_PROTO_MPPE;
+            wire_data = encrypted;
+            wire_len = compressed_len;
+            compress_protocol = ctx->state >= PPP_STATE_AUTH && ctx->peer_pfc;
+        }
     }
 
     if (!multilink_frame && ctx->multilink_bundle
@@ -1787,6 +1796,7 @@ ppp_process_frame(ppp_ctx_t *ctx, const uint8_t *frame, int frame_len, bool reas
                && ctx->ccp_open
                && (ctx->ccp_rx_method == PPP_CCP_METHOD_PREDICTOR1
                    || ctx->ccp_rx_method == PPP_CCP_METHOD_PREDICTOR2
+                   || ctx->ccp_rx_method == PPP_CCP_METHOD_LZS
                    || ctx->ccp_rx_method == PPP_CCP_METHOD_DEFLATE
                          || ctx->ccp_rx_method == PPP_CCP_METHOD_MPPC
                          || ctx->ccp_rx_method == PPP_CCP_METHOD_BSD)) {
@@ -1834,7 +1844,7 @@ ppp_process_frame(ppp_ctx_t *ctx, const uint8_t *frame, int frame_len, bool reas
         if (!ppp_ccp_codec_decompress(ctx, data, data_len, decompressed,
                                       sizeof(decompressed), &decompressed_len)
             || decompressed_len < 2) {
-            if (!ctx->ccp_reset_pending)
+            if (!ctx->ccp_reset_pending && ctx->ccp_rx_method != PPP_CCP_METHOD_LZS)
                 ppp_ccp_send_reset_request(ctx);
             return;
         }
