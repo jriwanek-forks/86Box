@@ -245,6 +245,33 @@ TEST(ModemIpcp, RejectsUnconfiguredDnsRequests)
     EXPECT_EQ(std::memcmp(sent_packet.data() + 4, request + 4, sizeof(request) - 4), 0);
 }
 
+TEST(ModemIpcp, NaksDnsRequestsToConfiguredServers)
+{
+    ppp_ctx_t ctx{};
+    ctx.state = PPP_STATE_IPCP_NEGOTIATE;
+    ctx.dns1 = 0x01010101;
+    ctx.dns2 = 0x08080404;
+    sent_packet.clear();
+    const uint8_t request[] = { PPP_CODE_CONFIGURE_REQUEST, 4, 0, 16,
+                                IPCP_OPT_DNS_PRIMARY, 6, 0, 0, 0, 0,
+                                IPCP_OPT_DNS_SECONDARY, 6, 0, 0, 0, 0 };
+
+    ppp_ipcp_process(&ctx, request, sizeof(request));
+
+    ASSERT_EQ(sent_packet[0], PPP_CODE_CONFIGURE_NAK);
+    ASSERT_EQ(sent_packet.size(), sizeof(request));
+    EXPECT_EQ(sent_packet[4], IPCP_OPT_DNS_PRIMARY);
+    EXPECT_EQ(sent_packet[6], 1);
+    EXPECT_EQ(sent_packet[7], 1);
+    EXPECT_EQ(sent_packet[8], 1);
+    EXPECT_EQ(sent_packet[9], 1);
+    EXPECT_EQ(sent_packet[10], IPCP_OPT_DNS_SECONDARY);
+    EXPECT_EQ(sent_packet[12], 8);
+    EXPECT_EQ(sent_packet[13], 8);
+    EXPECT_EQ(sent_packet[14], 4);
+    EXPECT_EQ(sent_packet[15], 4);
+}
+
 TEST(ModemIpcp, RequestsVanJacobsonCompression)
 {
     ppp_ctx_t ctx{};

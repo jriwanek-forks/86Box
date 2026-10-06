@@ -215,16 +215,16 @@ typedef struct modem_t {
     /* SLIP authentication */
     bool             slip_auth_enabled;
     slip_auth_ctx_t *slip_auth_ctx;
-    char             slip_username[64];
-    char             slip_password[64];
 
     /* PPP authentication settings */
     int              ppp_auth_type;    /* ppp_auth_type_t value from config */
     int              ppp_encryption;   /* Minimum required MPPE key strength */
-    char             ppp_username[64];
-    char             ppp_password[64];
+    char             username[64];
+    char             password[64];
     uint32_t         ppp_wins1;
     uint32_t         ppp_wins2;
+    uint32_t         ppp_dns1;
+    uint32_t         ppp_dns2;
 } modem_t;
 
 #define MREG_AUTOANSWER_COUNT 0
@@ -879,10 +879,14 @@ modem_dial(modem_t *modem, const char *str)
             /* Configure PPP auth from device settings */
             modem->ppp_ctx->auth_type = (ppp_auth_type_t) modem->ppp_auth_type;
             modem->ppp_ctx->mppe_min_bits = (uint8_t) modem->ppp_encryption;
-            memcpy(modem->ppp_ctx->username, modem->ppp_username, sizeof(modem->ppp_ctx->username));
-            memcpy(modem->ppp_ctx->password, modem->ppp_password, sizeof(modem->ppp_ctx->password));
+            memcpy(modem->ppp_ctx->username, modem->username, sizeof(modem->ppp_ctx->username));
+            memcpy(modem->ppp_ctx->password, modem->password, sizeof(modem->ppp_ctx->password));
             modem->ppp_ctx->wins1 = modem->ppp_wins1;
             modem->ppp_ctx->wins2 = modem->ppp_wins2;
+            if (modem->ppp_dns1)
+                modem->ppp_ctx->dns1 = modem->ppp_dns1;
+            if (modem->ppp_dns2)
+                modem->ppp_ctx->dns2 = modem->ppp_dns2;
             ppp_start(modem->ppp_ctx);
             if (modem->ppp_ctx->state == PPP_STATE_DEAD) {
                 modem_log(modem->log, "PPP startup failed\n");
@@ -896,9 +900,9 @@ modem_dial(modem_t *modem, const char *str)
             modem->cslip_enabled = (modem->connection_type == MODEM_TYPE_CSLIP);
 
             /* Start SLIP auth if enabled */
-            if (modem->slip_auth_enabled && (modem->slip_username[0] || modem->slip_password[0])) {
+            if (modem->slip_auth_enabled && (modem->username[0] || modem->password[0])) {
                 modem->slip_auth_ctx = slip_auth_init(modem, modem->log, modem_ppp_serial_push,
-                                                      modem->slip_username, modem->slip_password);
+                                                      modem->username, modem->password);
                 if (!modem->slip_auth_ctx) {
                     modem_log(modem->log, "SLIP authentication initialization failed\n");
                     modem_enter_idle_state(modem);
@@ -1809,24 +1813,18 @@ modem_init(UNUSED(const device_t *info))
     modem->ppp_auth_type   = device_get_config_int("ppp_auth_type");
     modem->ppp_encryption  = device_get_config_int("ppp_encryption");
 
-    /* SLIP auth settings */
+    /* Shared SLIP/PPP credentials */
     modem->slip_auth_enabled = device_get_config_int("slip_auth");
     {
-        const char *u = device_get_config_string("slip_username");
-        const char *p = device_get_config_string("slip_password");
-        if (u) strncpy(modem->slip_username, u, sizeof(modem->slip_username) - 1);
-        if (p) strncpy(modem->slip_password, p, sizeof(modem->slip_password) - 1);
-    }
-
-    /* PPP auth settings */
-    {
-        const char *u = device_get_config_string("ppp_username");
-        const char *p = device_get_config_string("ppp_password");
-        if (u) strncpy(modem->ppp_username, u, sizeof(modem->ppp_username) - 1);
-        if (p) strncpy(modem->ppp_password, p, sizeof(modem->ppp_password) - 1);
+        const char *u = device_get_config_string("username");
+        const char *p = device_get_config_string("password");
+        if (u) strncpy(modem->username, u, sizeof(modem->username) - 1);
+        if (p) strncpy(modem->password, p, sizeof(modem->password) - 1);
     }
     modem->ppp_wins1 = modem_parse_ipv4_config(device_get_config_string("ppp_wins1"));
     modem->ppp_wins2 = modem_parse_ipv4_config(device_get_config_string("ppp_wins2"));
+    modem->ppp_dns1 = modem_parse_ipv4_config(device_get_config_string("ppp_dns1"));
+    modem->ppp_dns2 = modem_parse_ipv4_config(device_get_config_string("ppp_dns2"));
 
     /* Initialize CSLIP context (always available, used when connection_type selects CSLIP) */
     modem->log       = log_open("MODEM");
@@ -1984,32 +1982,32 @@ static const device_config_t modem_config[] = {
         .bios           = { { 0 } }
     },
     {
+        .name           = "username",
+        .description    = "Username",
+        .type           = CONFIG_STRING,
+        .default_string = "",
+        .default_int    = 0,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = { { 0 } },
+        .bios           = { { 0 } }
+    },
+    {
+        .name           = "password",
+        .description    = "Password",
+        .type           = CONFIG_STRING,
+        .default_string = "",
+        .default_int    = 0,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = { { 0 } },
+        .bios           = { { 0 } }
+    },
+    {
         .name           = "slip_auth",
         .description    = "SLIP Login Authentication",
         .type           = CONFIG_BINARY,
         .default_string = NULL,
-        .default_int    = 0,
-        .file_filter    = NULL,
-        .spinner        = { 0 },
-        .selection      = { { 0 } },
-        .bios           = { { 0 } }
-    },
-    {
-        .name           = "slip_username",
-        .description    = "SLIP Username",
-        .type           = CONFIG_STRING,
-        .default_string = "",
-        .default_int    = 0,
-        .file_filter    = NULL,
-        .spinner        = { 0 },
-        .selection      = { { 0 } },
-        .bios           = { { 0 } }
-    },
-    {
-        .name           = "slip_password",
-        .description    = "SLIP Password",
-        .type           = CONFIG_STRING,
-        .default_string = "",
         .default_int    = 0,
         .file_filter    = NULL,
         .spinner        = { 0 },
@@ -2057,28 +2055,6 @@ static const device_config_t modem_config[] = {
         .bios           = { { 0 } }
     },
     {
-        .name           = "ppp_username",
-        .description    = "PPP Username",
-        .type           = CONFIG_STRING,
-        .default_string = "",
-        .default_int    = 0,
-        .file_filter    = NULL,
-        .spinner        = { 0 },
-        .selection      = { { 0 } },
-        .bios           = { { 0 } }
-    },
-    {
-        .name           = "ppp_password",
-        .description    = "PPP Password",
-        .type           = CONFIG_STRING,
-        .default_string = "",
-        .default_int    = 0,
-        .file_filter    = NULL,
-        .spinner        = { 0 },
-        .selection      = { { 0 } },
-        .bios           = { { 0 } }
-    },
-    {
         .name           = "ppp_wins1",
         .description    = "PPP Primary WINS Server",
         .type           = CONFIG_STRING,
@@ -2092,6 +2068,28 @@ static const device_config_t modem_config[] = {
     {
         .name           = "ppp_wins2",
         .description    = "PPP Secondary WINS Server",
+        .type           = CONFIG_STRING,
+        .default_string = "",
+        .default_int    = 0,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = { { 0 } },
+        .bios           = { { 0 } }
+    },
+    {
+        .name           = "ppp_dns1",
+        .description    = "PPP Primary DNS Server",
+        .type           = CONFIG_STRING,
+        .default_string = "",
+        .default_int    = 0,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = { { 0 } },
+        .bios           = { { 0 } }
+    },
+    {
+        .name           = "ppp_dns2",
+        .description    = "PPP Secondary DNS Server",
         .type           = CONFIG_STRING,
         .default_string = "",
         .default_int    = 0,
