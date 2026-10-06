@@ -1245,7 +1245,9 @@ modem_do_command(modem_t *modem, int repeat)
                     const char *mappedaddr = NULL;
                     size_t      i          = 0;
 
-                    if (*foundstr == 'T' || *foundstr == 'P') // Tone/pulse dialing
+                    if ((foundstr[0] == 'T' && foundstr[1] == 'P') || (foundstr[0] == 'P' && foundstr[1] == 'T'))
+                        foundstr += 2;
+                    else if (*foundstr == 'T' || *foundstr == 'P') // Tone/pulse dialing
                         foundstr++;
                     else if (*foundstr == 'L') { // Redial last number
                         if (modem->lastnumber[0] == 0)
