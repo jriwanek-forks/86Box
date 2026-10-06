@@ -182,6 +182,8 @@ typedef enum {
     PPP_EAP_STATE_MD5_CHALLENGE
 } ppp_eap_state_t;
 
+struct ppp_mppp_bundle_t;
+
 /* Maximum PPP frame size */
 #define PPP_MAX_FRAME  2048
 #define PPP_DEFAULT_MRU 1500
@@ -219,6 +221,21 @@ typedef struct ppp_ctx_t {
     bool            peer_acfc;
     bool            request_pfc;
     bool            request_acfc;
+    char            multilink_group[64];
+    bool            multilink_request_mrru;
+    bool            multilink_request_short_sequence;
+    bool            multilink_request_endpoint;
+    bool            multilink_our_mrru;
+    bool            multilink_peer_mrru;
+    bool            multilink_our_short_sequence;
+    bool            multilink_peer_short_sequence;
+    bool            multilink_our_endpoint;
+    bool            multilink_peer_endpoint;
+    uint16_t        multilink_our_mrru_value;
+    uint16_t        multilink_peer_mrru_value;
+    uint8_t         multilink_peer_endpoint_data[32];
+    uint8_t         multilink_peer_endpoint_length;
+    struct ppp_mppp_bundle_t *multilink_bundle;
 
     /* LCP state tracking */
     uint8_t         lcp_id;
@@ -336,6 +353,9 @@ ppp_ctx_t *ppp_init(void *modem, void *log,
                     void (*network_send_ip)(void *, const uint8_t *, int));
 void       ppp_close(ppp_ctx_t *ctx);
 void       ppp_start(ppp_ctx_t *ctx);
+void       ppp_multilink_configure(ppp_ctx_t *ctx, const char *group);
+bool       ppp_multilink_is_member(const ppp_ctx_t *ctx);
+bool       ppp_multilink_is_owner(const ppp_ctx_t *ctx);
 void       ppp_timer_tick(ppp_ctx_t *ctx);
 void       ppp_rx_byte(ppp_ctx_t *ctx, uint8_t byte);
 void       ppp_wrap_ip(ppp_ctx_t *ctx, const uint8_t *ip_pkt, int len);

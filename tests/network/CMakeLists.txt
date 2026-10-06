@@ -45,11 +45,16 @@ if(BUILD_TESTING)
         ../../src/network/net_modem_cslip.c
         ../../src/network/net_modem_mppe.c
         ../../src/network/net_modem_crypto.c
+        ../../src/network/net_modem_mppp.c
     )
     target_link_libraries(net_modem_ppp_tests PRIVATE ZLIB::ZLIB)
     if(WIN32)
         target_link_libraries(net_modem_ppp_tests PRIVATE bcrypt)
     endif()
+
+    add_net_modem_test(net_modem_mppp_tests net_modem_mppp_test.cpp
+        ../../src/network/net_modem_mppp.c
+    )
 
     add_net_modem_test(net_modem_pap_tests net_modem_pap_test.cpp
         ../../src/network/net_modem_pap.c

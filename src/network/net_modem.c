@@ -385,6 +385,7 @@ typedef struct modem_t {
     /* PPP authentication settings */
     int              ppp_auth_type;    /* ppp_auth_type_t value from config */
     int              ppp_encryption;   /* Minimum required MPPE key strength */
+    char             ppp_multilink_group[64];
     char             username[64];
     char             password[64];
     uint32_t         ppp_wins1;
@@ -1027,6 +1028,10 @@ modem_dial(modem_t *modem, const char *str)
                 modem_send_res(modem, ResNOCARRIER);
                 return;
             }
+
+            ppp_multilink_configure(modem->ppp_ctx,
+                                    modem->connection_type == MODEM_TYPE_PPP
+                                        ? modem->ppp_multilink_group : NULL);
 
             /* Configure PPP auth from device settings */
             modem->ppp_ctx->auth_type = (ppp_auth_type_t) modem->ppp_auth_type;
@@ -1723,6 +1728,9 @@ modem_rx(void *priv, uint8_t *buf, int io_len)
 
     /* PPP mode: wrap IP packet in PPP HDLC framing */
     if (modem->ppp_active && modem->ppp_ctx) {
+        if (!ppp_multilink_is_owner(modem->ppp_ctx))
+            return 0;
+
         if (!(buf[12] == 0x08 && buf[13] == 0x00)) {
             modem_log(modem->log, "PPP: Dropping %d bytes (non-IP EtherType %s 0x%04X)\n",
                       io_len - 14,
@@ -1974,6 +1982,12 @@ modem_init(UNUSED(const device_t *info))
     modem->connection_type = device_get_config_int("connection_type");
     modem->ppp_auth_type   = device_get_config_int("ppp_auth_type");
     modem->ppp_encryption  = device_get_config_int("ppp_encryption");
+    {
+        const char *group = device_get_config_string("ppp_multilink_group");
+        if (group)
+            strncpy(modem->ppp_multilink_group, group,
+                    sizeof(modem->ppp_multilink_group) - 1);
+    }
 
     /* Shared SLIP/PPP credentials */
     modem->slip_auth_enabled = device_get_config_int("slip_auth");
@@ -2214,6 +2228,17 @@ static const device_config_t modem_config[] = {
             { .description = "128-Bit", .value = 128 },
             { .description = ""                   }
         },
+        .bios           = { { 0 } }
+    },
+    {
+        .name           = "ppp_multilink_group",
+        .description    = "PPP Multilink Group (same on each link)",
+        .type           = CONFIG_STRING,
+        .default_string = "",
+        .default_int    = 0,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = { { 0 } },
         .bios           = { { 0 } }
     },
     {

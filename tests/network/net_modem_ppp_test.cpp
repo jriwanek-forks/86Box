@@ -138,6 +138,57 @@ TEST(ModemPpp, FcsMatchesStandardCheckValue)
     EXPECT_EQ(ppp_fcs16(check, sizeof(check)), 0x906Eu);
 }
 
+TEST(ModemPpp, MultilinkLcpOptionsAreOptIn)
+{
+    std::vector<uint8_t> unconfigured_wire;
+    std::vector<uint8_t> configured_wire;
+    std::vector<uint8_t> network;
+    ppp_ctx_t *unconfigured = ppp_init(&unconfigured_wire, nullptr,
+                                       capture_serial, capture_network);
+    ppp_ctx_t *configured = ppp_init(&configured_wire, nullptr,
+                                     capture_serial, capture_network);
+    ASSERT_NE(unconfigured, nullptr);
+    ASSERT_NE(configured, nullptr);
+
+    ppp_start(unconfigured);
+    ppp_multilink_configure(configured, "modem-pair");
+    ppp_start(configured);
+
+    uint16_t protocol = 0;
+    auto ordinary_request = decode_captured_frame(unconfigured_wire, protocol);
+    ASSERT_EQ(protocol, PPP_PROTO_LCP);
+    bool ordinary_has_mrru = false;
+    for (size_t pos = 4; pos + 2 <= ordinary_request.size();) {
+        uint8_t option_length = ordinary_request[pos + 1];
+        ASSERT_GE(option_length, 2);
+        ASSERT_LE(pos + option_length, ordinary_request.size());
+        ordinary_has_mrru |= ordinary_request[pos] == LCP_OPT_MRRU;
+        pos += option_length;
+    }
+    EXPECT_FALSE(ordinary_has_mrru);
+
+    auto multilink_request = decode_captured_frame(configured_wire, protocol);
+    ASSERT_EQ(protocol, PPP_PROTO_LCP);
+    bool has_mrru = false;
+    bool has_short_sequence = false;
+    bool has_endpoint = false;
+    for (size_t pos = 4; pos + 2 <= multilink_request.size();) {
+        uint8_t option_length = multilink_request[pos + 1];
+        ASSERT_GE(option_length, 2);
+        ASSERT_LE(pos + option_length, multilink_request.size());
+        has_mrru |= multilink_request[pos] == LCP_OPT_MRRU;
+        has_short_sequence |= multilink_request[pos] == LCP_OPT_SHORT_SEQUENCE;
+        has_endpoint |= multilink_request[pos] == LCP_OPT_ENDPOINT_DISC;
+        pos += option_length;
+    }
+    EXPECT_TRUE(has_mrru);
+    EXPECT_TRUE(has_short_sequence);
+    EXPECT_TRUE(has_endpoint);
+
+    ppp_close(unconfigured);
+    ppp_close(configured);
+}
+
 TEST(ModemPpp, SendsEscapedFrameWithValidFcs)
 {
     ppp_ctx_t ctx = make_context();

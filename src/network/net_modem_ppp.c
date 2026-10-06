@@ -29,6 +29,7 @@
 #include <86box/net_modem_eap.h>
 #include <86box/net_modem_ipcp.h>
 #include <86box/net_modem_cslip.h>
+#include <86box/net_modem_mppp.h>
 #include <86box/log.h>
 #include "net_modem_debug.h"
 #ifdef _WIN32
@@ -39,6 +40,28 @@
 #define PPP_LCP_TIMEOUT_MS 3000
 #define PPP_LCP_MAX_RETRIES 10
 #define PPP_AUTH_TIMEOUT_MS 30000
+
+struct ppp_mppp_bundle_t {
+    char                 group[64];
+    ppp_auth_type_t      auth_type;
+    char                 username[64];
+    uint8_t              peer_endpoint[32];
+    uint8_t              peer_endpoint_length;
+    uint16_t             rx_mrru;
+    uint16_t             tx_mrru;
+    bool                 rx_short_sequence;
+    bool                 tx_short_sequence;
+    ppp_ctx_t           *owner;
+    ppp_ctx_t           *links[PPP_MPPP_MAX_LINKS];
+    size_t               link_count;
+    ppp_mppp_sender_t    sender;
+    ppp_mppp_reassembler_t reassembler;
+    struct ppp_mppp_bundle_t *next;
+};
+
+static struct ppp_mppp_bundle_t *ppp_mppp_bundles;
+static void ppp_process_frame(ppp_ctx_t *ctx, const uint8_t *frame, int frame_len,
+                              bool reassembled);
 
 #ifdef ENABLE_MODEM_LOG
 extern uint8_t modem_do_log;
@@ -56,6 +79,206 @@ ppp_log(void *priv, const char *fmt, ...)
 #else
 #    define ppp_log(priv, fmt, ...)
 #endif
+
+static bool
+ppp_mppp_send_fragment(void *opaque, const uint8_t *fragment, size_t length)
+{
+    ppp_ctx_t *ctx = (ppp_ctx_t *) opaque;
+
+    if (!ctx || ctx->state == PPP_STATE_DEAD || length > PPP_MAX_FRAME - 6)
+        return false;
+
+    ppp_send_frame(ctx, PPP_PROTO_MULTILINK, fragment, (int) length);
+    return true;
+}
+
+static void
+ppp_mppp_deliver_packet(void *opaque, const uint8_t *packet, size_t length)
+{
+    struct ppp_mppp_bundle_t *bundle = (struct ppp_mppp_bundle_t *) opaque;
+    uint8_t frame[PPP_MAX_FRAME + 2];
+
+    if (!bundle || !bundle->owner || length < 1 || length > sizeof(frame) - 2)
+        return;
+    if ((packet[0] & 1) ? !bundle->owner->our_pfc : length < 2)
+        return;
+
+    frame[0] = PPP_ADDRESS;
+    frame[1] = PPP_CONTROL;
+    memcpy(frame + 2, packet, length);
+    ppp_process_frame(bundle->owner, frame, (int) length + 2, true);
+}
+
+static void
+ppp_mppp_bundle_free(struct ppp_mppp_bundle_t *bundle)
+{
+    if (!bundle)
+        return;
+
+    ppp_mppp_reassembler_close(&bundle->reassembler);
+    free(bundle);
+}
+
+static bool
+ppp_multilink_join(ppp_ctx_t *ctx)
+{
+    struct ppp_mppp_bundle_t *bundle = ppp_mppp_bundles;
+    size_t header_length;
+    size_t max_fragment_payload;
+    bool new_bundle = false;
+
+    if (!ctx || !ctx->multilink_group[0]
+        || !ctx->multilink_our_mrru || !ctx->multilink_peer_mrru)
+        return false;
+
+    header_length = ppp_mppp_header_size(ctx->multilink_peer_short_sequence);
+    if (ctx->peer_mru <= header_length + 2) {
+        ppp_log(ctx->log, "PPP: Physical MRU is too small for Multilink headers\n");
+        ctx->state = PPP_STATE_DEAD;
+        return false;
+    }
+    max_fragment_payload = ctx->peer_mru - header_length - 2;
+    if (max_fragment_payload > PPP_MAX_FRAME - 6 - header_length)
+        max_fragment_payload = PPP_MAX_FRAME - 6 - header_length;
+
+    while (bundle && strcmp(bundle->group, ctx->multilink_group) != 0)
+        bundle = bundle->next;
+
+    if (bundle) {
+        if (bundle->link_count >= PPP_MPPP_MAX_LINKS
+            || bundle->auth_type != ctx->auth_type
+            || strcmp(bundle->username, ctx->username) != 0
+            || bundle->peer_endpoint_length != ctx->multilink_peer_endpoint_length
+            || memcmp(bundle->peer_endpoint, ctx->multilink_peer_endpoint_data,
+                      bundle->peer_endpoint_length) != 0
+            || bundle->rx_mrru != ctx->multilink_our_mrru_value
+            || bundle->tx_mrru != ctx->multilink_peer_mrru_value
+            || bundle->rx_short_sequence != ctx->multilink_our_short_sequence
+            || bundle->tx_short_sequence != ctx->multilink_peer_short_sequence) {
+            ppp_log(ctx->log, "PPP: Multilink link does not match the active bundle\n");
+            ctx->state = PPP_STATE_DEAD;
+            return false;
+        }
+    } else {
+        bundle = (struct ppp_mppp_bundle_t *) calloc(1, sizeof(*bundle));
+        if (!bundle) {
+            ppp_log(ctx->log, "PPP: Could not allocate Multilink bundle\n");
+            ctx->state = PPP_STATE_DEAD;
+            return false;
+        }
+        new_bundle = true;
+
+        memcpy(bundle->group, ctx->multilink_group, sizeof(bundle->group));
+        bundle->auth_type = ctx->auth_type;
+        memcpy(bundle->username, ctx->username, sizeof(bundle->username));
+        bundle->peer_endpoint_length = ctx->multilink_peer_endpoint_length;
+        memcpy(bundle->peer_endpoint, ctx->multilink_peer_endpoint_data,
+               bundle->peer_endpoint_length);
+        bundle->rx_mrru = ctx->multilink_our_mrru_value;
+        bundle->tx_mrru = ctx->multilink_peer_mrru_value;
+        bundle->rx_short_sequence = ctx->multilink_our_short_sequence;
+        bundle->tx_short_sequence = ctx->multilink_peer_short_sequence;
+
+        if (!ppp_mppp_sender_init(&bundle->sender, bundle->tx_mrru,
+                                  bundle->tx_short_sequence)
+            || !ppp_mppp_reassembler_init(&bundle->reassembler, bundle->rx_mrru,
+                                         bundle->rx_short_sequence)) {
+            ppp_mppp_bundle_free(bundle);
+            ctx->state = PPP_STATE_DEAD;
+            return false;
+        }
+
+        bundle->owner = ctx;
+    }
+
+    if (!ppp_mppp_sender_add_link(&bundle->sender, ppp_mppp_send_fragment, ctx,
+                                  max_fragment_payload)) {
+        ppp_log(ctx->log, "PPP: Could not attach physical link to Multilink bundle\n");
+        if (new_bundle)
+            ppp_mppp_bundle_free(bundle);
+        ctx->state = PPP_STATE_DEAD;
+        return false;
+    }
+
+    bundle->links[bundle->link_count++] = ctx;
+    ctx->multilink_bundle = bundle;
+    if (new_bundle) {
+        bundle->next = ppp_mppp_bundles;
+        ppp_mppp_bundles = bundle;
+    }
+    ppp_log(ctx->log, "PPP: Joined Multilink bundle '%s' with %u link(s)\n",
+            bundle->group, (unsigned) bundle->link_count);
+    return true;
+}
+
+static void
+ppp_multilink_detach(ppp_ctx_t *ctx)
+{
+    struct ppp_mppp_bundle_t *bundle;
+    struct ppp_mppp_bundle_t **bundle_pos;
+
+    if (!ctx || !ctx->multilink_bundle)
+        return;
+
+    bundle = ctx->multilink_bundle;
+    ctx->multilink_bundle = NULL;
+    ppp_mppp_sender_remove_link(&bundle->sender, ctx);
+
+    for (size_t index = 0; index < bundle->link_count; index++) {
+        if (bundle->links[index] != ctx)
+            continue;
+        bundle->link_count--;
+        if (index != bundle->link_count)
+            bundle->links[index] = bundle->links[bundle->link_count];
+        bundle->links[bundle->link_count] = NULL;
+        break;
+    }
+
+    if (bundle->owner == ctx) {
+        for (size_t index = 0; index < bundle->link_count; index++) {
+            bundle->links[index]->multilink_bundle = NULL;
+            bundle->links[index]->state = PPP_STATE_DEAD;
+        }
+        bundle->link_count = 0;
+    }
+
+    if (bundle->link_count != 0) {
+        ppp_mppp_reassembler_reset(&bundle->reassembler);
+        return;
+    }
+
+    for (bundle_pos = &ppp_mppp_bundles; *bundle_pos && *bundle_pos != bundle;
+         bundle_pos = &(*bundle_pos)->next)
+        ;
+    if (*bundle_pos)
+        *bundle_pos = bundle->next;
+    ppp_mppp_bundle_free(bundle);
+}
+
+void
+ppp_multilink_configure(ppp_ctx_t *ctx, const char *group)
+{
+    if (!ctx)
+        return;
+
+    ctx->multilink_group[0] = '\0';
+    if (group && group[0]) {
+        strncpy(ctx->multilink_group, group, sizeof(ctx->multilink_group) - 1);
+        ctx->multilink_group[sizeof(ctx->multilink_group) - 1] = '\0';
+    }
+}
+
+bool
+ppp_multilink_is_member(const ppp_ctx_t *ctx)
+{
+    return ctx && ctx->multilink_bundle;
+}
+
+bool
+ppp_multilink_is_owner(const ppp_ctx_t *ctx)
+{
+    return ctx && (!ctx->multilink_bundle || ctx->multilink_bundle->owner == ctx);
+}
 
 #ifdef ENABLE_MODEM_LOG
 static const char *
@@ -88,6 +311,7 @@ ppp_protocol_name(uint16_t protocol)
         case PPP_PROTO_EAP:            return "EAP";
         case PPP_PROTO_CCP:            return "CCP";
         case PPP_PROTO_MPPE:           return "MPPE";
+        case PPP_PROTO_MULTILINK:      return "Multilink";
         case PPP_PROTO_VJ_COMPRESSED:  return "VJ-compressed IPv4";
         case PPP_PROTO_VJ_UNCOMPRESSED:return "VJ-uncompressed IPv4";
         default:                       return "unknown";
@@ -142,6 +366,7 @@ ppp_lcp_option_name(uint8_t option)
         case LCP_OPT_ACFC:           return "Address-Control-Field-Compression";
         case LCP_OPT_CALLBACK:       return "Callback";
         case LCP_OPT_MRRU:           return "MRRU";
+        case LCP_OPT_SHORT_SEQUENCE: return "Short-Sequence-Number-Header";
         case LCP_OPT_ENDPOINT_DISC:  return "Endpoint-Discriminator";
         default:                     return "unknown";
     }
@@ -389,6 +614,7 @@ ppp_send_frame(ppp_ctx_t *ctx, uint16_t protocol, const uint8_t *data, int len)
     bool     compress_protocol = ctx->state >= PPP_STATE_AUTH
                               && ctx->peer_pfc && (protocol & 0xFF00) == 0
                               && (protocol & 1) != 0;
+    bool     multilink_frame = protocol == PPP_PROTO_MULTILINK;
 
     if (len < 0 || len > PPP_MAX_FRAME - 6) {
         ppp_log(ctx->log, "PPP: Dropping oversized frame (%d bytes)\n", len);
@@ -398,10 +624,11 @@ ppp_send_frame(ppp_ctx_t *ctx, uint16_t protocol, const uint8_t *data, int len)
     if (ctx->mppe_keys_ready
         && ((!ctx->ccp_open && !ctx->ccp_plaintext_fallback)
             || ctx->state != PPP_STATE_NETWORK)
-        && protocol >= PPP_PROTO_IP && protocol <= 0x00FA)
+        && protocol >= PPP_PROTO_IP && protocol <= 0x00FA && !multilink_frame)
         return;
 
-    if (ctx->mppe_tx_enabled && protocol >= PPP_PROTO_IP && protocol <= 0x00FA) {
+    if (!multilink_frame && ctx->mppe_tx_enabled
+        && protocol >= PPP_PROTO_IP && protocol <= 0x00FA) {
         if (len > PPP_MAX_FRAME - 10) {
             ppp_log(ctx->log, "PPP: Dropping oversized MPPE frame (%d bytes)\n", len);
             return;
@@ -420,12 +647,12 @@ ppp_send_frame(ppp_ctx_t *ctx, uint16_t protocol, const uint8_t *data, int len)
         wire_data = encrypted;
         wire_len = (int) encrypted_len;
         compress_protocol = ctx->state >= PPP_STATE_AUTH && ctx->peer_pfc;
-    } else if (ctx->ccp_open
+    } else if (!multilink_frame && ctx->ccp_open
                && ctx->ccp_tx_method == PPP_CCP_METHOD_NT31RAS
                && protocol == PPP_PROTO_IP) {
         (void) ppp_ras_send_ip(ctx, data, len);
         return;
-    } else if (ctx->ccp_open
+    } else if (!multilink_frame && ctx->ccp_open
                && (ctx->ccp_tx_method == PPP_CCP_METHOD_PREDICTOR1
                 || ctx->ccp_tx_method == PPP_CCP_METHOD_PREDICTOR2
                 || ctx->ccp_tx_method == PPP_CCP_METHOD_DEFLATE
@@ -461,6 +688,16 @@ ppp_send_frame(ppp_ctx_t *ctx, uint16_t protocol, const uint8_t *data, int len)
         wire_data = encrypted;
         wire_len = compressed_len;
         compress_protocol = ctx->state >= PPP_STATE_AUTH && ctx->peer_pfc;
+    }
+
+    if (!multilink_frame && ctx->multilink_bundle
+        && ctx->multilink_bundle->owner == ctx
+        && protocol >= PPP_PROTO_IP && protocol <= 0x00FA) {
+        if (wire_len < 0
+            || !ppp_mppp_sender_send(&ctx->multilink_bundle->sender, wire_protocol,
+                                     wire_data, (size_t) wire_len))
+            ppp_log(ctx->log, "PPP: Could not send packet over Multilink bundle\n");
+        return;
     }
 
     if (wire_len + (compress_protocol ? 1 : 2) > ctx->peer_mru) {
@@ -520,6 +757,19 @@ ppp_send_frame(ppp_ctx_t *ctx, uint16_t protocol, const uint8_t *data, int len)
                     (unsigned) ctx->mppe_tx_enabled,
                     (unsigned) compress_ac, (unsigned) compress_protocol);
     ctx->serial_push(ctx->modem, frame, out_len);
+}
+
+static uint32_t
+ppp_multilink_endpoint_id(const ppp_ctx_t *ctx)
+{
+    uint32_t hash = 2166136261u;
+
+    for (const char *pos = ctx->multilink_group; *pos; pos++) {
+        hash ^= (uint8_t) *pos;
+        hash *= 16777619u;
+    }
+
+    return hash;
 }
 
 /* Build and send an LCP Configuration-Request */
@@ -589,6 +839,29 @@ ppp_send_lcp_config_request(ppp_ctx_t *ctx)
         }
     }
 
+    if (ctx->multilink_request_mrru) {
+        pkt[len++] = LCP_OPT_MRRU;
+        pkt[len++] = 4;
+        pkt[len++] = (uint8_t) (ctx->multilink_our_mrru_value >> 8);
+        pkt[len++] = (uint8_t) ctx->multilink_our_mrru_value;
+    }
+
+    if (ctx->multilink_request_short_sequence) {
+        pkt[len++] = LCP_OPT_SHORT_SEQUENCE;
+        pkt[len++] = 2;
+    }
+
+    if (ctx->multilink_request_endpoint) {
+        uint32_t endpoint_id = ppp_multilink_endpoint_id(ctx);
+        pkt[len++] = LCP_OPT_ENDPOINT_DISC;
+        pkt[len++] = 7;
+        pkt[len++] = 0;
+        pkt[len++] = (uint8_t) (endpoint_id >> 24);
+        pkt[len++] = (uint8_t) (endpoint_id >> 16);
+        pkt[len++] = (uint8_t) (endpoint_id >> 8);
+        pkt[len++] = (uint8_t) endpoint_id;
+    }
+
     /* Option: Magic Number (type=5, len=6) */
     pkt[len++] = LCP_OPT_MAGIC_NUMBER;
     pkt[len++] = 6;
@@ -642,6 +915,12 @@ ppp_handle_lcp_config_request(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
     uint32_t peer_magic = 0;
     bool    peer_pfc = false;
     bool    peer_acfc = false;
+    bool    peer_mrru_enabled = false;
+    bool    peer_short_sequence = false;
+    bool    peer_endpoint_enabled = false;
+    uint16_t peer_mrru_value = 0;
+    uint8_t peer_endpoint_data[32] = { 0 };
+    uint8_t peer_endpoint_length = 0;
 
     if (total < 4 || total > pkt_len)
         return false;
@@ -762,15 +1041,48 @@ ppp_handle_lcp_config_request(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
                 break;
 
             case LCP_OPT_MRRU:
-                /* MRRU implies Multilink support, which this PPP implementation lacks. */
-                memcpy(rej + rej_len, pkt + pos, opt_len);
-                rej_len += opt_len;
+                if (ctx->multilink_group[0] && opt_len == 4) {
+                    uint16_t requested_mrru = (uint16_t) ((pkt[pos + 2] << 8) | pkt[pos + 3]);
+                    if (requested_mrru < 128 || requested_mrru > PPP_MAX_FRAME) {
+                        uint16_t suggested_mrru = PPP_DEFAULT_MRU + 2;
+                        nak[nak_len++] = LCP_OPT_MRRU;
+                        nak[nak_len++] = 4;
+                        nak[nak_len++] = (uint8_t) (suggested_mrru >> 8);
+                        nak[nak_len++] = (uint8_t) suggested_mrru;
+                    } else {
+                        peer_mrru_enabled = true;
+                        peer_mrru_value = requested_mrru;
+                        memcpy(ack + ack_len, pkt + pos, opt_len);
+                        ack_len += opt_len;
+                    }
+                } else {
+                    memcpy(rej + rej_len, pkt + pos, opt_len);
+                    rej_len += opt_len;
+                }
+                break;
+
+            case LCP_OPT_SHORT_SEQUENCE:
+                if (ctx->multilink_group[0] && opt_len == 2) {
+                    peer_short_sequence = true;
+                    memcpy(ack + ack_len, pkt + pos, opt_len);
+                    ack_len += opt_len;
+                } else {
+                    memcpy(rej + rej_len, pkt + pos, opt_len);
+                    rej_len += opt_len;
+                }
                 break;
 
             case LCP_OPT_ENDPOINT_DISC:
-                /* Endpoint Discriminator is only useful with Multilink support. */
-                memcpy(rej + rej_len, pkt + pos, opt_len);
-                rej_len += opt_len;
+                if (ctx->multilink_group[0] && opt_len >= 3 && opt_len <= 34) {
+                    peer_endpoint_enabled = true;
+                    peer_endpoint_length = (uint8_t) (opt_len - 2);
+                    memcpy(peer_endpoint_data, pkt + pos + 2, peer_endpoint_length);
+                    memcpy(ack + ack_len, pkt + pos, opt_len);
+                    ack_len += opt_len;
+                } else {
+                    memcpy(rej + rej_len, pkt + pos, opt_len);
+                    rej_len += opt_len;
+                }
                 break;
 
             default:
@@ -810,6 +1122,13 @@ ppp_handle_lcp_config_request(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
         ctx->peer_magic = peer_magic;
         ctx->peer_pfc = peer_pfc;
         ctx->peer_acfc = peer_acfc;
+         ctx->multilink_peer_mrru = peer_mrru_enabled;
+         ctx->multilink_peer_mrru_value = peer_mrru_value;
+         ctx->multilink_peer_short_sequence = peer_short_sequence;
+         ctx->multilink_peer_endpoint = peer_endpoint_enabled;
+         ctx->multilink_peer_endpoint_length = peer_endpoint_length;
+         memcpy(ctx->multilink_peer_endpoint_data, peer_endpoint_data,
+             sizeof(ctx->multilink_peer_endpoint_data));
         ctx->lcp_ack_sent = true;
         ppp_log(ctx->log, "PPP: Sent LCP Configure-Ack\n");
     }
@@ -847,6 +1166,9 @@ ppp_handle_lcp_config_ack(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
 
     ctx->our_pfc  = false;
     ctx->our_acfc = false;
+    ctx->multilink_our_mrru = false;
+    ctx->multilink_our_short_sequence = false;
+    ctx->multilink_our_endpoint = false;
     while (pos < total) {
         uint8_t opt_type = pkt[pos];
         uint8_t opt_len  = pkt[pos + 1];
@@ -858,6 +1180,12 @@ ppp_handle_lcp_config_ack(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
             ctx->our_pfc = true;
         else if (opt_type == LCP_OPT_ACFC && opt_len == 2)
             ctx->our_acfc = true;
+        else if (opt_type == LCP_OPT_MRRU && opt_len == 4)
+            ctx->multilink_our_mrru = true;
+        else if (opt_type == LCP_OPT_SHORT_SEQUENCE && opt_len == 2)
+            ctx->multilink_our_short_sequence = true;
+        else if (opt_type == LCP_OPT_ENDPOINT_DISC && opt_len >= 3)
+            ctx->multilink_our_endpoint = true;
 
         pos += opt_len;
     }
@@ -951,6 +1279,28 @@ ppp_handle_lcp_config_nak(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
                 our_mru = (uint16_t) ((pkt[pos + 2] << 8) | pkt[pos + 3]);
                 if (our_mru < 128 || our_mru > PPP_MAX_FRAME)
                     return;
+                break;
+
+            case LCP_OPT_MRRU:
+                if (opt_len != 4)
+                    return;
+                ctx->multilink_our_mrru_value = (uint16_t) ((pkt[pos + 2] << 8)
+                                                            | pkt[pos + 3]);
+                if (ctx->multilink_our_mrru_value < 128
+                    || ctx->multilink_our_mrru_value > PPP_MAX_FRAME)
+                    return;
+                break;
+
+            case LCP_OPT_SHORT_SEQUENCE:
+                if (opt_len != 2)
+                    return;
+                ctx->multilink_request_short_sequence = false;
+                break;
+
+            case LCP_OPT_ENDPOINT_DISC:
+                if (opt_len < 3 || opt_len > 34)
+                    return;
+                ctx->multilink_request_endpoint = false;
                 break;
 
             case LCP_OPT_ACCM:
@@ -1082,6 +1432,15 @@ ppp_handle_lcp_config_reject(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
         } else if (opt_type == LCP_OPT_ACFC) {
             ctx->request_acfc = false;
             ctx->our_acfc     = false;
+        } else if (opt_type == LCP_OPT_MRRU) {
+            ctx->multilink_request_mrru = false;
+            ctx->multilink_our_mrru = false;
+        } else if (opt_type == LCP_OPT_SHORT_SEQUENCE) {
+            ctx->multilink_request_short_sequence = false;
+            ctx->multilink_our_short_sequence = false;
+        } else if (opt_type == LCP_OPT_ENDPOINT_DISC) {
+            ctx->multilink_request_endpoint = false;
+            ctx->multilink_our_endpoint = false;
         }
         pos += opt_len;
     }
@@ -1228,6 +1587,14 @@ ppp_advance_state(ppp_ctx_t *ctx)
                     /* PAP: server waits for client to send Authenticate-Request */
                 } else {
                     ctx->auth_complete = true;
+                    bool multilink_joined = ppp_multilink_join(ctx);
+                    if (ctx->state == PPP_STATE_DEAD)
+                        break;
+                    if (multilink_joined && !ppp_multilink_is_owner(ctx)) {
+                        ctx->state = PPP_STATE_NETWORK;
+                        ppp_log(ctx->log, "PPP: Multilink link ready; bundle owner handles IPCP\n");
+                        break;
+                    }
                     ctx->state         = PPP_STATE_IPCP_NEGOTIATE;
                     ppp_ipcp_send_config_request(ctx);
                 }
@@ -1243,6 +1610,15 @@ ppp_advance_state(ppp_ctx_t *ctx)
                     break;
                 }
                 ppp_log(ctx->log, "PPP: Auth complete, moving to IPCP\n");
+                bool multilink_joined = ppp_multilink_join(ctx);
+                if (ctx->state == PPP_STATE_DEAD)
+                    break;
+                if (multilink_joined && !ppp_multilink_is_owner(ctx)) {
+                    ctx->state = PPP_STATE_NETWORK;
+                    ctx->auth_timeout_ms = 0;
+                    ppp_log(ctx->log, "PPP: Multilink link ready; bundle owner handles IPCP\n");
+                    break;
+                }
                 ctx->state = PPP_STATE_IPCP_NEGOTIATE;
                 ctx->auth_timeout_ms = 0;
                 if (ctx->mppe_keys_ready)
@@ -1312,7 +1688,7 @@ ppp_ccp_send_reset_request(ppp_ctx_t *ctx)
 
 /* Process a complete PPP frame (after HDLC un-escaping and FCS check) */
 static void
-ppp_process_frame(ppp_ctx_t *ctx, const uint8_t *frame, int frame_len)
+ppp_process_frame(ppp_ctx_t *ctx, const uint8_t *frame, int frame_len, bool reassembled)
 {
     uint16_t protocol;
     int      data_offset;
@@ -1333,7 +1709,8 @@ ppp_process_frame(ppp_ctx_t *ctx, const uint8_t *frame, int frame_len)
         return;
     }
 
-    if (frame_len - data_offset > ctx->our_mru)
+    if (frame_len - data_offset
+        > (reassembled ? ctx->multilink_our_mrru_value : ctx->our_mru))
         return;
 
     if (data_offset >= frame_len)
@@ -1370,6 +1747,17 @@ ppp_process_frame(ppp_ctx_t *ctx, const uint8_t *frame, int frame_len)
                     (unsigned) ctx->ccp_open,
                     ppp_ccp_method_name(ctx->ccp_rx_method),
                     (unsigned) ctx->mppe_rx_enabled);
+
+    if (protocol == PPP_PROTO_MULTILINK) {
+        if (ctx->multilink_bundle)
+            ppp_mppp_reassembler_input(&ctx->multilink_bundle->reassembler,
+                                       data, (size_t) data_len,
+                                       ppp_mppp_deliver_packet,
+                                       ctx->multilink_bundle);
+        else
+            ppp_log(ctx->log, "PPP: Received Multilink frame outside a bundle\n");
+        return;
+    }
 
     if (protocol == PPP_PROTO_MPPE && ctx->mppe_rx_enabled) {
         size_t decrypted_len;
@@ -1440,7 +1828,7 @@ ppp_process_frame(ppp_ctx_t *ctx, const uint8_t *frame, int frame_len)
                     (uint8_t) (decoded_protocol >> 8), (uint8_t) decoded_protocol
                 };
                 memcpy(decoded_frame + 4, decompressed + 2, (size_t) decompressed_len - 2);
-                ppp_process_frame(ctx, decoded_frame, decompressed_len + 2);
+                ppp_process_frame(ctx, decoded_frame, decompressed_len + 2, reassembled);
             }
         }
         if (!ppp_ccp_codec_decompress(ctx, data, data_len, decompressed,
@@ -1541,14 +1929,16 @@ ppp_process_frame(ppp_ctx_t *ctx, const uint8_t *frame, int frame_len)
             break;
 
         case PPP_PROTO_IP:
-            if (ctx->state == PPP_STATE_NETWORK) {
+            if (ctx->state == PPP_STATE_NETWORK
+                && (!ctx->multilink_bundle || ppp_multilink_is_owner(ctx))) {
                 ctx->network_send_ip(ctx->modem, data, data_len);
             }
             break;
 
         case PPP_PROTO_VJ_COMPRESSED:
         case PPP_PROTO_VJ_UNCOMPRESSED:
-            if (ctx->state == PPP_STATE_NETWORK && ctx->vj_rx_enabled && ctx->vj_rx_ctx) {
+            if (ctx->state == PPP_STATE_NETWORK && ctx->vj_rx_enabled && ctx->vj_rx_ctx
+                && (!ctx->multilink_bundle || ppp_multilink_is_owner(ctx))) {
                 uint8_t ip_packet[PPP_MAX_FRAME + VJ_MAX_HDR];
                 uint8_t normalized[PPP_MAX_FRAME];
                 int     vj_type = protocol == PPP_PROTO_VJ_COMPRESSED
@@ -1641,7 +2031,7 @@ ppp_rx_byte(ppp_ctx_t *ctx, uint8_t byte)
 
             if (calc_fcs == recv_fcs) {
                 MODEM_DEBUG_LOG(ctx->log, "PPP: HDLC frame complete length=%d FCS valid\n", ctx->rx_len);
-                ppp_process_frame(ctx, ctx->rx_buf, ctx->rx_len - 2);
+                ppp_process_frame(ctx, ctx->rx_buf, ctx->rx_len - 2, false);
             } else {
                 ppp_log(ctx->log, "PPP: FCS error (calc=0x%04X recv=0x%04X)\n", calc_fcs, recv_fcs);
             }
@@ -1755,6 +2145,7 @@ void
 ppp_close(ppp_ctx_t *ctx)
 {
     if (ctx) {
+        ppp_multilink_detach(ctx);
         if (ctx->state != PPP_STATE_DEAD && ctx->state != PPP_STATE_TERMINATING) {
             /* Send Terminate-Request */
             uint8_t pkt[4];
@@ -1795,6 +2186,18 @@ ppp_start(ppp_ctx_t *ctx)
     ctx->peer_acfc        = false;
     ctx->request_pfc      = true;
     ctx->request_acfc     = true;
+    ctx->multilink_request_mrru = ctx->multilink_group[0] != '\0';
+    ctx->multilink_request_short_sequence = ctx->multilink_group[0] != '\0';
+    ctx->multilink_request_endpoint = ctx->multilink_group[0] != '\0';
+    ctx->multilink_our_mrru = false;
+    ctx->multilink_peer_mrru = false;
+    ctx->multilink_our_short_sequence = false;
+    ctx->multilink_peer_short_sequence = false;
+    ctx->multilink_our_endpoint = false;
+    ctx->multilink_peer_endpoint = false;
+    ctx->multilink_our_mrru_value = PPP_DEFAULT_MRU + 2;
+    ctx->multilink_peer_mrru_value = PPP_DEFAULT_MRU + 2;
+    ctx->multilink_peer_endpoint_length = 0;
     ctx->rx_in_frame      = false;
     ctx->rx_len           = 0;
     ctx->rx_escaped       = false;

@@ -48,6 +48,7 @@ list(APPEND net_sources
     net_modem_eap.c
     net_modem_ipcp.c
     net_modem_cslip.c
+    net_modem_mppp.c
     net_modem_slip.c
     net_modem_slip_auth.c
     utils/getline.c
