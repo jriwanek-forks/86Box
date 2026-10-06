@@ -239,7 +239,19 @@ typedef struct modem_t {
 static void modem_do_command(modem_t *modem, int repeat);
 static void modem_accept_incoming_call(modem_t *modem);
 static void modem_enter_idle_state(modem_t *modem);
+void modem_send_res(modem_t *modem, const ResTypes response);
 static void fifo8_resize_2x(Fifo8 *fifo);
+
+static void
+modem_ppp_check_dead(modem_t *modem)
+{
+    if (modem->ppp_active && modem->ppp_ctx
+        && modem->ppp_ctx->state == PPP_STATE_DEAD) {
+        modem_log(modem->log, "PPP session failed during negotiation or authentication\n");
+        modem_send_res(modem, ResNOCARRIER);
+        modem_enter_idle_state(modem);
+    }
+}
 
 extern ssize_t local_getline(char **buf, size_t *bufsiz, FILE *fp);
 
@@ -565,6 +577,7 @@ modem_data_mode_process_byte(modem_t *modem, uint8_t data)
     /* PPP mode - route bytes to PPP HDLC framing */
     if (modem->ppp_active && modem->ppp_ctx) {
         ppp_rx_byte(modem->ppp_ctx, data);
+        modem_ppp_check_dead(modem);
         return;
     }
 
@@ -1634,6 +1647,11 @@ modem_cmdpause_timer_callback(void *priv)
     modem_t *modem            = (modem_t *) priv;
     uint32_t guard_threshold = 0;
     timer_on_auto(&modem->cmdpause_timer, 1000);
+
+    if (modem->ppp_active && modem->ppp_ctx) {
+        ppp_timer_tick(modem->ppp_ctx);
+        modem_ppp_check_dead(modem);
+    }
 
     if (modem->tcpIpConnInProgress) {
         do {

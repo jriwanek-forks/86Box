@@ -226,6 +226,7 @@ typedef struct ppp_ctx_t {
     bool            lcp_ack_received;
     bool            ccp_reset_pending;
     int             lcp_retries;
+    uint16_t        lcp_timeout_ms;
     bool            lcp_req_sent;
     uint8_t         lcp_request[64];
     uint8_t         lcp_request_len;
@@ -235,6 +236,7 @@ typedef struct ppp_ctx_t {
     uint8_t         auth_id;
     char            username[64];
     char            password[64];
+    uint16_t        auth_timeout_ms;
     bool            auth_complete;
     bool            mppe_keys_ready;
     bool            mppe_tx_enabled;
@@ -334,6 +336,7 @@ ppp_ctx_t *ppp_init(void *modem, void *log,
                     void (*network_send_ip)(void *, const uint8_t *, int));
 void       ppp_close(ppp_ctx_t *ctx);
 void       ppp_start(ppp_ctx_t *ctx);
+void       ppp_timer_tick(ppp_ctx_t *ctx);
 void       ppp_rx_byte(ppp_ctx_t *ctx, uint8_t byte);
 void       ppp_wrap_ip(ppp_ctx_t *ctx, const uint8_t *ip_pkt, int len);
 

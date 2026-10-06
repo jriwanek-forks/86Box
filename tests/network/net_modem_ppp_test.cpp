@@ -525,6 +525,40 @@ make_context()
     return ctx;
 }
 
+TEST(ModemPpp, LcpRetriesConfigureRequestAndStopsAfterLimit)
+{
+    ppp_ctx_t ctx = make_context();
+    std::vector<uint8_t> wire;
+    ctx.serial_push = capture_serial;
+    ctx.modem = &wire;
+
+    for (int retry = 0; retry < 11; retry++) {
+        for (int millisecond = 0; millisecond < 3000; millisecond++)
+            ppp_timer_tick(&ctx);
+        if (retry < 10) {
+            EXPECT_EQ(ctx.state, PPP_STATE_LCP_NEGOTIATE);
+        }
+    }
+
+    EXPECT_EQ(ctx.state, PPP_STATE_DEAD);
+    EXPECT_FALSE(ctx.lcp_req_sent);
+    EXPECT_EQ(ctx.lcp_retries, 11);
+    EXPECT_FALSE(wire.empty());
+}
+
+TEST(ModemPpp, AuthenticationTimesOutWhenPeerDoesNotRespond)
+{
+    ppp_ctx_t ctx = make_context();
+    ctx.state = PPP_STATE_AUTH;
+
+    for (int millisecond = 0; millisecond < 29999; millisecond++)
+        ppp_timer_tick(&ctx);
+    EXPECT_EQ(ctx.state, PPP_STATE_AUTH);
+
+    ppp_timer_tick(&ctx);
+    EXPECT_EQ(ctx.state, PPP_STATE_DEAD);
+}
+
 TEST(ModemPpp, ConfigureNakCannotDowngradeAuthentication)
 {
     ppp_ctx_t ctx = make_context();

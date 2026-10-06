@@ -36,6 +36,10 @@
 #    include <bcrypt.h>
 #endif
 
+#define PPP_LCP_TIMEOUT_MS 3000
+#define PPP_LCP_MAX_RETRIES 10
+#define PPP_AUTH_TIMEOUT_MS 30000
+
 #ifdef ENABLE_MODEM_LOG
 extern uint8_t modem_do_log;
 
@@ -51,6 +55,26 @@ ppp_log(void *priv, const char *fmt, ...)
 }
 #else
 #    define ppp_log(priv, fmt, ...)
+#endif
+
+#ifdef ENABLE_MODEM_LOG
+static const char *
+ppp_auth_name(ppp_auth_type_t auth_type)
+{
+    switch (auth_type) {
+        case PPP_AUTH_NONE:       return "none";
+        case PPP_AUTH_PAP:        return "PAP";
+        case PPP_AUTH_CHAP_MD5:   return "CHAP-MD5";
+        case PPP_AUTH_MSCHAP:     return "MS-CHAP";
+        case PPP_AUTH_MSCHAPV2:   return "MS-CHAPv2";
+        case PPP_AUTH_CHAP_SHA1:  return "CHAP-SHA1";
+        case PPP_AUTH_CHAP_SHA256:return "CHAP-SHA256";
+        case PPP_AUTH_CHAP_SHA384:return "CHAP-SHA384";
+        case PPP_AUTH_CHAP_SHA512:return "CHAP-SHA512";
+        case PPP_AUTH_EAP:        return "EAP-MD5";
+        default:                  return "unknown";
+    }
+}
 #endif
 
 /* FCS-16 lookup table (CRC-CCITT reflected, polynomial 0x8408) from RFC 1662 */
@@ -498,11 +522,16 @@ ppp_send_lcp_config_request(ppp_ctx_t *ctx)
     ctx->lcp_request_len = (uint8_t) len;
     ppp_send_frame(ctx, PPP_PROTO_LCP, pkt, len);
     ctx->lcp_req_sent = true;
+    ctx->lcp_timeout_ms = 0;
     ppp_log(ctx->log, "PPP: Sent LCP Configure-Request (id=%d)\n", pkt[1]);
-    MODEM_DEBUG_LOG(ctx->log, "LCP: local mru=%u accm=0x%08X pfc=%u acfc=%u auth=%u\n",
+        MODEM_DEBUG_LOG(ctx->log, "LCP: local mru=%u accm=0x%08X pfc=%u acfc=%u auth=%u protocol=0x%04X\n",
                     (unsigned) ctx->our_mru, ctx->our_accm,
                     (unsigned) ctx->request_pfc, (unsigned) ctx->request_acfc,
-                    (unsigned) ctx->auth_type);
+                                        (unsigned) ctx->auth_type,
+                                        ctx->auth_type == PPP_AUTH_PAP ? PPP_AUTH_PROTO_PAP
+                                        : ctx->auth_type == PPP_AUTH_EAP ? PPP_AUTH_PROTO_EAP
+                                        : ctx->auth_type >= PPP_AUTH_CHAP_MD5
+                                            && ctx->auth_type <= PPP_AUTH_CHAP_SHA512 ? PPP_AUTH_PROTO_CHAP : 0);
 }
 
 /* Handle LCP Configure-Request from peer */
@@ -703,13 +732,25 @@ ppp_handle_lcp_config_ack(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
     int pos = 4;
 
     if (pkt_len < 4 || !ctx->lcp_req_sent)
+    {
+        MODEM_DEBUG_LOG(ctx->log, "LCP: ignored Configure-Ack (length=%d request-pending=%u)\n",
+                        pkt_len, (unsigned) ctx->lcp_req_sent);
         return;
+    }
 
     total = (pkt[2] << 8) | pkt[3];
     if (total != pkt_len || total != ctx->lcp_request_len
-        || pkt[1] != ctx->lcp_request[1]
-        || memcmp(pkt + 4, ctx->lcp_request + 4, total - 4) != 0)
+        || pkt[1] != ctx->lcp_request[1]) {
+        MODEM_DEBUG_LOG(ctx->log, "LCP: ignored Configure-Ack id=%u length=%d expected id=%u length=%u\n",
+                        (unsigned) pkt[1], total, (unsigned) ctx->lcp_request[1],
+                        (unsigned) ctx->lcp_request_len);
         return;
+    }
+    if (memcmp(pkt + 4, ctx->lcp_request + 4, total - 4) != 0) {
+        MODEM_DEBUG_LOG(ctx->log, "LCP: ignored Configure-Ack id=%u because options differ from request\n",
+                        (unsigned) pkt[1]);
+        return;
+    }
 
     ctx->our_pfc  = false;
     ctx->our_acfc = false;
@@ -731,6 +772,7 @@ ppp_handle_lcp_config_ack(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
     ppp_log(ctx->log, "PPP: Received LCP Configure-Ack\n");
     ctx->lcp_ack_received = true;
     ctx->lcp_req_sent = false;
+    ctx->lcp_timeout_ms = 0;
     ppp_advance_state(ctx);
 }
 
@@ -799,7 +841,11 @@ ppp_handle_lcp_config_nak(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
     bool     magic_nak = false;
 
     if (!ppp_lcp_response_matches_request(ctx, pkt, pkt_len, false))
+    {
+        MODEM_DEBUG_LOG(ctx->log, "LCP: ignored Configure-Nak id=%u (does not match outstanding request id=%u)\n",
+                        (unsigned) pkt[1], (unsigned) ctx->lcp_request[1]);
         return;
+    }
 
     while (pos < total) {
         uint8_t opt_type = pkt[pos];
@@ -865,6 +911,8 @@ ppp_handle_lcp_config_nak(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
                     }
 
                     if (suggested_auth != ctx->auth_type) {
+                        ppp_log(ctx->log, "PPP: Peer suggested %s instead of configured %s; refusing authentication downgrade\n",
+                            ppp_auth_name(suggested_auth), ppp_auth_name(ctx->auth_type));
                         ctx->state = PPP_STATE_DEAD;
                         ctx->lcp_req_sent = false;
                         return;
@@ -898,8 +946,11 @@ ppp_handle_lcp_config_nak(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
     ctx->lcp_ack_received = false;
     ppp_log(ctx->log, "PPP: Received LCP Configure-Nak\n");
 
-    if (ctx->lcp_retries++ < 10) {
+    if (ctx->lcp_retries++ < PPP_LCP_MAX_RETRIES) {
         ppp_send_lcp_config_request(ctx);
+    } else {
+        ppp_log(ctx->log, "PPP: LCP negotiation failed after Configure-Nak retry limit\n");
+        ctx->state = PPP_STATE_DEAD;
     }
 }
 
@@ -910,8 +961,11 @@ ppp_handle_lcp_config_reject(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
     int total = (pkt[2] << 8) | pkt[3];
     int pos   = 4;
 
-    if (!ppp_lcp_response_matches_request(ctx, pkt, pkt_len, true))
+    if (!ppp_lcp_response_matches_request(ctx, pkt, pkt_len, true)) {
+        MODEM_DEBUG_LOG(ctx->log, "LCP: ignored Configure-Reject id=%u (does not match outstanding request id=%u)\n",
+                        (unsigned) pkt[1], (unsigned) ctx->lcp_request[1]);
         return;
+    }
 
     ctx->lcp_req_sent = false;
     ctx->lcp_ack_received = false;
@@ -925,6 +979,8 @@ ppp_handle_lcp_config_reject(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
             break;
 
         if (opt_type == LCP_OPT_AUTH_PROTO) {
+                ppp_log(ctx->log, "PPP: Peer rejected configured %s authentication; authentication is required\n",
+                    ppp_auth_name(ctx->auth_type));
             ctx->state = PPP_STATE_DEAD;
             return;
         } else if (opt_type == LCP_OPT_PFC) {
@@ -938,8 +994,11 @@ ppp_handle_lcp_config_reject(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
     }
 
     /* Resend without rejected options */
-    if (ctx->lcp_retries++ < 10) {
+    if (ctx->lcp_retries++ < PPP_LCP_MAX_RETRIES) {
         ppp_send_lcp_config_request(ctx);
+    } else {
+        ppp_log(ctx->log, "PPP: LCP negotiation failed after Configure-Reject retry limit\n");
+        ctx->state = PPP_STATE_DEAD;
     }
 }
 
@@ -1054,6 +1113,7 @@ ppp_advance_state(ppp_ctx_t *ctx)
                 ppp_log(ctx->log, "PPP: LCP opened, moving to auth phase\n");
                 if (ctx->auth_type != PPP_AUTH_NONE && !ctx->auth_complete) {
                     ctx->state = PPP_STATE_AUTH;
+                    ctx->auth_timeout_ms = 0;
                     if (ctx->auth_type == PPP_AUTH_EAP) {
                         ppp_eap_start(ctx);
                     } else if (ctx->auth_type == PPP_AUTH_CHAP_MD5
@@ -1084,6 +1144,7 @@ ppp_advance_state(ppp_ctx_t *ctx)
                 }
                 ppp_log(ctx->log, "PPP: Auth complete, moving to IPCP\n");
                 ctx->state = PPP_STATE_IPCP_NEGOTIATE;
+                ctx->auth_timeout_ms = 0;
                 if (ctx->mppe_keys_ready)
                     ppp_ccp_start(ctx);
                 ppp_ipcp_send_config_request(ctx);
@@ -1103,6 +1164,36 @@ ppp_advance_state(ppp_ctx_t *ctx)
 
         default:
             break;
+    }
+}
+
+void
+ppp_timer_tick(ppp_ctx_t *ctx)
+{
+    if (ctx->state == PPP_STATE_AUTH) {
+        if (++ctx->auth_timeout_ms >= PPP_AUTH_TIMEOUT_MS) {
+            ppp_log(ctx->log, "PPP: Authentication timed out waiting for peer\n");
+            ctx->state = PPP_STATE_DEAD;
+        }
+        return;
+    }
+
+    if (ctx->state != PPP_STATE_LCP_NEGOTIATE || !ctx->lcp_req_sent)
+        return;
+
+    if (++ctx->lcp_timeout_ms < PPP_LCP_TIMEOUT_MS)
+        return;
+
+    ctx->lcp_timeout_ms = 0;
+    if (ctx->lcp_retries++ < PPP_LCP_MAX_RETRIES) {
+        ppp_log(ctx->log, "PPP: LCP Configure-Request timed out; retrying (%d/%d)\n",
+                ctx->lcp_retries, PPP_LCP_MAX_RETRIES);
+        ppp_send_lcp_config_request(ctx);
+    } else {
+        ppp_log(ctx->log, "PPP: LCP negotiation timed out after %d retries\n",
+                PPP_LCP_MAX_RETRIES);
+        ctx->state = PPP_STATE_DEAD;
+        ctx->lcp_req_sent = false;
     }
 }
 
@@ -1283,19 +1374,29 @@ ppp_process_frame(ppp_ctx_t *ctx, const uint8_t *frame, int frame_len)
 
         case PPP_PROTO_PAP:
             if (ctx->state == PPP_STATE_AUTH) {
+                ctx->auth_timeout_ms = 0;
                 ppp_pap_process(ctx, data, data_len);
+            } else {
+                MODEM_DEBUG_LOG(ctx->log, "PPP: Ignoring PAP packet outside auth phase (state=%d length=%d)\n",
+                                ctx->state, data_len);
             }
             break;
 
         case PPP_PROTO_CHAP:
             if (ctx->state == PPP_STATE_AUTH) {
+                ctx->auth_timeout_ms = 0;
                 ppp_chap_process(ctx, data, data_len);
+            } else {
+                MODEM_DEBUG_LOG(ctx->log, "PPP: Ignoring CHAP packet outside auth phase (state=%d length=%d)\n",
+                                ctx->state, data_len);
             }
             break;
 
         case PPP_PROTO_EAP:
-            if (ctx->state == PPP_STATE_AUTH && ctx->auth_type == PPP_AUTH_EAP)
+            if (ctx->state == PPP_STATE_AUTH && ctx->auth_type == PPP_AUTH_EAP) {
+                ctx->auth_timeout_ms = 0;
                 ppp_eap_process(ctx, data, data_len);
+            }
             break;
 
         case PPP_PROTO_IPCP:
@@ -1555,7 +1656,9 @@ ppp_start(ppp_ctx_t *ctx)
     ctx->lcp_ack_received = false;
     ctx->lcp_req_sent     = false;
     ctx->lcp_retries      = 0;
+    ctx->lcp_timeout_ms   = 0;
     ctx->auth_complete    = false;
+    ctx->auth_timeout_ms  = 0;
     ctx->our_pfc          = false;
     ctx->our_acfc         = false;
     ctx->peer_pfc         = false;
