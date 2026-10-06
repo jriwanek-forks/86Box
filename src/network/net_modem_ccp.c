@@ -133,13 +133,37 @@ static const char *
 ccp_option_name(uint8_t type, uint32_t value)
 {
     switch (type) {
+        case 0:                  return "Vendor-specific OUI";
         case CCP_OPT_PREDICTOR1: return "Predictor-1";
         case CCP_OPT_PREDICTOR2: return "Predictor-2";
+        case 3:                  return "Puddle Jumper";
+        case 4:
+        case 5:
+        case 6:
+        case 7:
+        case 8:
+        case 9:
+        case 10:
+        case 11:
+        case 12:
+        case 13:
+        case 14:
+        case 15:                 return "Unassigned CCP option";
+        case 16:                 return "Hewlett-Packard PPC";
         case CCP_OPT_LZS:        return "Stac LZS";
-        case CCP_OPT_MPPE:       return value == 1 ? "MPPC" : "MPPE";
+        case CCP_OPT_MPPE:       return value == 1 ? "Microsoft PPC (MPPC)"
+                              : "Microsoft PPC (MPPE)";
+        case 19:                 return "Gandalf FZA";
+        case 20:                 return "V.42bis";
         case CCP_OPT_BSD:        return "BSD-Compress";
+        case 22:                 return "Unassigned CCP option";
+        case 23:                 return "LZS-DCP";
+        case 24:                 return "MVRCA (Magnalink)";
+        case 25:                 return "Unassigned CCP option";
         case CCP_OPT_DEFLATE:    return "Deflate";
+        case 27:                 return "V.44/LZJH";
         case CCP_OPT_NT31RAS:    return "NT31-RAS";
+        case 255:                return "Reserved CCP option";
         default:                 return "Unknown";
     }
 }
