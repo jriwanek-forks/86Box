@@ -111,4 +111,5 @@ endif()
 
 if(ENABLE_MODEM_DEBUG)
     target_compile_definitions(net PRIVATE ENABLE_MODEM_DEBUG)
+    target_compile_definitions(net PRIVATE ENABLE_SLIRP_LOG=1)
 endif()
