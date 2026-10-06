@@ -43,6 +43,22 @@ ipcp_log(void *priv, const char *fmt, ...)
 #    define ipcp_log(priv, fmt, ...)
 #endif
 
+#if defined(ENABLE_MODEM_LOG) && defined(ENABLE_MODEM_DEBUG)
+static const char *
+ipcp_option_name(uint8_t option)
+{
+    switch (option) {
+        case IPCP_OPT_IP_COMPRESSION: return "IP-Compression-Protocol";
+        case IPCP_OPT_IP_ADDRESS:    return "IP-Address";
+        case IPCP_OPT_DNS_PRIMARY:   return "Primary-DNS";
+        case IPCP_OPT_DNS_SECONDARY: return "Secondary-DNS";
+        case IPCP_OPT_NBNS_PRIMARY:  return "Primary-NBNS";
+        case IPCP_OPT_NBNS_SECONDARY:return "Secondary-NBNS";
+        default:                     return "unknown";
+    }
+}
+#endif
+
 static inline void
 ipcp_put_ip(uint8_t *p, uint32_t ip)
 {
@@ -196,8 +212,9 @@ ipcp_handle_config_request(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
         if (opt_len < 2 || pos + opt_len > pkt_len)
             break;
 
-        MODEM_DEBUG_LOG(ctx->log, "IPCP: peer option type=%u length=%u\n",
-                        (unsigned) opt_type, (unsigned) opt_len);
+        MODEM_DEBUG_LOG(ctx->log, "IPCP: peer option=%s (type=%u) length=%u\n",
+                ipcp_option_name(opt_type), (unsigned) opt_type,
+                (unsigned) opt_len);
 
         switch (opt_type) {
             case IPCP_OPT_IP_ADDRESS:
@@ -392,8 +409,9 @@ ipcp_handle_config_nak(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
         if (opt_len < 2 || pos + opt_len > pkt_len)
             break;
 
-        MODEM_DEBUG_LOG(ctx->log, "IPCP: Nak option type=%u length=%u\n",
-                        (unsigned) opt_type, (unsigned) opt_len);
+        MODEM_DEBUG_LOG(ctx->log, "IPCP: Nak option=%s (type=%u) length=%u\n",
+                ipcp_option_name(opt_type), (unsigned) opt_type,
+                (unsigned) opt_len);
 
         if (opt_type == IPCP_OPT_IP_ADDRESS && opt_len == 6) {
             ctx->our_ip = ipcp_get_ip(pkt + pos + 2);

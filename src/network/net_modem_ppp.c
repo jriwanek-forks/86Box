@@ -68,11 +68,82 @@ ppp_auth_name(ppp_auth_type_t auth_type)
         case PPP_AUTH_MSCHAP:     return "MS-CHAP";
         case PPP_AUTH_MSCHAPV2:   return "MS-CHAPv2";
         case PPP_AUTH_CHAP_SHA1:  return "CHAP-SHA1";
-        case PPP_AUTH_CHAP_SHA256:return "CHAP-SHA256";
-        case PPP_AUTH_CHAP_SHA384:return "CHAP-SHA384";
-        case PPP_AUTH_CHAP_SHA512:return "CHAP-SHA512";
+        case PPP_AUTH_CHAP_SHA256: return "CHAP-SHA256";
+        case PPP_AUTH_CHAP_SHA384: return "CHAP-SHA384";
+        case PPP_AUTH_CHAP_SHA512: return "CHAP-SHA512";
         case PPP_AUTH_EAP:        return "EAP-MD5";
         default:                  return "unknown";
+    }
+}
+
+static const char *
+ppp_protocol_name(uint16_t protocol)
+{
+    switch (protocol) {
+        case PPP_PROTO_IP:             return "IPv4";
+        case PPP_PROTO_IPCP:           return "IPCP";
+        case PPP_PROTO_LCP:            return "LCP";
+        case PPP_PROTO_PAP:            return "PAP";
+        case PPP_PROTO_CHAP:           return "CHAP";
+        case PPP_PROTO_EAP:            return "EAP";
+        case PPP_PROTO_CCP:            return "CCP";
+        case PPP_PROTO_MPPE:           return "MPPE";
+        case PPP_PROTO_VJ_COMPRESSED:  return "VJ-compressed IPv4";
+        case PPP_PROTO_VJ_UNCOMPRESSED:return "VJ-uncompressed IPv4";
+        default:                       return "unknown";
+    }
+}
+
+static const char *
+ppp_state_name(ppp_state_t state)
+{
+    switch (state) {
+        case PPP_STATE_DEAD:          return "dead";
+        case PPP_STATE_LCP_NEGOTIATE: return "LCP-negotiation";
+        case PPP_STATE_AUTH:          return "authentication";
+        case PPP_STATE_IPCP_NEGOTIATE:return "IPCP-negotiation";
+        case PPP_STATE_NETWORK:       return "network";
+        case PPP_STATE_TERMINATING:   return "terminating";
+        default:                      return "unknown";
+    }
+}
+#endif
+
+#if defined(ENABLE_MODEM_LOG) && defined(ENABLE_MODEM_DEBUG)
+static const char *
+ppp_lcp_code_name(uint8_t code)
+{
+    switch (code) {
+        case PPP_CODE_CONFIGURE_REQUEST: return "Configure-Request";
+        case PPP_CODE_CONFIGURE_ACK:     return "Configure-Ack";
+        case PPP_CODE_CONFIGURE_NAK:     return "Configure-Nak";
+        case PPP_CODE_CONFIGURE_REJECT:  return "Configure-Reject";
+        case PPP_CODE_TERMINATE_REQUEST: return "Terminate-Request";
+        case PPP_CODE_TERMINATE_ACK:     return "Terminate-Ack";
+        case PPP_CODE_CODE_REJECT:       return "Code-Reject";
+        case PPP_CODE_PROTOCOL_REJECT:   return "Protocol-Reject";
+        case PPP_CODE_ECHO_REQUEST:      return "Echo-Request";
+        case PPP_CODE_ECHO_REPLY:        return "Echo-Reply";
+        case PPP_CODE_DISCARD_REQUEST:   return "Discard-Request";
+        default:                         return "unknown";
+    }
+}
+
+static const char *
+ppp_lcp_option_name(uint8_t option)
+{
+    switch (option) {
+        case LCP_OPT_MRU:            return "MRU";
+        case LCP_OPT_ACCM:           return "ACCM";
+        case LCP_OPT_AUTH_PROTO:     return "Authentication-Protocol";
+        case LCP_OPT_QUALITY_PROTO:  return "Quality-Protocol";
+        case LCP_OPT_MAGIC_NUMBER:   return "Magic-Number";
+        case LCP_OPT_PFC:            return "Protocol-Field-Compression";
+        case LCP_OPT_ACFC:           return "Address-Control-Field-Compression";
+        case LCP_OPT_CALLBACK:       return "Callback";
+        case LCP_OPT_MRRU:           return "MRRU";
+        case LCP_OPT_ENDPOINT_DISC:  return "Endpoint-Discriminator";
+        default:                     return "unknown";
     }
 }
 #endif
@@ -433,8 +504,9 @@ ppp_send_frame(ppp_ctx_t *ctx, uint16_t protocol, const uint8_t *data, int len)
     }
     frame[out_len++] = PPP_FLAG;
 
-    MODEM_DEBUG_LOG(ctx->log, "PPP: TX frame protocol=0x%04X payload=%d framed=%d "
-                    "acfc=%u pfc=%u\n", (unsigned) protocol, len, out_len,
+    MODEM_DEBUG_LOG(ctx->log, "PPP: TX frame protocol=%s (0x%04X) payload=%d framed=%d "
+                    "acfc=%u pfc=%u\n", ppp_protocol_name(protocol),
+                    (unsigned) protocol, len, out_len,
                     (unsigned) compress_ac, (unsigned) compress_protocol);
     ctx->serial_push(ctx->modem, frame, out_len);
 }
@@ -524,14 +596,23 @@ ppp_send_lcp_config_request(ppp_ctx_t *ctx)
     ctx->lcp_req_sent = true;
     ctx->lcp_timeout_ms = 0;
     ppp_log(ctx->log, "PPP: Sent LCP Configure-Request (id=%d)\n", pkt[1]);
-        MODEM_DEBUG_LOG(ctx->log, "LCP: local mru=%u accm=0x%08X pfc=%u acfc=%u auth=%u protocol=0x%04X\n",
-                    (unsigned) ctx->our_mru, ctx->our_accm,
-                    (unsigned) ctx->request_pfc, (unsigned) ctx->request_acfc,
-                                        (unsigned) ctx->auth_type,
-                                        ctx->auth_type == PPP_AUTH_PAP ? PPP_AUTH_PROTO_PAP
-                                        : ctx->auth_type == PPP_AUTH_EAP ? PPP_AUTH_PROTO_EAP
-                                        : ctx->auth_type >= PPP_AUTH_CHAP_MD5
-                                            && ctx->auth_type <= PPP_AUTH_CHAP_SHA512 ? PPP_AUTH_PROTO_CHAP : 0);
+#if defined(ENABLE_MODEM_LOG) && defined(ENABLE_MODEM_DEBUG)
+        uint16_t auth_protocol = 0;
+        if (ctx->auth_type == PPP_AUTH_PAP)
+            auth_protocol = PPP_AUTH_PROTO_PAP;
+        else if (ctx->auth_type == PPP_AUTH_EAP)
+            auth_protocol = PPP_AUTH_PROTO_EAP;
+        else if (ctx->auth_type >= PPP_AUTH_CHAP_MD5 && ctx->auth_type <= PPP_AUTH_CHAP_SHA512)
+            auth_protocol = PPP_AUTH_PROTO_CHAP;
+
+        MODEM_DEBUG_LOG(ctx->log, "LCP: local MRU=%u ACCM=0x%08X PFC=%s ACFC=%s "
+                        "authentication=%s protocol=%s (0x%04X)\n",
+                        (unsigned) ctx->our_mru, ctx->our_accm,
+                        ctx->request_pfc ? "on" : "off", ctx->request_acfc ? "on" : "off",
+                        ppp_auth_name(ctx->auth_type),
+                        auth_protocol ? ppp_protocol_name(auth_protocol) : "none",
+                        (unsigned) auth_protocol);
+    #endif
 }
 
 /* Handle LCP Configure-Request from peer */
@@ -570,8 +651,9 @@ ppp_handle_lcp_config_request(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
         uint8_t opt_type = pkt[pos];
         uint8_t opt_len  = pkt[pos + 1];
 
-        MODEM_DEBUG_LOG(ctx->log, "LCP: peer option type=%u length=%u\n",
-                (unsigned) opt_type, (unsigned) opt_len);
+        MODEM_DEBUG_LOG(ctx->log, "LCP: peer option=%s (type=%u) length=%u\n",
+                ppp_lcp_option_name(opt_type), (unsigned) opt_type,
+                (unsigned) opt_len);
 
         switch (opt_type) {
             case LCP_OPT_MRU:
@@ -1058,8 +1140,9 @@ ppp_process_lcp(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
         return;
     pkt_len = total;
 
-    MODEM_DEBUG_LOG(ctx->log, "LCP: received code=%u id=%u length=%u\n",
-                    (unsigned) code, (unsigned) pkt[1], (unsigned) ((pkt[2] << 8) | pkt[3]));
+    MODEM_DEBUG_LOG(ctx->log, "LCP: received %s (code=%u) id=%u length=%u\n",
+                    ppp_lcp_code_name(code), (unsigned) code, (unsigned) pkt[1],
+                    (unsigned) ((pkt[2] << 8) | pkt[3]));
 
     switch (code) {
         case PPP_CODE_CONFIGURE_REQUEST:
@@ -1087,11 +1170,17 @@ ppp_process_lcp(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
             /* Silently ignore */
             break;
         case PPP_CODE_PROTOCOL_REJECT:
-            ppp_log(ctx->log, "PPP: Received Protocol-Reject\n");
             if (total >= 6 && pkt[4] == (uint8_t) (PPP_PROTO_CCP >> 8)
                 && pkt[5] == (uint8_t) PPP_PROTO_CCP) {
+                ppp_log(ctx->log, "PPP: Peer rejected CCP; continuing without compression or MPPE\n");
                 ppp_ccp_fallback_plaintext(ctx);
                 ppp_advance_state(ctx);
+            } else if (total >= 6) {
+                ppp_log(ctx->log, "PPP: Peer rejected protocol %s (0x%04X)\n",
+                        ppp_protocol_name((uint16_t) (((uint16_t) pkt[4] << 8) | pkt[5])),
+                        (unsigned) (((uint16_t) pkt[4] << 8) | pkt[5]));
+            } else {
+                ppp_log(ctx->log, "PPP: Received malformed Protocol-Reject\n");
             }
             break;
         default:
@@ -1362,10 +1451,13 @@ ppp_process_frame(ppp_ctx_t *ctx, const uint8_t *frame, int frame_len)
         return;
     }
 
-    ppp_log(ctx->log, "PPP: Received frame proto=0x%04X len=%d (state=%d)\n", protocol, data_len, ctx->state);
-    MODEM_DEBUG_LOG(ctx->log, "PPP: RX frame protocol=0x%04X length=%d address-control=%u "
-                    "compression=%u state=%d\n", (unsigned) protocol, data_len,
-                    (unsigned) ac_present, (unsigned) compression_active, ctx->state);
+            ppp_log(ctx->log, "PPP: Received frame proto=%s (0x%04X) len=%d (state=%s)\n",
+                ppp_protocol_name(protocol), protocol, data_len, ppp_state_name(ctx->state));
+        MODEM_DEBUG_LOG(ctx->log, "PPP: RX frame protocol=%s (0x%04X) length=%d address-control=%u "
+                    "compression=%u state=%s\n", ppp_protocol_name(protocol),
+                (unsigned) protocol, data_len,
+                    (unsigned) ac_present, (unsigned) compression_active,
+                    ppp_state_name(ctx->state));
 
     switch (protocol) {
         case PPP_PROTO_LCP:
@@ -1377,8 +1469,8 @@ ppp_process_frame(ppp_ctx_t *ctx, const uint8_t *frame, int frame_len)
                 ctx->auth_timeout_ms = 0;
                 ppp_pap_process(ctx, data, data_len);
             } else {
-                MODEM_DEBUG_LOG(ctx->log, "PPP: Ignoring PAP packet outside auth phase (state=%d length=%d)\n",
-                                ctx->state, data_len);
+                MODEM_DEBUG_LOG(ctx->log, "PPP: Ignoring PAP packet outside auth phase (state=%s length=%d)\n",
+                                ppp_state_name(ctx->state), data_len);
             }
             break;
 
@@ -1387,8 +1479,8 @@ ppp_process_frame(ppp_ctx_t *ctx, const uint8_t *frame, int frame_len)
                 ctx->auth_timeout_ms = 0;
                 ppp_chap_process(ctx, data, data_len);
             } else {
-                MODEM_DEBUG_LOG(ctx->log, "PPP: Ignoring CHAP packet outside auth phase (state=%d length=%d)\n",
-                                ctx->state, data_len);
+                MODEM_DEBUG_LOG(ctx->log, "PPP: Ignoring CHAP packet outside auth phase (state=%s length=%d)\n",
+                                ppp_state_name(ctx->state), data_len);
             }
             break;
 

@@ -77,6 +77,23 @@ chap_log(void *priv, const char *fmt, ...)
 #    define chap_log(priv, fmt, ...)
 #endif
 
+#ifdef ENABLE_MODEM_LOG
+static const char *
+chap_auth_name(ppp_auth_type_t auth_type)
+{
+    switch (auth_type) {
+        case PPP_AUTH_CHAP_MD5:  return "CHAP-MD5";
+        case PPP_AUTH_MSCHAP:    return "MS-CHAP";
+        case PPP_AUTH_MSCHAPV2:  return "MS-CHAPv2";
+        case PPP_AUTH_CHAP_SHA1: return "CHAP-SHA1";
+        case PPP_AUTH_CHAP_SHA256: return "CHAP-SHA256";
+        case PPP_AUTH_CHAP_SHA384: return "CHAP-SHA384";
+        case PPP_AUTH_CHAP_SHA512: return "CHAP-SHA512";
+        default:                 return "unknown";
+    }
+}
+#endif
+
 /* Send CHAP Challenge packet */
 void
 ppp_chap_send_challenge(ppp_ctx_t *ctx)
@@ -119,9 +136,10 @@ ppp_chap_send_challenge(ppp_ctx_t *ctx)
     pkt[3] = (uint8_t) (len & 0xFF);
 
     ppp_send_frame(ctx, PPP_PROTO_CHAP, pkt, len);
-    chap_log(ctx->log, "CHAP: Sent Challenge (id=%d, algo=%d)\n", ctx->auth_id, ctx->auth_type);
-    MODEM_DEBUG_LOG(ctx->log, "CHAP: challenge length=%d algorithm=%d\n",
-                    challenge_len, ctx->auth_type);
+    chap_log(ctx->log, "CHAP: Sent Challenge (id=%u, algorithm=%s)\n",
+             (unsigned) ctx->auth_id, chap_auth_name(ctx->auth_type));
+    MODEM_DEBUG_LOG(ctx->log, "CHAP: challenge length=%u algorithm=%s\n",
+                    (unsigned) challenge_len, chap_auth_name(ctx->auth_type));
 }
 
 /* Verify CHAP/MD5 response (RFC 1994) */
@@ -478,8 +496,9 @@ ppp_chap_process(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
     uint8_t code  = pkt[0];
     uint8_t id    = pkt[1];
     int     total = (pkt[2] << 8) | pkt[3];
-    MODEM_DEBUG_LOG(ctx->log, "CHAP: packet code=%d id=%d declared=%d received=%d algorithm=%d\n",
-                    code, id, total, pkt_len, ctx->auth_type);
+    MODEM_DEBUG_LOG(ctx->log, "CHAP: packet code=%u id=%u declared=%d received=%d algorithm=%s\n",
+                    (unsigned) code, (unsigned) id, total, pkt_len,
+                    chap_auth_name(ctx->auth_type));
 
     if (code != CHAP_CODE_RESPONSE) {
         chap_log(ctx->log, "CHAP: Unexpected code %d\n", code);
