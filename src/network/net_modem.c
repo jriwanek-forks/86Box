@@ -66,6 +66,21 @@ modem_log(void *priv, const char *fmt, ...)
 #    define modem_log(priv, fmt, ...)
 #endif
 
+#ifdef ENABLE_MODEM_LOG
+static const char *
+modem_ethertype_name(uint16_t ethertype)
+{
+    switch (ethertype) {
+        case 0x0800: return "IPv4";
+        case 0x0806: return "ARP";
+        case 0x8137: return "IPX";
+        case 0x86DD: return "IPv6";
+        case 0x88CC: return "LLDP";
+        default:     return "Unknown";
+    }
+}
+#endif
+
 #if defined(ENABLE_MODEM_LOG) && defined(ENABLE_MODEM_DEBUG)
 static const char *
 modem_ipv4_protocol_name(uint8_t protocol)
@@ -116,14 +131,50 @@ modem_ipv4_port_name(uint16_t port)
 static const char *
 modem_ipv4_icmp_type_name(uint8_t type)
 {
+    if (type >= 20 && type <= 29)
+        return "Reserved for Robustness Experiment";
+    if (type >= 44 && type <= 252)
+        return "Unassigned";
+
     switch (type) {
-        case 0:  return "Echo reply";
-        case 3:  return "Destination unreachable";
-        case 5:  return "Redirect";
-        case 8:  return "Echo request";
-        case 11: return "Time exceeded";
-        case 12: return "Parameter problem";
-        default: return "Unknown";
+        case 0:   return "Echo Reply";
+        case 1:   return "Unassigned";
+        case 2:   return "Unassigned";
+        case 3:   return "Destination Unreachable";
+        case 4:   return "Source Quench (Deprecated)";
+        case 5:   return "Redirect";
+        case 6:   return "Alternate Host Address (Deprecated)";
+        case 7:   return "Unassigned";
+        case 8:   return "Echo Request";
+        case 9:   return "Router Advertisement";
+        case 10:  return "Router Solicitation";
+        case 11:  return "Time Exceeded";
+        case 12:  return "Parameter Problem";
+        case 13:  return "Timestamp Request";
+        case 14:  return "Timestamp Reply";
+        case 15:  return "Information Request (Deprecated)";
+        case 16:  return "Information Reply (Deprecated)";
+        case 17:  return "Address Mask Request (Deprecated)";
+        case 18:  return "Address Mask Reply (Deprecated)";
+        case 19:  return "Reserved for Security";
+        case 30:  return "Traceroute (Deprecated)";
+        case 31:  return "Datagram Conversion Error (Deprecated)";
+        case 32:  return "Mobile Host Redirect (Deprecated)";
+        case 33:  return "IPv6 Where-Are-You (Deprecated)";
+        case 34:  return "IPv6 I-Am-Here (Deprecated)";
+        case 35:  return "Mobile Registration Request (Deprecated)";
+        case 36:  return "Mobile Registration Reply (Deprecated)";
+        case 37:  return "Domain Name Request (Deprecated)";
+        case 38:  return "Domain Name Reply (Deprecated)";
+        case 39:  return "SKIP (Deprecated)";
+        case 40:  return "Photuris";
+        case 41:  return "Mobility Protocol Message";
+        case 42:  return "Extended Echo Request";
+        case 43:  return "Extended Echo Reply";
+        case 253: return "RFC 3692 Experiment 1";
+        case 254: return "RFC 3692 Experiment 2";
+        case 255: return "Reserved";
+        default:  return "Unknown";
     }
 }
 
@@ -1663,21 +1714,29 @@ modem_rx(void *priv, uint8_t *buf, int io_len)
 
     if (!modem->connected) {
         /* Drop packet. */
-        modem_log(modem->log, "Dropping %d bytes\n", io_len - 14);
+        modem_log(modem->log, "Dropping %d bytes (EtherType %s 0x%04X)\n",
+                  io_len - 14,
+                  modem_ethertype_name((uint16_t) (((uint16_t) buf[12] << 8) | buf[13])),
+                  (unsigned) (((uint16_t) buf[12] << 8) | buf[13]));
         return 0;
     }
 
     /* PPP mode: wrap IP packet in PPP HDLC framing */
     if (modem->ppp_active && modem->ppp_ctx) {
-        if (!(buf[12] == 0x08 && buf[13] == 0x00))
+        if (!(buf[12] == 0x08 && buf[13] == 0x00)) {
+            modem_log(modem->log, "PPP: Dropping %d bytes (non-IP EtherType %s 0x%04X)\n",
+                      io_len - 14,
+                      modem_ethertype_name((uint16_t) (((uint16_t) buf[12] << 8) | buf[13])),
+                      (unsigned) (((uint16_t) buf[12] << 8) | buf[13]));
             return 0; /* Non-IP */
+        }
 
         modem_debug_log_ipv4(modem->log, "PPP network->modem", buf + 14, io_len - 14);
 
         while ((io_len) >= (int) (fifo8_num_free(&modem->rx_data) / 2))
             fifo8_resize_2x(&modem->rx_data);
 
-        modem_log(modem->log, "PPP: Receiving %d bytes\n", io_len - 14);
+        modem_log(modem->log, "PPP: Receiving %d bytes (EtherType IPv4 0x0800)\n", io_len - 14);
         ppp_wrap_ip(modem->ppp_ctx, buf + 14, io_len - 14);
         return 1;
     }
@@ -1687,11 +1746,14 @@ modem_rx(void *priv, uint8_t *buf, int io_len)
     }
 
     if (!(buf[12] == 0x08 && buf[13] == 0x00)) {
-        modem_log(modem->log, "Dropping %d bytes (non-IP packet (ethtype 0x%02X%02X))\n", io_len - 14, buf[12], buf[13]);
+        modem_log(modem->log, "Dropping %d bytes (non-IP EtherType %s 0x%04X)\n",
+                  io_len - 14,
+                  modem_ethertype_name((uint16_t) (((uint16_t) buf[12] << 8) | buf[13])),
+                  (unsigned) (((uint16_t) buf[12] << 8) | buf[13]));
         return 0;
     }
 
-    modem_log(modem->log, "Receiving %d bytes\n", io_len - 14);
+    modem_log(modem->log, "Receiving %d bytes (EtherType IPv4 0x0800)\n", io_len - 14);
     /* Strip the Ethernet header. */
     io_len -= 14;
     buf += 14;
