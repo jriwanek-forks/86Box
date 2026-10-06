@@ -178,6 +178,17 @@ modem_ipv4_icmp_type_name(uint8_t type)
     }
 }
 
+static const char *
+modem_ipv4_icmp_code_name(uint8_t type, uint8_t code)
+{
+    if ((type == 0 || type == 8 || type == 10) && code == 0)
+        return "No additional code";
+    if (type == 3 && code == 3)
+        return "Port Unreachable";
+
+    return NULL;
+}
+
 static void
 modem_debug_log_ipv4(void *log, const char *direction, const uint8_t *packet, int len)
 {
@@ -235,10 +246,13 @@ modem_debug_log_ipv4(void *log, const char *direction, const uint8_t *packet, in
 
     if (fragment_offset == 0 && protocol == 1 && total_len >= header_len + 2
         && len >= header_len + 2) {
-        MODEM_DEBUG_LOG(log, "%s: ICMP type=%u (%s) code=%u\n", direction,
+        uint8_t code = packet[header_len + 1];
+        const char *code_name = modem_ipv4_icmp_code_name(packet[header_len], code);
+        MODEM_DEBUG_LOG(log, "%s: ICMP type=%u (%s) code=%u%s%s%s\n", direction,
                         (unsigned) packet[header_len],
                         modem_ipv4_icmp_type_name(packet[header_len]),
-                        (unsigned) packet[header_len + 1]);
+                        (unsigned) code, code_name ? " (" : "",
+                        code_name ? code_name : "", code_name ? ")" : "");
     } else if (fragment_offset == 0 && (protocol == 6 || protocol == 17)) {
         int minimum_len = protocol == 6 ? 20 : 8;
         if (total_len >= header_len + minimum_len && len >= header_len + minimum_len) {
@@ -282,6 +296,22 @@ enum modem_types {
     MODEM_TYPE_CSLIP = 4,
     MODEM_TYPE_RAS   = 5
 };
+
+#ifdef ENABLE_MODEM_LOG
+static const char *
+modem_connection_type_name(int type)
+{
+    switch (type) {
+        case MODEM_TYPE_NONE:  return "None";
+        case MODEM_TYPE_SLIP:  return "SLIP";
+        case MODEM_TYPE_PPP:   return "PPP";
+        case MODEM_TYPE_TCPIP: return "TCP/IP";
+        case MODEM_TYPE_CSLIP: return "CSLIP";
+        case MODEM_TYPE_RAS:   return "Microsoft RAS";
+        default:               return "Unknown";
+    }
+}
+#endif
 
 typedef enum modem_mode_t {
     MODEM_MODE_COMMAND = 0,
@@ -1012,7 +1042,8 @@ modem_dial(modem_t *modem, const char *str)
     modem->tcpIpConnCounter = 0;
     modem->tcpIpMode        = false;
     if (!strcmp(str, "0.0.0.0") || !strcmp(str, "0000")) {
-        modem_log(modem->log, "Entering local IP mode (type=%d)\n", modem->connection_type);
+        modem_log(modem->log, "Entering local IP mode (type=%s (%d))\n",
+              modem_connection_type_name(modem->connection_type), modem->connection_type);
         modem_enter_connected_state(modem);
         modem->numberinprogress[0] = 0;
 

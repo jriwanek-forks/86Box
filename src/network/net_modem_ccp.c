@@ -132,6 +132,9 @@ ccp_code_name(uint8_t code)
 static const char *
 ccp_option_name(uint8_t type, uint32_t value)
 {
+    if (type >= 28 && type <= 254)
+        return "Unassigned CCP option";
+
     switch (type) {
         case 0:                  return "Vendor-specific OUI";
         case CCP_OPT_PREDICTOR1: return "Predictor-1";
@@ -165,6 +168,19 @@ ccp_option_name(uint8_t type, uint32_t value)
         case CCP_OPT_NT31RAS:    return "NT31-RAS";
         case 255:                return "Reserved CCP option";
         default:                 return "Unknown";
+    }
+}
+
+static const char *
+ccp_lzs_check_mode_name(uint8_t check_mode)
+{
+    switch (check_mode) {
+        case 0:  return "None";
+        case 1:  return "LCB";
+        case 2:  return "CRC";
+        case 3:  return "Sequence Number";
+        case 4:  return "Extended Mode";
+        default: return "Unknown";
     }
 }
 
@@ -221,9 +237,10 @@ ccp_log_packet(ppp_ctx_t *ctx, const char *direction, const uint8_t *pkt, int to
         } else if (type == CCP_OPT_BSD && option_len == 3) {
             MODEM_DEBUG_LOG(ctx->log, " version-and-bits=0x%02X", pkt[pos + 2]);
         } else if (type == CCP_OPT_LZS && option_len == 5) {
-            MODEM_DEBUG_LOG(ctx->log, " history-count=%u check-mode=%u",
+            uint8_t check_mode = pkt[pos + 4];
+            MODEM_DEBUG_LOG(ctx->log, " history-count=%u check-mode=%u (%s)",
                             (unsigned) (((uint16_t) pkt[pos + 2] << 8) | pkt[pos + 3]),
-                            (unsigned) pkt[pos + 4]);
+                            (unsigned) check_mode, ccp_lzs_check_mode_name(check_mode));
         } else if (type == CCP_OPT_NT31RAS && option_len == 22) {
             uint32_t receive_features = ccp_get_le_u32(pkt + pos + 6);
             uint32_t maximum_send = ccp_get_le_u32(pkt + pos + 10);

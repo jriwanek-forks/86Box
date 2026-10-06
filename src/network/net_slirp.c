@@ -138,6 +138,85 @@ slirp_ethertype_name(uint16_t ethertype)
     }
 }
 
+static const char *
+slirp_ipv4_protocol_name(uint8_t protocol)
+{
+    switch (protocol) {
+        case 1:   return "ICMP";
+        case 2:   return "IGMP";
+        case 4:   return "IPv4 encapsulation";
+        case 6:   return "TCP";
+        case 17:  return "UDP";
+        case 41:  return "IPv6 encapsulation";
+        case 47:  return "GRE";
+        case 50:  return "ESP";
+        case 51:  return "AH";
+        case 58:  return "ICMPv6";
+        case 89:  return "OSPF";
+        case 132: return "SCTP";
+        default:  return "Unknown";
+    }
+}
+
+static const char *
+slirp_ipv4_port_name(uint16_t port)
+{
+    switch (port) {
+        case 20:  return "FTP-data";
+        case 21:  return "FTP-control";
+        case 22:  return "SSH";
+        case 23:  return "Telnet";
+        case 25:  return "SMTP";
+        case 53:  return "DNS";
+        case 67:  return "DHCP-server";
+        case 68:  return "DHCP-client";
+        case 80:  return "HTTP";
+        case 110: return "POP3";
+        case 123: return "NTP";
+        case 137: return "NetBIOS-NS";
+        case 138: return "NetBIOS-DGM";
+        case 139: return "NetBIOS-SSN";
+        case 143: return "IMAP";
+        case 161: return "SNMP";
+        case 443: return "HTTPS";
+        case 445: return "SMB";
+        default:  return NULL;
+    }
+}
+
+static const char *
+slirp_icmp_type_name(uint8_t type)
+{
+    switch (type) {
+        case 0:  return "Echo Reply";
+        case 3:  return "Destination Unreachable";
+        case 8:  return "Echo Request";
+        case 10: return "Router Solicitation";
+        default: return "Unknown";
+    }
+}
+
+static const char *
+slirp_icmp_code_name(uint8_t type, uint8_t code)
+{
+    if ((type == 0 || type == 8 || type == 10) && code == 0)
+        return "No additional code";
+    if (type == 3 && code == 3)
+        return "Port Unreachable";
+
+    return NULL;
+}
+
+static const char *
+slirp_arp_operation_name(uint16_t operation)
+{
+    switch (operation) {
+        case 1:  return "Request";
+        case 2:  return "Reply";
+        default: return "Unknown";
+    }
+}
+
 static void
 slirp_log_dns(const char *direction, const uint8_t *dns, size_t dns_len)
 {
@@ -206,8 +285,9 @@ slirp_log_packet_summary(const char *direction, const uint8_t *packet, size_t pa
     if (ethertype == 0x0806 && packet_len >= 42) {
         const uint8_t *arp = packet + 14;
         if (arp[4] == 6 && arp[5] == 4 && slirp_read_be16(arp + 2) == 0x0800) {
-            slirp_log("SLiRP: %s ARP op=%u %u.%u.%u.%u -> %u.%u.%u.%u\n",
-                      direction, (unsigned) slirp_read_be16(arp + 6),
+            uint16_t operation = slirp_read_be16(arp + 6);
+            slirp_log("SLiRP: %s ARP op=%s (%u) %u.%u.%u.%u -> %u.%u.%u.%u\n",
+                      direction, slirp_arp_operation_name(operation), (unsigned) operation,
                       (unsigned) arp[14], (unsigned) arp[15], (unsigned) arp[16], (unsigned) arp[17],
                       (unsigned) arp[24], (unsigned) arp[25], (unsigned) arp[26], (unsigned) arp[27]);
         }
@@ -227,23 +307,33 @@ slirp_log_packet_summary(const char *direction, const uint8_t *packet, size_t pa
         return;
     }
 
-    slirp_log("SLiRP: %s IPv4 %u.%u.%u.%u -> %u.%u.%u.%u protocol=%u total=%u\n",
+    slirp_log("SLiRP: %s IPv4 %u.%u.%u.%u -> %u.%u.%u.%u protocol=%s (%u) total=%u\n",
               direction,
               (unsigned) ip[12], (unsigned) ip[13], (unsigned) ip[14], (unsigned) ip[15],
               (unsigned) ip[16], (unsigned) ip[17], (unsigned) ip[18], (unsigned) ip[19],
-              (unsigned) ip[9], (unsigned) ip_total_len);
+              slirp_ipv4_protocol_name(ip[9]), (unsigned) ip[9], (unsigned) ip_total_len);
 
     size_t ip_len = ip_total_len < ip_available ? ip_total_len : ip_available;
     if (ip[9] == 1 && ip_len >= ip_header_len + 2) {
-        slirp_log("SLiRP: %s ICMP type=%u code=%u\n", direction,
-                  (unsigned) ip[ip_header_len], (unsigned) ip[ip_header_len + 1]);
+        uint8_t type = ip[ip_header_len];
+        uint8_t code = ip[ip_header_len + 1];
+        const char *code_name = slirp_icmp_code_name(type, code);
+        slirp_log("SLiRP: %s ICMP type=%u (%s) code=%u%s%s%s\n", direction,
+                  (unsigned) type, slirp_icmp_type_name(type), (unsigned) code,
+                  code_name ? " (" : "", code_name ? code_name : "",
+                  code_name ? ")" : "");
     } else if (ip[9] == 17 && ip_len >= ip_header_len + 8) {
         const uint8_t *udp = ip + ip_header_len;
         uint16_t       source_port = slirp_read_be16(udp);
         uint16_t       dest_port = slirp_read_be16(udp + 2);
         uint16_t       udp_len = slirp_read_be16(udp + 4);
-        slirp_log("SLiRP: %s UDP %u -> %u length=%u\n", direction,
-                  (unsigned) source_port, (unsigned) dest_port, (unsigned) udp_len);
+        const char    *source_name = slirp_ipv4_port_name(source_port);
+        const char    *dest_name = slirp_ipv4_port_name(dest_port);
+        slirp_log("SLiRP: %s UDP %u%s%s%s -> %u%s%s%s length=%u\n", direction,
+              (unsigned) source_port, source_name ? " (" : "",
+              source_name ? source_name : "", source_name ? ")" : "",
+              (unsigned) dest_port, dest_name ? " (" : "",
+              dest_name ? dest_name : "", dest_name ? ")" : "", (unsigned) udp_len);
 
         if ((source_port == 53 || dest_port == 53) && udp_len >= 20
             && udp_len <= ip_len - ip_header_len) {

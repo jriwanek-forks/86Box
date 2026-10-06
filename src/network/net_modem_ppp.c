@@ -314,9 +314,41 @@ ppp_protocol_name(uint16_t protocol)
         case PPP_PROTO_MULTILINK:      return "Multilink";
         case PPP_PROTO_VJ_COMPRESSED:  return "VJ-compressed IPv4";
         case PPP_PROTO_VJ_UNCOMPRESSED:return "VJ-uncompressed IPv4";
+        case PPP_AUTH_PROTO_SHIVA_PAP: return "Shiva PAP";
+        case PPP_AUTH_PROTO_RSA:       return "RSA Authentication";
+        case PPP_AUTH_PROTO_MITSUBISHI_SIEP: return "Mitsubishi SIEP";
+        case PPP_AUTH_PROTO_VSAP:      return "Vendor-Specific Authentication";
+        case PPP_AUTH_PROTO_PROPRIETARY_C281: return "Proprietary Authentication (0xC281)";
+        case PPP_AUTH_PROTO_PROPRIETARY_C283: return "Proprietary Authentication (0xC283)";
+        case PPP_AUTH_PROTO_PROPRIETARY_NODE_ID: return "Proprietary Node ID Authentication";
         default:                       return "unknown";
     }
 }
+
+#if defined(ENABLE_MODEM_LOG) && defined(ENABLE_MODEM_DEBUG)
+static const char *
+ppp_chap_algorithm_name(uint8_t algorithm)
+{
+    switch (algorithm) {
+        case 0:
+        case 1:
+        case 2:
+        case 3:
+        case 4:                 return "Reserved";
+        case CHAP_ALG_MD5:      return "CHAP with MD5";
+        case CHAP_ALG_SHA1:     return "CHAP with SHA-1";
+        case CHAP_ALG_SHA256:   return "CHAP with SHA-256";
+        case CHAP_ALG_SHA3_256: return "CHAP with SHA3-256";
+        case CHAP_ALG_SHA384:   return "CHAP with SHA-384";
+        case CHAP_ALG_SHA3_384: return "CHAP with SHA3-384";
+        case CHAP_ALG_SHA512:   return "CHAP with SHA-512";
+        case CHAP_ALG_SHA3_512: return "CHAP with SHA3-512";
+        case CHAP_ALG_MSCHAP:   return "MS-CHAP";
+        case CHAP_ALG_MSCHAPV2: return "MS-CHAP-2";
+        default:                return "Unassigned or unsupported";
+    }
+}
+#endif
 
 static const char *
 ppp_state_name(ppp_state_t state)
@@ -953,6 +985,21 @@ ppp_handle_lcp_config_request(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
         MODEM_DEBUG_LOG(ctx->log, "LCP: peer option=%s (type=%u) length=%u\n",
                 ppp_lcp_option_name(opt_type), (unsigned) opt_type,
                 (unsigned) opt_len);
+    #if defined(ENABLE_MODEM_LOG) && defined(ENABLE_MODEM_DEBUG)
+        if (opt_type == LCP_OPT_AUTH_PROTO && opt_len >= 4) {
+            uint16_t auth_protocol = (uint16_t) ((pkt[pos + 2] << 8) | pkt[pos + 3]);
+            if (auth_protocol == PPP_AUTH_PROTO_CHAP && opt_len == 5) {
+                uint8_t algorithm = pkt[pos + 4];
+                MODEM_DEBUG_LOG(ctx->log,
+                                "LCP: peer authentication=%s (0x%04X) algorithm=%s (%u)\n",
+                                ppp_protocol_name(auth_protocol), (unsigned) auth_protocol,
+                                ppp_chap_algorithm_name(algorithm), (unsigned) algorithm);
+            } else {
+                MODEM_DEBUG_LOG(ctx->log, "LCP: peer authentication=%s (0x%04X)\n",
+                                ppp_protocol_name(auth_protocol), (unsigned) auth_protocol);
+            }
+        }
+#endif
 
         switch (opt_type) {
             case LCP_OPT_MRU:

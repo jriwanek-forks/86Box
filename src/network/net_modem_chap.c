@@ -92,6 +92,18 @@ chap_auth_name(ppp_auth_type_t auth_type)
         default:                 return "unknown";
     }
 }
+
+static const char *
+chap_code_name(uint8_t code)
+{
+    switch (code) {
+        case CHAP_CODE_CHALLENGE: return "Challenge";
+        case CHAP_CODE_RESPONSE:  return "Response";
+        case CHAP_CODE_SUCCESS:   return "Success";
+        case CHAP_CODE_FAILURE:   return "Failure";
+        default:                  return "Unknown";
+    }
+}
 #endif
 
 /* Send CHAP Challenge packet */
@@ -496,12 +508,13 @@ ppp_chap_process(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
     uint8_t code  = pkt[0];
     uint8_t id    = pkt[1];
     int     total = (pkt[2] << 8) | pkt[3];
-    MODEM_DEBUG_LOG(ctx->log, "CHAP: packet code=%u id=%u declared=%d received=%d algorithm=%s\n",
-                    (unsigned) code, (unsigned) id, total, pkt_len,
+    MODEM_DEBUG_LOG(ctx->log, "CHAP: packet code=%s (%u) id=%u declared=%d received=%d algorithm=%s\n",
+                    chap_code_name(code), (unsigned) code, (unsigned) id, total, pkt_len,
                     chap_auth_name(ctx->auth_type));
 
     if (code != CHAP_CODE_RESPONSE) {
-        chap_log(ctx->log, "CHAP: Unexpected code %d\n", code);
+        chap_log(ctx->log, "CHAP: Unexpected code %s (%u)\n",
+                 chap_code_name(code), (unsigned) code);
         return;
     }
 
