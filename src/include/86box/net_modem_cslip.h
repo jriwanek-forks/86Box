@@ -71,12 +71,16 @@ void         cslip_close(cslip_ctx_t *ctx);
    Returns length of compressed data, or 0 if not compressible. */
 int cslip_compress(cslip_ctx_t *ctx, const uint8_t *in, int in_len,
                    uint8_t *out, int *type);
+int cslip_compress_logged(cslip_ctx_t *ctx, const uint8_t *in, int in_len,
+                          uint8_t *out, int *type);
 
 /* Decompress an incoming packet. type is VJ_TYPE_*.
    Returns length of decompressed IP packet, or 0 on error.
    out_buf must be large enough (in_len + VJ_MAX_HDR). */
 int cslip_decompress(cslip_ctx_t *ctx, const uint8_t *in, int in_len,
                      uint8_t *out, int type);
+int cslip_decompress_packet(cslip_ctx_t *ctx, const uint8_t *in, int in_len,
+                            uint8_t *out);
 
 #ifdef __cplusplus
 }

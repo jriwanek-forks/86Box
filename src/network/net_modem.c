@@ -67,10 +67,75 @@ modem_log(void *priv, const char *fmt, ...)
 #endif
 
 #if defined(ENABLE_MODEM_LOG) && defined(ENABLE_MODEM_DEBUG)
+static const char *
+modem_ipv4_protocol_name(uint8_t protocol)
+{
+    switch (protocol) {
+        case 1:   return "ICMP";
+        case 2:   return "IGMP";
+        case 4:   return "IPv4 encapsulation";
+        case 6:   return "TCP";
+        case 17:  return "UDP";
+        case 41:  return "IPv6 encapsulation";
+        case 47:  return "GRE";
+        case 50:  return "ESP";
+        case 51:  return "AH";
+        case 58:  return "ICMPv6";
+        case 89:  return "OSPF";
+        case 132: return "SCTP";
+        default:  return "Unknown";
+    }
+}
+
+static const char *
+modem_ipv4_port_name(uint16_t port)
+{
+    switch (port) {
+        case 20:  return "FTP-data";
+        case 21:  return "FTP-control";
+        case 22:  return "SSH";
+        case 23:  return "Telnet";
+        case 25:  return "SMTP";
+        case 53:  return "DNS";
+        case 67:  return "DHCP-server";
+        case 68:  return "DHCP-client";
+        case 80:  return "HTTP";
+        case 110: return "POP3";
+        case 123: return "NTP";
+        case 137: return "NetBIOS-NS";
+        case 138: return "NetBIOS-DGM";
+        case 139: return "NetBIOS-SSN";
+        case 143: return "IMAP";
+        case 161: return "SNMP";
+        case 443: return "HTTPS";
+        case 445: return "SMB";
+        default:  return NULL;
+    }
+}
+
+static const char *
+modem_ipv4_icmp_type_name(uint8_t type)
+{
+    switch (type) {
+        case 0:  return "Echo reply";
+        case 3:  return "Destination unreachable";
+        case 5:  return "Redirect";
+        case 8:  return "Echo request";
+        case 11: return "Time exceeded";
+        case 12: return "Parameter problem";
+        default: return "Unknown";
+    }
+}
+
 static void
 modem_debug_log_ipv4(void *log, const char *direction, const uint8_t *packet, int len)
 {
-    int header_len;
+    int      header_len;
+    uint16_t total_len;
+    uint16_t fragment;
+    uint16_t fragment_offset;
+    uint8_t  protocol;
+    const char *destination_label = "";
 
     if (len < 20 || (packet[0] >> 4) != 4) {
         MODEM_DEBUG_LOG(log, "%s: packet length=%d (not IPv4)\n", direction, len);
@@ -84,13 +149,63 @@ modem_debug_log_ipv4(void *log, const char *direction, const uint8_t *packet, in
         return;
     }
 
-    MODEM_DEBUG_LOG(log, "%s: IPv4 length=%d header=%d protocol=%u "
-                    "%u.%u.%u.%u -> %u.%u.%u.%u\n",
-                    direction, len, header_len, (unsigned) packet[9],
+    total_len = (uint16_t) (((uint16_t) packet[2] << 8) | packet[3]);
+    if (total_len < header_len) {
+        MODEM_DEBUG_LOG(log, "%s: malformed IPv4 total length=%u header=%d packet=%d\n",
+                        direction, (unsigned) total_len, header_len, len);
+        return;
+    }
+
+    protocol = packet[9];
+    fragment = (uint16_t) (((uint16_t) packet[6] << 8) | packet[7]);
+    fragment_offset = fragment & 0x1FFF;
+    if (packet[16] == 224 && packet[17] == 0 && packet[18] == 0 && packet[19] == 2)
+        destination_label = " (all-routers multicast)";
+    else if (packet[16] >= 224 && packet[16] <= 239)
+        destination_label = " (multicast)";
+
+    MODEM_DEBUG_LOG(log, "%s: IPv4 length=%d total=%u header=%d tos=0x%02X ttl=%u id=%u "
+                    "protocol=%s (%u) %u.%u.%u.%u -> %u.%u.%u.%u%s\n",
+                    direction, len, (unsigned) total_len, header_len, (unsigned) packet[1],
+                    (unsigned) packet[8], (unsigned) (((uint16_t) packet[4] << 8) | packet[5]),
+                    modem_ipv4_protocol_name(protocol), (unsigned) protocol,
                     (unsigned) packet[12], (unsigned) packet[13],
                     (unsigned) packet[14], (unsigned) packet[15],
                     (unsigned) packet[16], (unsigned) packet[17],
-                    (unsigned) packet[18], (unsigned) packet[19]);
+                    (unsigned) packet[18], (unsigned) packet[19], destination_label);
+
+    if (fragment & 0x7FFF) {
+        MODEM_DEBUG_LOG(log, "%s: IPv4 fragmentation offset=%u more-fragments=%s "
+                        "dont-fragment=%s\n",
+                        direction, (unsigned) fragment_offset,
+                        (fragment & 0x2000) ? "yes" : "no",
+                        (fragment & 0x4000) ? "yes" : "no");
+    }
+
+    if (fragment_offset == 0 && protocol == 1 && total_len >= header_len + 2
+        && len >= header_len + 2) {
+        MODEM_DEBUG_LOG(log, "%s: ICMP type=%u (%s) code=%u\n", direction,
+                        (unsigned) packet[header_len],
+                        modem_ipv4_icmp_type_name(packet[header_len]),
+                        (unsigned) packet[header_len + 1]);
+    } else if (fragment_offset == 0 && (protocol == 6 || protocol == 17)) {
+        int minimum_len = protocol == 6 ? 20 : 8;
+        if (total_len >= header_len + minimum_len && len >= header_len + minimum_len) {
+            uint16_t source_port = (uint16_t) (((uint16_t) packet[header_len] << 8)
+                                               | packet[header_len + 1]);
+            uint16_t dest_port = (uint16_t) (((uint16_t) packet[header_len + 2] << 8)
+                                             | packet[header_len + 3]);
+            const char *source_name = modem_ipv4_port_name(source_port);
+            const char *dest_name = modem_ipv4_port_name(dest_port);
+
+            MODEM_DEBUG_LOG(log, "%s: %s source-port=%u%s%s%s destination-port=%u%s%s%s\n",
+                            direction, modem_ipv4_protocol_name(protocol),
+                            (unsigned) source_port, source_name ? " (" : "",
+                            source_name ? source_name : "", source_name ? ")" : "",
+                            (unsigned) dest_port, dest_name ? " (" : "",
+                            dest_name ? dest_name : "", dest_name ? ")" : "");
+        }
+    }
 }
 #else
 #    define modem_debug_log_ipv4(...) ((void) 0)
@@ -469,13 +584,14 @@ process_tx_packet(modem_t *modem, uint8_t *p, uint32_t len)
 {
     uint8_t *processed_tx_packet = calloc(len, 1);
     size_t   received;
+    bool     decoded_ok;
 
     if (!processed_tx_packet)
         return;
 
-    modem_log(modem->log, "Processing SLIP packet of %u bytes\n", len);
-
-    if (!slip_decode_frame(p, len, processed_tx_packet, len, &received) || received == 0) {
+    decoded_ok = slip_decode_frame_logged(modem->log, p, len, processed_tx_packet,
+                                          len, &received);
+    if (!decoded_ok || received == 0) {
         free(processed_tx_packet);
         return;
     }
@@ -484,37 +600,22 @@ process_tx_packet(modem_t *modem, uint8_t *p, uint32_t len)
         uint8_t *ip_data    = processed_tx_packet;
         int      ip_len     = (int) received;
         uint8_t *decomp_buf = NULL;
-        MODEM_DEBUG_LOG(modem->log, "SLIP: received frame bytes=%u decoded=%d\n", len, received);
 
         /* CSLIP: VJ decompress if enabled */
         if (modem->cslip_enabled && modem->cslip_ctx) {
-            int vj_type = VJ_TYPE_IP;
-
-            /* Determine VJ packet type from the compressed frame marker. */
-            if (ip_len > 0) {
-                uint8_t first = ip_data[0];
-                if (first & 0x80)
-                    vj_type = VJ_TYPE_COMPRESSED_TCP;
-                else if (ip_len > 9 && (first >> 4) == 4
-                         && (ip_data[9] & 0xF0) == VJ_TYPE_UNCOMPRESSED_TCP)
-                    vj_type = VJ_TYPE_UNCOMPRESSED_TCP;
-                else
-                    vj_type = VJ_TYPE_IP;
+            decomp_buf = calloc((size_t) ip_len + VJ_MAX_HDR, 1);
+            if (!decomp_buf) {
+                free(processed_tx_packet);
+                return;
             }
-
-            if (vj_type != VJ_TYPE_IP) {
-                MODEM_DEBUG_LOG(modem->log, "CSLIP: decompress type=%d input=%d\n", vj_type, ip_len);
-                decomp_buf = calloc(ip_len + VJ_MAX_HDR, 1);
-                ip_len     = cslip_decompress(modem->cslip_ctx, ip_data, ip_len, decomp_buf, vj_type);
-                if (ip_len <= 0) {
-                    MODEM_DEBUG_LOG(modem->log, "CSLIP: decompression failed\n");
-                    free(decomp_buf);
-                    free(processed_tx_packet);
-                    return;
-                }
-                MODEM_DEBUG_LOG(modem->log, "CSLIP: decompressed length=%d\n", ip_len);
-                ip_data = decomp_buf;
+            ip_len = cslip_decompress_packet(modem->cslip_ctx, ip_data, ip_len,
+                                             decomp_buf);
+            if (ip_len <= 0) {
+                free(decomp_buf);
+                free(processed_tx_packet);
+                return;
             }
+            ip_data = decomp_buf;
         }
         modem_debug_log_ipv4(modem->log, "SLIP modem->network", ip_data, ip_len);
 
@@ -1537,7 +1638,8 @@ modem_queue_slip_frame(modem_t *modem, const uint8_t *packet, size_t packet_len)
     if (!frame)
         return false;
 
-    bool encoded = slip_encode_frame(packet, packet_len, frame, frame_capacity, &frame_len);
+    bool encoded = slip_encode_frame_logged(modem->log, packet, packet_len,
+                                           frame, frame_capacity, &frame_len);
     if (encoded) {
         while (frame_len > fifo8_num_free(&modem->rx_data))
             fifo8_resize_2x(&modem->rx_data);
@@ -1601,10 +1703,8 @@ modem_rx(void *priv, uint8_t *buf, int io_len)
         int      comp_type;
         if (!comp_buf)
             return 0;
-        int      comp_len = cslip_compress(modem->cslip_ctx, buf, io_len, comp_buf, &comp_type);
-
-        MODEM_DEBUG_LOG(modem->log, "CSLIP: compress type=%d input=%d output=%d\n",
-                comp_type, io_len, comp_len);
+        int      comp_len = cslip_compress_logged(modem->cslip_ctx, buf, io_len,
+                              comp_buf, &comp_type);
 
         if (comp_len > 0) {
             bool queued = modem_queue_slip_frame(modem, comp_buf, (size_t) comp_len);

@@ -20,6 +20,7 @@
 #include <string.h>
 #include <86box/net_modem_ppp.h>
 #include <86box/net_modem_mppe.h>
+#include "net_modem_debug.h"
 
 #define CCP_OPT_MPPE 18
 #define CCP_OPT_PREDICTOR1 1
@@ -93,6 +94,145 @@ ccp_put_le_u32(uint8_t *p, uint32_t value)
     p[3] = (uint8_t) (value >> 24);
 }
 
+const char *
+ppp_ccp_method_name(uint8_t method)
+{
+    switch (method) {
+        case PPP_CCP_METHOD_NONE:       return "none";
+        case PPP_CCP_METHOD_PREDICTOR1: return "Predictor-1";
+        case PPP_CCP_METHOD_PREDICTOR2: return "Predictor-2";
+        case PPP_CCP_METHOD_MPPE:       return "MPPE";
+        case PPP_CCP_METHOD_MPPC:       return "MPPC";
+        case PPP_CCP_METHOD_BSD:        return "BSD-Compress";
+        case PPP_CCP_METHOD_DEFLATE:    return "Deflate";
+        case PPP_CCP_METHOD_NT31RAS:    return "NT31-RAS";
+        default:                        return "unknown";
+    }
+}
+
+#if defined(ENABLE_MODEM_LOG) && defined(ENABLE_MODEM_DEBUG)
+static const char *
+ccp_code_name(uint8_t code)
+{
+    switch (code) {
+        case PPP_CODE_CONFIGURE_REQUEST: return "Configure-Request";
+        case PPP_CODE_CONFIGURE_ACK:     return "Configure-Ack";
+        case PPP_CODE_CONFIGURE_NAK:     return "Configure-Nak";
+        case PPP_CODE_CONFIGURE_REJECT:  return "Configure-Reject";
+        case PPP_CODE_TERMINATE_REQUEST: return "Terminate-Request";
+        case PPP_CODE_TERMINATE_ACK:     return "Terminate-Ack";
+        case PPP_CODE_RESET_REQUEST:     return "Reset-Request";
+        case PPP_CODE_RESET_ACK:         return "Reset-Ack";
+        default:                         return "Unknown";
+    }
+}
+
+static const char *
+ccp_option_name(uint8_t type, uint32_t value)
+{
+    switch (type) {
+        case CCP_OPT_PREDICTOR1: return "Predictor-1";
+        case CCP_OPT_PREDICTOR2: return "Predictor-2";
+        case CCP_OPT_MPPE:       return value == 1 ? "MPPC" : "MPPE";
+        case CCP_OPT_BSD:        return "BSD-Compress";
+        case CCP_OPT_DEFLATE:    return "Deflate";
+        case CCP_OPT_NT31RAS:    return "NT31-RAS";
+        default:                 return "Unknown";
+    }
+}
+
+static void
+ccp_log_packet(ppp_ctx_t *ctx, const char *direction, const uint8_t *pkt, int total)
+{
+    uint8_t code;
+
+    if (!ctx || !pkt || total < 4)
+        return;
+    code = pkt[0];
+    MODEM_DEBUG_LOG(ctx->log, "CCP: %s %s (code=%u id=%u length=%d)\n",
+                    direction, ccp_code_name(code), (unsigned) code,
+                    (unsigned) pkt[1], total);
+
+    if (code < PPP_CODE_CONFIGURE_REQUEST || code > PPP_CODE_CONFIGURE_REJECT)
+        return;
+
+    for (int pos = 4; pos < total;) {
+        uint8_t type;
+        uint8_t option_len;
+        uint32_t value = 0;
+
+        if (pos + 2 > total) {
+            MODEM_DEBUG_LOG(ctx->log, "CCP: malformed option header at offset=%d\n", pos);
+            return;
+        }
+        type = pkt[pos];
+        option_len = pkt[pos + 1];
+        if (option_len < 2 || pos + option_len > total) {
+            MODEM_DEBUG_LOG(ctx->log, "CCP: malformed option type=%u length=%u offset=%d\n",
+                            (unsigned) type, (unsigned) option_len, pos);
+            return;
+        }
+        if (type == CCP_OPT_MPPE && option_len == 6)
+            value = ccp_get_u32(pkt + pos + 2);
+        else if (type == CCP_OPT_NT31RAS && option_len >= 6)
+            value = ccp_get_le_u32(pkt + pos + 2);
+
+        MODEM_DEBUG_LOG(ctx->log, "CCP: %s option=%s (type=%u) length=%u",
+                        direction, ccp_option_name(type, value), (unsigned) type,
+                        (unsigned) option_len);
+        if (type == CCP_OPT_MPPE && option_len == 6) {
+            MODEM_DEBUG_LOG(ctx->log, " bits=0x%08X mppc=%s key-40=%s key-56=%s "
+                            "key-128=%s stateless=%s",
+                            (unsigned) value, value == 1 ? "yes" : "no",
+                            (value & CCP_MPPE_40) ? "yes" : "no",
+                            (value & CCP_MPPE_56) ? "yes" : "no",
+                            (value & CCP_MPPE_128) ? "yes" : "no",
+                            (value & CCP_MPPE_STATELESS) ? "yes" : "no");
+        } else if (type == CCP_OPT_DEFLATE && option_len == 4) {
+            MODEM_DEBUG_LOG(ctx->log, " window=0x%02X method=0x%02X",
+                            pkt[pos + 2], pkt[pos + 3]);
+        } else if (type == CCP_OPT_BSD && option_len == 3) {
+            MODEM_DEBUG_LOG(ctx->log, " version-and-bits=0x%02X", pkt[pos + 2]);
+        } else if (type == CCP_OPT_NT31RAS && option_len == 22) {
+            uint32_t receive_features = ccp_get_le_u32(pkt + pos + 6);
+            uint32_t maximum_send = ccp_get_le_u32(pkt + pos + 10);
+            uint32_t maximum_receive = ccp_get_le_u32(pkt + pos + 14);
+            MODEM_DEBUG_LOG(ctx->log, " send-features=0x%08X receive-features=0x%08X"
+                            " send-window=%u receive-window=%u max-send=%u max-receive=%u",
+                            (unsigned) value, (unsigned) receive_features,
+                            (unsigned) ccp_nt31ras_window_size(value),
+                            (unsigned) ccp_nt31ras_window_size(receive_features),
+                            (unsigned) maximum_send, (unsigned) maximum_receive);
+        }
+        MODEM_DEBUG_LOG(ctx->log, "\n");
+        pos += option_len;
+    }
+}
+
+static void
+ccp_log_state(ppp_ctx_t *ctx, const char *event)
+{
+    const char *tx_method = ctx->ccp_tx_bits
+                          ? "MPPE" : ppp_ccp_method_name(ctx->ccp_tx_method);
+    const char *rx_method = ctx->ccp_request_bits
+                          ? "MPPE" : ppp_ccp_method_name(ctx->ccp_rx_method);
+
+    MODEM_DEBUG_LOG(ctx->log, "CCP: %s open=%s tx-method=%s rx-method=%s "
+                    "MPPE-tx=%s MPPE-rx=%s peer-MPPE=%s plaintext-fallback=%s "
+                    "tx-bits=0x%08X rx-bits=0x%08X\n",
+                    event, ctx->ccp_open ? "yes" : "no",
+                    tx_method, rx_method,
+                    ctx->mppe_tx_enabled ? "on" : "off",
+                    ctx->mppe_rx_enabled ? "on" : "off",
+                    ctx->ccp_peer_mppe ? "yes" : "no",
+                    ctx->ccp_plaintext_fallback ? "yes" : "no",
+                    (unsigned) ctx->ccp_tx_bits, (unsigned) ctx->ccp_request_bits);
+}
+#else
+#    define ccp_log_packet(...) ((void) 0)
+#    define ccp_log_state(...)  ((void) 0)
+#endif
+
 static void
 ccp_update_state(ppp_ctx_t *ctx)
 {
@@ -102,6 +242,7 @@ ccp_update_state(ppp_ctx_t *ctx)
                         && ctx->mppe_keys_ready;
     ctx->mppe_rx_enabled = ctx->ccp_open && ctx->ccp_ack_received
                         && ctx->mppe_keys_ready;
+    ccp_log_state(ctx, "state");
 }
 
 static void
@@ -120,6 +261,7 @@ ccp_send_request(ppp_ctx_t *ctx, uint32_t bits)
     ctx->ccp_request_bits = bits;
     ctx->ccp_request_method = PPP_CCP_METHOD_MPPE;
     ctx->ccp_req_sent = true;
+    ccp_log_packet(ctx, "TX", request, sizeof(request));
     ppp_send_frame(ctx, PPP_PROTO_CCP, request, sizeof(request));
 }
 
@@ -183,6 +325,7 @@ ccp_send_codec_request(ppp_ctx_t *ctx, uint8_t method)
     ctx->ccp_request_method = method;
     ctx->ccp_req_sent = true;
     ctx->ccp_rejected = false;
+    ccp_log_packet(ctx, "TX", request, request_len);
     ppp_send_frame(ctx, PPP_PROTO_CCP, request, request_len);
     return true;
 }
@@ -329,6 +472,7 @@ ccp_send_response(ppp_ctx_t *ctx, uint8_t code, uint8_t id,
     response[3] = (uint8_t) total;
     if (options_len > 0)
         memcpy(response + 4, options, options_len);
+    ccp_log_packet(ctx, "TX", response, total);
     ppp_send_frame(ctx, PPP_PROTO_CCP, response, total);
 }
 
@@ -514,6 +658,7 @@ ppp_ccp_process(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
     int total = (pkt[2] << 8) | pkt[3];
     if (total < 4 || total != pkt_len)
         return;
+    ccp_log_packet(ctx, "RX", pkt, total);
 
     switch (pkt[0]) {
         case PPP_CODE_CONFIGURE_REQUEST:
@@ -647,4 +792,5 @@ ppp_ccp_fallback_plaintext(ppp_ctx_t *ctx)
         ctx->ccp_plaintext_fallback = false;
         ctx->state = PPP_STATE_DEAD;
     }
+    ccp_log_state(ctx, "plaintext fallback");
 }

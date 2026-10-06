@@ -191,6 +191,19 @@ cslip_close(cslip_ctx_t *ctx)
     free(ctx);
 }
 
+#if defined(ENABLE_MODEM_LOG) && defined(ENABLE_MODEM_DEBUG)
+static const char *
+cslip_vj_type_name(int type)
+{
+    switch (type) {
+        case VJ_TYPE_IP:               return "plain-IP";
+        case VJ_TYPE_UNCOMPRESSED_TCP: return "uncompressed-TCP";
+        case VJ_TYPE_COMPRESSED_TCP:   return "compressed-TCP";
+        default:                       return "unknown";
+    }
+}
+#endif
+
 /*
  * Compress an outgoing IP packet for transmission to the guest.
  * This is the "compressor" - it takes a normal IP packet and produces
@@ -492,6 +505,18 @@ send_uncompressed:
     }
 }
 
+int
+cslip_compress_logged(cslip_ctx_t *ctx, const uint8_t *in, int in_len,
+                      uint8_t *out, int *type)
+{
+    int output_len = cslip_compress(ctx, in, in_len, out, type);
+
+    MODEM_DEBUG_LOG(ctx->log, "CSLIP: TX VJ type=%s (%d) input=%d output=%d saved=%d\n",
+                    cslip_vj_type_name(*type), *type, in_len, output_len,
+                    output_len > 0 ? in_len - output_len : 0);
+    return output_len;
+}
+
 /*
  * Decompress an incoming packet from the guest.
  * type indicates the VJ packet type.
@@ -718,4 +743,35 @@ cslip_decompress(cslip_ctx_t *ctx, const uint8_t *in, int in_len,
         memcpy(out + total_hdr, in + pos, payload);
 
     return total_hdr + payload;
+}
+
+int
+cslip_decompress_packet(cslip_ctx_t *ctx, const uint8_t *in, int in_len,
+                        uint8_t *out)
+{
+    int type = VJ_TYPE_IP;
+
+    if (in_len > 0) {
+        uint8_t first = in[0];
+        if (first & 0x80)
+            type = VJ_TYPE_COMPRESSED_TCP;
+        else if (in_len > 9 && (first >> 4) == 4
+                 && (in[IP_PROTO] & 0xF0) == VJ_TYPE_UNCOMPRESSED_TCP)
+            type = VJ_TYPE_UNCOMPRESSED_TCP;
+    }
+
+    MODEM_DEBUG_LOG(ctx->log, "CSLIP: RX VJ type=%s (%d) input=%d toss=%u\n",
+                    cslip_vj_type_name(type), type, in_len,
+                    (unsigned) !!(ctx->flags & VJ_FLAG_TOSS));
+    int output_len = cslip_decompress(ctx, in, in_len, out, type);
+    if (output_len <= 0) {
+        MODEM_DEBUG_LOG(ctx->log, "CSLIP: RX decompression failed type=%s toss=%u\n",
+                        cslip_vj_type_name(type),
+                        (unsigned) !!(ctx->flags & VJ_FLAG_TOSS));
+        return output_len;
+    }
+
+    MODEM_DEBUG_LOG(ctx->log, "CSLIP: RX decoded IPv4 type=%s bytes=%d\n",
+                    cslip_vj_type_name(type), output_len);
+    return output_len;
 }

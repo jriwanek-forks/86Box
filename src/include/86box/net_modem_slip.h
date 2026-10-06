@@ -28,6 +28,10 @@ bool slip_decode_frame(const uint8_t *frame, size_t frame_len,
                        uint8_t *packet, size_t packet_capacity, size_t *packet_len);
 bool slip_encode_frame(const uint8_t *packet, size_t packet_len,
                        uint8_t *frame, size_t frame_capacity, size_t *frame_len);
+bool slip_decode_frame_logged(void *log, const uint8_t *frame, size_t frame_len,
+                              uint8_t *packet, size_t packet_capacity, size_t *packet_len);
+bool slip_encode_frame_logged(void *log, const uint8_t *packet, size_t packet_len,
+                              uint8_t *frame, size_t frame_capacity, size_t *frame_len);
 
 #ifdef __cplusplus
 }

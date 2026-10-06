@@ -347,6 +347,7 @@ bool       ppp_random_bytes(uint8_t *buffer, uint8_t len);
 void       ppp_ccp_start(ppp_ctx_t *ctx);
 void       ppp_ccp_process(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len);
 void       ppp_ccp_fallback_plaintext(ppp_ctx_t *ctx);
+const char *ppp_ccp_method_name(uint8_t method);
 bool       ppp_ccp_codec_set(ppp_ctx_t *ctx, bool transmit, uint8_t method);
 bool       ppp_ccp_codec_set_window(ppp_ctx_t *ctx, bool transmit, uint8_t method,
                                     uint32_t window_size);

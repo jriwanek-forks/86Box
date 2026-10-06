@@ -16,6 +16,27 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <86box/net_modem_slip.h>
+#include "net_modem_debug.h"
+
+#if defined(ENABLE_MODEM_LOG) && defined(ENABLE_MODEM_DEBUG)
+static size_t
+slip_escape_count(const uint8_t *frame, size_t frame_len)
+{
+    size_t escapes = 0;
+
+    if (!frame)
+        return 0;
+
+    for (size_t pos = 0; pos < frame_len; pos++) {
+        if (frame[pos] == SLIP_ESC) {
+            escapes++;
+            if (pos + 1 < frame_len)
+                pos++;
+        }
+    }
+    return escapes;
+}
+#endif
 
 bool
 slip_decode_frame(const uint8_t *frame, size_t frame_len,
@@ -97,4 +118,37 @@ slip_encode_frame(const uint8_t *packet, size_t packet_len,
     frame[encoded_len++] = SLIP_END;
     *frame_len = encoded_len;
     return true;
+}
+
+bool
+slip_decode_frame_logged(void *log, const uint8_t *frame, size_t frame_len,
+                         uint8_t *packet, size_t packet_capacity, size_t *packet_len)
+{
+    MODEM_DEBUG_LOG(log, "SLIP: RX wire frame bytes=%u\n", (unsigned) frame_len);
+    bool decoded = slip_decode_frame(frame, frame_len, packet, packet_capacity, packet_len);
+    if (!decoded || !packet_len || *packet_len == 0) {
+        MODEM_DEBUG_LOG(log, "SLIP: RX frame rejected bytes=%u escapes=%u result=%s\n",
+                        (unsigned) frame_len,
+                        (unsigned) slip_escape_count(frame, frame_len),
+                        decoded ? "empty" : "malformed-or-too-large");
+        return decoded;
+    }
+
+    MODEM_DEBUG_LOG(log, "SLIP: RX decoded packet bytes=%u escapes=%u\n",
+                    (unsigned) *packet_len,
+                    (unsigned) slip_escape_count(frame, frame_len));
+    return true;
+}
+
+bool
+slip_encode_frame_logged(void *log, const uint8_t *packet, size_t packet_len,
+                         uint8_t *frame, size_t frame_capacity, size_t *frame_len)
+{
+    bool encoded = slip_encode_frame(packet, packet_len, frame, frame_capacity, frame_len);
+    if (encoded) {
+        MODEM_DEBUG_LOG(log, "SLIP: TX frame payload=%u wire-bytes=%u escapes=%u\n",
+                        (unsigned) packet_len, (unsigned) *frame_len,
+                        (unsigned) slip_escape_count(frame, *frame_len));
+    }
+    return encoded;
 }

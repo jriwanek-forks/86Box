@@ -504,9 +504,20 @@ ppp_send_frame(ppp_ctx_t *ctx, uint16_t protocol, const uint8_t *data, int len)
     }
     frame[out_len++] = PPP_FLAG;
 
-    MODEM_DEBUG_LOG(ctx->log, "PPP: TX frame protocol=%s (0x%04X) payload=%d framed=%d "
-                    "acfc=%u pfc=%u\n", ppp_protocol_name(protocol),
-                    (unsigned) protocol, len, out_len,
+    MODEM_DEBUG_LOG(ctx->log, "PPP: TX frame protocol=%s (0x%04X) payload=%d "
+                    "wire-protocol=%s (0x%04X) wire-payload=%d framed=%d "
+                    "transform=%s ccp-open=%u ccp-method=%s MPPE-tx=%u "
+                    "acfc=%u pfc=%u\n",
+                    ppp_protocol_name(protocol), (unsigned) protocol, len,
+                    ppp_protocol_name(wire_protocol), (unsigned) wire_protocol,
+                    wire_len, out_len,
+                    wire_protocol == PPP_PROTO_MPPE
+                        ? (ctx->mppe_tx_enabled ? "MPPE"
+                                                : ppp_ccp_method_name(ctx->ccp_tx_method))
+                        : "none",
+                    (unsigned) ctx->ccp_open,
+                    ppp_ccp_method_name(ctx->ccp_tx_method),
+                    (unsigned) ctx->mppe_tx_enabled,
                     (unsigned) compress_ac, (unsigned) compress_protocol);
     ctx->serial_push(ctx->modem, frame, out_len);
 }
@@ -1344,8 +1355,21 @@ ppp_process_frame(ppp_ctx_t *ctx, const uint8_t *frame, int frame_len)
 
     const uint8_t *data     = frame + data_offset;
     int            data_len = frame_len - data_offset;
+    uint16_t       wire_protocol = protocol;
+    int            wire_data_len = data_len;
+#if defined(ENABLE_MODEM_LOG) && defined(ENABLE_MODEM_DEBUG)
+    const char    *decode_method = "none";
+#endif
     uint8_t        decrypted[PPP_MAX_FRAME];
     uint8_t        decompressed[PPP_MAX_FRAME];
+
+    MODEM_DEBUG_LOG(ctx->log, "PPP: RX wire-protocol=%s (0x%04X) wire-payload=%d "
+                    "state=%s CCP-open=%u CCP-method=%s MPPE-rx=%u\n",
+                    ppp_protocol_name(wire_protocol), (unsigned) wire_protocol,
+                    wire_data_len, ppp_state_name(ctx->state),
+                    (unsigned) ctx->ccp_open,
+                    ppp_ccp_method_name(ctx->ccp_rx_method),
+                    (unsigned) ctx->mppe_rx_enabled);
 
     if (protocol == PPP_PROTO_MPPE && ctx->mppe_rx_enabled) {
         size_t decrypted_len;
@@ -1361,6 +1385,9 @@ ppp_process_frame(ppp_ctx_t *ctx, const uint8_t *frame, int frame_len)
             }
             return;
         }
+    #if defined(ENABLE_MODEM_LOG) && defined(ENABLE_MODEM_DEBUG)
+        decode_method = "MPPE";
+    #endif
         if (decrypted_len < 2)
             return;
         protocol = (uint16_t) (((uint16_t) decrypted[0] << 8) | decrypted[1]);
@@ -1376,6 +1403,9 @@ ppp_process_frame(ppp_ctx_t *ctx, const uint8_t *frame, int frame_len)
                          || ctx->ccp_rx_method == PPP_CCP_METHOD_MPPC
                          || ctx->ccp_rx_method == PPP_CCP_METHOD_BSD)) {
         int decompressed_len;
+                #if defined(ENABLE_MODEM_LOG) && defined(ENABLE_MODEM_DEBUG)
+                    decode_method = ppp_ccp_method_name(ctx->ccp_rx_method);
+                #endif
         if (ctx->ccp_reset_pending
             && (ctx->ccp_rx_method == PPP_CCP_METHOD_PREDICTOR2
                 || ctx->ccp_rx_method == PPP_CCP_METHOD_MPPC))
@@ -1453,11 +1483,19 @@ ppp_process_frame(ppp_ctx_t *ctx, const uint8_t *frame, int frame_len)
 
             ppp_log(ctx->log, "PPP: Received frame proto=%s (0x%04X) len=%d (state=%s)\n",
                 ppp_protocol_name(protocol), protocol, data_len, ppp_state_name(ctx->state));
-        MODEM_DEBUG_LOG(ctx->log, "PPP: RX frame protocol=%s (0x%04X) length=%d address-control=%u "
-                    "compression=%u state=%s\n", ppp_protocol_name(protocol),
-                (unsigned) protocol, data_len,
-                    (unsigned) ac_present, (unsigned) compression_active,
-                    ppp_state_name(ctx->state));
+        if (protocol != wire_protocol || data_len != wire_data_len) {
+            MODEM_DEBUG_LOG(ctx->log, "PPP: RX decoded protocol=%s (0x%04X) payload=%d "
+                            "from-wire=%s (0x%04X) wire-payload=%d transform=%s\n",
+                            ppp_protocol_name(protocol), (unsigned) protocol, data_len,
+                            ppp_protocol_name(wire_protocol), (unsigned) wire_protocol,
+                            wire_data_len, decode_method);
+        } else {
+            MODEM_DEBUG_LOG(ctx->log, "PPP: RX protocol=%s (0x%04X) payload=%d "
+                            "address-control=%u compression=%u state=%s\n",
+                            ppp_protocol_name(protocol), (unsigned) protocol, data_len,
+                            (unsigned) ac_present, (unsigned) compression_active,
+                            ppp_state_name(ctx->state));
+        }
 
     switch (protocol) {
         case PPP_PROTO_LCP:
