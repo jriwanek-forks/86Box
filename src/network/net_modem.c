@@ -315,8 +315,22 @@ modem_connection_type_name(int type)
 
 typedef enum modem_mode_t {
     MODEM_MODE_COMMAND = 0,
-    MODEM_MODE_DATA    = 1
+    MODEM_MODE_DATA    = 1,
+    MODEM_MODE_FAX_TX  = 2,
+    MODEM_MODE_FAX_WAIT = 3
 } modem_mode_t;
+
+typedef enum modem_fax_support_t {
+    MODEM_FAX_SUPPORT_DISABLED = 0,
+    MODEM_FAX_SUPPORT_CLASS_0  = 1,
+    MODEM_FAX_SUPPORT_CLASS_1  = 2
+} modem_fax_support_t;
+
+typedef enum modem_fax_transfer_status_t {
+    MODEM_FAX_TRANSFER_ACTIVE,
+    MODEM_FAX_TRANSFER_COMPLETE,
+    MODEM_FAX_TRANSFER_ABORTED
+} modem_fax_transfer_status_t;
 
 typedef enum modem_slip_stage_t {
     MODEM_SLIP_STAGE_USERNAME,
@@ -411,6 +425,16 @@ typedef struct modem_t {
     /* SLIP authentication */
     bool             slip_auth_enabled;
     slip_auth_ctx_t *slip_auth_ctx;
+
+    uint8_t fax_support;
+    uint8_t fax_class;
+    bool    fax_tx_pending_dle;
+    bool    fax_rx_active;
+    bool    fax_rx_pending_dle;
+    bool    fax_rx_complete_pending;
+    bool    fax_rx_frame_waiting;
+    bool    fax_rx_aborted;
+    uint16_t fax_wait_ticks;
 
     /* PPP authentication settings */
     int              ppp_auth_type;    /* ppp_auth_type_t value from config */
@@ -722,10 +746,53 @@ process_tx_packet(modem_t *modem, uint8_t *p, uint32_t len)
     return;
 }
 
+static modem_fax_transfer_status_t
+modem_fax_transfer_status(bool *pending_dle, uint8_t data)
+{
+    if (*pending_dle) {
+        *pending_dle = false;
+        if (data == 0x03)
+            return MODEM_FAX_TRANSFER_COMPLETE;
+        if (data == 0x18)
+            return MODEM_FAX_TRANSFER_ABORTED;
+        if (data == 0x10)
+            return MODEM_FAX_TRANSFER_ACTIVE;
+    }
+
+    if (data == 0x10)
+        *pending_dle = true;
+
+    return MODEM_FAX_TRANSFER_ACTIVE;
+}
+
+static bool
+modem_fax_rate_supported(uint32_t rate)
+{
+    switch (rate) {
+        case 3:
+        case 24:
+        case 48:
+        case 72:
+        case 73:
+        case 74:
+        case 96:
+        case 97:
+        case 98:
+        case 121:
+        case 122:
+        case 145:
+        case 146:
+            return true;
+        default:
+            return false;
+    }
+}
+
 static void
 modem_data_mode_process_byte(modem_t *modem, uint8_t data)
 {
-    if (modem->reg[MREG_ESCAPE_CHAR] <= 127) {
+    if (modem->mode != MODEM_MODE_FAX_TX && !modem->fax_rx_active
+        && !modem->fax_rx_complete_pending && modem->reg[MREG_ESCAPE_CHAR] <= 127) {
         if (modem->plusinc >= 1 && modem->plusinc <= 3 && modem->reg[MREG_ESCAPE_CHAR] == data) {
             modem->plusinc++;
         } else {
@@ -794,11 +861,23 @@ host_to_modem_cb(void *priv)
     if (!((modem->serial->mctrl & 2) || modem->flowcontrol != 3))
         goto no_write_to_machine;
 
-    if (modem->mode == MODEM_MODE_DATA && fifo8_num_used(&modem->rx_data) && !modem->cooldown) {
+    if (modem->mode == MODEM_MODE_DATA && fifo8_num_used(&modem->rx_data)
+        && !modem->cooldown
+        && (!(modem->fax_rx_active || modem->fax_rx_complete_pending)
+            || !fifo8_num_used(&modem->data_pending))) {
         serial_write_fifo(modem->serial, fifo8_pop(&modem->rx_data));
     } else if (fifo8_num_used(&modem->data_pending)) {
         uint8_t val = fifo8_pop(&modem->data_pending);
         serial_write_fifo(modem->serial, val);
+    }
+
+    if (modem->fax_rx_complete_pending && !fifo8_num_used(&modem->rx_data)) {
+        modem->fax_rx_complete_pending = false;
+        modem->mode = MODEM_MODE_COMMAND;
+        modem->cmdpause = 0;
+        modem->plusinc = 0;
+        modem_send_res(modem, modem->fax_rx_aborted ? ResNOCARRIER : ResOK);
+        modem->fax_rx_aborted = false;
     }
 
     if (fifo8_num_used(&modem->data_pending) == 0) {
@@ -859,8 +938,19 @@ modem_write(UNUSED(serial_t *s), void *priv, uint8_t txval)
             modem->cmdbuf[modem->cmdpos] = txval;
             modem->cmdpos++;
         }
-    } else {
+    } else if (modem->mode != MODEM_MODE_FAX_WAIT) {
         modem_data_mode_process_byte(modem, txval);
+        if (modem->mode == MODEM_MODE_FAX_TX) {
+            const modem_fax_transfer_status_t status =
+                modem_fax_transfer_status(&modem->fax_tx_pending_dle, txval);
+            if (status != MODEM_FAX_TRANSFER_ACTIVE) {
+                modem->mode = MODEM_MODE_COMMAND;
+                modem->cmdpause = 0;
+                modem->plusinc = 0;
+                modem_send_res(modem, status == MODEM_FAX_TRANSFER_ABORTED
+                                          ? ResNOCARRIER : ResOK);
+            }
+        }
     }
 }
 
@@ -930,6 +1020,14 @@ modem_enter_idle_state(modem_t *modem)
     modem->connected           = false;
     modem->ringing             = false;
     modem->mode                = MODEM_MODE_COMMAND;
+    modem->fax_class           = 0;
+    modem->fax_tx_pending_dle   = false;
+    modem->fax_rx_active        = false;
+    modem->fax_rx_pending_dle   = false;
+    modem->fax_rx_complete_pending = false;
+    modem->fax_rx_frame_waiting = false;
+    modem->fax_rx_aborted       = false;
+    modem->fax_wait_ticks       = 0;
     modem->in_warmup           = 0;
     modem->tcpIpConnInProgress = 0;
     modem->tcpIpConnCounter    = 0;
@@ -1206,24 +1304,100 @@ modem_do_command(modem_t *modem, int repeat)
         char chr = modem_fetch_character(&scanbuf);
         switch (chr) {
             case '+':
-                if (is_exact_token("FCLASS=?", sizeof("FCLASS=?"), scanbuf)) {
+                if (modem->fax_support != MODEM_FAX_SUPPORT_DISABLED
+                    && is_next_token("FCLASS", sizeof("FCLASS"), scanbuf)
+                    && is_exact_token("FCLASS=?", sizeof("FCLASS=?"), scanbuf)) {
                     scanbuf += 8;
-                    modem_send_line(modem, "+FCLASS: (0)");
+                    modem_send_line(modem, modem->fax_support == MODEM_FAX_SUPPORT_CLASS_1
+                                               ? "+FCLASS: (0,1)" : "+FCLASS: (0)");
                     modem_send_res(modem, ResOK);
                     return;
-                } else if (is_exact_token("FCLASS?", sizeof("FCLASS?"), scanbuf)) {
+                } else if (modem->fax_support != MODEM_FAX_SUPPORT_DISABLED
+                           && is_next_token("FCLASS", sizeof("FCLASS"), scanbuf)
+                           && is_exact_token("FCLASS?", sizeof("FCLASS?"), scanbuf)) {
+                    char response[16];
                     scanbuf += 7;
-                    modem_send_line(modem, "+FCLASS: 0");
+                    snprintf(response, sizeof(response), "+FCLASS: %u",
+                             (unsigned) modem->fax_class);
+                    modem_send_line(modem, response);
                     modem_send_res(modem, ResOK);
                     return;
-                } else if (is_exact_token("FCLASS=0", sizeof("FCLASS=0"), scanbuf)) {
+                } else if (modem->fax_support != MODEM_FAX_SUPPORT_DISABLED
+                           && is_next_token("FCLASS", sizeof("FCLASS"), scanbuf)
+                           && is_exact_token("FCLASS=0", sizeof("FCLASS=0"), scanbuf)) {
                     scanbuf += 8;
+                    modem->fax_class = 0;
                     modem_send_res(modem, ResOK);
                     return;
-                } else if (is_next_token("FCLASS=", sizeof("FCLASS="), scanbuf)) {
+                } else if (modem->fax_support != MODEM_FAX_SUPPORT_DISABLED
+                           && is_next_token("FCLASS", sizeof("FCLASS"), scanbuf)
+                           && is_exact_token("FCLASS=1", sizeof("FCLASS=1"), scanbuf)) {
+                    scanbuf += 8;
+                    if (modem->fax_support != MODEM_FAX_SUPPORT_CLASS_1) {
+                        modem_send_res(modem, ResERROR);
+                        return;
+                    }
+                    modem->fax_class = 1;
+                    modem_send_res(modem, ResOK);
+                    return;
+                } else if (modem->fax_support != MODEM_FAX_SUPPORT_DISABLED
+                           && is_next_token("FCLASS=", sizeof("FCLASS="), scanbuf)) {
                     /* Catch any other FCLASS assignment attempt. */
                     scanbuf += 8;
                     modem_send_res(modem, ResERROR);
+                    return;
+                } else if (is_next_token("FTS=", sizeof("FTS="), scanbuf)
+                           || is_next_token("FRS=", sizeof("FRS="), scanbuf)) {
+                    const char *wait_start;
+                    scanbuf += 4;
+                    wait_start = scanbuf;
+                    const uint32_t wait = modem_scan_number(&scanbuf);
+                    if (modem->fax_support != MODEM_FAX_SUPPORT_CLASS_1
+                        || modem->fax_class != 1 || !modem->connected
+                        || !modem->tcpIpMode || modem->telnet_mode
+                        || scanbuf == wait_start || wait > 255 || *scanbuf != '\0') {
+                        modem_send_res(modem, ResERROR);
+                        return;
+                    }
+                    if (wait) {
+                        modem->fax_wait_ticks = (uint16_t) (wait * 10);
+                        modem->mode = MODEM_MODE_FAX_WAIT;
+                        modem->cmdpause = 0;
+                        modem->plusinc = 0;
+                    } else {
+                        modem_send_res(modem, ResOK);
+                    }
+                    return;
+                } else if (is_next_token("FTH=", sizeof("FTH="), scanbuf)
+                           || is_next_token("FTM=", sizeof("FTM="), scanbuf)
+                           || is_next_token("FRH=", sizeof("FRH="), scanbuf)
+                           || is_next_token("FRM=", sizeof("FRM="), scanbuf)) {
+                    const bool transmit = scanbuf[1] == 'T';
+                    scanbuf += 4;
+                    const uint32_t rate = modem_scan_number(&scanbuf);
+                    if (modem->fax_support != MODEM_FAX_SUPPORT_CLASS_1
+                        || modem->fax_class != 1 || !modem->connected
+                        || !modem->tcpIpMode || modem->telnet_mode
+                        || !modem_fax_rate_supported(rate)
+                        || *scanbuf != '\0') {
+                        modem_send_res(modem, ResERROR);
+                        return;
+                    }
+
+                    if (transmit) {
+                        modem->fax_tx_pending_dle = false;
+                        modem->mode = MODEM_MODE_FAX_TX;
+                    } else {
+                        modem->fax_rx_active = !modem->fax_rx_frame_waiting;
+                        modem->fax_rx_complete_pending = modem->fax_rx_frame_waiting;
+                        modem->fax_rx_frame_waiting = false;
+                        if (modem->fax_rx_active)
+                            modem->fax_rx_aborted = false;
+                        modem->mode = MODEM_MODE_DATA;
+                    }
+                    modem->cmdpause = 0;
+                    modem->plusinc = 0;
+                    modem_send_res(modem, ResCONNECT);
                     return;
                 } else if (is_next_token("NET", sizeof("NET"), scanbuf)) {
                     // only walk the pointer ahead if the command matches
@@ -1861,6 +2035,16 @@ modem_cmdpause_timer_callback(void *priv)
     uint32_t guard_threshold = 0;
     timer_on_auto(&modem->cmdpause_timer, 1000);
 
+    if (modem->mode == MODEM_MODE_FAX_WAIT && modem->fax_wait_ticks) {
+        modem->fax_wait_ticks--;
+        if (!modem->fax_wait_ticks) {
+            modem->mode = MODEM_MODE_COMMAND;
+            modem->cmdpause = 0;
+            modem->plusinc = 0;
+            modem_send_res(modem, ResOK);
+        }
+    }
+
     if (modem->ppp_active && modem->ppp_ctx) {
         ppp_timer_tick(modem->ppp_ctx);
         modem_ppp_check_dead(modem);
@@ -1953,14 +2137,31 @@ modem_cmdpause_timer_callback(void *priv)
                 }
             }
         }
-        if (modem->connected) {
+        if (modem->connected && !modem->fax_rx_complete_pending
+            && !modem->fax_rx_frame_waiting) {
             uint8_t buffer[16];
             int     wouldblock = 0;
             int     recv       = MIN(modem->rx_data.capacity - modem->rx_data.num, sizeof(buffer));
             int     res        = plat_netsocket_receive(modem->clientsocket, buffer, recv, &wouldblock);
 
             if (res > 0) {
-                if (modem->telnet_mode)
+                if (modem->fax_support == MODEM_FAX_SUPPORT_CLASS_1
+                    && modem->fax_class == 1 && !modem->telnet_mode) {
+                    for (int pos = 0; pos < res; pos++) {
+                        fifo8_push(&modem->rx_data, buffer[pos]);
+                        if (!modem->fax_rx_frame_waiting && !modem->fax_rx_complete_pending) {
+                            const modem_fax_transfer_status_t status =
+                                modem_fax_transfer_status(&modem->fax_rx_pending_dle, buffer[pos]);
+                            if (status != MODEM_FAX_TRANSFER_ACTIVE) {
+                                const bool receive_requested = modem->fax_rx_active;
+                                modem->fax_rx_active = false;
+                                modem->fax_rx_complete_pending = receive_requested;
+                                modem->fax_rx_frame_waiting = !receive_requested;
+                                modem->fax_rx_aborted = status == MODEM_FAX_TRANSFER_ABORTED;
+                            }
+                        }
+                    }
+                } else if (modem->telnet_mode)
                     modem_process_telnet(modem, buffer, res);
                 else
                     fifo8_push_all(&modem->rx_data, buffer, res);
@@ -1976,16 +2177,19 @@ modem_cmdpause_timer_callback(void *priv)
         }
     }
 
-    modem->cmdpause++;
-    guard_threshold = (uint32_t) (modem->reg[MREG_GUARD_TIME] * 20);
-    if (modem->cmdpause > guard_threshold) {
-        if (modem->plusinc == 0) {
-            modem->plusinc = 1;
-        } else if (modem->plusinc == 4) {
-            modem_log(modem->log, "Escape sequence triggered, returning to command mode\n");
-            modem->mode = MODEM_MODE_COMMAND;
-            modem_send_res(modem, ResOK);
-            modem->plusinc = 0;
+    if (modem->mode != MODEM_MODE_FAX_TX && modem->mode != MODEM_MODE_FAX_WAIT
+        && !modem->fax_rx_active && !modem->fax_rx_complete_pending) {
+        modem->cmdpause++;
+        guard_threshold = (uint32_t) (modem->reg[MREG_GUARD_TIME] * 20);
+        if (modem->cmdpause > guard_threshold) {
+            if (modem->plusinc == 0) {
+                modem->plusinc = 1;
+            } else if (modem->plusinc == 4) {
+                modem_log(modem->log, "Escape sequence triggered, returning to command mode\n");
+                modem->mode = MODEM_MODE_COMMAND;
+                modem_send_res(modem, ResOK);
+                modem->plusinc = 0;
+            }
         }
     }
 }
@@ -2019,6 +2223,7 @@ modem_init(UNUSED(const device_t *info))
     modem->telnet_mode = device_get_config_int("telnet_mode");
 
     modem->connection_type = device_get_config_int("connection_type");
+    modem->fax_support = (uint8_t) device_get_config_int("fax_support");
     modem->ppp_auth_type   = device_get_config_int("ppp_auth_type");
     modem->ppp_encryption  = device_get_config_int("ppp_encryption");
     {
@@ -2227,6 +2432,22 @@ static const device_config_t modem_config[] = {
         .file_filter    = NULL,
         .spinner        = { 0 },
         .selection      = { { 0 } },
+        .bios           = { { 0 } }
+    },
+    {
+        .name           = "fax_support",
+        .description    = "Fax AT Command Support",
+        .type           = CONFIG_SELECTION,
+        .default_string = NULL,
+        .default_int    = 0,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = {
+            { .description = "Disabled", .value = MODEM_FAX_SUPPORT_DISABLED },
+            { .description = "Class 0",  .value = MODEM_FAX_SUPPORT_CLASS_0 },
+            { .description = "Class 1",  .value = MODEM_FAX_SUPPORT_CLASS_1 },
+            { .description = "" }
+        },
         .bios           = { { 0 } }
     },
     {
