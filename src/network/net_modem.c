@@ -47,6 +47,7 @@
 #include <86box/net_modem_slip.h>
 #include <86box/net_modem_slip_auth.h>
 #include <86box/modem_sound.h>
+#include <86box/modem_voice.h>
 #include "net_modem_debug.h"
 
 #ifdef ENABLE_MODEM_LOG
@@ -318,7 +319,9 @@ typedef enum modem_mode_t {
     MODEM_MODE_COMMAND = 0,
     MODEM_MODE_DATA    = 1,
     MODEM_MODE_FAX_TX  = 2,
-    MODEM_MODE_FAX_WAIT = 3
+    MODEM_MODE_FAX_WAIT = 3,
+    MODEM_MODE_VOICE_TX = 4,
+    MODEM_MODE_VOICE_RX = 5
 } modem_mode_t;
 
 typedef enum modem_fax_support_t {
@@ -447,6 +450,20 @@ typedef struct modem_t {
     bool    fax_rx_aborted;
     uint16_t fax_wait_ticks;
 
+    /* Rockwell voice mode; the TCP connection carries framed G.711 audio. */
+    uint8_t voice_class;
+    bool voice_dle_pending;
+    bool voice_rx_draining;
+    uint8_t voice_tx_frame[VOICE_FRAME_SAMPLES];
+    size_t voice_tx_count;
+    voice_deframer_t voice_deframer;
+    rv_adpcm_t voice_adpcm_tx;
+    rv_adpcm_t voice_adpcm_rx;
+    voice_resampler_t voice_resample_tx;
+    voice_resampler_t voice_resample_rx;
+    int voice_rate;
+    int voice_bits;
+
     /* PPP authentication settings */
     int              ppp_auth_type;    /* ppp_auth_type_t value from config */
     int              ppp_encryption;   /* Minimum required MPPE key strength */
@@ -478,7 +495,107 @@ static void modem_do_command(modem_t *modem, int repeat);
 static void modem_accept_incoming_call(modem_t *modem);
 static void modem_enter_idle_state(modem_t *modem);
 void modem_send_res(modem_t *modem, const ResTypes response);
+static void modem_send_line(modem_t *modem, const char *line);
+static void modem_send_number(modem_t *modem, uint32_t val);
 static void fifo8_resize_2x(Fifo8 *fifo);
+
+static void
+modem_voice_frame_in(int type, const uint8_t *payload, size_t len, void *priv)
+{
+    modem_t *modem = (modem_t *) priv;
+    int16_t  line[VOICE_FRAME_MAX];
+    int16_t  serial[VOICE_FRAME_MAX * 2];
+    uint8_t  encoded[VOICE_FRAME_MAX * 2];
+    size_t   samples = 0;
+
+    if (type != VOICE_FRAME_AUDIO || !len || !modem->voice_class
+        || (modem->mode != MODEM_MODE_VOICE_RX && !modem->voice_rx_draining))
+        return;
+    for (size_t i = 0; i < len; i++)
+        line[i] = voice_ulaw_decode(payload[i]);
+    samples = voice_resample(&modem->voice_resample_rx, line, len, serial,
+                             sizeof(serial) / sizeof(serial[0]));
+    samples = rv_adpcm_encode(&modem->voice_adpcm_rx, serial, samples,
+                              encoded, sizeof(encoded));
+    while (samples * 2 > fifo8_num_free(&modem->rx_data))
+        fifo8_resize_2x(&modem->rx_data);
+    for (size_t i = 0; i < samples; i++) {
+        fifo8_push(&modem->rx_data, encoded[i]);
+        if (encoded[i] == 0x10)
+            fifo8_push(&modem->rx_data, encoded[i]);
+    }
+}
+
+static void
+modem_voice_send_audio(modem_t *modem, const uint8_t *audio, size_t len)
+{
+    uint8_t frame[VOICE_FRAME_HDR + VOICE_FRAME_MAX];
+    size_t  frame_len;
+
+    if (!modem->connected || !modem->tcpIpMode || !len || len > VOICE_FRAME_MAX)
+        return;
+    frame_len = voice_frame(frame, VOICE_FRAME_AUDIO, audio, len);
+    if (frame_len > sizeof(modem->tx_pkt_ser_line) - modem->tx_count)
+        return;
+    memcpy(modem->tx_pkt_ser_line + modem->tx_count, frame, frame_len);
+    modem->tx_count += (uint32_t) frame_len;
+}
+
+static void
+modem_voice_result(modem_t *modem, const char *result)
+{
+    if (modem->doresponse == 1 || modem->doresponse == 2)
+        return;
+    if (modem->numericresponse)
+        modem_send_number(modem, 1);
+    else
+        modem_send_line(modem, result);
+}
+
+static void
+modem_voice_tx_byte(modem_t *modem, uint8_t byte)
+{
+    int16_t decoded[16];
+    int16_t line[64];
+    uint8_t encoded[64];
+    size_t  n, m;
+
+    modem->cmdpause = 0;
+    if (modem->voice_dle_pending) {
+        modem->voice_dle_pending = false;
+        if (byte == 0x03) {
+            if (modem->voice_tx_count)
+                modem_voice_send_audio(modem, modem->voice_tx_frame, modem->voice_tx_count);
+            modem->voice_tx_count = 0;
+            modem->mode = MODEM_MODE_COMMAND;
+            modem_send_res(modem, ResOK);
+            return;
+        }
+        if (byte == 0x18) {
+            modem->voice_tx_count = 0;
+            modem->mode = MODEM_MODE_COMMAND;
+            modem_send_res(modem, ResOK);
+            return;
+        }
+        if (byte != 0x10)
+            return;
+    } else if (byte == 0x10) {
+        modem->voice_dle_pending = true;
+        return;
+    }
+
+    n = rv_adpcm_decode(&modem->voice_adpcm_tx, &byte, 1, decoded,
+                        sizeof(decoded) / sizeof(decoded[0]));
+    m = voice_resample(&modem->voice_resample_tx, decoded, n, line,
+                       sizeof(line) / sizeof(line[0]));
+    for (size_t i = 0; i < m; i++) {
+        modem->voice_tx_frame[modem->voice_tx_count++] = voice_ulaw_encode(line[i]);
+        if (modem->voice_tx_count == sizeof(modem->voice_tx_frame)) {
+            modem_voice_send_audio(modem, modem->voice_tx_frame, modem->voice_tx_count);
+            modem->voice_tx_count = 0;
+        }
+    }
+}
 
 static void
 modem_ppp_check_dead(modem_t *modem)
@@ -878,7 +995,9 @@ host_to_modem_cb(void *priv)
     if (!((modem->serial->mctrl & 2) || modem->flowcontrol != 3))
         goto no_write_to_machine;
 
-    if (modem->mode == MODEM_MODE_DATA && fifo8_num_used(&modem->rx_data)
+    if ((modem->mode == MODEM_MODE_DATA || modem->mode == MODEM_MODE_VOICE_RX
+         || modem->voice_rx_draining)
+        && fifo8_num_used(&modem->rx_data)
         && !modem->cooldown
         && (!(modem->fax_rx_active || modem->fax_rx_complete_pending)
             || !fifo8_num_used(&modem->data_pending))) {
@@ -897,12 +1016,21 @@ host_to_modem_cb(void *priv)
         modem->fax_rx_aborted = false;
     }
 
+    if (modem->voice_rx_draining && !fifo8_num_used(&modem->rx_data))
+        modem->voice_rx_draining = false;
+
     if (fifo8_num_used(&modem->data_pending) == 0) {
         modem->cooldown = false;
     }
 
 no_write_to_machine:
-    timer_on_auto(&modem->host_to_serial_timer, (1000000.0 / (double) modem->baudrate) * (double) 9);
+    if (modem->mode == MODEM_MODE_VOICE_RX || modem->voice_rx_draining) {
+        const double voice_byte_us = 1000000.0 * 8.0
+                                   / ((double) modem->voice_rate * (double) modem->voice_bits);
+        timer_on_auto(&modem->host_to_serial_timer, voice_byte_us);
+    } else
+        timer_on_auto(&modem->host_to_serial_timer,
+                      (1000000.0 / (double) modem->baudrate) * (double) 9);
 }
 
 static void
@@ -956,7 +1084,26 @@ modem_write(UNUSED(serial_t *s), void *priv, uint8_t txval)
             modem->cmdpos++;
         }
     } else if (modem->mode != MODEM_MODE_FAX_WAIT) {
-        modem_data_mode_process_byte(modem, txval);
+        if (modem->mode == MODEM_MODE_VOICE_TX)
+            modem_voice_tx_byte(modem, txval);
+        else if (modem->mode == MODEM_MODE_VOICE_RX) {
+            uint8_t tail[4];
+            size_t  tail_len = rv_adpcm_flush(&modem->voice_adpcm_rx, tail, sizeof(tail));
+
+            /* Rockwell stops receive mode when the DTE sends any byte. */
+            while (fifo8_num_free(&modem->rx_data) < tail_len * 2 + 2)
+                fifo8_resize_2x(&modem->rx_data);
+            for (size_t i = 0; i < tail_len; i++) {
+                fifo8_push(&modem->rx_data, tail[i]);
+                if (tail[i] == 0x10)
+                    fifo8_push(&modem->rx_data, tail[i]);
+            }
+            fifo8_push(&modem->rx_data, 0x10);
+            fifo8_push(&modem->rx_data, 0x03);
+            modem->mode = MODEM_MODE_COMMAND;
+            modem_send_res(modem, ResOK);
+        } else
+            modem_data_mode_process_byte(modem, txval);
         if (modem->mode == MODEM_MODE_FAX_TX) {
             const modem_fax_transfer_status_t status =
                 modem_fax_transfer_status(&modem->fax_tx_pending_dle, txval);
@@ -1046,6 +1193,10 @@ modem_enter_idle_state(modem_t *modem)
     modem->fax_rx_frame_waiting = false;
     modem->fax_rx_aborted       = false;
     modem->fax_wait_ticks       = 0;
+    modem->voice_rx_draining    = false;
+    modem->voice_tx_count       = 0;
+    modem->voice_dle_pending    = false;
+    memset(&modem->voice_deframer, 0, sizeof(modem->voice_deframer));
     modem->in_warmup           = 0;
     modem->tcpIpConnInProgress = 0;
     modem->tcpIpConnCounter    = 0;
@@ -1112,7 +1263,10 @@ void
 modem_enter_connected_state(modem_t *modem)
 {
     modem_sound_event(modem->sound, MODEM_SOUND_CONNECT, NULL, 0);
-    modem_send_res(modem, ResCONNECT);
+    if (modem->voice_class)
+        modem_voice_result(modem, "VCON");
+    else
+        modem_send_res(modem, ResCONNECT);
     modem->mode      = MODEM_MODE_DATA;
     modem->ringing   = false;
     modem->connected = true;
@@ -1146,6 +1300,9 @@ modem_reset(modem_t *modem)
     modem->speaker_mode        = 1;
     modem->speaker_level       = 2;
     modem->pulse_dial          = 0;
+    modem->voice_class         = 0;
+    modem->voice_rate          = 7200;
+    modem->voice_bits          = 4;
     modem_sound_speaker(modem->sound, modem->speaker_mode, modem->speaker_level);
 
     memset(&modem->reg, 0, sizeof(modem->reg));
@@ -1342,6 +1499,87 @@ modem_do_command(modem_t *modem, int repeat)
     while (1) {
         char chr = modem_fetch_character(&scanbuf);
         switch (chr) {
+            case '#':
+                if (is_exact_token("CLS=8", sizeof("CLS=8"), scanbuf)) {
+                    modem->voice_class = 8;
+                    modem_send_res(modem, ResOK);
+                    return;
+                } else if (is_exact_token("CLS=0", sizeof("CLS=0"), scanbuf)) {
+                    modem->voice_class = 0;
+                    modem_send_res(modem, ResOK);
+                    return;
+                } else if (is_exact_token("CLS?", sizeof("CLS?"), scanbuf)) {
+                    modem_send_line(modem, modem->voice_class ? "#CLS: 8" : "#CLS: 0");
+                    modem_send_res(modem, ResOK);
+                    return;
+                } else if (is_exact_token("CLS=?", sizeof("CLS=?"), scanbuf)) {
+                    modem_send_line(modem, "#CLS: (0,8)");
+                    modem_send_res(modem, ResOK);
+                    return;
+                } else if (is_exact_token("VBS=?", sizeof("VBS=?"), scanbuf)) {
+                    modem_send_line(modem, "#VBS: (2-4)");
+                    modem_send_res(modem, ResOK);
+                    return;
+                } else if (is_exact_token("VSR=?", sizeof("VSR=?"), scanbuf)) {
+                    modem_send_line(modem, "#VSR: (7200,8000)");
+                    modem_send_res(modem, ResOK);
+                    return;
+                } else if (is_exact_token("VBS?", sizeof("VBS?"), scanbuf)) {
+                    char response[16];
+                    snprintf(response, sizeof(response), "#VBS: %d", modem->voice_bits);
+                    modem_send_line(modem, response);
+                    modem_send_res(modem, ResOK);
+                    return;
+                } else if (is_exact_token("VSR?", sizeof("VSR?"), scanbuf)) {
+                    char response[20];
+                    snprintf(response, sizeof(response), "#VSR: %d", modem->voice_rate);
+                    modem_send_line(modem, response);
+                    modem_send_res(modem, ResOK);
+                    return;
+                } else if (is_next_token("VBS=", sizeof("VBS="), scanbuf)) {
+                    scanbuf += 4;
+                    const uint32_t bits = modem_scan_number(&scanbuf);
+                    if ((bits < 2 || bits > 4) || *scanbuf != '\0') {
+                        modem_send_res(modem, ResERROR);
+                        return;
+                    }
+                    modem->voice_bits = (int) bits;
+                    modem_send_res(modem, ResOK);
+                    return;
+                } else if (is_next_token("VSR=", sizeof("VSR="), scanbuf)) {
+                    scanbuf += 4;
+                    const uint32_t rate = modem_scan_number(&scanbuf);
+                    if ((rate != 7200 && rate != 8000) || *scanbuf != '\0') {
+                        modem_send_res(modem, ResERROR);
+                        return;
+                    }
+                    modem->voice_rate = (int) rate;
+                    modem_send_res(modem, ResOK);
+                    return;
+                } else if (is_exact_token("VTX", sizeof("VTX"), scanbuf)
+                           || is_exact_token("VRX", sizeof("VRX"), scanbuf)) {
+                    const bool transmit = scanbuf[1] == 'T';
+                    if (!modem->voice_class || !modem->connected || !modem->tcpIpMode
+                        || modem->telnet_mode) {
+                        modem_send_res(modem, ResERROR);
+                        return;
+                    }
+                    memset(&modem->voice_deframer, 0, sizeof(modem->voice_deframer));
+                    rv_adpcm_init(&modem->voice_adpcm_tx, modem->voice_bits);
+                    rv_adpcm_init(&modem->voice_adpcm_rx, modem->voice_bits);
+                    voice_resampler_init(&modem->voice_resample_tx,
+                                         (uint32_t) modem->voice_rate, VOICE_LINE_RATE);
+                    voice_resampler_init(&modem->voice_resample_rx,
+                                         VOICE_LINE_RATE, (uint32_t) modem->voice_rate);
+                    modem->voice_tx_count = 0;
+                    modem->voice_dle_pending = false;
+                    modem->mode = transmit ? MODEM_MODE_VOICE_TX : MODEM_MODE_VOICE_RX;
+                    modem->voice_rx_draining = !transmit;
+                    modem_voice_result(modem, "CONNECT");
+                    return;
+                }
+                modem_send_res(modem, ResERROR);
+                return;
             case '+':
                 if (modem->fax_support != MODEM_FAX_SUPPORT_DISABLED
                     && is_next_token("FCLASS", sizeof("FCLASS"), scanbuf)
@@ -2237,13 +2475,20 @@ modem_cmdpause_timer_callback(void *priv)
         }
         if (modem->connected && !modem->fax_rx_complete_pending
             && !modem->fax_rx_frame_waiting) {
-            uint8_t buffer[16];
+            uint8_t buffer[1024];
             int     wouldblock = 0;
             int     recv       = MIN(modem->rx_data.capacity - modem->rx_data.num, sizeof(buffer));
             int     res        = plat_netsocket_receive(modem->clientsocket, buffer, recv, &wouldblock);
 
             if (res > 0) {
-                if (modem->fax_support == MODEM_FAX_SUPPORT_CLASS_1
+                if (modem->voice_class && !modem->telnet_mode) {
+                    if (voice_deframe(&modem->voice_deframer, buffer, (size_t) res,
+                                      modem_voice_frame_in, modem) != 0) {
+                        modem->tx_count = 0;
+                        modem_enter_idle_state(modem);
+                        modem_send_res(modem, ResNOCARRIER);
+                    }
+                } else if (modem->fax_support == MODEM_FAX_SUPPORT_CLASS_1
                     && modem->fax_class == 1 && !modem->telnet_mode) {
                     for (int pos = 0; pos < res; pos++) {
                         fifo8_push(&modem->rx_data, buffer[pos]);
@@ -2276,6 +2521,7 @@ modem_cmdpause_timer_callback(void *priv)
     }
 
     if (modem->mode != MODEM_MODE_FAX_TX && modem->mode != MODEM_MODE_FAX_WAIT
+        && modem->mode != MODEM_MODE_VOICE_TX && modem->mode != MODEM_MODE_VOICE_RX
         && !modem->fax_rx_active && !modem->fax_rx_complete_pending) {
         modem->cmdpause++;
         guard_threshold = (uint32_t) (modem->reg[MREG_GUARD_TIME] * 20);
