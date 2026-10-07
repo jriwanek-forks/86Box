@@ -539,6 +539,22 @@ TEST(ModemCcp, LzsEncodesRfcLiteralAndEndMarker)
     ppp_ccp_codec_close(&tx);
 }
 
+TEST(ModemCcp, LzsRestoresOptionalRemovedTrailingZero)
+{
+    ppp_ctx_t rx{};
+    const std::array<uint8_t, 2> encoded_without_padding = { 0x20, 0xE0 };
+    std::array<uint8_t, 8> decoded{};
+    int decoded_len;
+
+    ASSERT_TRUE(ppp_ccp_codec_set(&rx, false, PPP_CCP_METHOD_LZS));
+    ASSERT_TRUE(ppp_ccp_codec_decompress(&rx, encoded_without_padding.data(),
+                                         encoded_without_padding.size(), decoded.data(),
+                                         decoded.size(), &decoded_len));
+    ASSERT_EQ(decoded_len, 1);
+    EXPECT_EQ(decoded[0], 'A');
+    ppp_ccp_codec_close(&rx);
+}
+
 TEST(ModemCcp, LzsRoundTripsLiteralAndMatchPackets)
 {
     ppp_ctx_t tx{};
@@ -626,6 +642,22 @@ TEST(ModemCcp, LzsDcpRoundTripsCompressedConnectionlessPacket)
     EXPECT_EQ(decoded_len, packet.size());
     EXPECT_EQ(decoded, packet);
     ppp_ccp_codec_close(&tx);
+    ppp_ccp_codec_close(&rx);
+}
+
+TEST(ModemCcp, LzsDcpRestoresOptionalRemovedTrailingZero)
+{
+    ppp_ctx_t rx{};
+    const std::array<uint8_t, 3> encoded_without_padding = { 0xE0, 0x20, 0xE0 };
+    std::array<uint8_t, 8> decoded{};
+    int decoded_len;
+
+    ASSERT_TRUE(ppp_ccp_codec_set(&rx, false, PPP_CCP_METHOD_LZS_DCP));
+    ASSERT_TRUE(ppp_ccp_codec_decompress(&rx, encoded_without_padding.data(),
+                                         encoded_without_padding.size(), decoded.data(),
+                                         decoded.size(), &decoded_len));
+    ASSERT_EQ(decoded_len, 1);
+    EXPECT_EQ(decoded[0], 'A');
     ppp_ccp_codec_close(&rx);
 }
 

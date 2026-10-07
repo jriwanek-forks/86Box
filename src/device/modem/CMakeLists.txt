@@ -30,3 +30,12 @@ target_sources(dev PRIVATE
     modem_sound.c
     modem_voice.c
 )
+
+if(ENABLE_MODEM_LOG)
+    target_compile_definitions(dev PRIVATE ENABLE_MODEM_LOG)
+endif()
+
+if(ENABLE_MODEM_DEBUG)
+    target_compile_definitions(dev PRIVATE ENABLE_MODEM_DEBUG)
+    target_compile_definitions(dev PRIVATE ENABLE_SLIRP_LOG=1)
+endif()
