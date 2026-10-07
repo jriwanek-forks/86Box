@@ -6,7 +6,7 @@
  *
  *          This file is part of the 86Box distribution.
  *
- *          Hayes AT-compliant modem emulation.
+ *          Hayes AT-compliant modem over the character-device API.
  *
  * Authors: The DOSBox Team
  *          Cacodemon345
@@ -32,7 +32,7 @@
 #include <86box/fifo.h>
 #include <86box/fifo8.h>
 #include <86box/timer.h>
-#include <86box/serial.h>
+#include <86box/char.h>
 #include <86box/plat.h>
 #include <86box/network.h>
 #include <86box/log.h>
@@ -50,15 +50,28 @@
 #include <86box/modem/modem_voice.h>
 #include <86box/modem/modem_debug.h>
 
+/* Keep the COM-device entry points distinct from the network modem. */
+#define modem_send_res char_modem_send_res
+#define modem_enter_idle_state char_modem_enter_idle_state
+#define modem_enter_connected_state char_modem_enter_connected_state
+#define modem_reset char_modem_reset
+#define modem_dial char_modem_dial
+#define modem_dtr_callback_timer char_modem_dtr_callback_timer
+#define modem_dtr_callback char_modem_dtr_callback
+#define modem_process_telnet char_modem_process_telnet
+#define modem_device char_modem_device
+#define modem_close char_modem_close
+#define trim char_modem_trim
+
 #ifdef ENABLE_MODEM_LOG
-uint8_t modem_do_log = ENABLE_MODEM_LOG;
+uint8_t char_modem_do_log = ENABLE_MODEM_LOG;
 
 static void
 modem_log(void *priv, const char *fmt, ...)
 {
     va_list ap;
 
-    if (modem_do_log) {
+    if (char_modem_do_log) {
         va_start(ap, fmt);
         log_out(priv, fmt, ap);
         va_end(ap);
@@ -355,7 +368,10 @@ typedef struct modem_phonebook_entry_t {
 typedef struct modem_t {
     void      *log;
     uint8_t   mac[6];
-    serial_t *serial;
+    char_port_t *char_port;
+    uint32_t char_status;
+    bool char_dtr;
+    bool char_rts;
     uint32_t  baudrate;
 
     modem_mode_t mode;
@@ -372,6 +388,7 @@ typedef struct modem_t {
     uint8_t reg[MODEM_REGS];
 
     Fifo8 data_pending; /* Data yet to be sent to the host. */
+    Fifo8 char_tx_data; /* Bytes delivered by the char API read callback. */
 
     char     cmdbuf[COMMAND_BUFFER_SIZE];
     char     prevcmdbuf[COMMAND_BUFFER_SIZE];
@@ -757,10 +774,6 @@ modem_speed_changed(void *priv)
     timer_stop(&dev->host_to_serial_timer);
     /* FIXME: do something to dev->baudrate */
     timer_on_auto(&dev->host_to_serial_timer, (1000000.0 / (double) dev->baudrate) * 9);
-#if 0
-    if (dev->serial)
-        serial_clear_fifo(dev->serial);
-#endif
 }
 
 static void
@@ -979,21 +992,9 @@ static void
 host_to_modem_cb(void *priv)
 {
     modem_t *modem = (modem_t *) priv;
-
-    if (modem->in_warmup || (modem->serial == NULL))
-        goto no_write_to_machine;
-
-    if ((modem->serial->type >= SERIAL_16550) && modem->serial->fifo_enabled) {
-        if (fifo_get_full(modem->serial->rcvr_fifo)) {
-            goto no_write_to_machine;
-        }
-    } else {
-        if (modem->serial->lsr & 1) {
-            goto no_write_to_machine;
-        }
-    }
-
-    if (!((modem->serial->mctrl & 2) || modem->flowcontrol != 3))
+    if (modem->in_warmup || !modem->char_port
+        || !fifo8_num_free(&modem->char_tx_data)
+        || (modem->flowcontrol == 3 && !modem->char_rts))
         goto no_write_to_machine;
 
     if ((modem->mode == MODEM_MODE_DATA || modem->mode == MODEM_MODE_VOICE_RX
@@ -1002,10 +1003,10 @@ host_to_modem_cb(void *priv)
         && !modem->cooldown
         && (!(modem->fax_rx_active || modem->fax_rx_complete_pending)
             || !fifo8_num_used(&modem->data_pending))) {
-        serial_write_fifo(modem->serial, fifo8_pop(&modem->rx_data));
+        fifo8_push(&modem->char_tx_data, fifo8_pop(&modem->rx_data));
     } else if (fifo8_num_used(&modem->data_pending)) {
         uint8_t val = fifo8_pop(&modem->data_pending);
-        serial_write_fifo(modem->serial, val);
+        fifo8_push(&modem->char_tx_data, val);
     }
 
     if (modem->fax_rx_complete_pending && !fifo8_num_used(&modem->rx_data)) {
@@ -1035,7 +1036,7 @@ no_write_to_machine:
 }
 
 static void
-modem_write(UNUSED(serial_t *s), void *priv, uint8_t txval)
+modem_write_byte(void *priv, uint8_t txval)
 {
     modem_t *modem = (modem_t *) priv;
 
@@ -1252,12 +1253,9 @@ modem_enter_idle_state(modem_t *modem)
         }
     }
 
-    if (modem->serial != NULL) {
-        serial_set_cts(modem->serial, 1);
-        serial_set_dsr(modem->serial, 1);
-        serial_set_dcd(modem->serial, (!modem->dcdmode ? 1 : 0));
-        serial_set_ri(modem->serial, 0);
-    }
+    modem->char_status = CHAR_COM_CTS | CHAR_COM_DSR
+                       | (!modem->dcdmode ? CHAR_COM_DCD : 0);
+    char_update_status(modem->char_port);
 }
 
 void
@@ -1278,10 +1276,8 @@ modem_enter_connected_state(modem_t *modem)
     modem->serversocket = -1;
     memset(&modem->telClient, 0, sizeof(modem->telClient));
 
-    if (modem->serial != NULL) {
-        serial_set_dcd(modem->serial, 1);
-        serial_set_ri(modem->serial, 0);
-    }
+    modem->char_status = CHAR_COM_CTS | CHAR_COM_DSR | CHAR_COM_DCD;
+    char_update_status(modem->char_port);
 }
 
 void
@@ -2101,15 +2097,54 @@ modem_dtr_callback_timer(void *priv)
     }
 }
 
-void
-modem_dtr_callback(UNUSED(serial_t *serial), int status, void *priv)
+static size_t
+modem_char_read(uint8_t *buf, size_t len, void *priv)
 {
-    modem_t *dev  = (modem_t *) priv;
-    dev->dtrstate = !!status;
-    if (status == 1)
-        timer_disable(&dev->dtr_timer);
-    else if (!timer_is_enabled(&dev->dtr_timer))
-        timer_on_auto(&dev->dtr_timer, 1000000);
+    modem_t *modem = (modem_t *) priv;
+    size_t count = 0;
+
+    while (count < len && !fifo8_is_empty(&modem->char_tx_data))
+        buf[count++] = fifo8_pop(&modem->char_tx_data);
+    return count;
+}
+
+static size_t
+modem_char_write(uint8_t *buf, size_t len, void *priv)
+{
+    for (size_t i = 0; i < len; i++)
+        modem_write_byte(priv, buf[i]);
+    return len;
+}
+
+static uint32_t
+modem_char_status(void *priv)
+{
+    return ((modem_t *) priv)->char_status;
+}
+
+static void
+modem_char_control(uint32_t flags, void *priv)
+{
+    modem_t *modem = (modem_t *) priv;
+    const bool dtr = !!(flags & CHAR_COM_DTR);
+
+    modem->char_rts = !!(flags & CHAR_COM_RTS);
+    if (modem->dtrstate == dtr)
+        return;
+    modem->dtrstate = dtr;
+    if (dtr)
+        timer_disable(&modem->dtr_timer);
+    else if (!timer_is_enabled(&modem->dtr_timer))
+        timer_on_auto(&modem->dtr_timer, 1000000);
+}
+
+static void
+modem_char_port_config(void *priv)
+{
+    modem_t *modem = (modem_t *) priv;
+    if (modem->char_port && modem->char_port->com.baud)
+        modem->baudrate = modem->char_port->com.baud;
+    modem_speed_changed(modem);
 }
 
 static void
@@ -2357,20 +2392,6 @@ modem_rx(void *priv, uint8_t *buf, int io_len)
 }
 
 static void
-modem_rcr_cb(UNUSED(struct serial_s *serial), void *priv)
-{
-    modem_t *dev = (modem_t *) priv;
-
-    timer_stop(&dev->host_to_serial_timer);
-    /* FIXME: do something to dev->baudrate */
-    timer_on_auto(&dev->host_to_serial_timer, (1000000.0 / (double) dev->baudrate) * (double) 9);
-#if 0
-    if (dev->serial)
-        serial_clear_fifo(dev->serial);
-#endif
-}
-
-static void
 modem_accept_incoming_call(modem_t *modem)
 {
     if (modem->waitingclientsocket != -1) {
@@ -2462,8 +2483,8 @@ modem_cmdpause_timer_callback(void *priv)
             } else {
                 modem->ringing = true;
                 modem_send_res(modem, ResRING);
-                if (modem->serial != NULL)
-                    serial_set_ri(modem->serial, !serial_get_ri(modem->serial));
+                modem->char_status ^= CHAR_COM_RI;
+                char_update_status(modem->char_port);
                 modem->ringtimer            = 3000;
                 modem->reg[MREG_RING_COUNT] = 0;
             }
@@ -2477,8 +2498,8 @@ modem_cmdpause_timer_callback(void *priv)
                 return;
             }
             modem_send_res(modem, ResRING);
-            if (modem->serial != NULL)
-                serial_set_ri(modem->serial, !serial_get_ri(modem->serial));
+            modem->char_status ^= CHAR_COM_RI;
+            char_update_status(modem->char_port);
 
             modem->ringtimer = 3000;
         }
@@ -2598,8 +2619,7 @@ modem_init(UNUSED(const device_t *info))
 
     memset(modem->mac, 0xfc, 6);
 
-    modem->port        = device_get_config_int("port");
-    modem->baudrate    = device_get_config_int("baudrate");
+    modem->baudrate    = 115200;
     modem->modem_identity = device_get_config_int("modem_identity");
     modem->sound = modem_sound_init();
     modem->listen_port = device_get_config_int("listen_port");
@@ -2638,12 +2658,19 @@ modem_init(UNUSED(const device_t *info))
 
     fifo8_create(&modem->data_pending, 0x40000);
     fifo8_create(&modem->rx_data, 0x40000);
+    fifo8_create(&modem->char_tx_data, 0x40000);
 
     timer_add(&modem->dtr_timer, modem_dtr_callback_timer, modem, 0);
     timer_add(&modem->host_to_serial_timer, host_to_modem_cb, modem, 0);
     timer_add(&modem->cmdpause_timer, modem_cmdpause_timer_callback, modem, 0);
     timer_on_auto(&modem->cmdpause_timer, 1000);
-    modem->serial = serial_attach_ex_2(modem->port, modem_rcr_cb, modem_write, modem_dtr_callback, modem);
+    modem->char_port = char_attach(0, modem_char_read, modem_char_write,
+                                   modem_char_status, modem_char_control,
+                                   modem_char_port_config, modem);
+    if (modem->char_port->com.baud)
+        modem->baudrate = modem->char_port->com.baud;
+    timer_on_auto(&modem->host_to_serial_timer,
+                  (1000000.0 / (double) modem->baudrate) * 9.0);
 
     modem_reset(modem);
     modem->card = network_attach(modem, modem->mac, modem_rx, NULL);
@@ -2681,6 +2708,7 @@ modem_close(void *priv)
     log_close(modem->log);
     fifo8_destroy(&modem->data_pending);
     fifo8_destroy(&modem->rx_data);
+    fifo8_destroy(&modem->char_tx_data);
     netcard_close(modem->card);
     free(priv);
 }
@@ -2699,52 +2727,6 @@ static const device_config_t modem_config[] = {
             { .description = "Generic 86Box Modem", .value = MODEM_IDENTITY_GENERIC },
             { .description = "Diamond SupraExpress 56e PRO", .value = MODEM_IDENTITY_SUPRAEXPRESS },
             { .description = "" }
-        },
-        .bios           = { { 0 } }
-    },
-    {
-        .name           = "port",
-        .description    = "Serial Port",
-        .type           = CONFIG_SELECTION,
-        .default_string = NULL,
-        .default_int    = 0,
-        .file_filter    = NULL,
-        .spinner        = { 0 },
-        .selection      = {
-            { .description = "COM1", .value = 0 },
-            { .description = "COM2", .value = 1 },
-            { .description = "COM3", .value = 2 },
-            { .description = "COM4", .value = 3 },
-            { .description = ""                 }
-        },
-        .bios           = { { 0 } }
-    },
-    {
-        .name           = "baudrate",
-        .description    = "Baud Rate",
-        .type           = CONFIG_SELECTION,
-        .default_string = NULL,
-        .default_int    = 115200,
-        .file_filter    = NULL,
-        .spinner        = { 0 },
-        .selection      = {
-            { .description = "115200", .value = 115200 },
-            { .description =  "57600", .value =  57600 },
-            { .description =  "56000", .value =  56000 },
-            { .description =  "38400", .value =  38400 },
-            { .description =  "33600", .value =  33600 },
-            { .description =  "28800", .value =  28800 },
-            { .description =  "19200", .value =  19200 },
-            { .description =  "14400", .value =  14400 },
-            { .description =   "9600", .value =   9600 },
-            { .description =   "7200", .value =   7200 },
-            { .description =   "4800", .value =   4800 },
-            { .description =   "2400", .value =   2400 },
-            { .description =   "1800", .value =   1800 },
-            { .description =   "1200", .value =   1200 },
-            { .description =    "600", .value =    600 },
-            { .description =    "300", .value =    300 },
-            { .description = ""                        }
         },
         .bios           = { { 0 } }
     },
@@ -2952,15 +2934,15 @@ static const device_config_t modem_config[] = {
 // clang-format on
 
 const device_t modem_device = {
-    .name          = "Standard Hayes-compliant Modem",
-    .internal_name = "modem",
-    .flags         = DEVICE_COM,
+    .name          = "Standard Hayes-compliant Modem (char API)",
+    .internal_name = "char_modem",
+    .flags         = DEVICE_COM | DEVICE_HOTPLUG,
     .local         = 0,
     .init          = modem_init,
     .close         = modem_close,
     .reset         = NULL,
     .available     = NULL,
-    .speed_changed = modem_speed_changed,
+    .speed_changed = NULL,
     .force_redraw  = NULL,
     .config        = modem_config
 };

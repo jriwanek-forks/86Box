@@ -38,20 +38,6 @@ list(APPEND net_sources
     net_i8255x.c
     net_l80225.c
     net_modem.c
-    net_modem_crypto.c
-    net_modem_ppp.c
-    net_modem_pap.c
-    net_modem_chap.c
-    net_modem_ccp.c
-    net_modem_ccp_codec.c
-    net_modem_mppe.c
-    net_modem_eap.c
-    net_modem_ipcp.c
-    net_modem_cslip.c
-    net_modem_mppp.c
-    net_modem_slip.c
-    net_modem_slip_auth.c
-    utils/getline.c
 )
 
 find_package(PkgConfig REQUIRED)
