@@ -31,6 +31,14 @@ if(AUTOMATION)
     target_sources(char PRIVATE char_automation.c)
 endif()
 
+if(ENABLE_MODEM_LOG)
+    target_compile_definitions(char PRIVATE ENABLE_MODEM_LOG)
+endif()
+
+if(ENABLE_MODEM_DEBUG)
+    target_compile_definitions(char PRIVATE ENABLE_MODEM_DEBUG)
+endif()
+
 if(CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
     target_include_directories(char PRIVATE /usr/local/include)
 endif()
