@@ -21,6 +21,7 @@ add_library(char OBJECT
     char_file.c
     char_fujinet.c
     char_loopback.c
+    modem_sound.c
     char_pipe.c
     char_serial.c
     char_stdio.c

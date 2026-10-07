@@ -46,6 +46,7 @@
 #include <86box/net_modem_cslip.h>
 #include <86box/net_modem_slip.h>
 #include <86box/net_modem_slip_auth.h>
+#include <86box/modem_sound.h>
 #include "net_modem_debug.h"
 
 #ifdef ENABLE_MODEM_LOG
@@ -390,6 +391,16 @@ typedef struct modem_t {
     bool     telnet_mode;
     bool     dtrstate;
     uint32_t tcpIpConnCounter;
+    bool     tcpIpSocketConnected;
+    bool     call_progress_active;
+    bool     call_answer_sound_started;
+    uint32_t call_progress_elapsed_ms;
+    uint32_t call_answer_at_ms;
+    uint32_t call_connect_at_ms;
+    int      pulse_dial;
+    int      speaker_mode;
+    int      speaker_level;
+    modem_sound_t *sound;
 
     int doresponse;
     int cmdpause;
@@ -1022,6 +1033,7 @@ modem_send_res(modem_t *modem, const ResTypes response)
 void
 modem_enter_idle_state(modem_t *modem)
 {
+    modem_sound_event(modem->sound, MODEM_SOUND_HANGUP, NULL, 0);
     timer_disable(&modem->dtr_timer);
     modem->connected           = false;
     modem->ringing             = false;
@@ -1037,6 +1049,12 @@ modem_enter_idle_state(modem_t *modem)
     modem->in_warmup           = 0;
     modem->tcpIpConnInProgress = 0;
     modem->tcpIpConnCounter    = 0;
+    modem->tcpIpSocketConnected = false;
+    modem->call_progress_active = false;
+    modem->call_answer_sound_started = false;
+    modem->call_progress_elapsed_ms = 0;
+    modem->call_answer_at_ms = 0;
+    modem->call_connect_at_ms = 0;
 
     /* Clean up PPP state */
     if (modem->ppp_ctx) {
@@ -1093,6 +1111,7 @@ modem_enter_idle_state(modem_t *modem)
 void
 modem_enter_connected_state(modem_t *modem)
 {
+    modem_sound_event(modem->sound, MODEM_SOUND_CONNECT, NULL, 0);
     modem_send_res(modem, ResCONNECT);
     modem->mode      = MODEM_MODE_DATA;
     modem->ringing   = false;
@@ -1124,6 +1143,10 @@ modem_reset(modem_t *modem)
     modem->cmdpause            = 0;
     modem->plusinc             = 0;
     modem->dtrmode             = 2;
+    modem->speaker_mode        = 1;
+    modem->speaker_level       = 2;
+    modem->pulse_dial          = 0;
+    modem_sound_speaker(modem->sound, modem->speaker_mode, modem->speaker_level);
 
     memset(&modem->reg, 0, sizeof(modem->reg));
     modem->reg[MREG_AUTOANSWER_COUNT] = 0; // no autoanswer
@@ -1134,6 +1157,7 @@ modem_reset(modem_t *modem)
     modem->reg[MREG_BACKSPACE_CHAR]   = '\b';
     modem->reg[MREG_GUARD_TIME]       = 50;
     modem->reg[MREG_DTR_DELAY]        = 5;
+    modem->reg[8]                     = 2;
 
     modem->echo            = true;
     modem->doresponse      = 0;
@@ -1221,6 +1245,14 @@ modem_dial(modem_t *modem, const char *str)
         }
 
         modem->numberinprogress[0] = 0;
+        modem->call_progress_active = true;
+        modem->call_answer_sound_started = false;
+        modem->call_progress_elapsed_ms = 0;
+        modem->call_answer_at_ms = modem_sound_dial_ms(str, modem->reg[8], modem->pulse_dial)
+                       + modem_sound_ring_ms();
+        modem->call_connect_at_ms = modem->call_answer_at_ms + modem_sound_handshake_ms();
+        modem_sound_event(modem->sound, MODEM_SOUND_DIAL, str,
+                  (modem->reg[8] & 0xff) | (modem->pulse_dial << 8));
         modem->clientsocket        = plat_netsocket_create(NET_SOCKET_TCP);
         if (modem->clientsocket == -1) {
             modem_log(modem->log, "Failed to create client socket\n");
@@ -1233,6 +1265,7 @@ modem_dial(modem_t *modem, const char *str)
             modem_log(modem->log, "Failed to connect to %s\n", buf);
             modem_send_res(modem, ResNOCARRIER);
             modem_enter_idle_state(modem);
+            modem_sound_event(modem->sound, MODEM_SOUND_BUSY, NULL, 0);
             return;
         }
         modem->tcpIpConnInProgress = 1;
@@ -1431,11 +1464,13 @@ modem_do_command(modem_t *modem, int repeat)
                     const char *mappedaddr = NULL;
                     size_t      i          = 0;
 
-                    if ((foundstr[0] == 'T' && foundstr[1] == 'P') || (foundstr[0] == 'P' && foundstr[1] == 'T')) // Make win16 dialer happy
+                    if ((foundstr[0] == 'T' && foundstr[1] == 'P') || (foundstr[0] == 'P' && foundstr[1] == 'T')) { // Make win16 dialer happy
+                        modem->pulse_dial = foundstr[1] == 'P';
                         foundstr += 2;
-                    else if (*foundstr == 'T' || *foundstr == 'P') // Tone/pulse dialing
+                    } else if (*foundstr == 'T' || *foundstr == 'P') { // Tone/pulse dialing
+                        modem->pulse_dial = *foundstr == 'P';
                         foundstr++;
-                    else if (*foundstr == 'L') { // Redial last number
+                    } else if (*foundstr == 'L') { // Redial last number
                         if (modem->lastnumber[0] == 0)
                             modem_send_res(modem, ResERROR);
                         else {
@@ -1600,9 +1635,30 @@ modem_do_command(modem_t *modem, int repeat)
                 break;
             case 'T': // Tone Dial
             case 'P': // Pulse Dial
+                modem->pulse_dial = chr == 'P';
                 break;
-            case 'M': // Monitor
-            case 'L': // Volume
+            case 'M': // Monitor speaker mode
+                {
+                    const uint32_t mode = modem_scan_number(&scanbuf);
+                    if (mode > 3) {
+                        modem_send_res(modem, ResERROR);
+                        return;
+                    }
+                    modem->speaker_mode = (int) mode;
+                    modem_sound_speaker(modem->sound, modem->speaker_mode, modem->speaker_level);
+                }
+                break;
+            case 'L': // Speaker volume
+                {
+                    const uint32_t level = modem_scan_number(&scanbuf);
+                    if (level > 3) {
+                        modem_send_res(modem, ResERROR);
+                        return;
+                    }
+                    modem->speaker_level = (int) level;
+                    modem_sound_speaker(modem->sound, modem->speaker_mode, modem->speaker_level);
+                }
+                break;
             case 'W':
             case 'X':
                 modem_scan_number(&scanbuf);
@@ -2082,18 +2138,20 @@ modem_cmdpause_timer_callback(void *priv)
                 plat_netsocket_close(modem->clientsocket);
                 modem->clientsocket = -1;
                 modem_enter_idle_state(modem);
+                modem_sound_event(modem->sound, MODEM_SOUND_BUSY, NULL, 0);
                 modem_send_res(modem, ResNOCARRIER);
                 modem->tcpIpConnInProgress = 0;
                 break;
             } else if (status == 1) {
-                modem_enter_connected_state(modem);
                 modem->tcpIpConnInProgress = 0;
+                modem->tcpIpSocketConnected = true;
                 break;
             }
 
             modem->tcpIpConnCounter++;
 
-            if (status < 0 || (status == 0 && modem->tcpIpConnCounter >= 5000)) {
+            if (status < 0 || (status == 0
+                               && modem->tcpIpConnCounter >= MAX(5000u, modem->call_connect_at_ms + 5000u))) {
                 plat_netsocket_close(modem->clientsocket);
                 modem->clientsocket = -1;
                 modem_enter_idle_state(modem);
@@ -2105,7 +2163,23 @@ modem_cmdpause_timer_callback(void *priv)
         } while (0);
     }
 
-    if (!modem->connected && modem->waitingclientsocket == -1 && modem->serversocket != -1) {
+    if (modem->call_progress_active) {
+        modem->call_progress_elapsed_ms++;
+        if (modem->tcpIpSocketConnected && !modem->call_answer_sound_started
+            && modem->call_progress_elapsed_ms >= modem->call_answer_at_ms) {
+            modem_sound_event(modem->sound, MODEM_SOUND_ANSWER, NULL, 0);
+            modem->call_answer_sound_started = true;
+        }
+        if (modem->tcpIpSocketConnected
+            && modem->call_progress_elapsed_ms >= modem->call_connect_at_ms) {
+            modem->call_progress_active = false;
+            modem->tcpIpSocketConnected = false;
+            modem_enter_connected_state(modem);
+        }
+    }
+
+    if (!modem->connected && !modem->call_progress_active
+        && modem->waitingclientsocket == -1 && modem->serversocket != -1) {
         modem->waitingclientsocket = plat_netsocket_accept(modem->serversocket);
         if (modem->waitingclientsocket != -1) {
             if (modem->dtrstate == 0 && modem->dtrmode != 0) {
@@ -2244,6 +2318,7 @@ modem_init(UNUSED(const device_t *info))
     modem->port        = device_get_config_int("port");
     modem->baudrate    = device_get_config_int("baudrate");
     modem->modem_identity = device_get_config_int("modem_identity");
+    modem->sound = modem_sound_init();
     modem->listen_port = device_get_config_int("listen_port");
     modem->telnet_mode = device_get_config_int("telnet_mode");
 
@@ -2317,6 +2392,7 @@ modem_close(void *priv)
         slip_auth_close(modem->slip_auth_ctx);
         modem->slip_auth_ctx = NULL;
     }
+    modem_sound_close(modem->sound);
 
     modem_log(modem->log, "close()\n");
     log_close(modem->log);
