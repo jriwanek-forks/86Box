@@ -47,6 +47,7 @@
 #include <86box/modem/modem_slip.h>
 #include <86box/modem/modem_slip_auth.h>
 #include <86box/modem/modem_sound.h>
+#include <86box/sound.h>
 #include <86box/modem/modem_voice.h>
 #include <86box/modem/modem_debug.h>
 
@@ -321,7 +322,8 @@ typedef enum modem_mode_t {
     MODEM_MODE_FAX_TX  = 2,
     MODEM_MODE_FAX_WAIT = 3,
     MODEM_MODE_VOICE_TX = 4,
-    MODEM_MODE_VOICE_RX = 5
+    MODEM_MODE_VOICE_RX = 5,
+    MODEM_MODE_VOICE_TR = 6
 } modem_mode_t;
 
 typedef enum modem_fax_support_t {
@@ -346,6 +348,7 @@ typedef enum modem_slip_stage_t {
 #define NUMBER_BUFFER_SIZE  128
 #define PHONEBOOK_SIZE      256
 #define MODEM_REGS          100
+#define MODEM_VOICE_PLAYBACK_BUFFER_SIZE (VOICE_LINE_RATE * 2)
 
 typedef struct modem_phonebook_entry_t {
     char phone[NUMBER_BUFFER_SIZE];
@@ -438,7 +441,6 @@ typedef struct modem_t {
     bool             cslip_enabled;    /* CSLIP VJ compression active */
 
     /* SLIP authentication */
-    bool             slip_auth_enabled;
     slip_auth_ctx_t *slip_auth_ctx;
 
     uint8_t fax_support;
@@ -455,15 +457,34 @@ typedef struct modem_t {
     uint8_t voice_class;
     bool voice_dle_pending;
     bool voice_rx_draining;
-    uint8_t voice_tx_frame[VOICE_FRAME_SAMPLES];
+    uint8_t voice_tx_frame[VOICE_FRAME_SAMPLES * 2];
     size_t voice_tx_count;
     voice_deframer_t voice_deframer;
     rv_adpcm_t voice_adpcm_tx;
     rv_adpcm_t voice_adpcm_rx;
     voice_resampler_t voice_resample_tx;
     voice_resampler_t voice_resample_rx;
+    voice_resampler_t voice_capture_resample;
+    voice_resampler_t voice_playback_resample;
+    bool voice_capture_started;
+    /* Voice frame handling and sound handlers run serially on the emulator
+       event loop; no audio callback accesses this state on a worker thread. */
+    int16_t voice_playback_buffer[MODEM_VOICE_PLAYBACK_BUFFER_SIZE];
+    uint32_t voice_playback_head;
+    uint32_t voice_playback_tail;
+    uint32_t voice_playback_count;
     int voice_rate;
     int voice_bits;
+    int voice_media_type;
+    int voice_vls;
+    bool voice_v253;
+    bool voice_pcm_pending;
+    uint8_t voice_pcm_lsb;
+    voice_silence_t voice_silence;
+    int voice_params[8]; /* VSS, VSP, VRN, VRA, VBT, VSD, VGT, VGR */
+    int voice_vtd;
+    int voice_v253_sensitivity;
+    bool voice_silence_reported;
 
     /* PPP authentication settings */
     int              ppp_auth_type;    /* ppp_auth_type_t value from config */
@@ -499,6 +520,7 @@ void modem_send_res(modem_t *modem, const ResTypes response);
 static void modem_send_line(modem_t *modem, const char *line);
 static void modem_send_number(modem_t *modem, uint32_t val);
 static void fifo8_resize_2x(Fifo8 *fifo);
+static uint32_t modem_scan_number(char **scan);
 
 static void
 modem_voice_frame_in(int type, const uint8_t *payload, size_t len, void *priv)
@@ -506,18 +528,119 @@ modem_voice_frame_in(int type, const uint8_t *payload, size_t len, void *priv)
     modem_t *modem = (modem_t *) priv;
     int16_t  line[VOICE_FRAME_MAX];
     int16_t  serial[VOICE_FRAME_MAX * 2];
-    uint8_t  encoded[VOICE_FRAME_MAX * 2];
+    uint8_t  encoded[VOICE_FRAME_MAX * 4];
     size_t   samples = 0;
 
-    if (type != VOICE_FRAME_AUDIO || !len || !modem->voice_class
-        || (modem->mode != MODEM_MODE_VOICE_RX && !modem->voice_rx_draining))
+    if (!len || !modem->voice_class
+        || (modem->mode != MODEM_MODE_VOICE_RX && modem->mode != MODEM_MODE_VOICE_TR
+            && !modem->voice_rx_draining))
         return;
-    for (size_t i = 0; i < len; i++)
-        line[i] = voice_ulaw_decode(payload[i]);
-    samples = voice_resample(&modem->voice_resample_rx, line, len, serial,
+    if (type == VOICE_FRAME_DTMF && (len == 1 || len == 3)) {
+        double f1, f2;
+        if (voice_dtmf_freqs((char) payload[0], &f1, &f2)) {
+            voice_tone_t tone;
+            uint32_t duration = len == 3
+                                  ? (uint32_t) payload[1] | ((uint32_t) payload[2] << 8)
+                                  : 100;
+            if (duration < 40) duration = 40;
+            if (duration > 5000) duration = 5000;
+            voice_tone_start(&tone, f1, f2, duration, 6000.0);
+            while (tone.left) {
+                int16_t tone_samples[160] = { 0 };
+                uint8_t audio[160];
+                voice_tone_mix(&tone, tone_samples, sizeof(tone_samples) / sizeof(tone_samples[0]));
+                for (size_t i = 0; i < sizeof(audio); i++)
+                    audio[i] = voice_ulaw_encode(tone_samples[i]);
+                modem_voice_frame_in(VOICE_FRAME_AUDIO, audio, sizeof(audio), priv);
+            }
+            for (int gap = 0; gap < 3; gap++) {
+                uint8_t silence[160];
+                memset(silence, voice_ulaw_encode(0), sizeof(silence));
+                modem_voice_frame_in(VOICE_FRAME_AUDIO, silence, sizeof(silence), priv);
+            }
+        }
+        return;
+    }
+    if (type == VOICE_FRAME_AUDIO || type == VOICE_FRAME_ALAW
+        || type == VOICE_FRAME_S8 || type == VOICE_FRAME_U8) {
+        if (len > VOICE_FRAME_MAX)
+            return;
+        for (size_t i = 0; i < len; i++) {
+            if (type == VOICE_FRAME_AUDIO)
+                line[i] = voice_ulaw_decode(payload[i]);
+            else if (type == VOICE_FRAME_ALAW)
+                line[i] = voice_alaw_decode(payload[i]);
+            else if (type == VOICE_FRAME_S8)
+                line[i] = (int16_t) ((int8_t) payload[i] * 256);
+            else
+                line[i] = (int16_t) (((int) payload[i] - 128) * 256);
+        }
+        samples = len;
+    } else if (type == VOICE_FRAME_S16) {
+        if ((len & 1) || len / 2 > VOICE_FRAME_MAX)
+            return;
+        samples = len / 2;
+        for (size_t i = 0; i < samples; i++)
+            line[i] = (int16_t) ((uint16_t) payload[i * 2]
+                                 | ((uint16_t) payload[i * 2 + 1] << 8));
+    } else
+        return;
+    {
+        int16_t playback[VOICE_FRAME_MAX * 6];
+        size_t playback_samples = voice_resample(&modem->voice_playback_resample,
+                                                  line, samples, playback,
+                                                  sizeof(playback) / sizeof(playback[0]));
+        for (size_t i = 0; i < playback_samples; i++) {
+            /* Keep playback latency bounded: discard the oldest sample on overrun. */
+            if (modem->voice_playback_count == MODEM_VOICE_PLAYBACK_BUFFER_SIZE) {
+                modem->voice_playback_tail = (modem->voice_playback_tail + 1)
+                                           % MODEM_VOICE_PLAYBACK_BUFFER_SIZE;
+                modem->voice_playback_count--;
+            }
+            modem->voice_playback_buffer[modem->voice_playback_head] = playback[i];
+            modem->voice_playback_head = (modem->voice_playback_head + 1)
+                                       % MODEM_VOICE_PLAYBACK_BUFFER_SIZE;
+            modem->voice_playback_count++;
+        }
+    }
+    voice_silence_feed(&modem->voice_silence, line, samples);
+    if (modem->voice_silence.quiet_ms == 0)
+        modem->voice_silence_reported = false;
+    if (modem->voice_params[1] > 0
+        && modem->voice_silence.quiet_ms >= (uint32_t) modem->voice_params[1] * 100u) {
+        if (!modem->voice_silence_reported) {
+            while (fifo8_num_free(&modem->rx_data) < 2)
+                fifo8_resize_2x(&modem->rx_data);
+            fifo8_push(&modem->rx_data, 0x10);
+            fifo8_push(&modem->rx_data,
+                       modem->voice_v253 && modem->voice_silence.heard_ms ? 'q' : 's');
+            modem->voice_silence_reported = true;
+        }
+        if (modem->voice_params[5])
+            return;
+    }
+    samples = voice_resample(&modem->voice_resample_rx, line, samples, serial,
                              sizeof(serial) / sizeof(serial[0]));
-    samples = rv_adpcm_encode(&modem->voice_adpcm_rx, serial, samples,
-                              encoded, sizeof(encoded));
+    if (modem->voice_v253 || modem->voice_media_type != VOICE_FRAME_AUDIO) {
+        size_t bytes = 0;
+        for (size_t i = 0; i < samples; i++) {
+            if (modem->voice_media_type == VOICE_FRAME_AUDIO)
+                encoded[bytes++] = voice_ulaw_encode(serial[i]);
+            else if (modem->voice_media_type == VOICE_FRAME_ALAW)
+                encoded[bytes++] = voice_alaw_encode(serial[i]);
+            else if (modem->voice_media_type == VOICE_FRAME_S8)
+                encoded[bytes++] = (uint8_t) (serial[i] >> 8);
+            else if (modem->voice_media_type == VOICE_FRAME_U8)
+                encoded[bytes++] = (uint8_t) ((serial[i] >> 8) + 128);
+            else {
+                encoded[bytes++] = (uint8_t) serial[i];
+                encoded[bytes++] = (uint8_t) ((uint16_t) serial[i] >> 8);
+            }
+        }
+        samples = bytes;
+    } else
+        samples = rv_adpcm_encode(&modem->voice_adpcm_rx, serial, samples,
+                                  encoded, sizeof(encoded));
     while (samples * 2 > fifo8_num_free(&modem->rx_data))
         fifo8_resize_2x(&modem->rx_data);
     for (size_t i = 0; i < samples; i++) {
@@ -535,11 +658,210 @@ modem_voice_send_audio(modem_t *modem, const uint8_t *audio, size_t len)
 
     if (!modem->connected || !modem->tcpIpMode || !len || len > VOICE_FRAME_MAX)
         return;
-    frame_len = voice_frame(frame, VOICE_FRAME_AUDIO, audio, len);
+    frame_len = voice_frame(frame, modem->voice_media_type, audio, len);
     if (frame_len > sizeof(modem->tx_pkt_ser_line) - modem->tx_count)
         return;
     memcpy(modem->tx_pkt_ser_line + modem->tx_count, frame, frame_len);
     modem->tx_count += (uint32_t) frame_len;
+}
+
+static void
+modem_voice_capture(int16_t *buffer, int len, void *priv)
+{
+    modem_t *modem = (modem_t *) priv;
+    int16_t line[VOICE_FRAME_MAX];
+    uint8_t audio[VOICE_FRAME_MAX];
+    size_t  line_count = 0;
+
+    if (!modem->voice_capture_started || len <= 0
+        || (modem->mode != MODEM_MODE_VOICE_TX && modem->mode != MODEM_MODE_VOICE_TR))
+        return;
+
+    for (int pos = 0; pos < len;) {
+        size_t count = (size_t) MIN(len - pos, 128);
+        size_t samples = voice_resample(&modem->voice_capture_resample,
+                                        buffer + pos, count, line + line_count,
+                                        (sizeof(line) / sizeof(line[0])) - line_count);
+        line_count += samples;
+        pos += (int) count;
+    }
+
+    size_t bytes = 0;
+    for (size_t i = 0; i < line_count; i++) {
+        if (modem->voice_media_type == VOICE_FRAME_AUDIO)
+            audio[bytes++] = voice_ulaw_encode(line[i]);
+        else if (modem->voice_media_type == VOICE_FRAME_ALAW)
+            audio[bytes++] = voice_alaw_encode(line[i]);
+        else if (modem->voice_media_type == VOICE_FRAME_S8)
+            audio[bytes++] = (uint8_t) (line[i] >> 8);
+        else if (modem->voice_media_type == VOICE_FRAME_U8)
+            audio[bytes++] = (uint8_t) ((line[i] >> 8) + 128);
+        else {
+            audio[bytes++] = (uint8_t) line[i];
+            audio[bytes++] = (uint8_t) ((uint16_t) line[i] >> 8);
+        }
+    }
+    if (bytes)
+        modem_voice_send_audio(modem, audio, bytes);
+}
+
+static void
+modem_voice_capture_set(modem_t *modem, bool enabled)
+{
+    if (modem->voice_capture_started == enabled)
+        return;
+
+    modem->voice_capture_started = enabled;
+    if (enabled) {
+        sound_in_start_input();
+        int rate = al_capture_get_rate();
+        if (rate <= 0)
+            rate = SOUND_FREQ;
+        voice_resampler_init(&modem->voice_capture_resample,
+                             (uint32_t) rate, VOICE_LINE_RATE);
+    } else
+        sound_in_stop_input();
+}
+
+static void
+modem_voice_playback(int32_t *buffer, uint16_t len, void *priv)
+{
+    modem_t *modem = (modem_t *) priv;
+
+    /* An empty queue is an audio underrun; emit silence for the missing sample. */
+    for (uint16_t i = 0; i < len; i++) {
+        int32_t sample = 0;
+        if (modem->voice_playback_count) {
+            sample = modem->voice_playback_buffer[modem->voice_playback_tail] / 2;
+            modem->voice_playback_tail = (modem->voice_playback_tail + 1)
+                                       % MODEM_VOICE_PLAYBACK_BUFFER_SIZE;
+            modem->voice_playback_count--;
+        }
+        buffer[i * 2] += sample;
+        buffer[i * 2 + 1] += sample;
+    }
+}
+
+static void
+modem_voice_send_digit(modem_t *modem, char digit, uint16_t duration_ms)
+{
+    uint8_t frame[VOICE_FRAME_HDR + 3];
+    uint8_t event[3] = { (uint8_t) digit, (uint8_t) duration_ms,
+                         (uint8_t) (duration_ms >> 8) };
+    size_t frame_len;
+
+    if (!modem->connected || !modem->tcpIpMode || !modem->voice_class)
+        return;
+    frame_len = voice_frame(frame, VOICE_FRAME_DTMF, event, sizeof(event));
+    if (frame_len > sizeof(modem->tx_pkt_ser_line) - modem->tx_count)
+        return;
+    memcpy(modem->tx_pkt_ser_line + modem->tx_count, frame, frame_len);
+    modem->tx_count += (uint32_t) frame_len;
+}
+
+static bool
+modem_voice_send_tone(modem_t *modem, double f1, double f2, uint32_t duration_ms)
+{
+    voice_tone_t tone;
+    uint8_t samples[160];
+    uint8_t frame[VOICE_FRAME_HDR + sizeof(samples)];
+
+    if (!modem->connected || !modem->tcpIpMode || !modem->voice_class)
+        return false;
+    if (duration_ms > 5000)
+        duration_ms = 5000;
+    voice_tone_start(&tone, f1, f2, duration_ms, 6000.0);
+    while (tone.left) {
+        int16_t pcm[sizeof(samples)];
+        size_t frame_len;
+        memset(pcm, 0, sizeof(pcm));
+        voice_tone_mix(&tone, pcm, sizeof(pcm) / sizeof(pcm[0]));
+        for (size_t i = 0; i < sizeof(samples); i++)
+            samples[i] = voice_ulaw_encode(pcm[i]);
+        frame_len = voice_frame(frame, VOICE_FRAME_AUDIO, samples, sizeof(samples));
+        if (frame_len > sizeof(modem->tx_pkt_ser_line) - modem->tx_count)
+            return false;
+        memcpy(modem->tx_pkt_ser_line + modem->tx_count, frame, frame_len);
+        modem->tx_count += (uint32_t) frame_len;
+    }
+    return true;
+}
+
+static bool
+modem_voice_send_vts(modem_t *modem, const char *sequence, uint32_t unit_ms,
+                     uint32_t default_ms)
+{
+    struct vts_event { char digit; double f1, f2; uint32_t duration; bool tone; } events[64];
+    size_t count = 0;
+    uint32_t total_ms = 0;
+    const char *p = sequence;
+
+    if (!modem->connected || !modem->tcpIpMode || !modem->voice_class || !*p)
+        return false;
+    while (*p) {
+        struct vts_event *event;
+        if (count == sizeof(events) / sizeof(events[0]))
+            return false;
+        event = &events[count];
+        memset(event, 0, sizeof(*event));
+        if (*p == '{') {
+            char digit;
+            char *end;
+            uint32_t length;
+            p++;
+            digit = *p++;
+            if (!voice_dtmf_freqs(digit, &event->f1, &event->f2) || *p++ != ',')
+                return false;
+            end = (char *) p;
+            length = modem_scan_number(&end);
+            if (end == p || *end != '}' || length > 5000u / unit_ms) return false;
+            p = end + 1;
+            event->digit = digit;
+            event->duration = length ? length * unit_ms : default_ms;
+        } else if (*p == '[') {
+            char *end;
+            uint32_t f1, f2, length;
+            p++;
+            end = (char *) p;
+            f1 = modem_scan_number(&end);
+            if (end == p || *end++ != ',') return false;
+            p = end;
+            end = (char *) p;
+            f2 = modem_scan_number(&end);
+            if (end == p || *end++ != ',') return false;
+            p = end;
+            end = (char *) p;
+            length = modem_scan_number(&end);
+            if (end == p || *end != ']' || f1 > 4000 || f2 > 4000
+                || length > 5000u / unit_ms) return false;
+            p = end + 1;
+            event->tone = true;
+            event->f1 = f1;
+            event->f2 = f2;
+            event->duration = length * unit_ms;
+        } else {
+            event->digit = *p++;
+            if (!voice_dtmf_freqs(event->digit, &event->f1, &event->f2))
+                return false;
+            event->duration = default_ms;
+        }
+        if (event->duration > 5000)
+            event->duration = 5000;
+        if (!event->duration) event->duration = 100;
+        total_ms += event->duration;
+        if (total_ms > 5000) return false;
+        count++;
+    }
+
+    for (size_t i = 0; i < count; i++) {
+        struct vts_event *event = &events[i];
+        if (event->tone) {
+            if (!modem_voice_send_tone(modem, event->f1, event->f2, event->duration))
+                return false;
+        } else
+            modem_voice_send_digit(modem, event->digit, (uint16_t) event->duration);
+    }
+    return true;
 }
 
 static void
@@ -558,23 +880,34 @@ modem_voice_tx_byte(modem_t *modem, uint8_t byte)
 {
     int16_t decoded[16];
     int16_t line[64];
-    uint8_t encoded[64];
     size_t  n, m;
 
     modem->cmdpause = 0;
     if (modem->voice_dle_pending) {
         modem->voice_dle_pending = false;
+        if (byte == '^' && modem->mode == MODEM_MODE_VOICE_TR) {
+            if (modem->voice_tx_count)
+                modem_voice_send_audio(modem, modem->voice_tx_frame, modem->voice_tx_count);
+            modem->voice_tx_count = 0;
+            modem->mode = MODEM_MODE_COMMAND;
+            modem_voice_capture_set(modem, false);
+            modem->voice_rx_draining = true;
+            modem_send_res(modem, ResOK);
+            return;
+        }
         if (byte == 0x03) {
             if (modem->voice_tx_count)
                 modem_voice_send_audio(modem, modem->voice_tx_frame, modem->voice_tx_count);
             modem->voice_tx_count = 0;
             modem->mode = MODEM_MODE_COMMAND;
+            modem_voice_capture_set(modem, false);
             modem_send_res(modem, ResOK);
             return;
         }
         if (byte == 0x18) {
             modem->voice_tx_count = 0;
             modem->mode = MODEM_MODE_COMMAND;
+            modem_voice_capture_set(modem, false);
             modem_send_res(modem, ResOK);
             return;
         }
@@ -585,16 +918,87 @@ modem_voice_tx_byte(modem_t *modem, uint8_t byte)
         return;
     }
 
-    n = rv_adpcm_decode(&modem->voice_adpcm_tx, &byte, 1, decoded,
-                        sizeof(decoded) / sizeof(decoded[0]));
+    if (!modem->voice_v253 && modem->voice_media_type == VOICE_FRAME_AUDIO) {
+        n = rv_adpcm_decode(&modem->voice_adpcm_tx, &byte, 1, decoded,
+                            sizeof(decoded) / sizeof(decoded[0]));
+    } else if (modem->voice_media_type == VOICE_FRAME_S16) {
+        if (!modem->voice_pcm_pending) {
+            modem->voice_pcm_lsb = byte;
+            modem->voice_pcm_pending = true;
+            return;
+        }
+        decoded[0] = (int16_t) ((uint16_t) modem->voice_pcm_lsb | ((uint16_t) byte << 8));
+        modem->voice_pcm_pending = false;
+        n = 1;
+    } else {
+        decoded[0] = modem->voice_media_type == VOICE_FRAME_AUDIO ? voice_ulaw_decode(byte)
+                  : modem->voice_media_type == VOICE_FRAME_ALAW ? voice_alaw_decode(byte)
+                  : modem->voice_media_type == VOICE_FRAME_S8 ? (int16_t) ((int8_t) byte * 256)
+                  : (int16_t) (((int) byte - 128) * 256);
+        n = 1;
+    }
     m = voice_resample(&modem->voice_resample_tx, decoded, n, line,
                        sizeof(line) / sizeof(line[0]));
     for (size_t i = 0; i < m; i++) {
-        modem->voice_tx_frame[modem->voice_tx_count++] = voice_ulaw_encode(line[i]);
-        if (modem->voice_tx_count == sizeof(modem->voice_tx_frame)) {
+        if (modem->voice_media_type == VOICE_FRAME_AUDIO)
+            modem->voice_tx_frame[modem->voice_tx_count++] = voice_ulaw_encode(line[i]);
+        else if (modem->voice_media_type == VOICE_FRAME_ALAW)
+            modem->voice_tx_frame[modem->voice_tx_count++] = voice_alaw_encode(line[i]);
+        else if (modem->voice_media_type == VOICE_FRAME_S8)
+            modem->voice_tx_frame[modem->voice_tx_count++] = (uint8_t) (line[i] >> 8);
+        else if (modem->voice_media_type == VOICE_FRAME_U8)
+            modem->voice_tx_frame[modem->voice_tx_count++] = (uint8_t) ((line[i] >> 8) + 128);
+        else {
+            modem->voice_tx_frame[modem->voice_tx_count++] = (uint8_t) line[i];
+            modem->voice_tx_frame[modem->voice_tx_count++] = (uint8_t) ((uint16_t) line[i] >> 8);
+        }
+        if (modem->voice_tx_count >= (modem->voice_media_type == VOICE_FRAME_S16
+                                          ? VOICE_FRAME_SAMPLES * 2 : VOICE_FRAME_SAMPLES)) {
             modem_voice_send_audio(modem, modem->voice_tx_frame, modem->voice_tx_count);
             modem->voice_tx_count = 0;
         }
+    }
+}
+
+static bool
+modem_voice_start(modem_t *modem, modem_mode_t mode)
+{
+    if (!modem->voice_class || !modem->connected || !modem->tcpIpMode
+        || modem->telnet_mode)
+        return false;
+
+    memset(&modem->voice_deframer, 0, sizeof(modem->voice_deframer));
+    rv_adpcm_init(&modem->voice_adpcm_tx, modem->voice_bits);
+    rv_adpcm_init(&modem->voice_adpcm_rx, modem->voice_bits);
+    voice_resampler_init(&modem->voice_resample_tx,
+                         (uint32_t) modem->voice_rate, VOICE_LINE_RATE);
+    voice_resampler_init(&modem->voice_resample_rx,
+                         VOICE_LINE_RATE, (uint32_t) modem->voice_rate);
+    voice_resampler_init(&modem->voice_playback_resample,
+                         VOICE_LINE_RATE, SOUND_FREQ);
+    modem->voice_playback_head = modem->voice_playback_tail = modem->voice_playback_count = 0;
+    modem->voice_tx_count = 0;
+    modem->voice_dle_pending = false;
+    modem->voice_pcm_pending = false;
+    voice_silence_init(&modem->voice_silence, modem->voice_params[0]);
+    modem->voice_silence_reported = false;
+    modem->mode = mode;
+    modem->voice_rx_draining = mode == MODEM_MODE_VOICE_RX || mode == MODEM_MODE_VOICE_TR;
+    modem_voice_capture_set(modem, mode == MODEM_MODE_VOICE_TX || mode == MODEM_MODE_VOICE_TR);
+    modem_voice_result(modem, "CONNECT");
+    return true;
+}
+
+static void
+modem_voice_set_line(modem_t *modem, int vls)
+{
+    modem->voice_vls = vls;
+    if (vls == 0 && modem->connected) {
+        modem_send_res(modem, ResNOCARRIER);
+        modem_enter_idle_state(modem);
+    } else if (vls != 0 && !modem->connected
+               && modem->waitingclientsocket != (SOCKET) -1) {
+        modem_accept_incoming_call(modem);
     }
 }
 
@@ -997,6 +1401,7 @@ host_to_modem_cb(void *priv)
         goto no_write_to_machine;
 
     if ((modem->mode == MODEM_MODE_DATA || modem->mode == MODEM_MODE_VOICE_RX
+         || modem->mode == MODEM_MODE_VOICE_TR
          || modem->voice_rx_draining)
         && fifo8_num_used(&modem->rx_data)
         && !modem->cooldown
@@ -1025,9 +1430,14 @@ host_to_modem_cb(void *priv)
     }
 
 no_write_to_machine:
-    if (modem->mode == MODEM_MODE_VOICE_RX || modem->voice_rx_draining) {
+    if (modem->mode == MODEM_MODE_VOICE_RX || modem->mode == MODEM_MODE_VOICE_TR
+        || modem->voice_rx_draining) {
+        const int bits_per_sample = (!modem->voice_v253
+                                     && modem->voice_media_type == VOICE_FRAME_AUDIO)
+                                      ? modem->voice_bits
+                                      : (modem->voice_media_type == VOICE_FRAME_S16 ? 16 : 8);
         const double voice_byte_us = 1000000.0 * 8.0
-                                   / ((double) modem->voice_rate * (double) modem->voice_bits);
+                                   / ((double) modem->voice_rate * (double) bits_per_sample);
         timer_on_auto(&modem->host_to_serial_timer, voice_byte_us);
     } else
         timer_on_auto(&modem->host_to_serial_timer,
@@ -1085,7 +1495,7 @@ modem_write(UNUSED(serial_t *s), void *priv, uint8_t txval)
             modem->cmdpos++;
         }
     } else if (modem->mode != MODEM_MODE_FAX_WAIT) {
-        if (modem->mode == MODEM_MODE_VOICE_TX)
+        if (modem->mode == MODEM_MODE_VOICE_TX || modem->mode == MODEM_MODE_VOICE_TR)
             modem_voice_tx_byte(modem, txval);
         else if (modem->mode == MODEM_MODE_VOICE_RX) {
             uint8_t tail[4];
@@ -1181,6 +1591,8 @@ modem_send_res(modem_t *modem, const ResTypes response)
 void
 modem_enter_idle_state(modem_t *modem)
 {
+    modem_voice_capture_set(modem, false);
+    modem->voice_playback_head = modem->voice_playback_tail = modem->voice_playback_count = 0;
     modem_sound_event(modem->sound, MODEM_SOUND_HANGUP, NULL, 0);
     timer_disable(&modem->dtr_timer);
     modem->connected           = false;
@@ -1304,6 +1716,19 @@ modem_reset(modem_t *modem)
     modem->voice_class         = 0;
     modem->voice_rate          = 7200;
     modem->voice_bits          = 4;
+    modem->voice_media_type    = VOICE_FRAME_AUDIO;
+    modem->voice_v253          = false;
+    modem->voice_pcm_pending   = false;
+    memset(modem->voice_params, 0, sizeof(modem->voice_params));
+    modem->voice_params[0] = 2;
+    modem->voice_params[1] = 50;
+    modem->voice_params[3] = 50;
+    modem->voice_params[4] = 1;
+    modem->voice_params[6] = modem->voice_params[7] = 128;
+    modem->voice_vtd = 10;
+    modem->voice_v253_sensitivity = 128;
+    modem->voice_silence_reported = false;
+    voice_silence_init(&modem->voice_silence, modem->voice_params[0]);
     modem_sound_speaker(modem->sound, modem->speaker_mode, modem->speaker_level);
 
     memset(&modem->reg, 0, sizeof(modem->reg));
@@ -1346,6 +1771,13 @@ modem_dial(modem_t *modem, const char *str)
                 return;
             }
 
+            if (modem->card && modem->card->slirp_host_ip) {
+                modem->ppp_ctx->our_ip = modem->card->slirp_host_ip;
+                modem->ppp_ctx->peer_ip = modem->card->slirp_dhcp_ip;
+                modem->ppp_ctx->dns1 = modem->card->slirp_dns_ip;
+                modem->ppp_ctx->dns2 = modem->card->slirp_dns_ip;
+            }
+
             ppp_multilink_configure(modem->ppp_ctx,
                                     modem->connection_type == MODEM_TYPE_PPP
                                         ? modem->ppp_multilink_group : NULL);
@@ -1373,8 +1805,8 @@ modem_dial(modem_t *modem, const char *str)
             modem->tcpIpMode    = false;
             modem->cslip_enabled = (modem->connection_type == MODEM_TYPE_CSLIP);
 
-            /* Start SLIP auth if enabled */
-            if (modem->slip_auth_enabled && (modem->username[0] || modem->password[0])) {
+            /* A configured username enables SLIP authentication; the password may be empty. */
+            if (modem->username[0]) {
                 modem->slip_auth_ctx = slip_auth_init(modem, modem->log, modem_ppp_serial_push,
                                                       modem->username, modem->password);
                 if (!modem->slip_auth_ctx) {
@@ -1459,6 +1891,285 @@ modem_get_address_from_phonebook(modem_t *modem, const char *input)
     return NULL;
 }
 
+/* Process the Rockwell voice parameters shared by the net and char modems. */
+static int
+modem_voice_rockwell_param(modem_t *modem, char **scanbuf)
+{
+    static const struct {
+        const char *name;
+        int index, min, max;
+        const char *range;
+    } params[] = {
+        { "VSS", 0, 0, 3, "0-3" }, { "VSP", 1, 0, 255, "0-255" },
+        { "VRN", 2, 0, 255, "0-255" }, { "VRA", 3, 0, 255, "0-255" },
+        { "VBT", 4, 0, 255, "0-255" }, { "VSD", 5, 0, 1, "0-1" },
+        { "VGT", 6, 0, 255, "0-255" }, { "VGR", 7, 0, 255, "0-255" }
+    };
+    char response[48];
+
+    for (size_t i = 0; i < sizeof(params) / sizeof(params[0]); i++) {
+        const size_t name_len = strlen(params[i].name);
+        if (strncmp(*scanbuf, params[i].name, name_len) != 0
+            || ((*scanbuf)[name_len] != '?' && (*scanbuf)[name_len] != '='
+                && (*scanbuf)[name_len] != '\0'))
+            continue;
+
+        char *arg = *scanbuf + name_len;
+        int *value = &modem->voice_params[params[i].index];
+        if (*arg == '?') {
+            arg++;
+            if (*arg) goto invalid;
+            snprintf(response, sizeof(response), "#%s: %d", params[i].name, *value);
+            modem_send_line(modem, response);
+        } else if (*arg == '=' && arg[1] == '?') {
+            arg += 2;
+            if (*arg) goto invalid;
+            snprintf(response, sizeof(response), "#%s: (%s)", params[i].name, params[i].range);
+            modem_send_line(modem, response);
+        } else if (*arg == '=') {
+            arg++;
+            char *end = arg;
+            uint32_t number = modem_scan_number(&end);
+            if (end == arg || number < (uint32_t) params[i].min
+                || number > (uint32_t) params[i].max)
+                goto invalid;
+            *value = (int) number;
+            while (*end == ',') {
+                end++;
+                if (!isdigit((unsigned char) *end)) goto invalid;
+                (void) modem_scan_number(&end);
+            }
+            if (*end) goto invalid;
+            if (params[i].index == 0)
+                voice_silence_init(&modem->voice_silence, *value);
+        } else if (*arg) {
+            goto invalid;
+        } else {
+            snprintf(response, sizeof(response), "#%s: %d", params[i].name, *value);
+            modem_send_line(modem, response);
+        }
+        modem_send_res(modem, ResOK);
+        return 1;
+invalid:
+        modem_send_res(modem, ResERROR);
+        return 1;
+    }
+
+    /* Additional Rockwell voice controls whose device-specific action is
+       unavailable here are still accepted for AT software compatibility. */
+    {
+        static const char *const compat[] = { "BDR", "VTD", "VSB", "VSK", "TL", "RG", "VCI", "VSM" };
+        for (size_t i = 0; i < sizeof(compat) / sizeof(compat[0]); i++) {
+            size_t n = strlen(compat[i]);
+            if (strncmp(*scanbuf, compat[i], n) != 0
+                || ((*scanbuf)[n] != '?' && (*scanbuf)[n] != '=' && (*scanbuf)[n] != '\0'))
+                continue;
+            char *arg = *scanbuf + n;
+            if (*arg == '?') {
+                if (arg[1]) goto compat_invalid;
+                snprintf(response, sizeof(response), "#%s: 0", compat[i]);
+                modem_send_line(modem, response);
+            } else if (*arg == '=' && arg[1] == '?') {
+                if (arg[2]) goto compat_invalid;
+                snprintf(response, sizeof(response), "#%s: (0-255)", compat[i]);
+                modem_send_line(modem, response);
+            } else if (*arg == '=') {
+                arg++;
+                if (!isdigit((unsigned char) *arg)) goto compat_invalid;
+                (void) modem_scan_number(&arg);
+                while (*arg == ',') {
+                    arg++;
+                    if (!isdigit((unsigned char) *arg)) goto compat_invalid;
+                    (void) modem_scan_number(&arg);
+                }
+                if (*arg) goto compat_invalid;
+            } else if (*arg) goto compat_invalid;
+            modem_send_res(modem, ResOK);
+            return 1;
+compat_invalid:
+            modem_send_res(modem, ResERROR);
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static int
+modem_voice_v253_param(modem_t *modem, char **scanbuf)
+{
+    static const struct { const char *name; int index; } params[] = {
+        { "VGT", 6 }, { "VGR", 7 }, { "VRN", 2 }, { "VRA", 3 },
+        { "VBT", 4 }, { "VSP", 1 }
+    };
+    char response[48];
+
+    if (strncmp(*scanbuf, "VIP", 3) == 0
+        && ((*scanbuf)[3] == '?' || (*scanbuf)[3] == '=' || (*scanbuf)[3] == '\0')) {
+        char *arg = *scanbuf + 3;
+        if (*arg == '?') {
+            if (arg[1]) goto vip_invalid;
+            modem_send_line(modem, "+VIP: 0");
+        } else if (*arg == '=' && arg[1] == '?') {
+            if (arg[2]) goto vip_invalid;
+            modem_send_line(modem, "+VIP: (0)");
+        } else {
+            if (*arg == '=') arg++;
+            while (*arg) {
+                if (!isdigit((unsigned char) *arg)) goto vip_invalid;
+                (void) modem_scan_number(&arg);
+                if (*arg == ',') arg++;
+                else if (*arg) goto vip_invalid;
+            }
+            memset(modem->voice_params, 0, sizeof(modem->voice_params));
+            modem->voice_params[0] = 2;
+            modem->voice_params[1] = 50;
+            modem->voice_params[3] = 50;
+            modem->voice_params[4] = 1;
+            modem->voice_params[6] = modem->voice_params[7] = 128;
+            modem->voice_vtd = 10;
+            modem->voice_v253_sensitivity = 128;
+            voice_silence_init(&modem->voice_silence, modem->voice_params[0]);
+        }
+        modem_send_res(modem, ResOK);
+        return 1;
+vip_invalid:
+        modem_send_res(modem, ResERROR);
+        return 1;
+    }
+
+    if (strncmp(*scanbuf, "VSD", 3) == 0
+        && ((*scanbuf)[3] == '?' || (*scanbuf)[3] == '=' || (*scanbuf)[3] == '\0')) {
+        char *arg = *scanbuf + 3;
+        if (*arg == '?') {
+            if (arg[1]) goto invalid;
+            snprintf(response, sizeof(response), "+VSD: %d,%d",
+                     modem->voice_v253_sensitivity, modem->voice_params[1]);
+            modem_send_line(modem, response);
+        } else if (*arg == '=' && arg[1] == '?') {
+            if (arg[2]) goto invalid;
+            modem_send_line(modem, "+VSD: (0-255),(0-255)");
+        } else if (*arg == '=') {
+            char *end = arg + 1;
+            uint32_t sensitivity = modem_scan_number(&end);
+            if (end == arg + 1 || sensitivity > 255) goto invalid;
+            int period = modem->voice_params[1];
+            if (*end == ',') {
+                char *period_start = ++end;
+                uint32_t value = modem_scan_number(&end);
+                if (end == period_start || value > 255) goto invalid;
+                period = (int) value;
+            }
+            if (*end) goto invalid;
+            modem->voice_v253_sensitivity = (int) sensitivity;
+            modem->voice_params[0] = (int) sensitivity / 64;
+            modem->voice_params[1] = period;
+            voice_silence_init(&modem->voice_silence, modem->voice_params[0]);
+        } else if (*arg) goto invalid;
+        modem_send_res(modem, ResOK);
+        return 1;
+invalid:
+        modem_send_res(modem, ResERROR);
+        return 1;
+    }
+
+    if (strncmp(*scanbuf, "VTD", 3) == 0
+        && ((*scanbuf)[3] == '?' || (*scanbuf)[3] == '=' || (*scanbuf)[3] == '\0')) {
+        int *value = &modem->voice_vtd;
+        char *arg = *scanbuf + 3;
+        if (*arg == '?') {
+            if (arg[1]) goto vtd_invalid;
+            snprintf(response, sizeof(response), "+VTD: %d", *value);
+            modem_send_line(modem, response);
+        } else if (*arg == '=' && arg[1] == '?') {
+            if (arg[2]) goto vtd_invalid;
+            modem_send_line(modem, "+VTD: (0-255)");
+        } else if (*arg == '=') {
+            char *end = arg + 1;
+            uint32_t number = modem_scan_number(&end);
+            if (end == arg + 1 || number > 255 || *end) goto vtd_invalid;
+            *value = (int) number;
+        } else if (*arg) goto vtd_invalid;
+        modem_send_res(modem, ResOK);
+        return 1;
+vtd_invalid:
+        modem_send_res(modem, ResERROR);
+        return 1;
+    }
+
+    for (size_t i = 0; i < sizeof(params) / sizeof(params[0]); i++) {
+        const size_t name_len = strlen(params[i].name);
+        if (strncmp(*scanbuf, params[i].name, name_len) != 0
+            || ((*scanbuf)[name_len] != '?' && (*scanbuf)[name_len] != '='
+                && (*scanbuf)[name_len] != '\0'))
+            continue;
+        int *value = &modem->voice_params[params[i].index];
+        char *arg = *scanbuf + name_len;
+        if (*arg == '?') {
+            if (arg[1]) goto generic_invalid;
+            snprintf(response, sizeof(response), "+%s: %d", params[i].name, *value);
+            modem_send_line(modem, response);
+        } else if (*arg == '=' && arg[1] == '?') {
+            if (arg[2]) goto generic_invalid;
+            snprintf(response, sizeof(response), "+%s: (0-255)", params[i].name);
+            modem_send_line(modem, response);
+        } else if (*arg == '=') {
+            char *end = arg + 1;
+            uint32_t number = modem_scan_number(&end);
+            if (end == arg + 1 || number > 255) goto generic_invalid;
+            *value = (int) number;
+            while (*end == ',') {
+                end++;
+                if (!isdigit((unsigned char) *end)) goto generic_invalid;
+                (void) modem_scan_number(&end);
+            }
+            if (*end) goto generic_invalid;
+        } else if (*arg) goto generic_invalid;
+        modem_send_res(modem, ResOK);
+        return 1;
+generic_invalid:
+        modem_send_res(modem, ResERROR);
+        return 1;
+    }
+
+    /* V.253 commands with no implemented hardware action are accepted and
+       query as zero, matching the modem's software-only line model. */
+    {
+        static const char *const noop[] = {
+            "VIT", "VNH", "VDR", "VEM", "VGM", "VGS", "VRL", "VPR"
+        };
+        for (size_t i = 0; i < sizeof(noop) / sizeof(noop[0]); i++) {
+            size_t n = strlen(noop[i]);
+            if (strncmp(*scanbuf, noop[i], n) != 0
+                || ((*scanbuf)[n] != '?' && (*scanbuf)[n] != '=' && (*scanbuf)[n] != '\0'))
+                continue;
+            char *arg = *scanbuf + n;
+            if (*arg == '?') {
+                if (arg[1]) goto noop_invalid;
+                snprintf(response, sizeof(response), "+%s: 0", noop[i]);
+                modem_send_line(modem, response);
+            } else if (*arg == '=' || !*arg) {
+                while (*arg == '=') {
+                    arg++;
+                    if (!isdigit((unsigned char) *arg)) goto noop_invalid;
+                    (void) modem_scan_number(&arg);
+                    while (*arg == ',') {
+                        arg++;
+                        if (!isdigit((unsigned char) *arg)) goto noop_invalid;
+                        (void) modem_scan_number(&arg);
+                    }
+                }
+                if (*arg) goto noop_invalid;
+            } else goto noop_invalid;
+            modem_send_res(modem, ResOK);
+            return 1;
+noop_invalid:
+            modem_send_res(modem, ResERROR);
+            return 1;
+        }
+    }
+    return 0;
+}
+
 static void
 modem_do_command(modem_t *modem, int repeat)
 {
@@ -1501,6 +2212,8 @@ modem_do_command(modem_t *modem, int repeat)
         char chr = modem_fetch_character(&scanbuf);
         switch (chr) {
             case '#':
+                if (modem_voice_rockwell_param(modem, &scanbuf))
+                    return;
                 if (is_exact_token("CLS=8", sizeof("CLS=8"), scanbuf)) {
                     if (!(modem->fax_support & MODEM_FAX_SUPPORT_CLASS_8)) {
                         modem_send_res(modem, ResERROR);
@@ -1508,6 +2221,9 @@ modem_do_command(modem_t *modem, int repeat)
                     }
                     modem->voice_class = 8;
                     modem->fax_class = 8;
+                    modem->voice_v253 = false;
+                    modem->voice_media_type = VOICE_FRAME_AUDIO;
+                    modem->voice_rate = 7200;
                     modem_send_res(modem, ResOK);
                     return;
                 } else if (is_exact_token("CLS=0", sizeof("CLS=0"), scanbuf)) {
@@ -1525,17 +2241,55 @@ modem_do_command(modem_t *modem, int repeat)
                                                ? "#CLS: (0,8)" : "#CLS: (0)");
                     modem_send_res(modem, ResOK);
                     return;
+                } else if (is_exact_token("VLS?", sizeof("VLS?"), scanbuf)) {
+                    char response[16];
+                    snprintf(response, sizeof(response), "#VLS: %d", modem->voice_vls);
+                    modem_send_line(modem, response);
+                    modem_send_res(modem, ResOK);
+                    return;
+                } else if (is_exact_token("VLS=?", sizeof("VLS=?"), scanbuf)) {
+                    modem_send_line(modem, "#VLS: (0,1,2,3,4,6)");
+                    modem_send_res(modem, ResOK);
+                    return;
+                } else if (is_next_token("VLS=", sizeof("VLS="), scanbuf)) {
+                    scanbuf += 4;
+                    const uint32_t vls = modem_scan_number(&scanbuf);
+                    if ((vls != 0 && vls != 1 && vls != 2 && vls != 3
+                         && vls != 4 && vls != 6) || *scanbuf != '\0') {
+                        modem_send_res(modem, ResERROR);
+                        return;
+                    }
+                    if (vls == 0)
+                        modem_voice_set_line(modem, 0);
+                    else if (vls == 1 || vls == 3 || vls == 4 || vls == 6)
+                        modem_voice_set_line(modem, 1);
+                    else
+                        modem->voice_vls = (int) vls;
+                    modem_send_res(modem, ResOK);
+                    return;
+                } else if (is_next_token("VTS=", sizeof("VTS="), scanbuf)) {
+                    scanbuf += 4;
+                    if (!modem_voice_send_vts(modem, scanbuf, 100,
+                            (uint32_t) MAX(40, modem->voice_params[4] * 100))) {
+                        modem_send_res(modem, ResERROR);
+                        return;
+                    }
+                    modem_send_res(modem, ResOK);
+                    return;
                 } else if (is_exact_token("VBS=?", sizeof("VBS=?"), scanbuf)) {
-                    modem_send_line(modem, "#VBS: (2-4)");
+                    modem_send_line(modem, "#VBS: (2-4,8,16)");
                     modem_send_res(modem, ResOK);
                     return;
                 } else if (is_exact_token("VSR=?", sizeof("VSR=?"), scanbuf)) {
-                    modem_send_line(modem, "#VSR: (7200,8000)");
+                    modem_send_line(modem, "#VSR: (7200,8000,11025)");
                     modem_send_res(modem, ResOK);
                     return;
                 } else if (is_exact_token("VBS?", sizeof("VBS?"), scanbuf)) {
                     char response[16];
-                    snprintf(response, sizeof(response), "#VBS: %d", modem->voice_bits);
+                    int format_bits = modem->voice_media_type == VOICE_FRAME_U8 ? 8
+                                    : modem->voice_media_type == VOICE_FRAME_S16 ? 16
+                                    : modem->voice_bits;
+                    snprintf(response, sizeof(response), "#VBS: %d", format_bits);
                     modem_send_line(modem, response);
                     modem_send_res(modem, ResOK);
                     return;
@@ -1548,17 +2302,22 @@ modem_do_command(modem_t *modem, int repeat)
                 } else if (is_next_token("VBS=", sizeof("VBS="), scanbuf)) {
                     scanbuf += 4;
                     const uint32_t bits = modem_scan_number(&scanbuf);
-                    if ((bits < 2 || bits > 4) || *scanbuf != '\0') {
+                    if (((bits < 2 || bits > 4) && bits != 8 && bits != 16)
+                        || *scanbuf != '\0') {
                         modem_send_res(modem, ResERROR);
                         return;
                     }
-                    modem->voice_bits = (int) bits;
+                    if (bits <= 4) {
+                        modem->voice_bits = (int) bits;
+                        modem->voice_media_type = VOICE_FRAME_AUDIO;
+                    } else
+                        modem->voice_media_type = bits == 8 ? VOICE_FRAME_U8 : VOICE_FRAME_S16;
                     modem_send_res(modem, ResOK);
                     return;
                 } else if (is_next_token("VSR=", sizeof("VSR="), scanbuf)) {
                     scanbuf += 4;
                     const uint32_t rate = modem_scan_number(&scanbuf);
-                    if ((rate != 7200 && rate != 8000) || *scanbuf != '\0') {
+                    if ((rate != 7200 && rate != 8000 && rate != 11025) || *scanbuf != '\0') {
                         modem_send_res(modem, ResERROR);
                         return;
                     }
@@ -1568,28 +2327,18 @@ modem_do_command(modem_t *modem, int repeat)
                 } else if (is_exact_token("VTX", sizeof("VTX"), scanbuf)
                            || is_exact_token("VRX", sizeof("VRX"), scanbuf)) {
                     const bool transmit = scanbuf[1] == 'T';
-                    if (!modem->voice_class || !modem->connected || !modem->tcpIpMode
-                        || modem->telnet_mode) {
+                    if (!modem_voice_start(modem, transmit ? MODEM_MODE_VOICE_TX
+                                                           : MODEM_MODE_VOICE_RX)) {
                         modem_send_res(modem, ResERROR);
                         return;
                     }
-                    memset(&modem->voice_deframer, 0, sizeof(modem->voice_deframer));
-                    rv_adpcm_init(&modem->voice_adpcm_tx, modem->voice_bits);
-                    rv_adpcm_init(&modem->voice_adpcm_rx, modem->voice_bits);
-                    voice_resampler_init(&modem->voice_resample_tx,
-                                         (uint32_t) modem->voice_rate, VOICE_LINE_RATE);
-                    voice_resampler_init(&modem->voice_resample_rx,
-                                         VOICE_LINE_RATE, (uint32_t) modem->voice_rate);
-                    modem->voice_tx_count = 0;
-                    modem->voice_dle_pending = false;
-                    modem->mode = transmit ? MODEM_MODE_VOICE_TX : MODEM_MODE_VOICE_RX;
-                    modem->voice_rx_draining = !transmit;
-                    modem_voice_result(modem, "CONNECT");
                     return;
                 }
                 modem_send_res(modem, ResERROR);
                 return;
             case '+':
+                if (modem_voice_v253_param(modem, &scanbuf))
+                    return;
                 if (is_next_token("FCLASS", sizeof("FCLASS"), scanbuf)
                     && is_exact_token("FCLASS=?", sizeof("FCLASS=?"), scanbuf)) {
                     scanbuf += 8;
@@ -1623,7 +2372,8 @@ modem_do_command(modem_t *modem, int repeat)
                     modem_send_res(modem, ResOK);
                     return;
                 } else if (is_next_token("FCLASS", sizeof("FCLASS"), scanbuf)
-                           && is_exact_token("FCLASS=0", sizeof("FCLASS=0"), scanbuf)) {
+                           && (is_exact_token("FCLASS=0", sizeof("FCLASS=0"), scanbuf)
+                               || is_exact_token("FCLASS=0.0", sizeof("FCLASS=0.0"), scanbuf))) {
                     scanbuf += 8;
                     if (!(modem->fax_support & MODEM_FAX_SUPPORT_CLASS_0)) {
                         modem_send_res(modem, ResERROR);
@@ -1634,7 +2384,8 @@ modem_do_command(modem_t *modem, int repeat)
                     modem_send_res(modem, ResOK);
                     return;
                 } else if (is_next_token("FCLASS", sizeof("FCLASS"), scanbuf)
-                           && is_exact_token("FCLASS=1", sizeof("FCLASS=1"), scanbuf)) {
+                           && (is_exact_token("FCLASS=1", sizeof("FCLASS=1"), scanbuf)
+                               || is_exact_token("FCLASS=1.0", sizeof("FCLASS=1.0"), scanbuf))) {
                     scanbuf += 8;
                     if (!(modem->fax_support & MODEM_FAX_SUPPORT_CLASS_1)) {
                         modem_send_res(modem, ResERROR);
@@ -1645,7 +2396,8 @@ modem_do_command(modem_t *modem, int repeat)
                     modem_send_res(modem, ResOK);
                     return;
                 } else if (is_next_token("FCLASS", sizeof("FCLASS"), scanbuf)
-                           && is_exact_token("FCLASS=8", sizeof("FCLASS=8"), scanbuf)) {
+                           && (is_exact_token("FCLASS=8", sizeof("FCLASS=8"), scanbuf)
+                               || is_exact_token("FCLASS=8.0", sizeof("FCLASS=8.0"), scanbuf))) {
                     scanbuf += 8;
                     if (!(modem->fax_support & MODEM_FAX_SUPPORT_CLASS_8)) {
                         modem_send_res(modem, ResERROR);
@@ -1653,12 +2405,149 @@ modem_do_command(modem_t *modem, int repeat)
                     }
                     modem->fax_class = 8;
                     modem->voice_class = 8;
+                    modem->voice_v253 = true;
+                    modem->voice_media_type = VOICE_FRAME_AUDIO;
+                    modem->voice_rate = 8000;
                     modem_send_res(modem, ResOK);
                     return;
                 } else if (is_next_token("FCLASS=", sizeof("FCLASS="), scanbuf)) {
                     /* Catch any other FCLASS assignment attempt. */
                     scanbuf += 8;
                     modem_send_res(modem, ResERROR);
+                    return;
+                } else if (is_next_token("VLS", sizeof("VLS"), scanbuf)) {
+                    scanbuf += 3;
+                    if (is_exact_token("?", sizeof("?"), scanbuf)) {
+                        char response[24];
+                        snprintf(response, sizeof(response), "+VLS: %d", modem->voice_vls);
+                        modem_send_line(modem, response);
+                    } else if (is_exact_token("=?", sizeof("=?"), scanbuf)) {
+                        modem_send_line(modem, "+VLS: (0,1,2,3,4,5,6,7,8,9,11,13)");
+                    } else if (scanbuf[0] == '=') {
+                        char *end = scanbuf + 1;
+                        if (!isdigit((unsigned char) *end)
+                            || strlen(end) > 2) {
+                            modem_send_res(modem, ResERROR);
+                            return;
+                        }
+                        const uint32_t vls = modem_scan_number(&end);
+                        if (end == scanbuf + 1 || *end) {
+                            modem_send_res(modem, ResERROR);
+                            return;
+                        }
+                        if (vls != 0 && vls != 1 && vls != 2 && vls != 3
+                            && vls != 4 && vls != 5 && vls != 6 && vls != 7
+                            && vls != 8 && vls != 9 && vls != 11 && vls != 13) {
+                            modem_send_res(modem, ResERROR);
+                            return;
+                        }
+                        if (vls == 0)
+                            modem_voice_set_line(modem, 0);
+                        else if (vls == 1 || vls == 3 || vls == 5 || vls == 7
+                                 || vls == 9 || vls == 13)
+                            modem_voice_set_line(modem, 1);
+                        else
+                            modem->voice_vls = vls; /* Host audio routes are not attached. */
+                    } else {
+                        modem_send_res(modem, ResERROR);
+                        return;
+                    }
+                    modem_send_res(modem, ResOK);
+                    return;
+                } else if (is_next_token("VSM", sizeof("VSM"), scanbuf)) {
+                    scanbuf += 3;
+                    if (is_exact_token("?", sizeof("?"), scanbuf)) {
+                        char response[32];
+                        int format = modem->voice_media_type == VOICE_FRAME_AUDIO ? 4
+                                   : modem->voice_media_type == VOICE_FRAME_ALAW ? 5
+                                   : modem->voice_media_type == VOICE_FRAME_S8 ? 0
+                                   : modem->voice_media_type == VOICE_FRAME_U8 ? 1 : 2;
+                        snprintf(response, sizeof(response), "+VSM: %d,%d,0,0",
+                                 format, modem->voice_rate);
+                        modem_send_line(modem, response);
+                    } else if (is_exact_token("=?", sizeof("=?"), scanbuf)) {
+                        modem_send_line(modem, "+VSM: 0,\"SIGNED PCM\",8,0,(7200,8000,11025),(0),(0)");
+                        modem_send_line(modem, "+VSM: 1,\"UNSIGNED PCM\",8,0,(7200,8000,11025),(0),(0)");
+                        modem_send_line(modem, "+VSM: 2,\"SIGNED PCM\",16,0,(7200,8000,11025),(0),(0)");
+                        modem_send_line(modem, "+VSM: 4,\"ULAW\",8,0,(8000),(0),(0)");
+                        modem_send_line(modem, "+VSM: 5,\"ALAW\",8,0,(8000),(0),(0)");
+                        modem_send_line(modem, "+VSM: 128,\"8-BIT LINEAR\",8,0,(7200,8000,11025),(0),(0)");
+                        modem_send_line(modem, "+VSM: 129,\"16-BIT LINEAR\",16,0,(7200,8000,11025),(0),(0)");
+                    } else if (scanbuf[0] == '=') {
+                        int format;
+                        int rate = modem->voice_rate;
+                        scanbuf++;
+                        char *format_start = scanbuf;
+                        format = (int) modem_scan_number(&scanbuf);
+                        if (scanbuf[0] == ',') {
+                            scanbuf++;
+                            rate = (int) modem_scan_number(&scanbuf);
+                        }
+                        if (scanbuf == format_start
+                            || (rate != 7200 && rate != 8000 && rate != 11025)) {
+                            modem_send_res(modem, ResERROR);
+                            return;
+                        }
+                        while (*scanbuf == ',') {
+                            scanbuf++;
+                            char *option_start = scanbuf;
+                            (void) modem_scan_number(&scanbuf);
+                            if (scanbuf == option_start) {
+                                modem_send_res(modem, ResERROR);
+                                return;
+                            }
+                        }
+                        if (*scanbuf) {
+                            modem_send_res(modem, ResERROR);
+                            return;
+                        }
+                        switch (format) {
+                            case 0: modem->voice_media_type = VOICE_FRAME_S8; modem->voice_v253 = true; break;
+                            case 1: case 128: modem->voice_media_type = VOICE_FRAME_U8; modem->voice_v253 = true; break;
+                            case 2: case 129: modem->voice_media_type = VOICE_FRAME_S16; modem->voice_v253 = true; break;
+                            case 4: modem->voice_media_type = VOICE_FRAME_AUDIO; modem->voice_v253 = true; break;
+                            case 5: modem->voice_media_type = VOICE_FRAME_ALAW; modem->voice_v253 = true; break;
+                            default:
+                                modem_send_res(modem, ResERROR);
+                                return;
+                        }
+                        if ((format == 4 || format == 5) && rate != 8000) {
+                            modem_send_res(modem, ResERROR);
+                            return;
+                        }
+                        modem->voice_rate = rate;
+                    } else {
+                        modem_send_res(modem, ResERROR);
+                        return;
+                    }
+                    modem_send_res(modem, ResOK);
+                    return;
+                } else if (is_exact_token("VTX?", sizeof("VTX?"), scanbuf)
+                           || is_exact_token("VRX?", sizeof("VRX?"), scanbuf)
+                           || is_exact_token("VTR?", sizeof("VTR?"), scanbuf)) {
+                    modem_send_res(modem, ResOK);
+                    return;
+                } else if (is_exact_token("VTX", sizeof("VTX"), scanbuf)
+                           || is_exact_token("VRX", sizeof("VRX"), scanbuf)
+                           || is_exact_token("VTR", sizeof("VTR"), scanbuf)) {
+                    modem_mode_t voice_mode = MODEM_MODE_VOICE_TX;
+                    if (scanbuf[1] == 'R')
+                        voice_mode = MODEM_MODE_VOICE_RX;
+                    else if (scanbuf[1] == 'T' && scanbuf[2] == 'R')
+                        voice_mode = MODEM_MODE_VOICE_TR;
+                    if (!modem_voice_start(modem, voice_mode)) {
+                        modem_send_res(modem, ResERROR);
+                        return;
+                    }
+                    return;
+                } else if (is_next_token("VTS=", sizeof("VTS="), scanbuf)) {
+                    scanbuf += 4;
+                    if (!modem_voice_send_vts(modem, scanbuf, 10,
+                            (uint32_t) MAX(40, modem->voice_vtd * 10))) {
+                        modem_send_res(modem, ResERROR);
+                        return;
+                    }
+                    modem_send_res(modem, ResOK);
                     return;
                 } else if (is_next_token("FTS=", sizeof("FTS="), scanbuf)
                            || is_next_token("FRS=", sizeof("FRS="), scanbuf)) {
@@ -2559,6 +3448,7 @@ modem_cmdpause_timer_callback(void *priv)
 
     if (modem->mode != MODEM_MODE_FAX_TX && modem->mode != MODEM_MODE_FAX_WAIT
         && modem->mode != MODEM_MODE_VOICE_TX && modem->mode != MODEM_MODE_VOICE_RX
+        && modem->mode != MODEM_MODE_VOICE_TR
         && !modem->fax_rx_active && !modem->fax_rx_complete_pending) {
         modem->cmdpause++;
         guard_threshold = (uint32_t) (modem->reg[MREG_GUARD_TIME] * 20);
@@ -2602,6 +3492,8 @@ modem_init(UNUSED(const device_t *info))
     modem->baudrate    = device_get_config_int("baudrate");
     modem->modem_identity = device_get_config_int("modem_identity");
     modem->sound = modem_sound_init();
+    sound_in_add_handler(modem_voice_capture, modem);
+    sound_add_handler(modem_voice_playback, modem);
     modem->listen_port = device_get_config_int("listen_port");
     modem->telnet_mode = device_get_config_int("telnet_mode");
 
@@ -2617,7 +3509,6 @@ modem_init(UNUSED(const device_t *info))
     }
 
     /* Shared SLIP/PPP credentials */
-    modem->slip_auth_enabled = device_get_config_int("slip_auth");
     {
         const char *u = device_get_config_string("username");
         const char *p = device_get_config_string("password");
@@ -2630,7 +3521,11 @@ modem_init(UNUSED(const device_t *info))
     modem->ppp_dns2 = modem_parse_ipv4_config(device_get_config_string("ppp_dns2"));
 
     /* Initialize CSLIP context (always available, used when connection_type selects CSLIP) */
-    modem->log       = log_open("MODEM");
+    {
+        char log_name[32];
+        snprintf(log_name, sizeof(log_name), "NET MODEM COM%u", modem->port + 1);
+        modem->log = log_open(log_name);
+    }
     modem_log(modem->log, "init()\n");
     modem->cslip_ctx = cslip_init(modem->log);
 
@@ -2662,6 +3557,8 @@ modem_close(void *priv)
     modem_t *modem     = (modem_t *) priv;
     modem->listen_port = 0;
     modem_reset(modem);
+    sound_in_remove_handler(modem_voice_capture, modem);
+    sound_remove_handler(modem_voice_playback, modem);
 
     if (modem->ppp_ctx) {
         ppp_close(modem->ppp_ctx);
@@ -2816,17 +3713,6 @@ static const device_config_t modem_config[] = {
         .description    = "Password",
         .type           = CONFIG_STRING,
         .default_string = "",
-        .default_int    = 0,
-        .file_filter    = NULL,
-        .spinner        = { 0 },
-        .selection      = { { 0 } },
-        .bios           = { { 0 } }
-    },
-    {
-        .name           = "slip_auth",
-        .description    = "SLIP Login Authentication",
-        .type           = CONFIG_BINARY,
-        .default_string = NULL,
         .default_int    = 0,
         .file_filter    = NULL,
         .spinner        = { 0 },

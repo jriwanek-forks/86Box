@@ -840,7 +840,7 @@ lzs_decompress(const uint8_t *input, int input_len, uint8_t *output,
     int input_bits;
 
     if (!input || !output || !output_len || input_len <= 0
-        || input_len > PPP_MAX_FRAME || output_capacity < 0)
+        || input_len > PPP_MAX_FRAME + 1 || output_capacity < 0)
         return false;
     input_bits = input_len * 8;
 
@@ -881,6 +881,26 @@ lzs_decompress(const uint8_t *input, int input_len, uint8_t *output,
             (*output_len)++;
         }
     }
+}
+
+/* RFC 1974 section 2.2 and RFC 1967 section 3.2 restore a trailing zero
+   before decoding because a sender may remove trailing zero octets. */
+static bool
+lzs_decompress_with_zero_padding(const uint8_t *input, int input_len,
+                                 uint8_t *output, int output_capacity,
+                                 int *output_len)
+{
+    uint8_t padded[PPP_MAX_FRAME + 1];
+
+    if (!input || input_len <= 0 || input_len > PPP_MAX_FRAME || !output
+        || output_capacity < 0 || !output_len)
+        return false;
+
+    memcpy(padded, input, (size_t) input_len);
+    padded[input_len] = 0;
+    *output_len = 0;
+    return lzs_decompress(padded, input_len + 1, output, output_capacity,
+                          output_len);
 }
 
 static bool
@@ -1063,9 +1083,9 @@ lzs_dcp_decompress(const uint8_t *input, int input_len, uint8_t *output,
         return false;
 
     if (header & 0x40) {
-        *output_len = 0;
-        return lzs_decompress(input + 1, input_len - 1, output, output_capacity,
-                              output_len);
+        return lzs_decompress_with_zero_padding(input + 1, input_len - 1,
+                                                output, output_capacity,
+                                                output_len);
     }
 
     if (input_len - 1 > output_capacity)
@@ -2256,8 +2276,8 @@ ppp_ccp_codec_decompress(ppp_ctx_t *ctx, const uint8_t *input, int input_len,
         return nt31ras_decompress_source_format(codec, input, input_len, output,
                                                 output_capacity, output_len);
     if (codec->method == PPP_CCP_METHOD_LZS) {
-        *output_len = 0;
-        return lzs_decompress(input, input_len, output, output_capacity, output_len);
+        return lzs_decompress_with_zero_padding(input, input_len, output,
+                                                output_capacity, output_len);
     }
     if (codec->method == PPP_CCP_METHOD_LZS_EXTENDED)
         return lzs_extended_decompress(ctx, codec, input, input_len, output,

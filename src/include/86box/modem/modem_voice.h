@@ -114,6 +114,10 @@ void voice_silence_feed(voice_silence_t *s, const int16_t *buf, size_t n);
    a 16-bit little-endian length, then the payload. */
 #define VOICE_FRAME_AUDIO 'A' /* mu-law samples at 8000 Hz */
 #define VOICE_FRAME_DTMF  'D' /* one digit, as the far end pressed it */
+#define VOICE_FRAME_ALAW  'a' /* A-law samples at 8000 Hz */
+#define VOICE_FRAME_S8    's' /* signed 8-bit linear PCM */
+#define VOICE_FRAME_U8    'u' /* unsigned 8-bit linear PCM */
+#define VOICE_FRAME_S16   'S' /* little-endian signed 16-bit linear PCM */
 #define VOICE_FRAME_HDR   3
 #define VOICE_FRAME_MAX   512
 

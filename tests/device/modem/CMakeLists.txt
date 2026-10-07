@@ -58,6 +58,7 @@ if(BUILD_TESTING)
 
     add_modem_test(modem_pap_tests modem_pap_test.cpp
         ../../../src/device/modem/modem_pap.c
+        ../../../src/device/modem/modem_crypto.c
     )
     add_modem_test(modem_chap_tests modem_chap_test.cpp
         ../../../src/device/modem/modem_chap.c
@@ -86,5 +87,13 @@ if(BUILD_TESTING)
     )
     add_modem_test(modem_slip_auth_tests modem_slip_auth_test.cpp
         ../../../src/device/modem/modem_slip_auth.c
+        ../../../src/device/modem/modem_crypto.c
     )
+
+    add_modem_test(modem_voice_tests modem_voice_test.cpp
+        ../../../src/device/modem/modem_voice.c
+    )
+    if(NOT MSVC)
+        target_link_libraries(modem_voice_tests PRIVATE m)
+    endif()
 endif()

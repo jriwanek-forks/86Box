@@ -1836,13 +1836,16 @@ pc_reset_hard_init(void)
     lpt_standalone_init();
     lpt_devices_init();
 
-    /* Reset and reconfigure the serial ports. */
-    /* note: SLIP COM side has to be initialized before the network side */
+    /* Reset the UARTs first. SLIP COM hardware needs its UART before the
+       network side, while char API modem backends attach after network cards
+       so their SLiRP ranges follow the ordinary network-card allocations. */
     serial_standalone_init();
-    serial_devices_init();
 
     /* Reset and reconfigure the Network Card layer. */
     network_reset();
+
+    /* Attach configured COM character devices after the network cards. */
+    serial_devices_init();
 
     /* Reset and reconfigure the MCA memory expansion boards. */
     mcamem_reset();

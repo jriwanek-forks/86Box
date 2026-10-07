@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>IBM PCjr Internal Modem: Reference Notes</title>
+  <style>
+    :root { color-scheme: light; --ink:#182a30; --muted:#52666b; --paper:#f2f5f3; --panel:#fff; --line:#c9d4d1; --blue:#e5eef1; --gold:#fff2d8; --accent:#176657; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--paper); color:var(--ink); font:16px/1.58 "Segoe UI",sans-serif; }
+    header { padding:34px max(22px,calc((100vw - 1050px)/2)); background:#e6eeea; border-bottom:1px solid var(--line); }
+    main { max-width:1050px; margin:auto; padding:24px 22px 60px; }
+    h1,h2,h3 { line-height:1.25; } h1 { margin:0; font-size:2rem; } h2 { margin:30px 0 10px; font-size:1.35rem; }
+    p { margin:10px 0; } .note { padding:14px 18px; border-left:4px solid var(--accent); background:var(--blue); }
+    .scope { padding:14px 18px; border-left:4px solid #bd8a20; background:var(--gold); }
+    .table-wrap { overflow-x:auto; background:var(--panel); } table { width:100%; min-width:760px; border-collapse:collapse; }
+    th,td { border:1px solid var(--line); padding:10px 12px; vertical-align:top; text-align:left; } th { background:var(--blue); }
+    td:first-child { white-space:nowrap; font-weight:700; } code { color:#173944; font:600 .92em Consolas,"Courier New",monospace; }
+    a { color:#145e51; } li { margin:6px 0; }
+  </style>
+</head>
+<body>
+<header>
+  <h1>IBM PCjr Internal Modem: Reference Notes</h1>
+  <p>Implementation notes for 86Box’s separate PCjr character-device modem. The primary source is IBM’s PCjr Technical Reference, November 1983, Internal Modem section (printed pages 3-33 through 3-71).</p>
+</header>
+<main>
+  <p class="scope"><strong>Hardware identity:</strong> the IBM PCjr Internal Modem combines an INS8250A asynchronous communications element with a Smart 103 modem. It is a Bell 103/113 110/300 bit/s modem. It does not use the Hayes <code>AT</code> command language: its default command introducer is Ctrl-N (ASCII 0x0E), and only the first character of each command word is significant.</p>
+
+  <h2>Command framing and serial behavior</h2>
+  <ul>
+    <li>A command line begins with the current command character, ends at carriage return, and can contain comma-separated commands. The introducer can be changed with <code>NEW</code>; its reset default is Ctrl-N.</li>
+    <li>Commands are intercepted within the host-to-modem stream and are not sent to the remote caller. Ordinary data is otherwise transparent. Sending the command character twice sends it as data.</li>
+    <li>The default line format is seven data bits, even parity, one stop bit; the default modem line rate is 300 bit/s. The selectable rates are 110 and 300 bit/s.</li>
+    <li>PCjr modem status messages include <code>OK</code>, <code>CONNECTED</code>, <code>NO ANSWER</code>, <code>NO DIAL TONE</code>, <code>BUSY</code>, <code>UNSUCCESSFUL</code>, and <code>RING</code>. <code>LONG RESPONSE 1</code> requests terse result codes.</li>
+  </ul>
+
+  <h2>Command reference</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Command</th><th>Reference behavior</th><th>86Box character-device behavior</th></tr></thead>
+    <tbody>
+      <tr><td><code>A</code> / ANSWER</td><td>Go off-hook and answer an incoming call.</td><td>Accepts the pending TCP listener connection and enters connected data state.</td></tr>
+      <tr><td><code>B n</code> / BREAK</td><td>Send a line break for <code>n × 100 ms</code>; <code>n</code> is one hexadecimal digit.</td><td>Validates the PCjr argument. A raw TCP byte stream has no serial BREAK signal, so no break waveform is generated.</td></tr>
+      <tr><td><code>C n</code> / COUNT</td><td><code>n</code> is hexadecimal 0–F. Sets the incoming ring count before auto-answer; zero disables auto-answer. During dialing, the modem waits for up to <code>n + 3</code> ringbacks.</td><td>Controls listener auto-answer after the requested number of 3-second ring intervals. It does not synthesize ringback or analog line tones.</td></tr>
+      <tr><td><code>DIAL number</code> / D</td><td>Dial up to 33 characters from digits, <code>*</code>, <code>#</code>, <code>I</code>, <code>P</code>, and <code>W</code>. The number is required; <code>RETRY</code> requests redials. <code>P</code> searches for another dial tone; <code>W</code> waits five seconds; <code>I</code> selects pulse dialing.</td><td>Phonebook maps the dialed digits, <code>*</code>, or <code>#</code> to <code>host[:port]</code>. The dial modifiers are accepted but do not produce analog dialing sounds; the default mapped endpoint port is TCP 23.</td></tr>
+      <tr><td><code>F n</code> / FORMAT</td><td>0 mark/7-bit, 1 space/7-bit, 2 odd/7-bit, 3 even/7-bit, 4 no parity/8-bit, 1 stop bit. Values 5–7 are reserved.</td><td>Stores the selected format. The COM character API exposes bytes after UART framing, so the setting does not synthesize parity or stop bits on the TCP connection.</td></tr>
+      <tr><td><code>H</code> / HANGUP</td><td>Clean disconnect and go on-hook.</td><td>Closes the active or pending TCP call.</td></tr>
+      <tr><td><code>I</code> / INITIALIZE</td><td>Restore power-up defaults. The reference describes a roughly ten-second initialization and no final <code>OK</code>.</td><td>Restores PCjr command, format, rate, and call defaults immediately; emits no final <code>OK</code>.</td></tr>
+      <tr><td><code>L n</code> / LONG RESPONSE</td><td>0 verbose messages; 1 terse codes (30h–37h).</td><td>Controls verbose versus terse response text.</td></tr>
+      <tr><td><code>M</code> / MODEM</td><td>Enter data state and establish normal modem connection protocols.</td><td>Confirms data state on an established TCP call.</td></tr>
+      <tr><td><code>N p</code> / NEW</td><td>Set the command character to ASCII character <code>p</code> (0x00–0x7F).</td><td>Changes the command introducer.</td></tr>
+      <tr><td><code>O</code> / ORIGINATE</td><td>Go off-hook and force originate mode.</td><td>Updates the logical hook state; a physical originate handshake is not generated.</td></tr>
+      <tr><td><code>P</code> / PICKUP</td><td>Go off-hook and enter voice state.</td><td>Enters the PCjr voice state. It does not open a separate microphone/speaker or telephone endpoint.</td></tr>
+      <tr><td><code>Q</code> / QUERY</td><td>Report <code>H0/H1</code> hook state, <code>S0</code>–<code>SF</code> ring-count configuration, and latched status (<code>B</code>, <code>D</code>, <code>L</code>, <code>N</code>, <code>X</code>, <code>T0</code>, or <code>T1</code>).</td><td>Uses the PCjr status characters and clears the latched status after reporting it.</td></tr>
+      <tr><td><code>R</code> / RETRY</td><td>After DIAL, retry a busy number up to 10 times at 40-second intervals.</td><td>Retries failed TCP connection attempts up to 10 times at 40-second intervals. TCP cannot distinguish telephone busy from other connection failures.</td></tr>
+      <tr><td><code>S n</code> / SPEED</td><td>0 = 110 bit/s; 1 = 300 bit/s. Default is 300 bit/s.</td><td>Rate-limits each direction to the selected 110/300 bit/s serial data rate.</td></tr>
+      <tr><td><code>T n</code> / TRANSPARENT</td><td>Transmit the next hexadecimal byte count without watching for commands; 0 means indefinitely.</td><td>Passes the requested number of bytes as data. An indefinite transparent stream ends when the connection closes or DTR is dropped.</td></tr>
+      <tr><td><code>V</code> / VOICE</td><td>Enter voice state, stop carrier/tone detection, and disable auto-answer.</td><td>Tracks voice state and disables auto-answer. Analog voice is not encoded onto the TCP byte stream.</td></tr>
+      <tr><td><code>W</code> / WAIT</td><td>Ignore all activity, including auto-answer, until the next command; later commands on that line are ignored.</td><td>Suppresses data and call acceptance until another command line is received.</td></tr>
+      <tr><td><code>X digits</code> / XMIT</td><td>Send DTMF digit tones in voice state; <code>W</code> in the string adds a five-second delay.</td><td>Validates the voice state and accepts the command. It cannot generate line-frequency DTMF audio through the raw TCP transport.</td></tr>
+      <tr><td><code>Z n</code> / ZTEST</td><td>0 runs modem integrity test; 1 runs analog loopback test. Later commands on that command line are ignored.</td><td>0 reports a successful software-side integrity check immediately and latches <code>T0</code>. Analog loopback (1) is unavailable and latches <code>T1</code>.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2>86Box transport and configuration</h2>
+  <p>Select <strong>IBM PCjr Internal Modem</strong> as a COM character device. The optional phonebook is a text file with one mapping per line:</p>
+  <pre><code>5551212 bbs.example.net:2323
+5553434 192.0.2.20:23</code></pre>
+  <p>Dial one of the mapped numbers with Ctrl-N, <code>DIAL 5551212</code>, then carriage return. Set an optional TCP listen port on the receiving emulator; answer with <code>A</code> or use <code>COUNT</code> with DTR asserted for auto-answer. This adapter is independent of the Hayes modem and does not attach an 86Box virtual NIC.</p>
+
+  <h2>Primary references</h2>
+  <ul>
+    <li>IBM, <em>PCjr Technical Reference</em>, November 1983, Internal Modem, printed pages 3-33–3-71: <a href="https://bitsavers.trailing-edge.com/pdf/ibm/pc/pc_jr/PCjr_Technical_Reference_Nov83.pdf">Bitsavers scanned manual (PDF)</a>.</li>
+    <li>IBM, <em>PCjr User’s Handbook</em>, chapter “Using the Internal Modem”: <a href="https://vtda.org/books/Computing/IBM%20PCjr/IBM%20PCjr%20User%27s%20Handbook.pdf">archived handbook (PDF)</a>.</li>
+  </ul>
+</main>
+</body>
+</html>

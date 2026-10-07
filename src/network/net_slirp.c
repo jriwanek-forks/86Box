@@ -79,6 +79,8 @@ typedef struct net_slirp_t {
 #endif
 } net_slirp_t;
 
+static bool net_slirp_link_up(const netcard_t *card);
+
 /* Pulled off from libslirp code. This is only needed for modem. */
 #pragma pack(push, 1)
 struct arphdr_local {
@@ -425,7 +427,7 @@ net_slirp_send_packet(const void *qp, size_t pkt_len, void *opaque)
     memcpy(slirp->pkt.data, (uint8_t *) qp, pkt_len);
     slirp->pkt.len = pkt_len;
 
-    if (!(net_cards_conf[slirp->card->card_num].link_state & NET_LINK_DOWN)) {
+    if (net_slirp_link_up(slirp->card)) {
         if (slirp->during_tx) {
             network_rx_on_tx_put_pkt(slirp->card, &slirp->pkt);
             slirp->recv_on_tx = 1;
@@ -596,13 +598,20 @@ net_slirp_rx_deferred_packets(net_slirp_t *slirp)
     if (slirp->recv_on_tx) {
         do {
             packets = network_rx_on_tx_popv(slirp->card, slirp->pkt_tx_v, SLIRP_PKT_BATCH);
-            if (!(net_cards_conf[slirp->card->card_num].link_state & NET_LINK_DOWN)) {
+            if (net_slirp_link_up(slirp->card)) {
                 for (int i = 0; i < packets; i++)
                      network_rx_put_pkt(slirp->card, &(slirp->pkt_tx_v[i]));
             }
         } while (packets > 0);
         slirp->recv_on_tx = 0;
     }
+}
+
+static bool
+net_slirp_link_up(const netcard_t *card)
+{
+    return card->internal_modem
+        || !(net_cards_conf[card->card_num].link_state & NET_LINK_DOWN);
 }
 
 #ifdef _WIN32
@@ -639,7 +648,7 @@ net_slirp_thread(void *priv)
                 {
                     slirp->during_tx = 1;
                     int packets = network_tx_popv(slirp->card, slirp->pkt_tx_v, SLIRP_PKT_BATCH);
-                    if (!(net_cards_conf[slirp->card->card_num].link_state & NET_LINK_DOWN)) {
+                    if (net_slirp_link_up(slirp->card)) {
                         for (int i = 0; i < packets; i++)
                             net_slirp_in(slirp, slirp->pkt_tx_v[i].data, slirp->pkt_tx_v[i].len);
                     }
@@ -694,7 +703,7 @@ net_slirp_thread(void *priv)
 
             slirp->during_tx = 1;
             int packets = network_tx_popv(slirp->card, slirp->pkt_tx_v, SLIRP_PKT_BATCH);
-            if (!(net_cards_conf[slirp->card->card_num].link_state & NET_LINK_DOWN)) {
+            if (net_slirp_link_up(slirp->card)) {
                 for (int i = 0; i < packets; i++)
                     net_slirp_in(slirp, slirp->pkt_tx_v[i].data, slirp->pkt_tx_v[i].len);
             }
@@ -731,7 +740,8 @@ net_slirp_init(const netcard_t *card, const uint8_t *mac_addr, UNUSED(void *priv
 
     /* Set the IP addresses to use.
        Use a configured address if set, otherwise 10.0.x.0 */
-    const char *slirp_net = net_cards_conf[card->card_num].slirp_net;
+    const char *slirp_net = card->slirp_force_auto_range
+                          ? "" : net_cards_conf[card->card_num].slirp_net;
     if (slirp_net[0] != '\0') {
         struct in_addr addr;
         inet_pton(AF_INET, slirp_net, &addr);
@@ -795,6 +805,11 @@ net_slirp_init(const netcard_t *card, const uint8_t *mac_addr, UNUSED(void *priv
         free(slirp);
         return NULL;
     }
+
+    /* Keep the effective allocation available to devices using this network. */
+    ((netcard_t *) card)->slirp_host_ip = ntohl(host.s_addr);
+    ((netcard_t *) card)->slirp_dhcp_ip = ntohl(dhcp.s_addr);
+    ((netcard_t *) card)->slirp_dns_ip = ntohl(dns.s_addr);
 
     /* Set up port forwarding. */
     int  udp;
