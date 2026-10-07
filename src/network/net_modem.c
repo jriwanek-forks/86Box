@@ -42,13 +42,13 @@
 #ifndef _WIN32
 #    include <arpa/inet.h>
 #endif
-#include <86box/net_modem_ppp.h>
-#include <86box/net_modem_cslip.h>
-#include <86box/net_modem_slip.h>
-#include <86box/net_modem_slip_auth.h>
-#include <86box/modem_sound.h>
-#include <86box/modem_voice.h>
-#include "net_modem_debug.h"
+#include <86box/modem/modem_ppp.h>
+#include <86box/modem/modem_cslip.h>
+#include <86box/modem/modem_slip.h>
+#include <86box/modem/modem_slip_auth.h>
+#include <86box/modem/modem_sound.h>
+#include <86box/modem/modem_voice.h>
+#include <86box/modem/modem_debug.h>
 
 #ifdef ENABLE_MODEM_LOG
 uint8_t modem_do_log = ENABLE_MODEM_LOG;
@@ -326,8 +326,9 @@ typedef enum modem_mode_t {
 
 typedef enum modem_fax_support_t {
     MODEM_FAX_SUPPORT_DISABLED = 0,
-    MODEM_FAX_SUPPORT_CLASS_0  = 1,
-    MODEM_FAX_SUPPORT_CLASS_1  = 2
+    MODEM_FAX_SUPPORT_CLASS_0  = 1 << 0,
+    MODEM_FAX_SUPPORT_CLASS_1  = 1 << 1,
+    MODEM_FAX_SUPPORT_CLASS_8  = 1 << 2
 } modem_fax_support_t;
 
 typedef enum modem_fax_transfer_status_t {
@@ -1501,11 +1502,18 @@ modem_do_command(modem_t *modem, int repeat)
         switch (chr) {
             case '#':
                 if (is_exact_token("CLS=8", sizeof("CLS=8"), scanbuf)) {
+                    if (!(modem->fax_support & MODEM_FAX_SUPPORT_CLASS_8)) {
+                        modem_send_res(modem, ResERROR);
+                        return;
+                    }
                     modem->voice_class = 8;
+                    modem->fax_class = 8;
                     modem_send_res(modem, ResOK);
                     return;
                 } else if (is_exact_token("CLS=0", sizeof("CLS=0"), scanbuf)) {
                     modem->voice_class = 0;
+                    if (modem->fax_class == 8)
+                        modem->fax_class = 0;
                     modem_send_res(modem, ResOK);
                     return;
                 } else if (is_exact_token("CLS?", sizeof("CLS?"), scanbuf)) {
@@ -1513,7 +1521,8 @@ modem_do_command(modem_t *modem, int repeat)
                     modem_send_res(modem, ResOK);
                     return;
                 } else if (is_exact_token("CLS=?", sizeof("CLS=?"), scanbuf)) {
-                    modem_send_line(modem, "#CLS: (0,8)");
+                    modem_send_line(modem, (modem->fax_support & MODEM_FAX_SUPPORT_CLASS_8)
+                                               ? "#CLS: (0,8)" : "#CLS: (0)");
                     modem_send_res(modem, ResOK);
                     return;
                 } else if (is_exact_token("VBS=?", sizeof("VBS=?"), scanbuf)) {
@@ -1581,16 +1590,30 @@ modem_do_command(modem_t *modem, int repeat)
                 modem_send_res(modem, ResERROR);
                 return;
             case '+':
-                if (modem->fax_support != MODEM_FAX_SUPPORT_DISABLED
-                    && is_next_token("FCLASS", sizeof("FCLASS"), scanbuf)
+                if (is_next_token("FCLASS", sizeof("FCLASS"), scanbuf)
                     && is_exact_token("FCLASS=?", sizeof("FCLASS=?"), scanbuf)) {
                     scanbuf += 8;
-                    modem_send_line(modem, modem->fax_support == MODEM_FAX_SUPPORT_CLASS_1
-                                               ? "+FCLASS: (0,1)" : "+FCLASS: (0)");
+                    if (modem->fax_support == MODEM_FAX_SUPPORT_DISABLED) {
+                        modem_send_res(modem, ResERROR);
+                        return;
+                    }
+                    char classes[32] = "+FCLASS: (";
+                    bool first = true;
+                    if (modem->fax_support & MODEM_FAX_SUPPORT_CLASS_0) {
+                        strcat(classes, "0");
+                        first = false;
+                    }
+                    if (modem->fax_support & MODEM_FAX_SUPPORT_CLASS_1) {
+                        strcat(classes, first ? "1" : ",1");
+                        first = false;
+                    }
+                    if (modem->fax_support & MODEM_FAX_SUPPORT_CLASS_8)
+                        strcat(classes, first ? "8" : ",8");
+                    strcat(classes, ")");
+                    modem_send_line(modem, classes);
                     modem_send_res(modem, ResOK);
                     return;
-                } else if (modem->fax_support != MODEM_FAX_SUPPORT_DISABLED
-                           && is_next_token("FCLASS", sizeof("FCLASS"), scanbuf)
+                } else if (is_next_token("FCLASS", sizeof("FCLASS"), scanbuf)
                            && is_exact_token("FCLASS?", sizeof("FCLASS?"), scanbuf)) {
                     char response[16];
                     scanbuf += 7;
@@ -1599,26 +1622,40 @@ modem_do_command(modem_t *modem, int repeat)
                     modem_send_line(modem, response);
                     modem_send_res(modem, ResOK);
                     return;
-                } else if (modem->fax_support != MODEM_FAX_SUPPORT_DISABLED
-                           && is_next_token("FCLASS", sizeof("FCLASS"), scanbuf)
+                } else if (is_next_token("FCLASS", sizeof("FCLASS"), scanbuf)
                            && is_exact_token("FCLASS=0", sizeof("FCLASS=0"), scanbuf)) {
                     scanbuf += 8;
+                    if (!(modem->fax_support & MODEM_FAX_SUPPORT_CLASS_0)) {
+                        modem_send_res(modem, ResERROR);
+                        return;
+                    }
                     modem->fax_class = 0;
+                    modem->voice_class = 0;
                     modem_send_res(modem, ResOK);
                     return;
-                } else if (modem->fax_support != MODEM_FAX_SUPPORT_DISABLED
-                           && is_next_token("FCLASS", sizeof("FCLASS"), scanbuf)
+                } else if (is_next_token("FCLASS", sizeof("FCLASS"), scanbuf)
                            && is_exact_token("FCLASS=1", sizeof("FCLASS=1"), scanbuf)) {
                     scanbuf += 8;
-                    if (modem->fax_support != MODEM_FAX_SUPPORT_CLASS_1) {
+                    if (!(modem->fax_support & MODEM_FAX_SUPPORT_CLASS_1)) {
                         modem_send_res(modem, ResERROR);
                         return;
                     }
                     modem->fax_class = 1;
+                    modem->voice_class = 0;
                     modem_send_res(modem, ResOK);
                     return;
-                } else if (modem->fax_support != MODEM_FAX_SUPPORT_DISABLED
-                           && is_next_token("FCLASS=", sizeof("FCLASS="), scanbuf)) {
+                } else if (is_next_token("FCLASS", sizeof("FCLASS"), scanbuf)
+                           && is_exact_token("FCLASS=8", sizeof("FCLASS=8"), scanbuf)) {
+                    scanbuf += 8;
+                    if (!(modem->fax_support & MODEM_FAX_SUPPORT_CLASS_8)) {
+                        modem_send_res(modem, ResERROR);
+                        return;
+                    }
+                    modem->fax_class = 8;
+                    modem->voice_class = 8;
+                    modem_send_res(modem, ResOK);
+                    return;
+                } else if (is_next_token("FCLASS=", sizeof("FCLASS="), scanbuf)) {
                     /* Catch any other FCLASS assignment attempt. */
                     scanbuf += 8;
                     modem_send_res(modem, ResERROR);
@@ -1629,7 +1666,7 @@ modem_do_command(modem_t *modem, int repeat)
                     scanbuf += 4;
                     wait_start = scanbuf;
                     const uint32_t wait = modem_scan_number(&scanbuf);
-                    if (modem->fax_support != MODEM_FAX_SUPPORT_CLASS_1
+                    if (!(modem->fax_support & MODEM_FAX_SUPPORT_CLASS_1)
                         || modem->fax_class != 1 || !modem->connected
                         || !modem->tcpIpMode || modem->telnet_mode
                         || scanbuf == wait_start || wait > 255 || *scanbuf != '\0') {
@@ -1652,7 +1689,7 @@ modem_do_command(modem_t *modem, int repeat)
                     const bool transmit = scanbuf[1] == 'T';
                     scanbuf += 4;
                     const uint32_t rate = modem_scan_number(&scanbuf);
-                    if (modem->fax_support != MODEM_FAX_SUPPORT_CLASS_1
+                    if (!(modem->fax_support & MODEM_FAX_SUPPORT_CLASS_1)
                         || modem->fax_class != 1 || !modem->connected
                         || !modem->tcpIpMode || modem->telnet_mode
                         || !modem_fax_rate_supported(rate)
@@ -2086,7 +2123,7 @@ fifo8_resize_2x(Fifo8 *fifo)
 
     uint8_t *temp_buf = calloc(size, 1);
     if (!temp_buf) {
-        fatal("net_modem: Out Of Memory!\n");
+        fatal("modem: Out Of Memory!\n");
     }
     while (!fifo8_is_empty(fifo)) {
         temp_buf[pos] = fifo8_pop(fifo);
@@ -2488,7 +2525,7 @@ modem_cmdpause_timer_callback(void *priv)
                         modem_enter_idle_state(modem);
                         modem_send_res(modem, ResNOCARRIER);
                     }
-                } else if (modem->fax_support == MODEM_FAX_SUPPORT_CLASS_1
+                } else if ((modem->fax_support & MODEM_FAX_SUPPORT_CLASS_1)
                     && modem->fax_class == 1 && !modem->telnet_mode) {
                     for (int pos = 0; pos < res; pos++) {
                         fifo8_push(&modem->rx_data, buffer[pos]);
@@ -2569,7 +2606,7 @@ modem_init(UNUSED(const device_t *info))
     modem->telnet_mode = device_get_config_int("telnet_mode");
 
     modem->connection_type = device_get_config_int("connection_type");
-    modem->fax_support = (uint8_t) device_get_config_int("fax_support");
+    modem->fax_support = (uint8_t) device_get_config_int("fax_voice_support");
     modem->ppp_auth_type   = device_get_config_int("ppp_auth_type");
     modem->ppp_encryption  = device_get_config_int("ppp_encryption");
     {
@@ -2797,8 +2834,8 @@ static const device_config_t modem_config[] = {
         .bios           = { { 0 } }
     },
     {
-        .name           = "fax_support",
-        .description    = "Fax AT Command Support",
+        .name           = "fax_voice_support",
+        .description    = "Fax and Voice AT Class Support",
         .type           = CONFIG_SELECTION,
         .default_string = NULL,
         .default_int    = 0,
@@ -2806,8 +2843,11 @@ static const device_config_t modem_config[] = {
         .spinner        = { 0 },
         .selection      = {
             { .description = "Disabled", .value = MODEM_FAX_SUPPORT_DISABLED },
-            { .description = "Class 0",  .value = MODEM_FAX_SUPPORT_CLASS_0 },
-            { .description = "Class 1",  .value = MODEM_FAX_SUPPORT_CLASS_1 },
+            { .description = "Class 0",             .value = MODEM_FAX_SUPPORT_CLASS_0 },
+            { .description = "Class 1",             .value = MODEM_FAX_SUPPORT_CLASS_1 },
+            { .description = "Class 8 (Voice)",     .value = MODEM_FAX_SUPPORT_CLASS_8 },
+            { .description = "Class 0 + Class 8",   .value = MODEM_FAX_SUPPORT_CLASS_0 | MODEM_FAX_SUPPORT_CLASS_8 },
+            { .description = "Class 0 + Class 1 + Class 8", .value = MODEM_FAX_SUPPORT_CLASS_0 | MODEM_FAX_SUPPORT_CLASS_1 | MODEM_FAX_SUPPORT_CLASS_8 },
             { .description = "" }
         },
         .bios           = { { 0 } }
