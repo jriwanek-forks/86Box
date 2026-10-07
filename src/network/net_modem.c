@@ -446,7 +446,13 @@ typedef struct modem_t {
     uint32_t         ppp_wins2;
     uint32_t         ppp_dns1;
     uint32_t         ppp_dns2;
+    int              modem_identity;
 } modem_t;
+
+enum {
+    MODEM_IDENTITY_GENERIC = 0,
+    MODEM_IDENTITY_SUPRAEXPRESS = 1
+};
 
 #define MREG_AUTOANSWER_COUNT 0
 #define MREG_RING_COUNT       1
@@ -1520,14 +1526,32 @@ modem_do_command(modem_t *modem, int repeat)
                     modem_dial(modem, foundstr);
                     return;
                 }
-            case 'I': // Some strings about firmware
-                switch (modem_scan_number(&scanbuf)) {
-                    case 3:
-                        modem_send_line(modem, "86Box Emulated Modem Firmware V1.00");
-                        break;
-                    case 4:
-                        modem_send_line(modem, "Modem compiled for 86Box version " EMU_VERSION);
-                        break;
+            case 'I': // Modem identification strings
+                {
+                    const uint32_t index = modem_scan_number(&scanbuf);
+                    if (modem->modem_identity == MODEM_IDENTITY_SUPRAEXPRESS) {
+                        static const char *const supra_info[] = {
+                            "1794",
+                            "168",
+                            "OK",
+                            "SupraExpress 56e PRO",
+                            "Diamond Multimedia SupraExpress 56e PRO",
+                            "Country Code: 00",
+                            "RCVDL56ACF/SP Rev 1.100",
+                            "V1.100-V90_2M_DLS"
+                        };
+                        if (index < sizeof(supra_info) / sizeof(supra_info[0]))
+                            modem_send_line(modem, supra_info[index]);
+                    } else {
+                        switch (index) {
+                            case 3:
+                                modem_send_line(modem, "86Box Emulated Modem Firmware V1.00");
+                                break;
+                            case 4:
+                                modem_send_line(modem, "Modem compiled for 86Box version " EMU_VERSION);
+                                break;
+                        }
+                    }
                 }
                 break;
             case 'E': // Echo on/off
@@ -2219,6 +2243,7 @@ modem_init(UNUSED(const device_t *info))
 
     modem->port        = device_get_config_int("port");
     modem->baudrate    = device_get_config_int("baudrate");
+    modem->modem_identity = device_get_config_int("modem_identity");
     modem->listen_port = device_get_config_int("listen_port");
     modem->telnet_mode = device_get_config_int("telnet_mode");
 
@@ -2303,6 +2328,21 @@ modem_close(void *priv)
 
 // clang-format off
 static const device_config_t modem_config[] = {
+    {
+        .name           = "modem_identity",
+        .description    = "Modem Identity",
+        .type           = CONFIG_SELECTION,
+        .default_string = NULL,
+        .default_int    = MODEM_IDENTITY_GENERIC,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = {
+            { .description = "Generic 86Box Modem", .value = MODEM_IDENTITY_GENERIC },
+            { .description = "Diamond SupraExpress 56e PRO", .value = MODEM_IDENTITY_SUPRAEXPRESS },
+            { .description = "" }
+        },
+        .bios           = { { 0 } }
+    },
     {
         .name           = "port",
         .description    = "Serial Port",
