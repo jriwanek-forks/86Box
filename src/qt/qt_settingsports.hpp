@@ -58,6 +58,8 @@ private:
     int                machineId = 0;
 
     void updateLptPortTracking(int i);
+    void updateLptPortControls(int i);
+    void updateComPortControls(int i);
 
     int                lpt_device_cfg_changed[4] = { 0, 0, 0, 0 };
     int                com_device_cfg_changed[SERIAL_MAX_UI] = { 0 };
