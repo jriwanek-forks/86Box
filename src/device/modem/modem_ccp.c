@@ -343,8 +343,8 @@ ccp_send_codec_request(ppp_ctx_t *ctx, uint8_t method)
             request[request_len++] = CCP_OPT_LZS;
             request[request_len++] = 5;
             request[request_len++] = 0;
-            request[request_len++] = 0;
-            request[request_len++] = 0;
+            request[request_len++] = 1;
+            request[request_len++] = 3;
             break;
         case PPP_CCP_METHOD_LZS_EXTENDED:
             request[request_len++] = CCP_OPT_LZS;
@@ -633,12 +633,14 @@ ccp_handle_config_request(ppp_ctx_t *ctx, const uint8_t *pkt, int total)
                 rej_len += option_len;
             } else if (history_count == 1 && check_mode == 4) {
                 selected_method = PPP_CCP_METHOD_LZS_EXTENDED;
+            } else if (history_count == 1 && check_mode == 3) {
+                selected_method = PPP_CCP_METHOD_LZS;
             } else if (history_count != 0 || check_mode != 0) {
                 nak[nak_len++] = CCP_OPT_LZS;
                 nak[nak_len++] = 5;
                 nak[nak_len++] = 0;
-                nak[nak_len++] = 0;
-                nak[nak_len++] = 0;
+                nak[nak_len++] = 1;
+                nak[nak_len++] = 4;
             } else {
                 selected_method = PPP_CCP_METHOD_LZS;
             }
@@ -942,6 +944,7 @@ ppp_ccp_process(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
             } else if (ctx->ccp_tx_method == PPP_CCP_METHOD_LZS && total == 6
                 && pkt[4] == 0 && pkt[5] == 1) {
                 static const uint8_t lzs_history[] = { 0, 1 };
+                ppp_ccp_codec_flush(ctx, true);
                 ccp_send_response(ctx, PPP_CODE_RESET_ACK, pkt[1], lzs_history,
                                   sizeof(lzs_history));
             } else {
@@ -949,16 +952,23 @@ ppp_ccp_process(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
             }
             ppp_mppe_request_rekey(&ctx->mppe_tx);
             if (ctx->ccp_tx_method != PPP_CCP_METHOD_NONE
-                && ctx->ccp_tx_method != PPP_CCP_METHOD_LZS_EXTENDED)
+                && ctx->ccp_tx_method != PPP_CCP_METHOD_LZS_EXTENDED
+                && ctx->ccp_tx_method != PPP_CCP_METHOD_LZS)
                 ppp_ccp_codec_set_window(ctx, true, ctx->ccp_tx_method,
                                          ctx->ccp_tx_window_size
                                              ? ctx->ccp_tx_window_size : 8192);
             break;
 
         case PPP_CODE_RESET_ACK:
-            if (ctx->ccp_rx_method != PPP_CCP_METHOD_LZS_EXTENDED
-                && total == 4 && ctx->ccp_reset_pending
-                && pkt[1] == ctx->ccp_reset_request_id) {
+            if (ctx->ccp_rx_method == PPP_CCP_METHOD_LZS
+                && total == 6 && ctx->ccp_reset_pending
+                && pkt[1] == ctx->ccp_reset_request_id
+                && pkt[4] == 0 && pkt[5] == 1) {
+                ctx->ccp_reset_pending = false;
+                ppp_ccp_codec_flush(ctx, false);
+            } else if (ctx->ccp_rx_method != PPP_CCP_METHOD_LZS_EXTENDED
+                       && total == 4 && ctx->ccp_reset_pending
+                       && pkt[1] == ctx->ccp_reset_request_id) {
                 ctx->ccp_reset_pending = false;
                 if (ctx->ccp_rx_method != PPP_CCP_METHOD_NONE)
                     ppp_ccp_codec_set_window(ctx, false, ctx->ccp_rx_method,

@@ -752,9 +752,13 @@ ppp_send_frame(ppp_ctx_t *ctx, uint16_t protocol, const uint8_t *data, int len)
                                     sizeof(encrypted), &compressed_len))
             return;
                 if ((ctx->ccp_tx_method == PPP_CCP_METHOD_LZS
+                         || ctx->ccp_tx_method == PPP_CCP_METHOD_LZS_EXTENDED
                          || ctx->ccp_tx_method == PPP_CCP_METHOD_V44)
             && compressed_len + (ctx->peer_pfc ? 1 : 2)
                >= len + (compress_protocol ? 1 : 2)) {
+            if (ctx->ccp_tx_method == PPP_CCP_METHOD_LZS
+                || ctx->ccp_tx_method == PPP_CCP_METHOD_LZS_EXTENDED)
+                ppp_ccp_codec_flush(ctx, true);
             wire_protocol = protocol;
             wire_data = data;
             wire_len = len;
@@ -1814,7 +1818,8 @@ ppp_ccp_send_reset_request(ppp_ctx_t *ctx)
     uint8_t reset_request[6] = {
         PPP_CODE_RESET_REQUEST, 0, 0, 4, 0, 1
     };
-    int reset_length = ctx->ccp_rx_method == PPP_CCP_METHOD_LZS_EXTENDED ? 6 : 4;
+    int reset_length = (ctx->ccp_rx_method == PPP_CCP_METHOD_LZS_EXTENDED
+                        || ctx->ccp_rx_method == PPP_CCP_METHOD_LZS) ? 6 : 4;
 
     reset_request[1] = ctx->ccp_reset_pending
                      ? ctx->ccp_reset_request_id : ctx->ccp_reset_id++;
@@ -1943,7 +1948,8 @@ ppp_process_frame(ppp_ctx_t *ctx, const uint8_t *frame, int frame_len, bool reas
                 #endif
         if (ctx->ccp_reset_pending
             && (ctx->ccp_rx_method == PPP_CCP_METHOD_PREDICTOR2
-                || ctx->ccp_rx_method == PPP_CCP_METHOD_MPPC))
+                || ctx->ccp_rx_method == PPP_CCP_METHOD_MPPC
+                || ctx->ccp_rx_method == PPP_CCP_METHOD_LZS))
             return;
         if (ctx->ccp_rx_method == PPP_CCP_METHOD_PREDICTOR2) {
             bool first_segment = true;
@@ -1982,8 +1988,8 @@ ppp_process_frame(ppp_ctx_t *ctx, const uint8_t *frame, int frame_len, bool reas
                                       sizeof(decompressed), &decompressed_len)
             || decompressed_len < 2) {
             if ((ctx->ccp_rx_method == PPP_CCP_METHOD_LZS_EXTENDED
+                 || ctx->ccp_rx_method == PPP_CCP_METHOD_LZS
                  || !ctx->ccp_reset_pending)
-                && ctx->ccp_rx_method != PPP_CCP_METHOD_LZS
                 && ctx->ccp_rx_method != PPP_CCP_METHOD_LZS_DCP
                 && ctx->ccp_rx_method != PPP_CCP_METHOD_V44)
                 ppp_ccp_send_reset_request(ctx);

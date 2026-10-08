@@ -948,6 +948,63 @@ lzs_extended_history_append(uint8_t *history, uint16_t *history_length,
 }
 
 static bool
+lzs_standard_compress(ppp_ccp_codec_state_t *codec, const uint8_t *input,
+                       int input_len, uint8_t *output, int output_capacity,
+                       int *output_len)
+{
+    lzs_extended_state_t *state = &codec->lzs_extended;
+    uint8_t compressed[PPP_MAX_FRAME * 2];
+    int compressed_len;
+
+    if (!input || input_len <= 0 || input_len > PPP_MAX_FRAME || !output
+        || !output_len || output_capacity < 1
+        || !lzs_compress_with_history(state->tx_history, state->tx_history_length,
+                                      input, input_len, compressed,
+                                      sizeof(compressed), &compressed_len)
+        || compressed_len + 1 > output_capacity)
+        return false;
+
+    output[0] = (uint8_t) codec->tx_sequence;
+    memcpy(output + 1, compressed, (size_t) compressed_len);
+    *output_len = compressed_len + 1;
+
+    if (compressed_len < input_len) {
+        lzs_extended_history_append(state->tx_history, &state->tx_history_length,
+                                    input, input_len);
+        codec->tx_sequence = (uint8_t) (codec->tx_sequence + 1);
+    } else {
+        state->tx_history_length = 0;
+    }
+    return true;
+}
+
+static bool
+lzs_standard_decompress(ppp_ccp_codec_state_t *codec, const uint8_t *input,
+                         int input_len, uint8_t *output, int output_capacity,
+                         int *output_len)
+{
+    lzs_extended_state_t *state = &codec->lzs_extended;
+    uint8_t padded[PPP_MAX_FRAME + 1];
+
+    if (!input || input_len < 2 || input_len > PPP_MAX_FRAME || !output
+        || !output_len || output_capacity < 0
+        || input[0] != (uint8_t) codec->rx_sequence)
+        return false;
+
+    memcpy(padded, input + 1, (size_t) input_len - 1);
+    padded[input_len - 1] = 0;
+    if (!lzs_decompress_with_history(padded, input_len - 1, state->rx_history,
+                                     state->rx_history_length, output,
+                                     output_capacity, output_len))
+        return false;
+
+    lzs_extended_history_append(state->rx_history, &state->rx_history_length,
+                                output, *output_len);
+    codec->rx_sequence = (uint8_t) (codec->rx_sequence + 1);
+    return true;
+}
+
+static bool
 lzs_extended_compress(ppp_ccp_codec_state_t *codec, const uint8_t *input,
                       int input_len, uint8_t *output, int output_capacity,
                       int *output_len)
@@ -958,7 +1015,7 @@ lzs_extended_compress(ppp_ccp_codec_state_t *codec, const uint8_t *input,
     bool flushed = state->tx_flush;
 
     if (!input || input_len <= 0 || input_len > PPP_MAX_FRAME || !output
-        || !output_len || output_capacity < 4
+        || !output_len || output_capacity < 2
         || !lzs_compress_with_history(flushed ? NULL : state->tx_history,
                                       flushed ? 0 : state->tx_history_length,
                                       input, input_len, compressed,
@@ -967,19 +1024,17 @@ lzs_extended_compress(ppp_ccp_codec_state_t *codec, const uint8_t *input,
 
     bool use_compressed = compressed_len < input_len;
     int payload_len = use_compressed ? compressed_len : input_len;
-    if (payload_len > output_capacity - 4)
+    if (payload_len > output_capacity - 2)
         return false;
 
-    output[0] = 0;
-    output[1] = LZS_EXTENDED_PROTOCOL;
     uint16_t header = (uint16_t) ((flushed || !use_compressed
                                    ? 0x8000 : 0)
                                   | (use_compressed ? 0x2000 : 0)
                                   | (state->tx_count & 0x0FFF));
-    output[2] = (uint8_t) (header >> 8);
-    output[3] = (uint8_t) header;
-    memcpy(output + 4, use_compressed ? compressed : input, (size_t) payload_len);
-    *output_len = payload_len + 4;
+    output[0] = (uint8_t) (header >> 8);
+    output[1] = (uint8_t) header;
+    memcpy(output + 2, use_compressed ? compressed : input, (size_t) payload_len);
+    *output_len = payload_len + 2;
 
     state->tx_last_frame_flushed = flushed || !use_compressed;
     if (use_compressed)
@@ -998,15 +1053,14 @@ lzs_extended_decompress(ppp_ctx_t *ctx, ppp_ccp_codec_state_t *codec,
                         int output_capacity, int *output_len)
 {
     lzs_extended_state_t *state = &codec->lzs_extended;
-    if (!input || input_len < 4 || input_len > PPP_MAX_FRAME || !output
+    if (!input || input_len < 2 || input_len > PPP_MAX_FRAME || !output
         || !output_len || output_capacity < 0
-        || input[0] != 0 || input[1] != LZS_EXTENDED_PROTOCOL
-        || (input[2] & 0x50) != 0)
+        || (input[0] & 0x50) != 0)
         return false;
 
-    bool flushed = (input[2] & LZS_EXTENDED_FLUSHED) != 0;
-    bool compressed = (input[2] & LZS_EXTENDED_COMPRESSED) != 0;
-    uint16_t count = (uint16_t) (((uint16_t) (input[2] & 0x0F) << 8) | input[3]);
+    bool flushed = (input[0] & LZS_EXTENDED_FLUSHED) != 0;
+    bool compressed = (input[0] & LZS_EXTENDED_COMPRESSED) != 0;
+    uint16_t count = (uint16_t) (((uint16_t) (input[0] & 0x0F) << 8) | input[1]);
     if (ctx->ccp_reset_pending && !flushed)
         return false;
     if (!flushed && count != state->rx_count)
@@ -1019,9 +1073,9 @@ lzs_extended_decompress(ppp_ctx_t *ctx, ppp_ccp_codec_state_t *codec,
         state->rx_count = count;
     }
 
-    int payload_len = input_len - 4;
+    int payload_len = input_len - 2;
     if (compressed) {
-        if (!lzs_decompress_with_history(input + 4, payload_len,
+        if (!lzs_decompress_with_history(input + 2, payload_len,
                                          state->rx_history, state->rx_history_length,
                                          output, output_capacity, output_len))
             return false;
@@ -1030,7 +1084,7 @@ lzs_extended_decompress(ppp_ctx_t *ctx, ppp_ccp_codec_state_t *codec,
     } else {
         if (payload_len < 2 || payload_len > output_capacity)
             return false;
-        memcpy(output, input + 4, (size_t) payload_len);
+        memcpy(output, input + 2, (size_t) payload_len);
         *output_len = payload_len;
         state->rx_history_length = 0;
     }
@@ -1328,6 +1382,13 @@ ppp_ccp_codec_set_window(ppp_ctx_t *ctx, bool transmit, uint8_t method,
         *state_slot = state;
         *method_slot = method;
         return true;
+    } else if (method == PPP_CCP_METHOD_LZS) {
+        state->method = method;
+        state->tx_sequence = 1;
+        state->rx_sequence = 1;
+        *state_slot = state;
+        *method_slot = method;
+        return true;
     } else if (method == PPP_CCP_METHOD_LZS_EXTENDED) {
         state->method = method;
         state->lzs_extended.tx_flush = transmit;
@@ -1418,6 +1479,13 @@ void
 ppp_ccp_codec_flush(ppp_ctx_t *ctx, bool transmit)
 {
     ppp_ccp_codec_state_t *codec = ctx ? ppp_ccp_get_codec_state(ctx, transmit) : NULL;
+    if (codec && codec->method == PPP_CCP_METHOD_LZS) {
+        if (transmit)
+            codec->lzs_extended.tx_history_length = 0;
+        else
+            codec->lzs_extended.rx_history_length = 0;
+        return;
+    }
     if (codec && codec->method == PPP_CCP_METHOD_LZS_EXTENDED && transmit) {
         codec->lzs_extended.tx_history_length = 0;
         codec->lzs_extended.tx_flush = true;
@@ -2075,7 +2143,8 @@ ppp_ccp_codec_compress(ppp_ctx_t *ctx, const uint8_t *input, int input_len,
         return nt31ras_compress_source_format(codec, input, input_len, output,
                                               output_capacity, output_len);
     if (codec->method == PPP_CCP_METHOD_LZS)
-        return lzs_compress(input, input_len, output, output_capacity, output_len);
+        return lzs_standard_compress(codec, input, input_len, output,
+                                     output_capacity, output_len);
     if (codec->method == PPP_CCP_METHOD_LZS_EXTENDED)
         return lzs_extended_compress(codec, input, input_len, output,
                                      output_capacity, output_len);
@@ -2275,10 +2344,9 @@ ppp_ccp_codec_decompress(ppp_ctx_t *ctx, const uint8_t *input, int input_len,
     if (codec->method == PPP_CCP_METHOD_NT31RAS)
         return nt31ras_decompress_source_format(codec, input, input_len, output,
                                                 output_capacity, output_len);
-    if (codec->method == PPP_CCP_METHOD_LZS) {
-        return lzs_decompress_with_zero_padding(input, input_len, output,
-                                                output_capacity, output_len);
-    }
+    if (codec->method == PPP_CCP_METHOD_LZS)
+        return lzs_standard_decompress(codec, input, input_len, output,
+                                       output_capacity, output_len);
     if (codec->method == PPP_CCP_METHOD_LZS_EXTENDED)
         return lzs_extended_decompress(ctx, codec, input, input_len, output,
                                       output_capacity, output_len);
