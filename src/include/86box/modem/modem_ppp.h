@@ -382,6 +382,8 @@ const char *ppp_ccp_method_name(uint8_t method);
 bool       ppp_ccp_codec_set(ppp_ctx_t *ctx, bool transmit, uint8_t method);
 bool       ppp_ccp_codec_set_window(ppp_ctx_t *ctx, bool transmit, uint8_t method,
                                     uint32_t window_size);
+bool       ppp_ccp_codec_set_lzs(ppp_ctx_t *ctx, bool transmit, uint8_t method,
+                                 uint16_t history_count, uint8_t check_mode);
 void       ppp_ccp_codec_close(ppp_ctx_t *ctx);
 bool       ppp_ccp_codec_compress(ppp_ctx_t *ctx, const uint8_t *input, int input_len,
                                   uint8_t *output, int output_capacity, int *output_len);

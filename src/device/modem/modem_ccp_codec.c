@@ -129,6 +129,8 @@ typedef struct {
     lzs_extended_state_t lzs_extended;
     uint16_t tx_sequence;
     uint16_t rx_sequence;
+    uint16_t lzs_history_count;
+    uint8_t lzs_check_mode;
     uint8_t predictor2_rx_stream[PREDICTOR2_STREAM_CAPACITY];
     size_t predictor2_rx_stream_len;
     bool deflater_ready;
@@ -911,7 +913,8 @@ lzs_decompress_with_history(const uint8_t *input, int input_len,
     uint8_t combined[LZS_WINDOW_SIZE + PPP_MAX_FRAME];
     int combined_len = history_len;
 
-    if (!input || !history || history_len < 0 || history_len > LZS_WINDOW_SIZE
+    if (!input || (!history && history_len != 0)
+        || history_len < 0 || history_len > LZS_WINDOW_SIZE
         || !output || !output_len || output_capacity < 0)
         return false;
     if (history_len > 0)
@@ -955,23 +958,44 @@ lzs_standard_compress(ppp_ccp_codec_state_t *codec, const uint8_t *input,
     lzs_extended_state_t *state = &codec->lzs_extended;
     uint8_t compressed[PPP_MAX_FRAME * 2];
     int compressed_len;
+    int header_len = codec->lzs_check_mode == 2 ? 2
+                   : (codec->lzs_check_mode == 1 || codec->lzs_check_mode == 3) ? 1 : 0;
+    bool keep_history = codec->lzs_history_count != 0 && codec->lzs_check_mode != 0;
+    uint16_t check_value = 0;
+    const uint8_t *history = !keep_history
+                           ? NULL : state->tx_history;
+    int history_len = !keep_history
+                    ? 0 : state->tx_history_length;
 
     if (!input || input_len <= 0 || input_len > PPP_MAX_FRAME || !output
-        || !output_len || output_capacity < 1
-        || !lzs_compress_with_history(state->tx_history, state->tx_history_length,
+        || !output_len || output_capacity < header_len + 1
+        || !lzs_compress_with_history(history, history_len,
                                       input, input_len, compressed,
                                       sizeof(compressed), &compressed_len)
-        || compressed_len + 1 > output_capacity)
+        || compressed_len + header_len > output_capacity)
         return false;
 
-    output[0] = (uint8_t) codec->tx_sequence;
-    memcpy(output + 1, compressed, (size_t) compressed_len);
-    *output_len = compressed_len + 1;
+    if (codec->lzs_check_mode == 1) {
+        check_value = 0xFF;
+        for (int index = 0; index < input_len; index++)
+            check_value ^= input[index];
+        output[0] = (uint8_t) check_value;
+    } else if (codec->lzs_check_mode == 2) {
+        check_value = predictor_crc16(input, input_len);
+        output[0] = (uint8_t) check_value;
+        output[1] = (uint8_t) (check_value >> 8);
+    } else if (codec->lzs_check_mode == 3) {
+        output[0] = (uint8_t) codec->tx_sequence;
+    }
+    memcpy(output + header_len, compressed, (size_t) compressed_len);
+    *output_len = compressed_len + header_len;
 
     if (compressed_len < input_len) {
-        lzs_extended_history_append(state->tx_history, &state->tx_history_length,
-                                    input, input_len);
-        codec->tx_sequence = (uint8_t) (codec->tx_sequence + 1);
+        if (keep_history)
+            lzs_extended_history_append(state->tx_history, &state->tx_history_length,
+                                        input, input_len);
+        if (codec->lzs_check_mode == 3)
+            codec->tx_sequence = (uint8_t) (codec->tx_sequence + 1);
     } else {
         state->tx_history_length = 0;
     }
@@ -985,22 +1009,52 @@ lzs_standard_decompress(ppp_ccp_codec_state_t *codec, const uint8_t *input,
 {
     lzs_extended_state_t *state = &codec->lzs_extended;
     uint8_t padded[PPP_MAX_FRAME + 1];
+    int header_len = codec->lzs_check_mode == 2 ? 2
+                   : (codec->lzs_check_mode == 1 || codec->lzs_check_mode == 3) ? 1 : 0;
+    bool keep_history = codec->lzs_history_count != 0 && codec->lzs_check_mode != 0;
+    int decoded_len;
+    uint16_t received_check = 0;
+    uint16_t calculated_check = 0;
+    const uint8_t *history = !keep_history
+                           ? NULL : state->rx_history;
+    int history_len = !keep_history
+                    ? 0 : state->rx_history_length;
 
-    if (!input || input_len < 2 || input_len > PPP_MAX_FRAME || !output
-        || !output_len || output_capacity < 0
-        || input[0] != (uint8_t) codec->rx_sequence)
+    if (!input || input_len <= header_len || input_len > PPP_MAX_FRAME || !output
+        || !output_len || output_capacity < 0)
+        return false;
+    if (codec->lzs_check_mode == 1)
+        received_check = input[0];
+    else if (codec->lzs_check_mode == 2)
+        received_check = (uint16_t) input[0] | ((uint16_t) input[1] << 8);
+    else if (codec->lzs_check_mode == 3
+             && input[0] != (uint8_t) codec->rx_sequence)
         return false;
 
-    memcpy(padded, input + 1, (size_t) input_len - 1);
-    padded[input_len - 1] = 0;
-    if (!lzs_decompress_with_history(padded, input_len - 1, state->rx_history,
-                                     state->rx_history_length, output,
-                                     output_capacity, output_len))
+    memcpy(padded, input + header_len, (size_t) input_len - (size_t) header_len);
+    padded[input_len - header_len] = 0;
+    if (!lzs_decompress_with_history(padded, input_len - header_len + 1, history,
+                                     history_len, output, output_capacity,
+                                     &decoded_len))
         return false;
 
-    lzs_extended_history_append(state->rx_history, &state->rx_history_length,
-                                output, *output_len);
-    codec->rx_sequence = (uint8_t) (codec->rx_sequence + 1);
+    if (codec->lzs_check_mode == 1) {
+        calculated_check = 0xFF;
+        for (int index = 0; index < decoded_len; index++)
+            calculated_check ^= output[index];
+    } else if (codec->lzs_check_mode == 2) {
+        calculated_check = predictor_crc16(output, decoded_len);
+    }
+    if ((codec->lzs_check_mode == 1 || codec->lzs_check_mode == 2)
+        && received_check != calculated_check)
+        return false;
+
+    if (keep_history)
+        lzs_extended_history_append(state->rx_history, &state->rx_history_length,
+                                    output, decoded_len);
+    if (codec->lzs_check_mode == 3)
+        codec->rx_sequence = (uint8_t) (codec->rx_sequence + 1);
+    *output_len = decoded_len;
     return true;
 }
 
@@ -1383,8 +1437,8 @@ ppp_ccp_codec_set_window(ppp_ctx_t *ctx, bool transmit, uint8_t method,
         return true;
     } else if (method == PPP_CCP_METHOD_LZS) {
         state->method = method;
-        state->tx_sequence = 1;
-        state->rx_sequence = 1;
+        state->lzs_history_count = 0;
+        state->lzs_check_mode = 0;
         *state_slot = state;
         *method_slot = method;
         return true;
@@ -1455,6 +1509,26 @@ ppp_ccp_codec_set_window(ppp_ctx_t *ctx, bool transmit, uint8_t method,
     state->bsd.next_code = 257;
     *state_slot = state;
     *method_slot = method;
+    return true;
+}
+
+bool
+ppp_ccp_codec_set_lzs(ppp_ctx_t *ctx, bool transmit, uint8_t method,
+                      uint16_t history_count, uint8_t check_mode)
+{
+    if ((method == PPP_CCP_METHOD_LZS
+            && (check_mode > 3 || history_count > 1))
+        || (method == PPP_CCP_METHOD_LZS_EXTENDED
+            && (history_count != 1 || check_mode != 4)))
+        return false;
+    if (!ppp_ccp_codec_set(ctx, transmit, method))
+        return false;
+    ppp_ccp_codec_state_t *codec = ppp_ccp_get_codec_state(ctx, transmit);
+    if (codec && (method == PPP_CCP_METHOD_LZS
+                  || method == PPP_CCP_METHOD_LZS_EXTENDED)) {
+        codec->lzs_history_count = history_count;
+        codec->lzs_check_mode = check_mode;
+    }
     return true;
 }
 

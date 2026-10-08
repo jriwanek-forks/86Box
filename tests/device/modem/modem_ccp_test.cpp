@@ -38,7 +38,7 @@ TEST(ModemCcp, OffersSupportedKeyLengthsInStatelessModeAfterKeysExist)
     EXPECT_EQ(sent_packet[6], 1);
     EXPECT_EQ(sent_packet[7], 0);
     EXPECT_EQ(sent_packet[8], 0);
-    EXPECT_EQ(sent_packet[9], 0xE0);
+    EXPECT_EQ(sent_packet[9], 0xE1);
     EXPECT_TRUE(ctx.ccp_req_sent);
 }
 
@@ -139,7 +139,7 @@ TEST(ModemCcp, RestrictsOfferToRequiredKeyStrength)
     ppp_ccp_start(&ctx);
 
     ASSERT_EQ(sent_packet.size(), 10u);
-    EXPECT_EQ(sent_packet[9], 0xC0);
+    EXPECT_EQ(sent_packet[9], 0xC1);
 }
 
 TEST(ModemCcp, NaksMultiStrengthRequestToStrongestSupportedOption)
@@ -184,6 +184,61 @@ TEST(ModemCcp, AcceptsStacLzsExtendedModeRequest)
     EXPECT_NE(ctx.ccp_tx_codec_state, nullptr);
 }
 
+TEST(ModemCcp, AcceptsAllStandardStacLzsCheckModes)
+{
+    for (uint8_t check_mode = 0; check_mode <= 3; check_mode++) {
+        ppp_ctx_t ctx{};
+        uint16_t history_count = check_mode == 0 ? 0 : 1;
+        const uint8_t request[] = {
+            PPP_CODE_CONFIGURE_REQUEST, 7, 0, 9,
+            17, 5, 0, static_cast<uint8_t>(history_count), check_mode
+        };
+
+        ppp_ccp_process(&ctx, request, sizeof(request));
+
+        ASSERT_EQ(sent_packet[0], PPP_CODE_CONFIGURE_ACK) << "check mode " << +check_mode;
+        EXPECT_EQ(ctx.ccp_tx_method, PPP_CCP_METHOD_LZS) << "check mode " << +check_mode;
+        EXPECT_NE(ctx.ccp_tx_codec_state, nullptr) << "check mode " << +check_mode;
+        ppp_ccp_codec_close(&ctx);
+    }
+}
+
+TEST(ModemCcp, RejectsMppcOnlyWhenMppeIsRequired)
+{
+    ppp_ctx_t ctx{};
+    ctx.mppe_min_bits = 128;
+    const uint8_t request[] = { PPP_CODE_CONFIGURE_REQUEST, 2, 0, 10,
+                                18, 6, 0, 0, 0, 1 };
+
+    ppp_ccp_process(&ctx, request, sizeof(request));
+
+    ASSERT_EQ(sent_packet[0], PPP_CODE_CONFIGURE_REJECT);
+    EXPECT_FALSE(ctx.ccp_ack_sent);
+    EXPECT_EQ(ctx.ccp_tx_method, PPP_CCP_METHOD_NONE);
+}
+
+TEST(ModemCcp, AcceptsCombinedMppcAndEachMppeKeyStrength)
+{
+    for (uint8_t key_flags : { 0x20, 0x80, 0x40 }) {
+        ppp_ctx_t ctx{};
+        ctx.mppe_keys_ready = true;
+        const uint8_t request[] = {
+            PPP_CODE_CONFIGURE_REQUEST, 2, 0, 10,
+            18, 6, 0, 0, 0, static_cast<uint8_t>(0x01 | key_flags)
+        };
+
+        ppp_ccp_process(&ctx, request, sizeof(request));
+
+        ASSERT_EQ(sent_packet[0], PPP_CODE_CONFIGURE_ACK) << "key flags " << +key_flags;
+        EXPECT_EQ(ctx.ccp_tx_method, PPP_CCP_METHOD_MPPC);
+        EXPECT_TRUE(ctx.ccp_peer_mppe);
+        EXPECT_EQ(ctx.mppe_tx.key_bits, key_flags == 0x20 ? 40
+                                    : key_flags == 0x80 ? 56 : 128);
+        EXPECT_NE(ctx.ccp_tx_codec_state, nullptr);
+        ppp_ccp_codec_close(&ctx);
+    }
+}
+
 TEST(ModemCcp, ExtendedLzsResetFlushesNextPacketWithoutAck)
 {
     ppp_ctx_t ctx{};
@@ -203,8 +258,8 @@ TEST(ModemCcp, ExtendedLzsResetFlushesNextPacketWithoutAck)
     EXPECT_TRUE(sent_packet.empty());
     ASSERT_TRUE(ppp_ccp_codec_compress(&ctx, packet, sizeof(packet), encoded.data(),
                                        encoded.size(), &encoded_len));
-    EXPECT_NE(encoded[2] & 0x80, 0);
-    EXPECT_EQ(encoded[3], 1);
+    EXPECT_NE(encoded[0] & 0x80, 0);
+    EXPECT_EQ(encoded[1], 1);
     ppp_ccp_codec_close(&ctx);
 }
 
@@ -244,7 +299,7 @@ TEST(ModemCcp, AcknowledgesStacLzsResetWithHistoryNumber)
     EXPECT_EQ(sent_packet[5], 1);
 }
 
-TEST(ModemCcp, NaksUnsupportedStacLzsHistoryMode)
+TEST(ModemCcp, AcceptsStacLzsSequenceNumberMode)
 {
     ppp_ctx_t ctx{};
     const uint8_t request[] = { PPP_CODE_CONFIGURE_REQUEST, 8, 0, 9,
@@ -252,12 +307,10 @@ TEST(ModemCcp, NaksUnsupportedStacLzsHistoryMode)
 
     ppp_ccp_process(&ctx, request, sizeof(request));
 
-    ASSERT_EQ(sent_packet[0], PPP_CODE_CONFIGURE_NAK);
-    EXPECT_EQ(sent_packet[4], 17);
-    EXPECT_EQ(sent_packet[5], 5);
-    EXPECT_EQ(sent_packet[6], 0);
-    EXPECT_EQ(sent_packet[7], 0);
-    EXPECT_EQ(sent_packet[8], 0);
+    ASSERT_EQ(sent_packet[0], PPP_CODE_CONFIGURE_ACK);
+    EXPECT_EQ(ctx.ccp_tx_method, PPP_CCP_METHOD_LZS);
+    EXPECT_NE(ctx.ccp_tx_codec_state, nullptr);
+    ppp_ccp_codec_close(&ctx);
 }
 
 TEST(ModemCcp, NegotiatesConnectionlessLzsDcp)
@@ -400,7 +453,7 @@ TEST(ModemCcp, FallsBackToDeflateWhenOptionalMppeIsRejected)
     ppp_ccp_start(&ctx);
     const std::vector<uint8_t> reject = {
         PPP_CODE_CONFIGURE_REJECT, ctx.ccp_request_id, 0, 10,
-        18, 6, 1, 0, 0, 0xE0
+        18, 6, 1, 0, 0, 0xE1
     };
 
     ppp_ccp_process(&ctx, reject.data(), static_cast<int>(reject.size()));
@@ -421,7 +474,7 @@ TEST(ModemCcp, FailsClosedWhenRequiredMppeIsRejected)
     ppp_ccp_start(&ctx);
     const std::vector<uint8_t> reject = {
         PPP_CODE_CONFIGURE_REJECT, ctx.ccp_request_id, 0, 10,
-        18, 6, 1, 0, 0, 0x40
+        18, 6, 1, 0, 0, 0xC1
     };
 
     ppp_ccp_process(&ctx, reject.data(), static_cast<int>(reject.size()));
@@ -555,6 +608,53 @@ TEST(ModemCcp, LzsRestoresOptionalRemovedTrailingZero)
     ppp_ccp_codec_close(&rx);
 }
 
+TEST(ModemCcp, LzsNoneLcbAndCrcModesUseTheirNegotiatedPacketFormats)
+{
+    const std::array<uint8_t, 1> packet = { 'A' };
+    const std::array<uint8_t, 3> no_check = { 0x20, 0xE0, 0x00 };
+    const std::array<uint8_t, 4> lcb = { 0xBE, 0x20, 0xE0, 0x00 };
+    const std::array<uint8_t, 5> crc = { 0xF5, 0xA3, 0x20, 0xE0, 0x00 };
+    std::array<uint8_t, 16> encoded{};
+    std::array<uint8_t, 8> decoded{};
+
+    for (uint8_t check_mode = 0; check_mode <= 2; check_mode++) {
+        ppp_ctx_t tx{};
+        ppp_ctx_t rx{};
+        int encoded_len;
+        int decoded_len;
+        uint16_t history_count = check_mode == 0 ? 0 : 1;
+
+        ASSERT_TRUE(ppp_ccp_codec_set_lzs(&tx, true, PPP_CCP_METHOD_LZS,
+                                          history_count, check_mode));
+        ASSERT_TRUE(ppp_ccp_codec_set_lzs(&rx, false, PPP_CCP_METHOD_LZS,
+                                          history_count, check_mode));
+        ASSERT_TRUE(ppp_ccp_codec_compress(&tx, packet.data(), packet.size(),
+                                           encoded.data(), encoded.size(), &encoded_len));
+        if (check_mode == 0) {
+            ASSERT_EQ(encoded_len, no_check.size());
+            EXPECT_TRUE(std::equal(no_check.begin(), no_check.end(), encoded.begin()));
+        } else if (check_mode == 1) {
+            ASSERT_EQ(encoded_len, lcb.size());
+            EXPECT_TRUE(std::equal(lcb.begin(), lcb.end(), encoded.begin()));
+        } else {
+            ASSERT_EQ(encoded_len, crc.size());
+            EXPECT_TRUE(std::equal(crc.begin(), crc.end(), encoded.begin()));
+        }
+        ASSERT_TRUE(ppp_ccp_codec_decompress(&rx, encoded.data(), encoded_len,
+                                             decoded.data(), decoded.size(), &decoded_len));
+        ASSERT_EQ(decoded_len, packet.size());
+        EXPECT_EQ(decoded[0], packet[0]);
+
+        if (check_mode != 0) {
+            encoded[0] ^= 1;
+            EXPECT_FALSE(ppp_ccp_codec_decompress(&rx, encoded.data(), encoded_len,
+                                                  decoded.data(), decoded.size(), &decoded_len));
+        }
+        ppp_ccp_codec_close(&tx);
+        ppp_ccp_codec_close(&rx);
+    }
+}
+
 TEST(ModemCcp, LzsRoundTripsLiteralAndMatchPackets)
 {
     ppp_ctx_t tx{};
@@ -598,10 +698,8 @@ TEST(ModemCcp, LzsExtendedFramesAndRoundTripsWithCoherency)
     ASSERT_TRUE(ppp_ccp_codec_compress(&tx, packet.data(), packet.size(), encoded.data(),
                                        encoded.size(), &encoded_len));
     ASSERT_GE(encoded_len, 4);
-    EXPECT_EQ(encoded[0], 0);
-    EXPECT_EQ(encoded[1], 0xFD);
-    EXPECT_EQ(encoded[2] & 0xA0, 0xA0);
-    EXPECT_EQ(encoded[3], 0);
+    EXPECT_EQ(encoded[0] & 0xA0, 0xA0);
+    EXPECT_EQ(encoded[1], 0);
     ASSERT_TRUE(ppp_ccp_codec_decompress(&rx, encoded.data(), encoded_len, decoded.data(),
                                          decoded.size(), &decoded_len));
     EXPECT_EQ(decoded_len, packet.size());
@@ -610,7 +708,7 @@ TEST(ModemCcp, LzsExtendedFramesAndRoundTripsWithCoherency)
     ASSERT_TRUE(ppp_ccp_codec_compress(&tx, packet.data(), packet.size(), encoded.data(),
                                        encoded.size(), &encoded_len));
     EXPECT_EQ(encoded[2] & 0x80, 0);
-    EXPECT_EQ(encoded[3], 1);
+    EXPECT_EQ(encoded[1], 1);
     ASSERT_TRUE(ppp_ccp_codec_decompress(&rx, encoded.data(), encoded_len, decoded.data(),
                                          decoded.size(), &decoded_len));
     EXPECT_EQ(decoded_len, packet.size());

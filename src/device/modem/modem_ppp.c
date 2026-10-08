@@ -665,6 +665,7 @@ ppp_send_frame(ppp_ctx_t *ctx, uint16_t protocol, const uint8_t *data, int len)
     uint8_t  raw[PPP_MAX_FRAME + 264];
     uint8_t  encrypted[PPP_MAX_FRAME * 2];
     uint8_t  plaintext[PPP_MAX_FRAME];
+    uint8_t  ccp_compressed[PPP_MAX_FRAME * 2];
     int      raw_len = 0;
     int      out_len = 0;
     uint16_t fcs;
@@ -703,7 +704,18 @@ ppp_send_frame(ppp_ctx_t *ctx, uint16_t protocol, const uint8_t *data, int len)
                 return;
             memcpy(plaintext + 2, data, (size_t) len);
         }
-        if (!ppp_mppe_encrypt(&ctx->mppe_tx, plaintext, (size_t) len + 2,
+        const uint8_t *mppe_input = plaintext;
+        size_t mppe_input_len = (size_t) len + 2;
+        if (ctx->ccp_tx_method == PPP_CCP_METHOD_MPPC) {
+            int compressed_len;
+            if (!ppp_ccp_codec_compress(ctx, plaintext, (int) mppe_input_len,
+                                        ccp_compressed, sizeof(ccp_compressed),
+                                        &compressed_len))
+                return;
+            mppe_input = ccp_compressed;
+            mppe_input_len = (size_t) compressed_len;
+        }
+        if (!ppp_mppe_encrypt(&ctx->mppe_tx, mppe_input, mppe_input_len,
                               encrypted, sizeof(encrypted), &encrypted_len))
             return;
         wire_protocol = PPP_PROTO_MPPE;
@@ -1759,8 +1771,7 @@ ppp_advance_state(ppp_ctx_t *ctx)
                 }
                 ctx->state = PPP_STATE_IPCP_NEGOTIATE;
                 ctx->auth_timeout_ms = 0;
-                if (ctx->mppe_keys_ready)
-                    ppp_ccp_start(ctx);
+                ppp_ccp_start(ctx);
                 ppp_ipcp_send_config_request(ctx);
             }
             break;
@@ -1924,11 +1935,24 @@ ppp_process_frame(ppp_ctx_t *ctx, const uint8_t *frame, int frame_len, bool reas
     #if defined(ENABLE_MODEM_LOG) && defined(ENABLE_MODEM_DEBUG)
         decode_method = "MPPE";
     #endif
-        if (decrypted_len < 2)
-            return;
-        protocol = (uint16_t) (((uint16_t) decrypted[0] << 8) | decrypted[1]);
-        data = decrypted + 2;
-        data_len = (int) decrypted_len - 2;
+        if (ctx->ccp_rx_method == PPP_CCP_METHOD_MPPC) {
+            int decompressed_len;
+            if (!ppp_ccp_codec_decompress(ctx, decrypted, (int) decrypted_len,
+                                          decompressed, sizeof(decompressed),
+                                          &decompressed_len)
+                || decompressed_len < 2)
+                return;
+            protocol = (uint16_t) (((uint16_t) decompressed[0] << 8)
+                                 | decompressed[1]);
+            data = decompressed + 2;
+            data_len = decompressed_len - 2;
+        } else {
+            if (decrypted_len < 2)
+                return;
+            protocol = (uint16_t) (((uint16_t) decrypted[0] << 8) | decrypted[1]);
+            data = decrypted + 2;
+            data_len = (int) decrypted_len - 2;
+        }
         if (protocol < PPP_PROTO_IP || protocol > 0x00FA)
             return;
     } else if (protocol == PPP_PROTO_MPPE
