@@ -1086,7 +1086,6 @@ lzs_extended_decompress(ppp_ctx_t *ctx, ppp_ccp_codec_state_t *codec,
             return false;
         memcpy(output, input + 2, (size_t) payload_len);
         *output_len = payload_len;
-        state->rx_history_length = 0;
     }
 
     state->rx_count = (uint16_t) ((count + 1) & 0x0FFF);
