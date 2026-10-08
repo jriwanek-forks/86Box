@@ -36,6 +36,7 @@
 #define CCP_MPPE_56 0x00000080u
 #define CCP_MPPE_40 0x00000020u
 #define CCP_MPPE_KEY_BITS (CCP_MPPE_128 | CCP_MPPE_56 | CCP_MPPE_40)
+#define CCP_MPPC 0x00000001u
 #define CCP_MPPE_OFFER (CCP_MPPE_STATELESS | CCP_MPPE_KEY_BITS)
 #define CCP_NT31RAS_FEATURES 0x0000000Fu
 
@@ -231,7 +232,7 @@ ccp_log_packet(ppp_ctx_t *ctx, const char *direction, const uint8_t *pkt, int to
         if (type == CCP_OPT_MPPE && option_len == 6) {
             MODEM_DEBUG_LOG(ctx->log, " bits=0x%08X mppc=%s key-40=%s key-56=%s "
                             "key-128=%s stateless=%s",
-                            (unsigned) value, value == 1 ? "yes" : "no",
+                            (unsigned) value, (value & CCP_MPPC) ? "yes" : "no",
                             (value & CCP_MPPE_40) ? "yes" : "no",
                             (value & CCP_MPPE_56) ? "yes" : "no",
                             (value & CCP_MPPE_128) ? "yes" : "no",
@@ -269,9 +270,9 @@ ccp_log_packet(ppp_ctx_t *ctx, const char *direction, const uint8_t *pkt, int to
 static void
 ccp_log_state(ppp_ctx_t *ctx, const char *event)
 {
-    const char *tx_method = ctx->ccp_tx_bits
+    const char *tx_method = (ctx->ccp_tx_bits & CCP_MPPE_KEY_BITS)
                           ? "MPPE" : ppp_ccp_method_name(ctx->ccp_tx_method);
-    const char *rx_method = ctx->ccp_request_bits
+    const char *rx_method = (ctx->ccp_request_bits & CCP_MPPE_KEY_BITS)
                           ? "MPPE" : ppp_ccp_method_name(ctx->ccp_rx_method);
 
     MODEM_DEBUG_LOG(ctx->log, "CCP: %s open=%s tx-method=%s rx-method=%s "
@@ -298,7 +299,8 @@ ccp_update_state(ppp_ctx_t *ctx)
     ctx->mppe_tx_enabled = ctx->ccp_open && ctx->ccp_peer_mppe
                         && ctx->mppe_keys_ready;
     ctx->mppe_rx_enabled = ctx->ccp_open && ctx->ccp_ack_received
-                        && ctx->mppe_keys_ready;
+                        && ctx->mppe_keys_ready
+                        && (ctx->ccp_request_bits & CCP_MPPE_KEY_BITS) != 0;
     ccp_log_state(ctx, "state");
 }
 
@@ -480,13 +482,14 @@ static bool
 ccp_parse_mppe_nak(const uint8_t *pkt, int total, uint32_t *bits)
 {
     uint32_t proposed;
+    uint32_t key_bits;
     if (total != 10 || pkt[4] != CCP_OPT_MPPE || pkt[5] != 6)
         return false;
     proposed = ccp_get_u32(pkt + 6);
-    if ((proposed & ~CCP_MPPE_OFFER) != 0
-        || (proposed & CCP_MPPE_KEY_BITS) == 0
-        || ((proposed & CCP_MPPE_KEY_BITS)
-            & ((proposed & CCP_MPPE_KEY_BITS) - 1)) != 0)
+    key_bits = proposed & CCP_MPPE_KEY_BITS;
+    if ((proposed & ~(CCP_MPPE_OFFER | CCP_MPPC)) != 0
+        || (key_bits != 0 && (key_bits & (key_bits - 1)) != 0)
+        || (key_bits == 0 && (proposed & CCP_MPPC) == 0))
         return false;
     *bits = proposed;
     return true;
@@ -539,7 +542,7 @@ ccp_retry_nt31ras_nak(ppp_ctx_t *ctx, const uint8_t *pkt, int total)
 static uint32_t
 ccp_preferred_bits(uint32_t requested)
 {
-    uint32_t mode = requested & CCP_MPPE_STATELESS;
+    uint32_t mode = requested & (CCP_MPPE_STATELESS | CCP_MPPC);
     uint32_t keys = requested & CCP_MPPE_KEY_BITS;
     uint32_t key = keys & CCP_MPPE_128 ? CCP_MPPE_128
                  : keys & CCP_MPPE_56 ? CCP_MPPE_56
@@ -616,11 +619,11 @@ ccp_handle_config_request(ppp_ctx_t *ctx, const uint8_t *pkt, int total)
     while (pos < total) {
         uint8_t option_len = pkt[pos + 1];
         if (pkt[pos] == CCP_OPT_PREDICTOR1 && option_len == 2 && !saw_predictor1
-            && selected_method == PPP_CCP_METHOD_NONE) {
+            && selected_method == PPP_CCP_METHOD_NONE && ctx->mppe_min_bits == 0) {
             saw_predictor1 = true;
             selected_method = PPP_CCP_METHOD_PREDICTOR1;
         } else if (pkt[pos] == CCP_OPT_PREDICTOR2 && option_len == 2 && !saw_predictor2
-                   && selected_method == PPP_CCP_METHOD_NONE) {
+                   && selected_method == PPP_CCP_METHOD_NONE && ctx->mppe_min_bits == 0) {
             saw_predictor2 = true;
             selected_method = PPP_CCP_METHOD_PREDICTOR2;
         } else if (pkt[pos] == CCP_OPT_LZS && option_len == 5 && !saw_lzs) {
@@ -633,16 +636,14 @@ ccp_handle_config_request(ppp_ctx_t *ctx, const uint8_t *pkt, int total)
                 rej_len += option_len;
             } else if (history_count == 1 && check_mode == 4) {
                 selected_method = PPP_CCP_METHOD_LZS_EXTENDED;
-            } else if (history_count == 1 && check_mode == 3) {
+            } else if (history_count <= 1 && check_mode <= 3) {
                 selected_method = PPP_CCP_METHOD_LZS;
-            } else if (history_count != 0 || check_mode != 0) {
+            } else {
                 nak[nak_len++] = CCP_OPT_LZS;
                 nak[nak_len++] = 5;
                 nak[nak_len++] = 0;
                 nak[nak_len++] = 1;
-                nak[nak_len++] = 4;
-            } else {
-                selected_method = PPP_CCP_METHOD_LZS;
+                nak[nak_len++] = 3;
             }
         } else if (pkt[pos] == CCP_OPT_LZS_DCP && option_len == 6 && !saw_lzs_dcp) {
             uint16_t history_count = (uint16_t) (((uint16_t) pkt[pos + 2] << 8)
@@ -685,7 +686,7 @@ ccp_handle_config_request(ppp_ctx_t *ctx, const uint8_t *pkt, int total)
             saw_bsd = true;
             uint8_t version = pkt[pos + 2] >> 5;
             uint8_t dictionary_bits = pkt[pos + 2] & 0x1F;
-            if (selected_method != PPP_CCP_METHOD_NONE
+            if (selected_method != PPP_CCP_METHOD_NONE || ctx->mppe_min_bits > 0
                 || version != 1 || dictionary_bits < 9 || dictionary_bits > 16) {
                 memcpy(rej + rej_len, pkt + pos, option_len);
                 rej_len += option_len;
@@ -698,7 +699,7 @@ ccp_handle_config_request(ppp_ctx_t *ctx, const uint8_t *pkt, int total)
                 selected_tx_bsd_bits = dictionary_bits;
             }
         } else if (pkt[pos] == CCP_OPT_NT31RAS && option_len == 22 && !saw_nt31ras
-                   && selected_method == PPP_CCP_METHOD_NONE) {
+                   && selected_method == PPP_CCP_METHOD_NONE && ctx->mppe_min_bits == 0) {
             uint32_t send_features = ccp_get_le_u32(pkt + pos + 2);
             uint32_t recv_features = ccp_get_le_u32(pkt + pos + 6);
             uint32_t max_send = ccp_get_le_u32(pkt + pos + 10);
@@ -718,9 +719,14 @@ ccp_handle_config_request(ppp_ctx_t *ctx, const uint8_t *pkt, int total)
             }
         } else if (pkt[pos] == CCP_OPT_MPPE && option_len == 6 && !saw_mppe) {
             uint32_t bits = ccp_get_u32(pkt + pos + 2);
+            uint32_t key_bits = bits & CCP_MPPE_KEY_BITS;
             saw_mppe = true;
-            if (bits == 1) {
-                if (selected_method == PPP_CCP_METHOD_NONE)
+            if ((bits & ~(CCP_MPPC | CCP_MPPE_OFFER)) != 0
+                || (key_bits == 0 && bits != CCP_MPPC)) {
+                memcpy(rej + rej_len, pkt + pos, option_len);
+                rej_len += option_len;
+            } else if ((bits & CCP_MPPE_KEY_BITS) == 0) {
+                if (selected_method == PPP_CCP_METHOD_NONE && ctx->mppe_min_bits == 0)
                     selected_method = PPP_CCP_METHOD_MPPC;
                 else {
                     memcpy(rej + rej_len, pkt + pos, option_len);
@@ -729,24 +735,31 @@ ccp_handle_config_request(ppp_ctx_t *ctx, const uint8_t *pkt, int total)
             } else if (!ctx->mppe_keys_ready) {
                 memcpy(rej + rej_len, pkt + pos, option_len);
                 rej_len += option_len;
-            } else if ((bits & ~CCP_MPPE_OFFER) != 0
-                       || (bits & CCP_MPPE_KEY_BITS) == 0
-                       || ((bits & CCP_MPPE_KEY_BITS)
-                           & ((bits & CCP_MPPE_KEY_BITS) - 1)) != 0
-                       || ccp_key_bits_to_length(bits) < ctx->mppe_min_bits) {
+            } else if ((key_bits & (key_bits - 1)) != 0) {
                 uint32_t suggested = ccp_preferred_bits(bits);
                 if (ctx->mppe_min_bits > 0
                     && ccp_key_bits_to_length(suggested) < ctx->mppe_min_bits)
-                    suggested = (bits & CCP_MPPE_STATELESS)
+                    suggested = (bits & (CCP_MPPE_STATELESS | CCP_MPPC))
+                              | ccp_minimum_key_bit(ctx->mppe_min_bits);
+                nak[nak_len++] = CCP_OPT_MPPE;
+                nak[nak_len++] = 6;
+                ccp_put_u32(nak + nak_len, suggested);
+                nak_len += 4;
+            } else if (ccp_key_bits_to_length(bits) < ctx->mppe_min_bits) {
+                uint32_t suggested = ccp_preferred_bits(bits);
+                if (ctx->mppe_min_bits > 0
+                    && ccp_key_bits_to_length(suggested) < ctx->mppe_min_bits)
+                    suggested = (bits & (CCP_MPPE_STATELESS | CCP_MPPC))
                               | ccp_minimum_key_bit(ctx->mppe_min_bits);
                 nak[nak_len++] = CCP_OPT_MPPE;
                 nak[nak_len++] = 6;
                 ccp_put_u32(nak + nak_len, suggested);
                 nak_len += 4;
             } else {
-                selected_bits = bits;
+                selected_bits = bits & (CCP_MPPE_STATELESS | CCP_MPPE_KEY_BITS);
                 if (selected_method == PPP_CCP_METHOD_NONE)
-                    selected_method = PPP_CCP_METHOD_MPPE;
+                    selected_method = (bits & CCP_MPPC)
+                                    ? PPP_CCP_METHOD_MPPC : PPP_CCP_METHOD_MPPE;
                 else {
                     memcpy(rej + rej_len, pkt + pos, option_len);
                     rej_len += option_len;
@@ -771,10 +784,25 @@ ccp_handle_config_request(ppp_ctx_t *ctx, const uint8_t *pkt, int total)
         ctx->ccp_tx_bits = selected_bits;
         if (selected_method == PPP_CCP_METHOD_BSD)
             ctx->ccp_tx_bsd_bits = selected_tx_bsd_bits;
-        if (selected_method != PPP_CCP_METHOD_MPPE
-            && !ppp_ccp_codec_set_window(ctx, true, selected_method,
-                                         selected_method == PPP_CCP_METHOD_NT31RAS
-                                             ? selected_tx_window : 8192)) {
+        uint16_t lzs_history_count = 1;
+        uint8_t lzs_check_mode = 3;
+        if (selected_method == PPP_CCP_METHOD_LZS) {
+            for (int option_pos = 4; option_pos < total; option_pos += pkt[option_pos + 1]) {
+                if (pkt[option_pos] == CCP_OPT_LZS) {
+                    lzs_history_count = (uint16_t) (((uint16_t) pkt[option_pos + 2] << 8)
+                                                  | pkt[option_pos + 3]);
+                    lzs_check_mode = pkt[option_pos + 4];
+                    break;
+                }
+            }
+        }
+        if (selected_method == PPP_CCP_METHOD_LZS
+            ? !ppp_ccp_codec_set_lzs(ctx, true, selected_method,
+                                     lzs_history_count, lzs_check_mode)
+            : selected_method != PPP_CCP_METHOD_MPPE
+              && !ppp_ccp_codec_set_window(ctx, true, selected_method,
+                                           selected_method == PPP_CCP_METHOD_NT31RAS
+                                               ? selected_tx_window : 8192)) {
             ctx->state = PPP_STATE_DEAD;
             return;
         }
@@ -820,11 +848,11 @@ ppp_ccp_start(ppp_ctx_t *ctx)
     ctx->ras_rx_expected = 0;
     ctx->ras_rx_in_frame = false;
     if (ctx->mppe_keys_ready) {
-        uint32_t offer = CCP_MPPE_STATELESS | CCP_MPPE_KEY_BITS;
+        uint32_t offer = CCP_MPPC | CCP_MPPE_STATELESS | CCP_MPPE_KEY_BITS;
         if (ctx->mppe_min_bits >= 128)
-            offer = CCP_MPPE_STATELESS | CCP_MPPE_128;
+            offer = CCP_MPPC | CCP_MPPE_STATELESS | CCP_MPPE_128;
         else if (ctx->mppe_min_bits >= 56)
-            offer = CCP_MPPE_STATELESS | CCP_MPPE_128 | CCP_MPPE_56;
+            offer = CCP_MPPC | CCP_MPPE_STATELESS | CCP_MPPE_128 | CCP_MPPE_56;
         ccp_send_request(ctx, offer);
     } else if (ctx->mppe_min_bits > 0) {
         ctx->state = PPP_STATE_DEAD;
@@ -853,11 +881,19 @@ ppp_ccp_process(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
             if (ccp_response_matches_request(ctx, pkt, total)) {
                 ctx->ccp_req_sent = false;
                 ctx->ccp_ack_received = true;
-                if (ctx->ccp_request_bits != 0) {
+                if ((ctx->ccp_request_bits & CCP_MPPE_KEY_BITS) != 0) {
                     ppp_mppe_configure(&ctx->mppe_rx,
                                        ccp_key_bits_to_length(ctx->ccp_request_bits),
                                        !(ctx->ccp_request_bits & CCP_MPPE_STATELESS));
-                    ppp_ccp_codec_set(ctx, false, PPP_CCP_METHOD_NONE);
+                    if (ctx->ccp_request_bits & CCP_MPPC)
+                        ppp_ccp_codec_set(ctx, false, PPP_CCP_METHOD_MPPC);
+                    else
+                        ppp_ccp_codec_set(ctx, false, PPP_CCP_METHOD_NONE);
+                } else if (ctx->ccp_request_bits & CCP_MPPC) {
+                    if (!ppp_ccp_codec_set(ctx, false, PPP_CCP_METHOD_MPPC)) {
+                        ctx->state = PPP_STATE_DEAD;
+                        break;
+                    }
                 } else if (ctx->ccp_request_method == PPP_CCP_METHOD_NT31RAS) {
                     uint32_t recv_features = ccp_get_le_u32(ctx->ccp_request + 10);
                     ctx->ccp_rx_window_size = ccp_nt31ras_window_size(recv_features);
@@ -872,6 +908,16 @@ ppp_ccp_process(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
                     ctx->ccp_rx_bsd_bits = ctx->ccp_request[6] & 0x1F;
                     if (!ppp_ccp_codec_set_window(ctx, false,
                                                   ctx->ccp_request_method, 8192)) {
+                        ctx->state = PPP_STATE_DEAD;
+                        break;
+                    }
+                } else if (ctx->ccp_request_method == PPP_CCP_METHOD_LZS
+                           || ctx->ccp_request_method == PPP_CCP_METHOD_LZS_EXTENDED) {
+                    uint16_t history_count = (uint16_t) (((uint16_t) ctx->ccp_request[6] << 8)
+                                                        | ctx->ccp_request[7]);
+                    uint8_t check_mode = ctx->ccp_request[8];
+                    if (!ppp_ccp_codec_set_lzs(ctx, false, ctx->ccp_request_method,
+                                               history_count, check_mode)) {
                         ctx->state = PPP_STATE_DEAD;
                         break;
                     }
@@ -890,7 +936,10 @@ ppp_ccp_process(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
                 if (ctx->ccp_req_sent && pkt[1] == ctx->ccp_request_id
                     && ccp_parse_mppe_nak(pkt, total, &proposed_bits)
                     && (proposed_bits & ~ctx->ccp_request_bits) == 0
-                    && ccp_key_bits_to_length(proposed_bits) >= ctx->mppe_min_bits
+                    && (((proposed_bits & CCP_MPPE_KEY_BITS) == 0
+                         && ctx->mppe_min_bits == 0)
+                        || ((proposed_bits & CCP_MPPE_KEY_BITS) != 0
+                            && ccp_key_bits_to_length(proposed_bits) >= ctx->mppe_min_bits))
                     && ctx->ccp_retries++ < 10) {
                     ctx->ccp_req_sent = false;
                     ctx->ccp_ack_received = false;

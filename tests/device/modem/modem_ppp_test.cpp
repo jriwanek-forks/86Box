@@ -322,9 +322,7 @@ TEST(ModemPpp, LzsExtendedResynchronizesAfterCoherencyMismatch)
     uint16_t protocol = 0;
     std::vector<uint8_t> payload = decode_captured_frame(tx_wire, protocol);
     ASSERT_EQ(protocol, PPP_PROTO_MPPE);
-    ASSERT_EQ(payload[0], 0);
-    ASSERT_EQ(payload[1], 0xFD);
-    EXPECT_EQ(payload[2] & 0xA0, 0xA0);
+    EXPECT_EQ(payload[0] & 0xA0, 0xA0);
     send_frame(&rx, payload, false, protocol);
     EXPECT_EQ(rx_wire, packet);
 
@@ -333,9 +331,9 @@ TEST(ModemPpp, LzsExtendedResynchronizesAfterCoherencyMismatch)
     ppp_send_frame(&tx, PPP_PROTO_IP, packet.data(), static_cast<int>(packet.size()));
     payload = decode_captured_frame(tx_wire, protocol);
     ASSERT_EQ(protocol, PPP_PROTO_MPPE);
-    EXPECT_EQ(payload[2] & 0x80, 0);
-    ASSERT_EQ(payload[3], 1);
-    payload[3] = 2;
+    EXPECT_EQ(payload[0] & 0x80, 0);
+    ASSERT_EQ(payload[1], 1);
+    payload[1] = 2;
     send_frame(&rx, payload, false, protocol);
     EXPECT_TRUE(rx.ccp_reset_pending);
 
@@ -354,8 +352,8 @@ TEST(ModemPpp, LzsExtendedResynchronizesAfterCoherencyMismatch)
     ppp_send_frame(&tx, PPP_PROTO_IP, packet.data(), static_cast<int>(packet.size()));
     payload = decode_captured_frame(tx_wire, protocol);
     ASSERT_EQ(protocol, PPP_PROTO_MPPE);
-    EXPECT_NE(payload[2] & 0x80, 0);
-    ASSERT_EQ(payload[3], 2);
+    EXPECT_NE(payload[0] & 0x80, 0);
+    ASSERT_EQ(payload[1], 2);
     rx_wire.clear();
     send_frame(&rx, payload, false, protocol);
     EXPECT_FALSE(rx.ccp_reset_pending);
@@ -469,6 +467,45 @@ TEST(ModemPpp, EncryptsNegotiatedPayloadAndRejectsPlaintext)
     received.clear();
     send_frame(&rx, ip_packet, false, PPP_PROTO_IP);
     EXPECT_TRUE(received.empty());
+}
+
+TEST(ModemPpp, AppliesMppcBeforeMppeAndReversesBothOnReceive)
+{
+    ppp_ctx_t tx = make_context();
+    ppp_ctx_t rx = make_context();
+    std::vector<uint8_t> wire;
+    std::vector<uint8_t> received;
+    tx.state = PPP_STATE_NETWORK;
+    tx.modem = &wire;
+    tx.serial_push = capture_serial;
+    tx.ccp_open = true;
+    tx.ccp_tx_method = PPP_CCP_METHOD_MPPC;
+    tx.mppe_keys_ready = true;
+    tx.mppe_tx_enabled = true;
+    ASSERT_TRUE(ppp_ccp_codec_set(&tx, true, PPP_CCP_METHOD_MPPC));
+    ASSERT_TRUE(ppp_mppe_configure(&tx.mppe_tx, 128, false));
+    rx.state = PPP_STATE_NETWORK;
+    rx.modem = &received;
+    rx.network_send_ip = capture_network;
+    rx.ccp_open = true;
+    rx.ccp_rx_method = PPP_CCP_METHOD_MPPC;
+    rx.mppe_keys_ready = true;
+    rx.mppe_rx_enabled = true;
+    ASSERT_TRUE(ppp_ccp_codec_set(&rx, false, PPP_CCP_METHOD_MPPC));
+    ASSERT_TRUE(ppp_mppe_configure(&rx.mppe_rx, 128, false));
+
+    std::vector<uint8_t> ip_packet(128);
+    for (size_t index = 0; index < ip_packet.size(); index++)
+        ip_packet[index] = static_cast<uint8_t>((index / 8) % 4);
+    ppp_send_frame(&tx, PPP_PROTO_IP, ip_packet.data(), static_cast<int>(ip_packet.size()));
+
+    uint16_t protocol = 0;
+    std::vector<uint8_t> payload = decode_captured_frame(wire, protocol);
+    ASSERT_EQ(protocol, PPP_PROTO_MPPE);
+    send_frame(&rx, payload, false, protocol);
+    EXPECT_EQ(received, ip_packet);
+    ppp_ccp_codec_close(&tx);
+    ppp_ccp_codec_close(&rx);
 }
 
 TEST(ModemPpp, TransportsStacLzsAndUsesNativeProtocolWhenItExpands)
@@ -967,6 +1004,24 @@ TEST(ModemPpp, ConfigureRejectCannotDisablePapAuthentication)
 
     EXPECT_EQ(ctx.state, PPP_STATE_DEAD);
     EXPECT_EQ(ctx.auth_type, PPP_AUTH_PAP);
+}
+
+TEST(ModemPpp, StartsOptionalCcpAfterPapWithoutMppeKeys)
+{
+    ppp_ctx_t ctx = make_context();
+    std::vector<uint8_t> wire;
+    ctx.state = PPP_STATE_AUTH;
+    ctx.auth_type = PPP_AUTH_PAP;
+    ctx.auth_complete = true;
+    ctx.modem = &wire;
+    ctx.serial_push = capture_serial;
+
+    ppp_advance_state(&ctx);
+
+    EXPECT_EQ(ctx.state, PPP_STATE_IPCP_NEGOTIATE);
+    EXPECT_FALSE(ctx.mppe_keys_ready);
+    EXPECT_TRUE(ctx.ccp_req_sent);
+    EXPECT_EQ(ctx.ccp_request_method, PPP_CCP_METHOD_DEFLATE);
 }
 
 TEST(ModemPpp, IgnoresStaleConfigureNak)
