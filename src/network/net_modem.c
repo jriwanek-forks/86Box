@@ -361,7 +361,8 @@ typedef struct modem_t {
     void      *log;
     uint8_t   mac[6];
     serial_t *serial;
-    uint32_t  baudrate;
+    uint32_t  baudrate;       /* Configured maximum DTE rate. */
+    uint32_t  dte_baudrate;   /* Effective rate detected from the guest UART. */
 
     modem_mode_t mode;
 
@@ -1155,15 +1156,40 @@ modem_fetch_character(char **scan)
 }
 
 static void
+modem_update_dte_baudrate(modem_t *modem, serial_t *serial)
+{
+    uint32_t baudrate;
+
+    if (!modem || !serial || serial->transmit_period <= 0.0)
+        return;
+
+    baudrate = (uint32_t) (1000000.0 / serial->transmit_period + 0.5);
+    if (!baudrate)
+        return;
+    if (modem->baudrate && baudrate > modem->baudrate)
+        baudrate = modem->baudrate;
+    if (baudrate == modem->dte_baudrate)
+        return;
+
+    modem->dte_baudrate = baudrate;
+    timer_stop(&modem->host_to_serial_timer);
+    timer_on_auto(&modem->host_to_serial_timer,
+                  (1000000.0 / (double) modem->dte_baudrate) * 9.0);
+}
+
+static void
 modem_speed_changed(void *priv)
 {
     modem_t *dev = (modem_t *) priv;
     if (!dev)
         return;
 
+    if (!dev->dte_baudrate || dev->dte_baudrate > dev->baudrate)
+        dev->dte_baudrate = dev->baudrate;
+
     timer_stop(&dev->host_to_serial_timer);
-    /* FIXME: do something to dev->baudrate */
-    timer_on_auto(&dev->host_to_serial_timer, (1000000.0 / (double) dev->baudrate) * 9);
+    timer_on_auto(&dev->host_to_serial_timer,
+                  (1000000.0 / (double) dev->dte_baudrate) * 9.0);
 #if 0
     if (dev->serial)
         serial_clear_fifo(dev->serial);
@@ -1444,13 +1470,18 @@ no_write_to_machine:
         timer_on_auto(&modem->host_to_serial_timer, voice_byte_us);
     } else
         timer_on_auto(&modem->host_to_serial_timer,
-                      (1000000.0 / (double) modem->baudrate) * (double) 9);
+                      (1000000.0 / (double) modem->dte_baudrate) * 9.0);
 }
 
 static void
-modem_write(UNUSED(serial_t *s), void *priv, uint8_t txval)
+modem_write(serial_t *s, void *priv, uint8_t txval)
 {
     modem_t *modem = (modem_t *) priv;
+
+    /* Windows 9x probes modems at multiple UART rates during autodetection.
+       Pace responses at the guest's current rate, capped by the configured
+       modem rate, rather than always using the configured maximum. */
+    modem_update_dte_baudrate(modem, s);
 
     if (modem->mode == MODEM_MODE_COMMAND) {
         if (modem->cmdpos < 2) {
@@ -1539,7 +1570,7 @@ modem_send_res(modem_t *modem, const ResTypes response)
     const char *response_str              = NULL;
     uint32_t    code                      = -1;
 
-    snprintf(response_str_connect, sizeof(response_str_connect), "CONNECT %u", modem->baudrate);
+    snprintf(response_str_connect, sizeof(response_str_connect), "CONNECT %u", modem->dte_baudrate);
 
     switch (response) {
         case ResOK:
@@ -3267,8 +3298,8 @@ modem_rcr_cb(UNUSED(struct serial_s *serial), void *priv)
     modem_t *dev = (modem_t *) priv;
 
     timer_stop(&dev->host_to_serial_timer);
-    /* FIXME: do something to dev->baudrate */
-    timer_on_auto(&dev->host_to_serial_timer, (1000000.0 / (double) dev->baudrate) * (double) 9);
+    timer_on_auto(&dev->host_to_serial_timer,
+                  (1000000.0 / (double) dev->dte_baudrate) * 9.0);
 #if 0
     if (dev->serial)
         serial_clear_fifo(dev->serial);
@@ -3506,6 +3537,7 @@ modem_init(UNUSED(const device_t *info))
 
     modem->port        = device_get_config_int("port");
     modem->baudrate    = device_get_config_int("baudrate");
+    modem->dte_baudrate = modem->baudrate;
     modem->modem_identity = device_get_config_int("modem_identity");
     modem->sound = modem_sound_init();
     sound_in_add_handler(modem_voice_capture, modem);
@@ -3657,6 +3689,7 @@ static const device_config_t modem_config[] = {
             { .description =   "1200", .value =   1200 },
             { .description =    "600", .value =    600 },
             { .description =    "300", .value =    300 },
+            { .description =    "110", .value =    110 },
             { .description = ""                        }
         },
         .bios           = { { 0 } }
