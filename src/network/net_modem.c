@@ -346,6 +346,8 @@ typedef enum modem_slip_stage_t {
 
 #define COMMAND_BUFFER_SIZE 512
 #define NUMBER_BUFFER_SIZE  128
+#define MODEM_LOCAL_DIAL_SOUND_NUMBER "+18007160023"
+#define MODEM_SOUND_DIAL_CONNECT_AFTER (1 << 9)
 #define PHONEBOOK_SIZE      256
 #define MODEM_REGS          100
 #define MODEM_VOICE_PLAYBACK_BUFFER_SIZE (VOICE_LINE_RATE * 2)
@@ -380,6 +382,7 @@ typedef struct modem_t {
     char     prevcmdbuf[COMMAND_BUFFER_SIZE];
     char     numberinprogress[NUMBER_BUFFER_SIZE];
     char     lastnumber[NUMBER_BUFFER_SIZE];
+    char     dial_sound_number[NUMBER_BUFFER_SIZE];
     uint32_t cmdpos;
     uint32_t port;
     int      plusinc;
@@ -1750,6 +1753,10 @@ modem_reset(modem_t *modem)
 void
 modem_dial(modem_t *modem, const char *str)
 {
+    char sound_number[NUMBER_BUFFER_SIZE];
+    snprintf(sound_number, sizeof(sound_number), "%s",
+             modem->dial_sound_number[0] ? modem->dial_sound_number : str);
+    modem->dial_sound_number[0] = 0;
     modem->tcpIpConnCounter = 0;
     modem->tcpIpMode        = false;
     if (!strcmp(str, "0.0.0.0") || !strcmp(str, "0000")) {
@@ -1818,6 +1825,9 @@ modem_dial(modem_t *modem, const char *str)
                 slip_auth_start(modem->slip_auth_ctx);
             }
         }
+        modem_sound_event(modem->sound, MODEM_SOUND_DIAL, MODEM_LOCAL_DIAL_SOUND_NUMBER,
+                          (modem->reg[8] & 0xff) | (modem->pulse_dial << 8)
+                              | MODEM_SOUND_DIAL_CONNECT_AFTER);
     } else {
         char buf[NUMBER_BUFFER_SIZE] = "";
         strncpy(buf, str, sizeof(buf) - 1);
@@ -1838,10 +1848,10 @@ modem_dial(modem_t *modem, const char *str)
         modem->call_progress_active = true;
         modem->call_answer_sound_started = false;
         modem->call_progress_elapsed_ms = 0;
-        modem->call_answer_at_ms = modem_sound_dial_ms(str, modem->reg[8], modem->pulse_dial)
+        modem->call_answer_at_ms = modem_sound_dial_ms(sound_number, modem->reg[8], modem->pulse_dial)
                        + modem_sound_ring_ms();
         modem->call_connect_at_ms = modem->call_answer_at_ms + modem_sound_handshake_ms();
-        modem_sound_event(modem->sound, MODEM_SOUND_DIAL, str,
+        modem_sound_event(modem->sound, MODEM_SOUND_DIAL, sound_number,
                   (modem->reg[8] & 0xff) | (modem->pulse_dial << 8));
         modem->clientsocket        = plat_netsocket_create(NET_SOCKET_TCP);
         if (modem->clientsocket == -1) {
@@ -2666,8 +2676,12 @@ modem_do_command(modem_t *modem, int repeat)
                     }
 
                     modem_log(modem->log, "Dialing number %s\n", foundstr);
+                    char dial_sound_number[NUMBER_BUFFER_SIZE];
+                    snprintf(dial_sound_number, sizeof(dial_sound_number), "%s", foundstr);
                     mappedaddr = modem_get_address_from_phonebook(modem, foundstr);
                     if (mappedaddr) {
+                        snprintf(modem->dial_sound_number, sizeof(modem->dial_sound_number), "%s",
+                                 dial_sound_number);
                         modem_dial(modem, mappedaddr);
                         return;
                     }
@@ -2722,6 +2736,8 @@ modem_do_command(modem_t *modem, int repeat)
                             foundstr   = obuffer;
                         }
                     }
+                    snprintf(modem->dial_sound_number, sizeof(modem->dial_sound_number), "%s",
+                             dial_sound_number);
                     modem_dial(modem, foundstr);
                     return;
                 }
