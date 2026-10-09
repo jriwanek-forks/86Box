@@ -76,4 +76,4 @@ bool   ppp_mppp_encode_header(uint8_t *header, size_t capacity, bool short_seque
 }
 #endif
 
-#endif
+#endif /* MODEM_MPPP_H */

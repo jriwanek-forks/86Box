@@ -52,107 +52,130 @@ typedef struct ppp_mppe_state_t {
 } ppp_mppe_state_t;
 
 /* PPP HDLC framing constants */
-#define PPP_FLAG     0x7E
-#define PPP_ESCAPE   0x7D
-#define PPP_ADDRESS  0xFF
-#define PPP_CONTROL  0x03
+#define PPP_FLAG      0x7E       /* Async HDLC Flag Sequence (RFC 1662) */
+#define PPP_ESCAPE    0x7D       /* Asynchronous Control Octet Escape (RFC 1662) */
+#define PPP_TRANS     0x20       /* Control Octet Transparency Modifier (XOR value, RFC 1662) */
+#define PPP_ADDRESS   0xFF       /* All-Stations Address Field (RFC 1662) */
+#define PPP_CONTROL   0x03       /* Unnumbered Information (UI) Control Field (RFC 1662) */
+#define PPP_INITFCS   0xFFFF     /* Initial FCS 16-bit CRC Seed (RFC 1662) */
+#define PPP_GOODFCS   0xF0B8     /* Valid 16-bit FCS Checksum Constant (RFC 1662) */
+#define PPP_INITFCS32 0xFFFFFFFF /* Initial FCS 32-bit CRC Seed (RFC 1662) */
+#define PPP_GOODFCS32 0xDEBB20E3 /* Valid 32-bit FCS Checksum Constant (RFC 1662) */
 
-/* PPP protocol numbers */
-#define PPP_PROTO_IP   0x0021
-#define PPP_PROTO_IPCP 0x8021
-#define PPP_PROTO_LCP  0xC021
-#define PPP_PROTO_PAP  0xC023
-#define PPP_PROTO_CHAP 0xC223
-#define PPP_PROTO_EAP  0xC227
-#define PPP_PROTO_VJ_COMPRESSED 0x002D
-#define PPP_PROTO_VJ_UNCOMPRESSED 0x002F
-#define PPP_PROTO_CCP  0x80FD
-#define PPP_PROTO_MPPE 0x00FD
+/* PPP Protocol Numbers */
+#define PPP_PROTO_IP              0x0021 /* Internet Protocol (RFC 1661) */
+#define PPP_PROTO_VJ_COMPRESSED   0x002D /* Van Jacobson Compressed TCP/IP (RFC 1144 / RFC 1332) */
+#define PPP_PROTO_VJ_UNCOMPRESSED 0x002F /* Van Jacobson Uncompressed TCP/IP (RFC 1144 / RFC 1332) */
+#define PPP_PROTO_IPV6            0x0057 /* Internet Protocol Version 6 (RFC 5072) */
+#define PPP_PROTO_COMPRESSED      0x00FB /* Compressed Datagram / Standard CCP Encapsulated Payload (RFC 1962) */
+#define PPP_PROTO_MPPE            0x00FD /* Compressed Datagram / MPPE Payload (RFC 1962 / RFC 2419) */
+#define PPP_PROTO_IPCP            0x8021 /* Internet Protocol Control Protocol (RFC 1332) */
+#define PPP_PROTO_MPLSCP          0x802B /* MPLS Control Protocol (RFC 3032) */
+#define PPP_PROTO_IPV6CP          0x8057 /* IPv6 Control Protocol (RFC 5072) */
+#define PPP_PROTO_CCP             0x80FD /* Compression Control Protocol (RFC 1962) */
+#define PPP_PROTO_LCP             0xC021 /* Link Control Protocol (RFC 1661) */
+#define PPP_PROTO_PAP             0xC023 /* Password Authentication Protocol (RFC 1334) */
+#define PPP_PROTO_SPAP            0xC027 /* Shiva Password Authentication Protocol */
+#define PPP_PROTO_CBCP            0xC029 /* Callback Control Protocol (RFC 1570) */
+#define PPP_PROTO_BAP             0xC02D /* Bandwidth Allocation Protocol (RFC 2125) */
+#define PPP_PROTO_CHAP            0xC223 /* Challenge Handshake Authentication Protocol (RFC 1994) */
+#define PPP_PROTO_EAP             0xC227 /* Extensible Authentication Protocol (RFC 2284 / RFC 3748) */
+#define PPP_PROTO_BACP            0xC22B /* Bandwidth Allocation Control Protocol (RFC 2125) */
 
-/* LCP/IPCP packet codes */
-#define PPP_CODE_CONFIGURE_REQUEST  1
-#define PPP_CODE_CONFIGURE_ACK      2
-#define PPP_CODE_CONFIGURE_NAK      3
-#define PPP_CODE_CONFIGURE_REJECT   4
-#define PPP_CODE_TERMINATE_REQUEST  5
-#define PPP_CODE_TERMINATE_ACK      6
-#define PPP_CODE_CODE_REJECT        7
-#define PPP_CODE_PROTOCOL_REJECT    8
-#define PPP_CODE_ECHO_REQUEST       9
-#define PPP_CODE_ECHO_REPLY         10
-#define PPP_CODE_DISCARD_REQUEST    11
-#define PPP_CODE_IDENTIFICATION     12
-#define PPP_CODE_RESET_REQUEST      14
-#define PPP_CODE_RESET_ACK          15
+/* LCP/IPCP Packet Codes */
+#define PPP_CODE_VENDOR_EXTENSION   0 /* Vendor-Specific Code (RFC 2153) */
+#define PPP_CODE_CONFIGURE_REQUEST  1 /* Configure-Request (RFC 1661) */
+#define PPP_CODE_CONFIGURE_ACK      2 /* Configure-Ack (RFC 1661) */
+#define PPP_CODE_CONFIGURE_NAK      3 /* Configure-Nak (RFC 1661) */
+#define PPP_CODE_CONFIGURE_REJECT   4 /* Configure-Reject (RFC 1661) */
+#define PPP_CODE_TERMINATE_REQUEST  5 /* Terminate-Request (RFC 1661) */
+#define PPP_CODE_TERMINATE_ACK      6 /* Terminate-Ack (RFC 1661) */
+#define PPP_CODE_CODE_REJECT        7 /* Code-Reject (RFC 1661) */
+#define PPP_CODE_PROTOCOL_REJECT    8 /* Protocol-Reject (LCP Only, RFC 1661) */
+#define PPP_CODE_ECHO_REQUEST       9 /* Echo-Request (LCP Only, RFC 1661) */
+#define PPP_CODE_ECHO_REPLY        10 /* Echo-Reply (LCP Only, RFC 1661) */
+#define PPP_CODE_DISCARD_REQUEST   11 /* Discard-Request (LCP Only, RFC 1661) */
+#define PPP_CODE_IDENTIFICATION    12 /* Identification (LCP Only, RFC 1570) */
+#define PPP_CODE_TIME_REMAINING    13 /* Time-Remaining (LCP Only, RFC 1570) */
+#define PPP_CODE_RESET_REQUEST     14 /* Reset-Request (CCP/NCP Specific, RFC 1962) */
+#define PPP_CODE_RESET_ACK         15 /* Reset-Ack (CCP/NCP Specific, RFC 1962) */
+#define PPP_CODE_SKIP_ALGORITHM    16 /* Skip-Algorithm (LCP/CCP Extensions) */
+#define PPP_CODE_BONDING_COMM      17 /* Bandwidth Allocation Protocol (BAP) / Bonding Request */
 
 /* LCP option types */
-#define LCP_OPT_VENDOR_SPECIFIC  0  /* Vendor-Specific */
-#define LCP_OPT_MRU              1  /* Maximum-Receive-Unit */
-#define LCP_OPT_ACCM             2  /* Async-Control-Character-Map */
-#define LCP_OPT_AUTH_PROTO       3  /* Authentication-Protocol */
-#define LCP_OPT_QUALITY_PROTO    4  /* Quality-Protocol */
-#define LCP_OPT_MAGIC_NUMBER     5  /* Magic-Number */
-#define LCP_OPT_QUALITY_PROTO_OLD 6 /* Deprecated Quality-Protocol */
-#define LCP_OPT_PFC              7  /* Protocol-Field-Compression */
-#define LCP_OPT_ACFC             8  /* Address-and-Control-Field-Compression */
-#define LCP_OPT_FCS_ALTERNATIVES 9  /* FCS-Alternatives */
-#define LCP_OPT_SELF_DESCRIBING_PAD 10 /* Self-Describing-Pad */
-#define LCP_OPT_NUMBERED_MODE    11 /* Numbered-Mode */
-#define LCP_OPT_MULTILINK_PROCEDURE 12 /* Deprecated Multi-Link-Procedure */
-#define LCP_OPT_CALLBACK         13 /* Callback */
-#define LCP_OPT_CONNECT_TIME     14 /* Deprecated Connect-Time */
-#define LCP_OPT_COMPOUND_FRAMES  15 /* Deprecated Compound-Frames */
-#define LCP_OPT_NOMINAL_DATA_ENCAP 16 /* Deprecated Nominal-Data-Encapsulation */
-#define LCP_OPT_MRRU             17 /* Multilink Maximum-Receive-Reconstructed-Unit */
-#define LCP_OPT_SHORT_SEQUENCE   18 /* Multilink Short-Sequence-Number-Header */
-#define LCP_OPT_ENDPOINT_DISC    19 /* Multilink Endpoint Discriminator */
-#define LCP_OPT_PROPRIETARY      20 /* Proprietary */
-#define LCP_OPT_DCE_IDENTIFIER   21 /* DCE-Identifier */
-#define LCP_OPT_MULTILINK_PLUS   22 /* Multi-Link-Plus-Procedure */
-#define LCP_OPT_BACP_LINK_DISC   23 /* Link Discriminator for BACP */
-#define LCP_OPT_LCP_AUTH         24 /* LCP-Authentication-Option */
-#define LCP_OPT_COBS             25 /* Consistent Overhead Byte Stuffing */
-#define LCP_OPT_PREFIX_ELISION   26 /* Prefix elision */
-#define LCP_OPT_MULTILINK_HEADER 27 /* Multilink header format */
-#define LCP_OPT_INTERNATIONALIZATION 28 /* Internationalization */
-#define LCP_OPT_SIMPLE_SONET_LINK 29 /* Simple Data Link on SONET/SDH */
+#define LCP_OPT_VENDOR_SPECIFIC        0 /* Vendor-Specific (RFC 2153) */
+#define LCP_OPT_MRU                    1 /* Maximum-Receive-Unit (RFC 1661) */
+#define LCP_OPT_ACCM                   2 /* Async-Control-Character-Map (RFC 1662) */
+#define LCP_OPT_AUTH_PROTO             3 /* Authentication-Protocol (RFC 1661) */
+#define LCP_OPT_QUALITY_PROTO          4 /* Quality-Protocol (RFC 1661) */
+#define LCP_OPT_MAGIC_NUMBER           5 /* Magic-Number (RFC 1661) */
+#define LCP_OPT_QUALITY_PROTO_OLD      6 /* Deprecated Quality-Protocol (RFC 1172) */
+#define LCP_OPT_PFC                    7 /* Protocol-Field-Compression (RFC 1661) */
+#define LCP_OPT_ACFC                   8 /* Address-and-Control-Field-Compression (RFC 1661) */
+#define LCP_OPT_FCS_ALTERNATIVES       9 /* FCS-Alternatives (RFC 1570) */
+#define LCP_OPT_SELF_DESCRIBING_PAD   10 /* Self-Describing-Pad (RFC 1570) */
+#define LCP_OPT_NUMBERED_MODE         11 /* Numbered-Mode (RFC 1663) */
+#define LCP_OPT_MULTILINK_PROCEDURE   12 /* Deprecated Multi-Link-Procedure (RFC 1351) */
+#define LCP_OPT_CALLBACK              13 /* Callback (RFC 1570) */
+#define LCP_OPT_CONNECT_TIME          14 /* Deprecated Connect-Time (RFC 1570) */
+#define LCP_OPT_COMPOUND_FRAMES       15 /* Deprecated Compound-Frames (RFC 1570) */
+#define LCP_OPT_NOMINAL_DATA_ENCAP    16 /* Deprecated Nominal-Data-Encapsulation (RFC 1570) */
+#define LCP_OPT_MRRU                  17 /* Multilink Maximum-Receive-Reconstructed-Unit (RFC 1990) */
+#define LCP_OPT_SHORT_SEQUENCE        18 /* Multilink Short-Sequence-Number-Header (RFC 1990) */
+#define LCP_OPT_ENDPOINT_DISC         19 /* Multilink Endpoint Discriminator (RFC 1990) */
+#define LCP_OPT_PROPRIETARY           20 /* Proprietary (RFC 1570) */
+#define LCP_OPT_DCE_IDENTIFIER        21 /* DCE-Identifier (RFC 1976) */
+#define LCP_OPT_MULTILINK_PLUS        22 /* Multi-Link-Plus-Procedure (RFC 1934) */
+#define LCP_OPT_BACP_LINK_DISC        23 /* Link Discriminator for BACP (RFC 2125) */
+#define LCP_OPT_LCP_AUTH              24 /* LCP-Authentication-Option (RFC 1570 / RFC 2484) */
+#define LCP_OPT_COBS                  25 /* Consistent Overhead Byte Stuffing (RFC 2823) */
+#define LCP_OPT_PREFIX_ELISION        26 /* Prefix elision (RFC 2686) */
+#define LCP_OPT_MULTILINK_HEADER      27 /* Multilink header format (RFC 2686) */
+#define LCP_OPT_INTERNATIONALIZATION  28 /* Internationalization (RFC 2484) */
+#define LCP_OPT_SIMPLE_SONET_LINK     29 /* Simple Data Link on SONET/SDH (RFC 2823) */
+#define LCP_OPT_LOG_OR_STATUS_COLLECT 30 /* Management-Option / Log or Status Collection */
 
 /* IPCP option types */
-#define IPCP_OPT_IP_ADDRESSES  1   /* Deprecated IP-Addresses */
-#define IPCP_OPT_IP_COMPRESSION 2 /* IP-Compression-Protocol */
-#define IPCP_OPT_IP_ADDRESS    3   /* IP-Address */
-#define IPCP_OPT_MOBILE_IPV4   4   /* Mobile-IPv4 */
-#define IPCP_OPT_DNS_PRIMARY   129 /* Primary DNS Server Address */
-#define IPCP_OPT_NBNS_PRIMARY  130 /* Primary NetBIOS Name Server Address */
-#define IPCP_OPT_DNS_SECONDARY 131 /* Secondary DNS Server Address */
-#define IPCP_OPT_NBNS_SECONDARY 132 /* Secondary NetBIOS Name Server Address */
+#define IPCP_OPT_IP_ADDRESSES            1 /* Deprecated IP-Addresses (RFC 1172 / RFC 1332) */
+#define IPCP_OPT_IP_COMPRESSION          2 /* IP-Compression-Protocol (RFC 1332) */
+#define IPCP_OPT_IP_ADDRESS              3 /* IP-Address (RFC 1332)*/
+#define IPCP_OPT_MOBILE_IPV4             4 /* Mobile-IPv4 (RFC 2290)*/
+#define IPCP_OPT_DNS_PRIMARY           129 /* Primary DNS Server Address (RFC 1877) */
+#define IPCP_OPT_NBNS_PRIMARY          130 /* Primary NetBIOS Name Server Address (RFC 1877) */
+#define IPCP_OPT_DNS_SECONDARY         131 /* Secondary DNS Server Address (RFC 1877) */
+#define IPCP_OPT_NBNS_SECONDARY        132 /* Secondary NetBIOS Name Server Address (RFC 1877) */
+#define IPCP_OPT_IP_ADDRESS_ALLOCATION 144 /* IP-Address-Allocation / AT&T (RFC 2153) */
 
-#define IPCP_VJ_MAX_SLOT_ID 15
-#define IPCP_VJ_COMP_SLOT_ID 1
+#define IPCP_VJ_MAX_SLOT_ID  15 /* Maximum Van Jacobson header compression slot index (RFC 1144, 16 total slots: 0-15) */
+#define IPCP_VJ_COMP_SLOT_ID  1 /* Slot ID Compression flag bit in IPCP Option 2 (RFC 1332, 1 = allow slot ID compression) */
 
 /* Auth protocol values for LCP option 3 */
-#define PPP_AUTH_PROTO_PAP             0xC023 /* Password Authentication Protocol */
-#define PPP_AUTH_PROTO_SHIVA_PAP       0xC027 /* Shiva Password Authentication Protocol */
-#define PPP_AUTH_PROTO_CHAP            0xC223 /* Challenge-Handshake Authentication Protocol */
-#define PPP_AUTH_PROTO_RSA             0xC225 /* RSA Authentication Protocol */
-#define PPP_AUTH_PROTO_EAP             0xC227 /* Extensible Authentication Protocol */
-#define PPP_AUTH_PROTO_MITSUBISHI_SIEP 0xC229 /* Mitsubishi Security Info Exchange Protocol */
-#define PPP_AUTH_PROTO_VSAP            0xC05B /* Vendor-Specific Authentication Protocol */
-#define PPP_AUTH_PROTO_PROPRIETARY_C281 0xC281 /* Proprietary Authentication Protocol */
-#define PPP_AUTH_PROTO_PROPRIETARY_C283 0xC283 /* Proprietary Authentication Protocol */
+#define PPP_AUTH_PROTO_SPAP_OLD            0xC021 /* Shiva Password Authentication Protocol (Early/Alternate Assignment) */
+#define PPP_AUTH_PROTO_PAP                 0xC023 /* Password Authentication Protocol */
+#define PPP_AUTH_PROTO_SHIVA_PAP           0xC027 /* Shiva Password Authentication Protocol */
+#define PPP_AUTH_PROTO_DES_AUTH            0xC221 /* Individual Software Products DES Authentication Protocol */
+#define PPP_AUTH_PROTO_CHAP                0xC223 /* Challenge-Handshake Authentication Protocol */
+#define PPP_AUTH_PROTO_RSA                 0xC225 /* RSA Authentication Protocol */
+#define PPP_AUTH_PROTO_EAP                 0xC227 /* Extensible Authentication Protocol */
+#define PPP_AUTH_PROTO_MITSUBISHI_SIEP     0xC229 /* Mitsubishi Security Info Exchange Protocol */
+#define PPP_AUTH_PROTO_VSAP                0xC05B /* Vendor-Specific Authentication Protocol */
+#define PPP_AUTH_PROTO_PUBLIC_KEY          0xC26F /* Stampede Technologies Public Key Authentication Protocol */
+#define PPP_AUTH_PROTO_PROPRIETARY_C281    0xC281 /* Proprietary Authentication Protocol */
+#define PPP_AUTH_PROTO_PROPRIETARY_C283    0xC283 /* Proprietary Authentication Protocol */
+#define PPP_AUTH_PROTO_NORTEL_MSAP         0xC285 /* Nortel Proprietary Authentication Protocol (MSAP) */
 #define PPP_AUTH_PROTO_PROPRIETARY_NODE_ID 0xC481 /* Proprietary Node ID Authentication Protocol */
 
 /* CHAP algorithm values */
-#define CHAP_ALG_MD5       5     /* CHAP with MD5 */
-#define CHAP_ALG_SHA1      6     /* CHAP with SHA-1 */
-#define CHAP_ALG_SHA256    7     /* CHAP with SHA-256 */
-#define CHAP_ALG_SHA3_256  8     /* CHAP with SHA3-256 */
-#define CHAP_ALG_SHA384    9     /* CHAP with SHA-384 */
-#define CHAP_ALG_SHA3_384  10    /* CHAP with SHA3-384 */
-#define CHAP_ALG_SHA512    11    /* CHAP with SHA-512 */
-#define CHAP_ALG_SHA3_512  12    /* CHAP with SHA3-512 */
-#define CHAP_ALG_MSCHAP    0x80  /* Microsoft CHAP version 1 */
-#define CHAP_ALG_MSCHAPV2  0x81  /* Microsoft CHAP version 2 */
+#define CHAP_ALG_MD5        5   /* CHAP with MD5 (RFC 1994) */
+#define CHAP_ALG_SHA1       6   /* CHAP with SHA-1 */
+#define CHAP_ALG_SHA256     7   /* CHAP with SHA-256 */
+#define CHAP_ALG_SHA3_256   8   /* CHAP with SHA3-256 */
+#define CHAP_ALG_SHA384     9   /* CHAP with SHA-384 */
+#define CHAP_ALG_SHA3_384  10   /* CHAP with SHA3-384 */
+#define CHAP_ALG_SHA512    11   /* CHAP with SHA-512 */
+#define CHAP_ALG_SHA3_512  12   /* CHAP with SHA3-512 */
+#define CHAP_ALG_MSCHAP    0x80 /* Microsoft CHAP version 1 (RFC 2433) */
+#define CHAP_ALG_MSCHAPV2  0x81 /* Microsoft CHAP version 2 (RFC 2759) */
 
 /* PPP state machine */
 typedef enum {
@@ -187,28 +210,42 @@ typedef enum {
 struct ppp_mppp_bundle_t;
 
 /* Maximum PPP frame size */
-#define PPP_MAX_FRAME  2048
-#define PPP_DEFAULT_MRU 1500
+#define PPP_MAX_FRAME   2048 /* Maximum receive unit buffer size for raw HDLC/PPP packet framing */
+#define PPP_DEFAULT_MRU 1500 /* Default Maximum Receive Unit length (RFC 1661) */
 
-#define PPP_CCP_METHOD_NONE       0
-#define PPP_CCP_METHOD_PREDICTOR1 1
-#define PPP_CCP_METHOD_PREDICTOR2 2
-#define PPP_CCP_METHOD_LZS       17
-#define PPP_CCP_METHOD_LZS_EXTENDED 0x91
-#define PPP_CCP_METHOD_LZS_DCP   23
-#define PPP_CCP_METHOD_MPPE       18
-#define PPP_CCP_METHOD_MPPC       19
-#define PPP_CCP_METHOD_BSD        21
-#define PPP_CCP_METHOD_DEFLATE    26
-#define PPP_CCP_METHOD_V44        27
-#define PPP_CCP_METHOD_NT31RAS    254
+#define PPP_CCP_METHOD_NONE           0   /* OUI-based / Proprietary Compression (RFC 1962) */
+#define PPP_CCP_METHOD_PREDICTOR1     1   /* Predictor Type 1 (RFC 1978) */
+#define PPP_CCP_METHOD_PREDICTOR2     2   /* Predictor Type 2 (RFC 1978) */
+#define PPP_CCP_METHOD_PUDDLEJUMPER   3   /* Puddle Jumper (RFC 1962) - Not yet used */
+#define PPP_CCP_METHOD_HPPPC         16   /* Hewlett-Packard Packet-by-Packet Compression (RFC 1962) - Not yet implemented */
+#define PPP_CCP_METHOD_LZS           17   /* Stac Electronics LZS (RFC 1974) */
+#define PPP_CCP_METHOD_MPPE          18   /* Microsoft Point-to-Point Encryption / Compression (RFC 2118 / RFC 3078) */
+#define PPP_CCP_METHOD_MPPC          19   /* Incorrect - Value 19 is reserved for Gandalf FZA */
+#define PPP_CCP_METHOD_GANDALF_FZA   19   /* Gandalf FZA Compression (RFC 1962) - Not yet implemented */
+#define PPP_CCP_METHOD_V42BIS        20   /* V.42bis compression, draft assignment (RFC 1962) - Not yet implemented */
+#define PPP_CCP_METHOD_BSD           21   /* BSD Compress / LZW (RFC 1977) */
+#define PPP_CCP_METHOD_MZS           22   /* Magnalink Variable Resource Compression / MZS (RFC 1962) - Not yet implemented */
+#define PPP_CCP_METHOD_DCP           23   /* DCP Data Compression Protocol (RFC 1962) */
+#define PPP_CCP_METHOD_LZS_DCP       23   /* Alias for PPP_CCP_METHOD_DCP */
+#define PPP_CCP_METHOD_DEC           24   /* Digital Equipment Corporation Data Compression (RFC 1962) - Not yet implemented */
+#define PPP_CCP_METHOD_deflate_draft 25   /* Early Deflate draft designation - Not yet implemented */
+#define PPP_CCP_METHOD_DEFLATE       26   /* Deflate Compression (RFC 1979) */
+#define PPP_CCP_METHOD_V44           27   /* ITU-T V.44 Packet Method Compression (RFC 3051) */
+#define PPP_CCP_METHOD_V42BIS_ALT    28   /* V.42bis compression, formal assignment - Not yet implemented */
+#define PPP_CCP_METHOD_LZJH          29   /* Hughes Network Systems LZJH Compression - Not yet implemented */
+// 0x80 (128): Stac LZS alternative framing used across early WAN hardware (e.g., Ascend and Shiva routers) to handle LSB-first bit-ordering differences. (Check this is true)
+#define PPP_CCP_METHOD_LZS_ALT       0x80 /* Stac Electronics LZS alternative bit-order framing (Type 128) - Not yet implemented, check validity */
+// 0x81 (129): Microsoft legacy MPPC/MPPE negotiated via alternate option type field in early Windows dial-up client releases. (Check this is true)
+#define PPP_CCP_METHOD_MPPE_ALT      0x81 /* Microsoft MPPE/MPPC alternative framing (Type 129) - Not yet implemented, check validity */
+#define PPP_CCP_METHOD_LZS_EXTENDED  0x91 /* Stac LZS Extended / Ascend Proprietary (Type 145) */
+#define PPP_CCP_METHOD_NT31RAS      254   /* Microsoft Windows NT 3.1 RAS Proprietary Compression */
 
-#define PPP_RAS_SYN       0x16
-#define PPP_RAS_ETX       0x03
-#define PPP_RAS_SOH_DEST  0x02
-#define PPP_RAS_SOH_TYPE  0x80
+#define PPP_RAS_SYN          0x16
+#define PPP_RAS_ETX          0x03
+#define PPP_RAS_SOH_DEST     0x02
+#define PPP_RAS_SOH_TYPE     0x80
 #define PPP_RAS_SOH_COMPRESS 0x40
-#define PPP_RAS_IP_TYPE   0x0800
+#define PPP_RAS_IP_TYPE      0x0800
 
 /* PPP context */
 typedef struct ppp_ctx_t {
