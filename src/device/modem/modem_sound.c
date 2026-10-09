@@ -36,6 +36,7 @@
 #define DIAL_TONE_MS 800
 #define RING_MS 2600
 #define HANDSHAKE_MS 8000
+#define MODEM_SOUND_DIAL_CONNECT_AFTER (1 << 9)
 
 typedef struct {
     int kind;
@@ -68,6 +69,8 @@ struct modem_sound_t {
     uint32_t step_start;
     int step_count;
     int step_index;
+    int dial_connect_after;
+    int pending_event;
     dial_step_t steps[MAX_STEPS];
     double phase1;
     double phase2;
@@ -201,33 +204,52 @@ modem_sound_speaker(modem_sound_t *sound, int mode, int level)
 }
 
 static void
+modem_sound_apply_event(modem_sound_t *sound, int type)
+{
+    switch (type) {
+        case MODEM_SOUND_ANSWER:
+            sound->phase = PH_HANDSHAKE;
+            sound->sample = 0;
+            sound->phase1 = sound->phase2 = sound->phase3 = 0.0;
+            break;
+        case MODEM_SOUND_CONNECT:
+            sound->phase = PH_ONLINE;
+            sound->sample = 0;
+            break;
+        case MODEM_SOUND_BUSY:
+            sound->phase = PH_BUSY;
+            sound->sample = 0;
+            break;
+        case MODEM_SOUND_HANGUP:
+        default:
+            sound->phase = PH_IDLE;
+            sound->sample = 0;
+            break;
+    }
+}
+
+static void
 modem_sound_take_events(modem_sound_t *sound)
 {
     const unsigned write = atomic_load(&sound->write_index);
     unsigned read = atomic_load(&sound->read_index);
     while (read != write) {
         const sound_event_t *event = &sound->events[read % EVENT_QUEUE_SIZE];
+        if (event->type != MODEM_SOUND_DIAL && sound->phase == PH_DIAL
+            && sound->step_index < sound->step_count) {
+            /* Do not let a fast failure/hangup erase the dial tones before they play. */
+            sound->pending_event = event->type;
+            read++;
+            continue;
+        }
         switch (event->type) {
             case MODEM_SOUND_DIAL:
                 modem_build_dial(sound, event->number, event->arg & 0xff, (event->arg >> 8) & 1);
+                sound->dial_connect_after = !!(event->arg & MODEM_SOUND_DIAL_CONNECT_AFTER);
+                sound->pending_event = -1;
                 break;
-            case MODEM_SOUND_ANSWER:
-                sound->phase = PH_HANDSHAKE;
-                sound->sample = 0;
-                sound->phase1 = sound->phase2 = sound->phase3 = 0.0;
-                break;
-            case MODEM_SOUND_CONNECT:
-                sound->phase = PH_ONLINE;
-                sound->sample = 0;
-                break;
-            case MODEM_SOUND_BUSY:
-                sound->phase = PH_BUSY;
-                sound->sample = 0;
-                break;
-            case MODEM_SOUND_HANGUP:
             default:
-                sound->phase = PH_IDLE;
-                sound->sample = 0;
+                modem_sound_apply_event(sound, event->type);
                 break;
         }
         read++;
@@ -287,8 +309,18 @@ modem_sound_sample(modem_sound_t *sound, int mode)
                 sound->step_start = sound->sample + 1;
             }
         } else {
-            sound->phase = PH_RING;
-            sound->sample = 0;
+            if (sound->dial_connect_after) {
+                sound->dial_connect_after = 0;
+                sound->phase = PH_ONLINE;
+                sound->sample = 0;
+            } else if (sound->pending_event >= 0) {
+                const int pending_event = sound->pending_event;
+                sound->pending_event = -1;
+                modem_sound_apply_event(sound, pending_event);
+            } else {
+                sound->phase = PH_RING;
+                sound->sample = 0;
+            }
         }
     } else if (sound->phase == PH_RING) {
         if (mode == 1 || mode == 2 || mode == 3)
@@ -361,6 +393,8 @@ modem_sound_init(void)
             sound->in_use = 1;
             sound->phase = PH_IDLE;
             sound->step_count = sound->step_index = 0;
+            sound->dial_connect_after = 0;
+            sound->pending_event = -1;
             atomic_store(&sound->read_index, atomic_load(&sound->write_index));
             if (!sound->handler_registered) {
                 sound_add_handler(modem_sound_get_buffer, sound);
