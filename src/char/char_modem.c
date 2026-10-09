@@ -1754,7 +1754,8 @@ modem_dial(modem_t *modem, const char *str)
     modem->dial_sound_number[0] = 0;
     modem->tcpIpConnCounter = 0;
     modem->tcpIpMode        = false;
-    if (!strcmp(str, "0.0.0.0") || !strcmp(str, "0000")) {
+    if (!strcmp(str, "0.0.0.0") || !strcmp(str, "0000")
+        || !strcmp(str, "000000000000")) {
         modem_log(modem->log, "Entering local IP mode (type=%s (%d))\n",
               modem_connection_type_name(modem->connection_type), modem->connection_type);
         modem_enter_connected_state(modem);
