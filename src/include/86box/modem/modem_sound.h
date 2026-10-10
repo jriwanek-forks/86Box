@@ -17,6 +17,8 @@
 
 #include <stdint.h>
 
+#define MODEM_SOUND_DIAL_CONNECT_AFTER (1 << 9)
+
 typedef struct modem_sound_t modem_sound_t;
 
 enum {

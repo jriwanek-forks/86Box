@@ -30,14 +30,14 @@
 #define MPPC_COMPRESSED 0x20
 #define MPPC_RESERVED 0x10
 #define LZS_WINDOW_SIZE 2047
-#define LZS_EXTENDED_PROTOCOL 0x00FD
+#define LZS_EXTENDED_PROTOCOL PPP_PROTO_MPPE
 #define LZS_EXTENDED_FLUSHED 0x80
 #define LZS_EXTENDED_COMPRESSED 0x20
 #define V44_CODEWORD_LIMIT 1525
 #define V44_FIRST_CODEWORD 4
 #define V44_MAX_STRING_LENGTH 255
 #define V44_INVALID_INDEX UINT16_MAX
-#define NT31RAS_DEFAULT_WINDOW_SIZE 8192
+#define NT31RAS_DEFAULT_WINDOW_SIZE CCP_NT31RAS_WINDOW_8K
 #define NT31RAS_MAX_WINDOW_SIZE 65536
 #define NT31RAS_HASH_SIZE 65536
 
@@ -362,8 +362,8 @@ nt31ras_write_copy_item(nt31ras_bit_writer_t *writer, uint16_t offset,
         if (!nt31ras_write_bits(writer, 7, 3)
             || !nt31ras_write_bits(writer, 8191, 13)
             || !nt31ras_write_bits(writer, offset - 8513,
-                                   window_size == 16384 ? 13
-                                   : window_size == 32768 ? 15 : 16))
+                                   window_size == CCP_NT31RAS_WINDOW_16K ? 13
+                                   : window_size == CCP_NT31RAS_WINDOW_32K ? 15 : 16))
             return false;
     }
     return nt31ras_write_match_length(writer, length);
@@ -594,8 +594,8 @@ nt31ras_decompress_source_format(ppp_ccp_codec_state_t *codec, const uint8_t *in
                 if (!nt31ras_read_bits(input, bit_limit, &bit_position, 13, &value))
                     goto invalid_source;
                 if (value == 8191 && state->window_size > NT31RAS_DEFAULT_WINDOW_SIZE) {
-                    uint8_t extension_bits = state->window_size == 16384 ? 13
-                                           : state->window_size == 32768 ? 15 : 16;
+                    uint8_t extension_bits = state->window_size == CCP_NT31RAS_WINDOW_16K ? 13
+                                           : state->window_size == CCP_NT31RAS_WINDOW_32K ? 15 : 16;
                     if (!nt31ras_read_bits(input, bit_limit, &bit_position,
                                            extension_bits, &value))
                         goto invalid_source;
@@ -1393,8 +1393,10 @@ ppp_ccp_codec_set_window(ppp_ctx_t *ctx, bool transmit, uint8_t method,
     if (!ctx)
         return false;
     if (method == PPP_CCP_METHOD_NT31RAS
-        && window_size != 8192 && window_size != 16384
-        && window_size != 32768 && window_size != 65536)
+        && window_size != CCP_NT31RAS_WINDOW_8K
+        && window_size != CCP_NT31RAS_WINDOW_16K
+        && window_size != CCP_NT31RAS_WINDOW_32K
+        && window_size != CCP_NT31RAS_WINDOW_64K)
         return false;
     state_slot = transmit ? &ctx->ccp_tx_codec_state : &ctx->ccp_rx_codec_state;
     method_slot = transmit ? &ctx->ccp_tx_method : &ctx->ccp_rx_method;

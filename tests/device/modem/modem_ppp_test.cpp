@@ -133,6 +133,17 @@ decode_captured_frame(const std::vector<uint8_t> &wire, uint16_t &protocol)
 
 static ppp_ctx_t make_context();
 
+TEST(ModemPpp, RequiresLowestSelectedMppeStrength)
+{
+    EXPECT_EQ(ppp_mppe_minimum_strength(0), 0);
+    EXPECT_EQ(ppp_mppe_minimum_strength(CCP_MPPE_40), 40);
+    EXPECT_EQ(ppp_mppe_minimum_strength(CCP_MPPE_56), 56);
+    EXPECT_EQ(ppp_mppe_minimum_strength(CCP_MPPE_128), 128);
+    EXPECT_EQ(ppp_mppe_minimum_strength(CCP_MPPE_40 | CCP_MPPE_128), 40);
+    EXPECT_EQ(ppp_mppe_minimum_strength(CCP_MPPE_56 | CCP_MPPE_128), 56);
+    EXPECT_EQ(ppp_mppe_minimum_strength(CCP_MPPE_KEY_BITS), 40);
+}
+
 TEST(ModemPpp, FcsMatchesStandardCheckValue)
 {
     const uint8_t check[] = { '1', '2', '3', '4', '5', '6', '7', '8', '9' };

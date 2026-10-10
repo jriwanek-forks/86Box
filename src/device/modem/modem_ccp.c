@@ -22,35 +22,17 @@
 #include <86box/modem/modem_mppe.h>
 #include <86box/modem/modem_debug.h>
 
-#define CCP_OPT_MPPE 18
-#define CCP_OPT_PREDICTOR1 1
-#define CCP_OPT_PREDICTOR2 2
-#define CCP_OPT_LZS 17
-#define CCP_OPT_BSD 21
-#define CCP_OPT_LZS_DCP 23
-#define CCP_OPT_DEFLATE 26
-#define CCP_OPT_V44 PPP_CCP_METHOD_V44
-#define CCP_OPT_NT31RAS PPP_CCP_METHOD_NT31RAS
-#define CCP_MPPE_STATELESS 0x01000000u
-#define CCP_MPPE_128 0x00000040u
-#define CCP_MPPE_56 0x00000080u
-#define CCP_MPPE_40 0x00000020u
-#define CCP_MPPE_KEY_BITS (CCP_MPPE_128 | CCP_MPPE_56 | CCP_MPPE_40)
-#define CCP_MPPC 0x00000001u
-#define CCP_MPPE_OFFER (CCP_MPPE_STATELESS | CCP_MPPE_KEY_BITS)
-#define CCP_NT31RAS_FEATURES 0x0000000Fu
-
 static uint32_t
 ccp_nt31ras_window_size(uint32_t features)
 {
-    if (features & 0x00000008u)
-        return 65536;
-    if (features & 0x00000004u)
-        return 32768;
-    if (features & 0x00000002u)
-        return 16384;
-    if (features & 0x00000001u)
-        return 8192;
+    if (features & CCP_NT31RAS_WINDOW_64K_FEATURE)
+        return CCP_NT31RAS_WINDOW_64K;
+    if (features & CCP_NT31RAS_WINDOW_32K_FEATURE)
+        return CCP_NT31RAS_WINDOW_32K;
+    if (features & CCP_NT31RAS_WINDOW_16K_FEATURE)
+        return CCP_NT31RAS_WINDOW_16K;
+    if (features & CCP_NT31RAS_WINDOW_8K_FEATURE)
+        return CCP_NT31RAS_WINDOW_8K;
     return 0;
 }
 
@@ -111,6 +93,7 @@ ppp_ccp_method_name(uint8_t method)
         case PPP_CCP_METHOD_V44:        return "V.44/LZJH";
         case PPP_CCP_METHOD_MPPE:       return "MPPE";
         case PPP_CCP_METHOD_MPPC:       return "MPPC";
+        case PPP_CCP_METHOD_GANDALF_FZA:return "Gandalf FZA";
         case PPP_CCP_METHOD_BSD:        return "BSD-Compress";
         case PPP_CCP_METHOD_DEFLATE:    return "Deflate";
         case PPP_CCP_METHOD_NT31RAS:    return "NT31-RAS";
@@ -145,7 +128,7 @@ ccp_option_name(uint8_t type, uint32_t value)
         case 0:                  return "Vendor-specific OUI";
         case CCP_OPT_PREDICTOR1: return "Predictor-1";
         case CCP_OPT_PREDICTOR2: return "Predictor-2";
-        case 3:                  return "Puddle Jumper";
+        case PPP_CCP_METHOD_PUDDLEJUMPER: return "Puddle Jumper";
         case 4:
         case 5:
         case 6:
@@ -158,16 +141,15 @@ ccp_option_name(uint8_t type, uint32_t value)
         case 13:
         case 14:
         case 15:                 return "Unassigned CCP option";
-        case 16:                 return "Hewlett-Packard PPC";
+        case PPP_CCP_METHOD_HPPPC: return "Hewlett-Packard PPC";
         case CCP_OPT_LZS:        return "Stac LZS";
-        case CCP_OPT_MPPE:       return value == 1 ? "Microsoft PPC (MPPC)"
+        case CCP_OPT_MPPE:       return value == CCP_MPPC ? "Microsoft PPC (MPPC)"
                               : "Microsoft PPC (MPPE)";
-        case 19:                 return "Gandalf FZA";
-        case 20:                 return "V.42bis";
+        case PPP_CCP_METHOD_GANDALF_FZA: return "Gandalf FZA";
+        case PPP_CCP_METHOD_V42BIS: return "V.42bis";
         case CCP_OPT_BSD:        return "BSD-Compress";
-        case 22:                 return "Unassigned CCP option";
-        case 23:                 return "LZS-DCP";
-        case 24:                 return "MVRCA (Magnalink)";
+        case PPP_CCP_METHOD_DCP: return "LZS-DCP";
+        case PPP_CCP_METHOD_MZS: return "MVRCA (Magnalink)";
         case 25:                 return "Unassigned CCP option";
         case CCP_OPT_DEFLATE:    return "Deflate";
         case CCP_OPT_V44:        return "V.44/LZJH";
@@ -546,8 +528,8 @@ ccp_retry_nt31ras_nak(ppp_ctx_t *ctx, const uint8_t *pkt, int total)
         || (send_features & ~CCP_NT31RAS_FEATURES) != 0
         || (recv_features & ~CCP_NT31RAS_FEATURES) != 0
         || (send_features == old_send_features && recv_features == old_recv_features)
-        || max_send < 128 || max_send > PPP_MAX_FRAME
-        || max_recv < 128 || max_recv > PPP_MAX_FRAME)
+        || max_send < PPP_MIN_MRU || max_send > PPP_MAX_FRAME
+        || max_recv < PPP_MIN_MRU || max_recv > PPP_MAX_FRAME)
         return false;
 
     memcpy(ctx->ccp_request, pkt, (size_t) total);
@@ -561,17 +543,6 @@ ccp_retry_nt31ras_nak(ppp_ctx_t *ctx, const uint8_t *pkt, int total)
     ctx->ccp_retries++;
     ppp_send_frame(ctx, PPP_PROTO_CCP, ctx->ccp_request, total);
     return true;
-}
-
-static uint32_t
-ccp_preferred_bits(uint32_t requested)
-{
-    uint32_t mode = requested & (CCP_MPPE_STATELESS | CCP_MPPC);
-    uint32_t keys = requested & CCP_MPPE_KEY_BITS;
-    uint32_t key = keys & CCP_MPPE_128 ? CCP_MPPE_128
-                 : keys & CCP_MPPE_56 ? CCP_MPPE_56
-                 : keys & CCP_MPPE_40 ? CCP_MPPE_40 : CCP_MPPE_128;
-    return mode | key;
 }
 
 static uint8_t
@@ -867,7 +838,7 @@ ccp_handle_config_request(ppp_ctx_t *ctx, const uint8_t *pkt, int total)
             : selected_method != PPP_CCP_METHOD_MPPE
               && !ppp_ccp_codec_set_window(ctx, true, selected_method,
                                            selected_method == PPP_CCP_METHOD_NT31RAS
-                                               ? selected_tx_window : 8192)) {
+                                               ? selected_tx_window : CCP_NT31RAS_WINDOW_8K)) {
             ctx->state = PPP_STATE_DEAD;
             return;
         }
@@ -903,8 +874,8 @@ ppp_ccp_start(ppp_ctx_t *ctx)
     ctx->mppe_tx_enabled = false;
     ctx->mppe_rx_enabled = false;
     ctx->ras_tx_flush_pending = false;
-    ctx->ccp_tx_window_size = 8192;
-    ctx->ccp_rx_window_size = 8192;
+    ctx->ccp_tx_window_size = CCP_NT31RAS_WINDOW_8K;
+    ctx->ccp_rx_window_size = CCP_NT31RAS_WINDOW_8K;
     ctx->ras_tx_ticket_base = 0;
     ctx->ras_tx_ticket_next = 0;
     ctx->ras_rx_ticket_base = 0;
@@ -1006,7 +977,8 @@ ppp_ccp_process(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
                 } else if (ctx->ccp_request_method == PPP_CCP_METHOD_BSD) {
                     ctx->ccp_rx_bsd_bits = ctx->ccp_request[6] & 0x1F;
                     if (!ppp_ccp_codec_set_window(ctx, false,
-                                                  ctx->ccp_request_method, 8192)) {
+                                                  ctx->ccp_request_method,
+                                                  CCP_NT31RAS_WINDOW_8K)) {
                         ctx->state = PPP_STATE_DEAD;
                         break;
                     }
@@ -1111,7 +1083,8 @@ ppp_ccp_process(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
                 && ctx->ccp_tx_method != PPP_CCP_METHOD_LZS)
                 ppp_ccp_codec_set_window(ctx, true, ctx->ccp_tx_method,
                                          ctx->ccp_tx_window_size
-                                             ? ctx->ccp_tx_window_size : 8192);
+                                             ? ctx->ccp_tx_window_size
+                                             : CCP_NT31RAS_WINDOW_8K);
             break;
 
         case PPP_CODE_RESET_ACK:
@@ -1128,7 +1101,8 @@ ppp_ccp_process(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
                 if (ctx->ccp_rx_method != PPP_CCP_METHOD_NONE)
                     ppp_ccp_codec_set_window(ctx, false, ctx->ccp_rx_method,
                                              ctx->ccp_rx_window_size
-                                                 ? ctx->ccp_rx_window_size : 8192);
+                                                 ? ctx->ccp_rx_window_size
+                                                 : CCP_NT31RAS_WINDOW_8K);
             }
             break;
 

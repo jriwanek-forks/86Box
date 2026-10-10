@@ -36,7 +36,6 @@
 #define DIAL_TONE_MS 800
 #define RING_MS 2600
 #define HANDSHAKE_MS 8000
-#define MODEM_SOUND_DIAL_CONNECT_AFTER (1 << 9)
 
 typedef struct {
     int kind;

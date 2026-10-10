@@ -1057,7 +1057,7 @@ ppp_handle_lcp_config_request(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
             case LCP_OPT_MRU:
                 if (opt_len == 4) {
                     uint16_t requested_mru = (uint16_t) ((pkt[pos + 2] << 8) | pkt[pos + 3]);
-                    if (requested_mru < 128) {
+                    if (requested_mru < PPP_MIN_MRU) {
                         nak[nak_len++] = LCP_OPT_MRU;
                         nak[nak_len++] = 4;
                         nak[nak_len++] = (uint8_t) (PPP_DEFAULT_MRU >> 8);
@@ -1151,7 +1151,7 @@ ppp_handle_lcp_config_request(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
             case LCP_OPT_MRRU:
                 if (ctx->multilink_group[0] && opt_len == 4) {
                     uint16_t requested_mrru = (uint16_t) ((pkt[pos + 2] << 8) | pkt[pos + 3]);
-                    if (requested_mrru < 128 || requested_mrru > PPP_MAX_FRAME) {
+                    if (requested_mrru < PPP_MIN_MRU || requested_mrru > PPP_MAX_FRAME) {
                         uint16_t suggested_mrru = PPP_DEFAULT_MRU + 2;
                         nak[nak_len++] = LCP_OPT_MRRU;
                         nak[nak_len++] = 4;
@@ -1386,7 +1386,7 @@ ppp_handle_lcp_config_nak(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
                 if (opt_len != 4)
                     return;
                 our_mru = (uint16_t) ((pkt[pos + 2] << 8) | pkt[pos + 3]);
-                if (our_mru < 128 || our_mru > PPP_MAX_FRAME)
+                if (our_mru < PPP_MIN_MRU || our_mru > PPP_MAX_FRAME)
                     return;
                 break;
 
@@ -1395,7 +1395,7 @@ ppp_handle_lcp_config_nak(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
                     return;
                 ctx->multilink_our_mrru_value = (uint16_t) ((pkt[pos + 2] << 8)
                                                             | pkt[pos + 3]);
-                if (ctx->multilink_our_mrru_value < 128
+                if (ctx->multilink_our_mrru_value < PPP_MIN_MRU
                     || ctx->multilink_our_mrru_value > PPP_MAX_FRAME)
                     return;
                 break;

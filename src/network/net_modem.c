@@ -49,6 +49,7 @@
 #include <86box/modem/modem_sound.h>
 #include <86box/sound.h>
 #include <86box/modem/modem_voice.h>
+#include <86box/modem/modem_common.h>
 #include <86box/modem/modem_debug.h>
 
 #ifdef ENABLE_MODEM_LOG
@@ -279,27 +280,6 @@ modem_debug_log_ipv4(void *log, const char *direction, const uint8_t *packet, in
 #    define modem_debug_log_ipv4(...) ((void) 0)
 #endif
 
-typedef enum ResTypes {
-    ResNONE,
-    ResOK,
-    ResERROR,
-    ResCONNECT,
-    ResRING,
-    ResBUSY,
-    ResNODIALTONE,
-    ResNOCARRIER,
-    ResNOANSWER
-} ResTypes;
-
-enum modem_types {
-    MODEM_TYPE_NONE  = 0,
-    MODEM_TYPE_SLIP  = 1,
-    MODEM_TYPE_PPP   = 2,
-    MODEM_TYPE_TCPIP = 3,
-    MODEM_TYPE_CSLIP = 4,
-    MODEM_TYPE_RAS   = 5
-};
-
 #ifdef ENABLE_MODEM_LOG
 static const char *
 modem_connection_type_name(int type)
@@ -315,47 +295,6 @@ modem_connection_type_name(int type)
     }
 }
 #endif
-
-typedef enum modem_mode_t {
-    MODEM_MODE_COMMAND = 0,
-    MODEM_MODE_DATA    = 1,
-    MODEM_MODE_FAX_TX  = 2,
-    MODEM_MODE_FAX_WAIT = 3,
-    MODEM_MODE_VOICE_TX = 4,
-    MODEM_MODE_VOICE_RX = 5,
-    MODEM_MODE_VOICE_TR = 6
-} modem_mode_t;
-
-typedef enum modem_fax_support_t {
-    MODEM_FAX_SUPPORT_DISABLED = 0,
-    MODEM_FAX_SUPPORT_CLASS_0  = 1 << 0,
-    MODEM_FAX_SUPPORT_CLASS_1  = 1 << 1,
-    MODEM_FAX_SUPPORT_CLASS_8  = 1 << 2
-} modem_fax_support_t;
-
-typedef enum modem_fax_transfer_status_t {
-    MODEM_FAX_TRANSFER_ACTIVE,
-    MODEM_FAX_TRANSFER_COMPLETE,
-    MODEM_FAX_TRANSFER_ABORTED
-} modem_fax_transfer_status_t;
-
-typedef enum modem_slip_stage_t {
-    MODEM_SLIP_STAGE_USERNAME,
-    MODEM_SLIP_STAGE_PASSWORD
-} modem_slip_stage_t;
-
-#define COMMAND_BUFFER_SIZE 512
-#define NUMBER_BUFFER_SIZE  128
-#define MODEM_LOCAL_DIAL_SOUND_NUMBER "+18007160023"
-#define MODEM_SOUND_DIAL_CONNECT_AFTER (1 << 9)
-#define PHONEBOOK_SIZE      256
-#define MODEM_REGS          100
-#define MODEM_VOICE_PLAYBACK_BUFFER_SIZE (VOICE_LINE_RATE * 2)
-
-typedef struct modem_phonebook_entry_t {
-    char phone[NUMBER_BUFFER_SIZE];
-    char address[NUMBER_BUFFER_SIZE];
-} modem_phonebook_entry_t;
 
 typedef struct modem_t {
     void      *log;
@@ -432,7 +371,7 @@ typedef struct modem_t {
         uint8_t command;
     } telClient;
 
-    modem_phonebook_entry_t entries[PHONEBOOK_SIZE];
+    modem_phonebook_entry_t entries[MODEM_PHONEBOOK_SIZE];
     uint32_t                entries_num;
 
     netcard_t *card;
@@ -506,23 +445,12 @@ typedef struct modem_t {
     int              modem_identity;
 } modem_t;
 
-enum {
-    MODEM_IDENTITY_GENERIC = 0,
-    MODEM_IDENTITY_SUPRAEXPRESS = 1
-};
-
-#define MREG_AUTOANSWER_COUNT 0
-#define MREG_RING_COUNT       1
-#define MREG_ESCAPE_CHAR      2
-#define MREG_CR_CHAR          3
-#define MREG_LF_CHAR          4
-#define MREG_BACKSPACE_CHAR   5
-#define MREG_GUARD_TIME       12
-#define MREG_DTR_DELAY        25
-
 static void modem_do_command(modem_t *modem, int repeat);
 static void modem_accept_incoming_call(modem_t *modem);
 static void modem_enter_idle_state(modem_t *modem);
+#if 0
+static void modem_apply_network_wins(ppp_ctx_t *ctx, const netcard_t *card);
+#endif
 void modem_send_res(modem_t *modem, const ResTypes response);
 static void modem_send_line(modem_t *modem, const char *line);
 static void modem_send_number(modem_t *modem, uint32_t val);
@@ -1118,7 +1046,7 @@ modem_read_phonebook_file(modem_t *modem, const char *path)
 
         modem_log(modem->log, "Modem: Mapped phone number %s to address %s\n", entry.phone, entry.address);
         modem->entries[modem->entries_num++] = entry;
-        if (modem->entries_num >= PHONEBOOK_SIZE)
+        if (modem->entries_num >= MODEM_PHONEBOOK_SIZE)
             break;
     }
     fclose(file);
@@ -1832,9 +1760,7 @@ modem_dial(modem_t *modem, const char *str)
             else
                 modem->ppp_ctx->auth_type = (ppp_auth_type_t) modem->ppp_auth_type;
             modem->ppp_ctx->mppe_allowed_bits = (uint32_t) modem->mppe_bitmask;
-            modem->ppp_ctx->mppe_min_bits = (modem->mppe_bitmask & 0x40) ? 128
-                                             : (modem->mppe_bitmask & 0x80) ? 56
-                                             : (modem->mppe_bitmask & 0x20) ? 40 : 0;
+            modem->ppp_ctx->mppe_min_bits = ppp_mppe_minimum_strength((uint32_t) modem->mppe_bitmask);
             modem->ppp_ctx->ppp_compression = (uint8_t) device_get_config_int("ppp_compression");
             modem->ppp_ctx->ccp_mode = (uint8_t) device_get_config_int("ccp_mode");
             modem->ppp_ctx->ccp_direction = (uint8_t) device_get_config_int("ccp_direction");
@@ -1850,6 +1776,9 @@ modem_dial(modem_t *modem, const char *str)
             memcpy(modem->ppp_ctx->password, modem->password, sizeof(modem->ppp_ctx->password));
             modem->ppp_ctx->wins1 = modem->ppp_wins1;
             modem->ppp_ctx->wins2 = modem->ppp_wins2;
+#if 0
+            modem_apply_network_wins(modem->ppp_ctx, modem->card);
+#endif
             modem->ppp_ctx->ipcp_dns_wins_mode = (uint8_t) device_get_config_int("ipcp_dns_wins_mode");
             if (modem->ppp_dns1)
                 modem->ppp_ctx->dns1 = modem->ppp_dns1;
@@ -3096,8 +3025,6 @@ fifo8_resize_2x(Fifo8 *fifo)
     free(temp_buf);
 }
 
-#define TEL_CLIENT 0
-#define TEL_SERVER 1
 void
 modem_process_telnet(modem_t *modem, uint8_t *data, uint32_t size)
 {
@@ -3548,6 +3475,52 @@ modem_parse_ipv4_config(const char *value)
     return ntohl(address.s_addr);
 }
 
+#if 0
+static void
+modem_apply_network_wins(ppp_ctx_t *ctx, const netcard_t *card)
+{
+    const netcard_conf_t *conf;
+    const char *cursor;
+    uint32_t *servers[2];
+    size_t count = 0;
+
+    if (!ctx || !card || card->card_num >= NET_CARD_MAX || !card->slirp_host_ip)
+        return;
+
+    servers[0] = &ctx->wins1;
+    servers[1] = &ctx->wins2;
+    conf = &net_cards_conf[card->card_num];
+    if (!conf->wins_servers[0]) {
+        if (conf->wins_server_enabled)
+            ctx->wins1 = card->slirp_host_ip;
+        return;
+    }
+
+    cursor = conf->wins_servers;
+    while (*cursor && count < 2) {
+        char address[16];
+        size_t length;
+
+        while (*cursor == ',' || *cursor == ';' || isspace((unsigned char) *cursor))
+            cursor++;
+        if (!*cursor)
+            break;
+        length = strcspn(cursor, ",; \t\r\n");
+        if (length > 0 && length < sizeof(address)) {
+            memcpy(address, cursor, length);
+            address[length] = '\0';
+            uint32_t parsed = modem_parse_ipv4_config(address);
+            if (parsed)
+                *servers[count++] = parsed;
+        }
+        cursor += length;
+    }
+
+    if (count == 1)
+        ctx->wins2 = 0;
+}
+#endif
+
 static void *
 modem_init(UNUSED(const device_t *info))
 {
@@ -3606,8 +3579,8 @@ modem_init(UNUSED(const device_t *info))
 
     modem->clientsocket = modem->serversocket = modem->waitingclientsocket = -1;
 
-    fifo8_create(&modem->data_pending, 0x40000);
-    fifo8_create(&modem->rx_data, 0x40000);
+    fifo8_create(&modem->data_pending, MODEM_DATA_FIFO_SIZE);
+    fifo8_create(&modem->rx_data, MODEM_DATA_FIFO_SIZE);
 
     timer_add(&modem->dtr_timer, modem_dtr_callback_timer, modem, 0);
     timer_add(&modem->host_to_serial_timer, host_to_modem_cb, modem, 0);
@@ -3840,22 +3813,22 @@ static const device_config_t modem_config[] = {
     },
     {
         .name           = "mppe_bitmask",
-        .description    = "Offered MPPE Key Strengths (highest selected strength required)",
+        .description    = "Offered MPPE Key Strengths (lowest selected strength required)",
         .type           = CONFIG_SELECTION,
         .default_string = NULL,
         .default_int    = 0,
         .file_filter    = NULL,
         .spinner        = { 0 },
         .selection      = {
-            { .description = "Disabled",              .value = 0                                  },
-            { .description = "Offer 40-Bit only",   .value = 0x20                                 },
-            { .description = "Offer 56-Bit only",   .value = 0x80                                 },
-            { .description = "Offer 40+56-Bit (require 56-Bit)",     .value = 0x20 | 0x80         },
-            { .description = "Offer 128-Bit only",  .value = 0x40                                 },
-            { .description = "Offer 40+128-Bit (require 128-Bit)",    .value = 0x20 | 0x40        },
-            { .description = "Offer 56+128-Bit (require 128-Bit)",    .value = 0x80 | 0x40        },
-            { .description = "Offer 40+56+128-Bit (require 128-Bit)", .value = 0x20 | 0x80 | 0x40 },
-            { .description = ""                                                   }
+            { .description = "Disabled",                       .value = 0                                        },
+            { .description = "40-Bit",                         .value = CCP_MPPE_40                              },
+            { .description = "56-Bit",                         .value = CCP_MPPE_56                              },
+            { .description = "40+56-Bit (require 40-Bit)",     .value = CCP_MPPE_40 | CCP_MPPE_56                },
+            { .description = "128-Bit",                        .value = CCP_MPPE_128                             },
+            { .description = "40+128-Bit (require 40-Bit)",    .value = CCP_MPPE_40 | CCP_MPPE_128               },
+            { .description = "56+128-Bit (require 56-Bit)",    .value = CCP_MPPE_56 | CCP_MPPE_128               },
+            { .description = "40+56+128-Bit (require 40-Bit)", .value = CCP_MPPE_40 | CCP_MPPE_56 | CCP_MPPE_128 },
+            { .description = ""                                                                                  }
         },
         .bios           = { { 0 } }
     },
