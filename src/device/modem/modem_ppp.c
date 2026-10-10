@@ -1430,12 +1430,24 @@ ppp_handle_lcp_config_nak(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
             case LCP_OPT_PFC:
                 if (opt_len != 2)
                     return;
+                if (ctx->ppp_pfc_mode == 2) {
+                    ppp_log(ctx->log, "PPP: Peer cannot satisfy required PFC\n");
+                    ctx->state = PPP_STATE_DEAD;
+                    ctx->lcp_req_sent = false;
+                    return;
+                }
                 request_pfc = false;
                 break;
 
             case LCP_OPT_ACFC:
                 if (opt_len != 2)
                     return;
+                if (ctx->ppp_acfc_mode == 2) {
+                    ppp_log(ctx->log, "PPP: Peer cannot satisfy required ACFC\n");
+                    ctx->state = PPP_STATE_DEAD;
+                    ctx->lcp_req_sent = false;
+                    return;
+                }
                 request_acfc = false;
                 break;
 
@@ -1552,9 +1564,19 @@ ppp_handle_lcp_config_reject(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
                     ppp_auth_name(ctx->auth_type), ppp_auth_name(fallback));
             ctx->auth_type = fallback;
         } else if (opt_type == LCP_OPT_PFC) {
+            if (ctx->ppp_pfc_mode == 2) {
+                ppp_log(ctx->log, "PPP: Peer rejected required PFC\n");
+                ctx->state = PPP_STATE_DEAD;
+                return;
+            }
             ctx->request_pfc = false;
             ctx->our_pfc     = false;
         } else if (opt_type == LCP_OPT_ACFC) {
+            if (ctx->ppp_acfc_mode == 2) {
+                ppp_log(ctx->log, "PPP: Peer rejected required ACFC\n");
+                ctx->state = PPP_STATE_DEAD;
+                return;
+            }
             ctx->request_acfc = false;
             ctx->our_acfc     = false;
         } else if (opt_type == LCP_OPT_MRRU) {
@@ -1693,9 +1715,14 @@ ppp_process_lcp(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
         case PPP_CODE_PROTOCOL_REJECT:
             if (total >= 6 && pkt[4] == (uint8_t) (PPP_PROTO_CCP >> 8)
                 && pkt[5] == (uint8_t) PPP_PROTO_CCP) {
-                ppp_log(ctx->log, "PPP: Peer rejected CCP; continuing without compression or MPPE\n");
-                ppp_ccp_fallback_plaintext(ctx);
-                ppp_advance_state(ctx);
+                if (ctx->mppe_min_bits > 0) {
+                    ppp_log(ctx->log, "PPP: Peer rejected CCP while MPPE is required\n");
+                    ctx->state = PPP_STATE_DEAD;
+                } else {
+                    ppp_log(ctx->log, "PPP: Peer rejected CCP; continuing without compression or MPPE\n");
+                    ppp_ccp_fallback_plaintext(ctx);
+                    ppp_advance_state(ctx);
+                }
             } else if (total >= 6) {
                 ppp_log(ctx->log, "PPP: Peer rejected protocol %s (0x%04X)\n",
                         ppp_protocol_name((uint16_t) (((uint16_t) pkt[4] << 8) | pkt[5])),
@@ -1778,7 +1805,8 @@ ppp_advance_state(ppp_ctx_t *ctx)
 
         case PPP_STATE_IPCP_NEGOTIATE:
             if (ctx->ipcp_ack_sent && ctx->ipcp_ack_received) {
-                if ((!ctx->mppe_keys_ready && ctx->mppe_min_bits == 0)
+                if ((ctx->mppe_min_bits == 0 && !ctx->ccp_req_sent
+                     && !ctx->ccp_ack_sent && !ctx->ccp_ack_received)
                     || ctx->ccp_open
                     || (ctx->ccp_plaintext_fallback && ctx->mppe_min_bits == 0)) {
                     ppp_log(ctx->log, "PPP: IPCP opened, entering network phase\n");
@@ -2309,6 +2337,8 @@ ppp_init(void *modem, void *log,
     ctx->our_magic       = ((uint32_t) magic[0] << 24) | ((uint32_t) magic[1] << 16)
                          | ((uint32_t) magic[2] << 8) | (uint32_t) magic[3];
     ctx->auth_type       = PPP_AUTH_NONE;
+    ctx->request_pfc     = true;
+    ctx->request_acfc    = true;
     ctx->vj_tx_ctx       = cslip_init(log);
     ctx->vj_rx_ctx       = cslip_init(log);
     if (!ctx->vj_tx_ctx || !ctx->vj_rx_ctx) {
@@ -2372,8 +2402,6 @@ ppp_start(ppp_ctx_t *ctx)
     ctx->our_acfc         = false;
     ctx->peer_pfc         = false;
     ctx->peer_acfc        = false;
-    ctx->request_pfc      = true;
-    ctx->request_acfc     = true;
     ctx->multilink_request_mrru = ctx->multilink_group[0] != '\0';
     ctx->multilink_request_short_sequence = ctx->multilink_group[0] != '\0';
     ctx->multilink_request_endpoint = ctx->multilink_group[0] != '\0';
@@ -2396,13 +2424,18 @@ ppp_start(ppp_ctx_t *ctx)
     ctx->ipcp_ack_received = false;
     ctx->ipcp_req_sent    = false;
     ctx->ipcp_retries     = 0;
-    ctx->ipcp_vj_request  = ctx->vj_tx_ctx && ctx->vj_rx_ctx;
+    ctx->ipcp_vj_request  = ctx->ipcp_vj_request && ctx->vj_tx_ctx && ctx->vj_rx_ctx;
+    if (ctx->ipcp_vj_mode == 2 && !ctx->ipcp_vj_request) {
+        ppp_log(ctx->log, "PPP: Required Van Jacobson compression is unavailable\n");
+        ctx->state = PPP_STATE_DEAD;
+        return;
+    }
     ctx->vj_tx_enabled    = false;
     ctx->vj_rx_enabled    = false;
     ctx->vj_tx_max_slot_id = IPCP_VJ_MAX_SLOT_ID;
     ctx->vj_rx_max_slot_id = IPCP_VJ_MAX_SLOT_ID;
-    ctx->vj_tx_comp_slot_id = true;
-    ctx->vj_rx_comp_slot_id = true;
+    ctx->vj_tx_comp_slot_id = ctx->ipcp_vj_mode != 2;
+    ctx->vj_rx_comp_slot_id = ctx->ipcp_vj_mode != 2;
     ctx->ccp_req_sent = false;
     ctx->ccp_ack_sent = false;
     ctx->ccp_ack_received = false;
