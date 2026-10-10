@@ -97,10 +97,10 @@ ppp_ipcp_send_config_request(ppp_ctx_t *ctx)
     if (ctx->ipcp_vj_request) {
         pkt[len++] = IPCP_OPT_IP_COMPRESSION;
         pkt[len++] = 6;
-        pkt[len++] = 0;
-        pkt[len++] = 0x2D;
+        pkt[len++] = (uint8_t) (PPP_PROTO_VJ_COMPRESSED >> 8);
+        pkt[len++] = (uint8_t) PPP_PROTO_VJ_COMPRESSED;
         pkt[len++] = ctx->vj_rx_max_slot_id;
-        pkt[len++] = ctx->vj_rx_comp_slot_id ? 1 : 0;
+        pkt[len++] = ctx->vj_rx_comp_slot_id ? IPCP_VJ_COMP_SLOT_ID : 0;
     }
 
     pkt[2] = (uint8_t) (len >> 8);
@@ -151,8 +151,10 @@ ipcp_response_matches_request(const ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_
             got_address = true;
         } else if (pkt[pos] == IPCP_OPT_IP_COMPRESSION) {
             if (got_vj || !ctx->ipcp_vj_request || option_len != 6
-                || pkt[pos + 2] != 0 || pkt[pos + 3] != 0x2D
-                || pkt[pos + 4] > IPCP_VJ_MAX_SLOT_ID || pkt[pos + 5] > 1)
+                || pkt[pos + 2] != (uint8_t) (PPP_PROTO_VJ_COMPRESSED >> 8)
+                || pkt[pos + 3] != (uint8_t) PPP_PROTO_VJ_COMPRESSED
+                || pkt[pos + 4] > IPCP_VJ_MAX_SLOT_ID
+                || pkt[pos + 5] > IPCP_VJ_COMP_SLOT_ID)
                 return false;
             if ((require_exact || pkt[0] == PPP_CODE_CONFIGURE_REJECT)
                 && (pkt[pos + 4] != ctx->vj_rx_max_slot_id
@@ -331,7 +333,9 @@ ipcp_handle_config_request(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
                 break;
 
             case IPCP_OPT_IP_COMPRESSION:
-                if (opt_len == 6 && pkt[pos + 2] == 0 && pkt[pos + 3] == 0x2D
+                if (opt_len == 6
+                    && pkt[pos + 2] == (uint8_t) (PPP_PROTO_VJ_COMPRESSED >> 8)
+                    && pkt[pos + 3] == (uint8_t) PPP_PROTO_VJ_COMPRESSED
                     && pkt[pos + 5] <= 1) {
                     uint8_t max_slot_id = pkt[pos + 4];
                     if (max_slot_id <= IPCP_VJ_MAX_SLOT_ID
@@ -345,14 +349,14 @@ ipcp_handle_config_request(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
                         nak[nak_len++] = IPCP_OPT_IP_COMPRESSION;
                         nak[nak_len++] = 6;
                         nak[nak_len++] = 0;
-                        nak[nak_len++] = 0x2D;
+                        nak[nak_len++] = (uint8_t) PPP_PROTO_VJ_COMPRESSED;
                         nak[nak_len++] = max_slot_id;
                         nak[nak_len++] = 0;
                     } else {
                         nak[nak_len++] = IPCP_OPT_IP_COMPRESSION;
                         nak[nak_len++] = 6;
                         nak[nak_len++] = 0;
-                        nak[nak_len++] = 0x2D;
+                        nak[nak_len++] = (uint8_t) PPP_PROTO_VJ_COMPRESSED;
                         nak[nak_len++] = IPCP_VJ_MAX_SLOT_ID;
                         nak[nak_len++] = pkt[pos + 5];
                     }
@@ -460,7 +464,8 @@ ipcp_handle_config_nak(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
                      (ctx->our_ip >> 24) & 0xFF, (ctx->our_ip >> 16) & 0xFF,
                      (ctx->our_ip >> 8) & 0xFF, ctx->our_ip & 0xFF);
              } else if (opt_type == IPCP_OPT_IP_COMPRESSION && opt_len == 6
-                     && pkt[pos + 2] == 0 && pkt[pos + 3] == 0x2D
+                     && pkt[pos + 2] == (uint8_t) (PPP_PROTO_VJ_COMPRESSED >> 8)
+                     && pkt[pos + 3] == (uint8_t) PPP_PROTO_VJ_COMPRESSED
                      && pkt[pos + 4] <= IPCP_VJ_MAX_SLOT_ID && pkt[pos + 5] <= 1) {
                  if (ctx->ipcp_vj_mode == 2 && pkt[pos + 5] != 0) {
                      ctx->state = PPP_STATE_DEAD;

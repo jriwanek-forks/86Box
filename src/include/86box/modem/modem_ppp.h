@@ -62,6 +62,47 @@ typedef struct ppp_mppe_state_t {
 #define PPP_INITFCS32 0xFFFFFFFF /* Initial FCS 32-bit CRC Seed (RFC 1662) */
 #define PPP_GOODFCS32 0xDEBB20E3 /* Valid 32-bit FCS Checksum Constant (RFC 1662) */
 
+/* Microsoft Point-to-Point Encryption flags (RFC 3078) */
+#define CCP_MPPE_STATELESS 0x01000000u
+#define CCP_MPPE_40        0x00000020u
+#define CCP_MPPE_128       0x00000040u
+#define CCP_MPPE_56        0x00000080u
+#define CCP_MPPE_KEY_BITS  (CCP_MPPE_128 | CCP_MPPE_56 | CCP_MPPE_40)
+#define CCP_MPPC           0x00000001u
+#define CCP_MPPE_OFFER     (CCP_MPPE_STATELESS | CCP_MPPE_KEY_BITS)
+#define CCP_NT31RAS_FEATURES 0x0000000Fu
+#define CCP_NT31RAS_WINDOW_8K_FEATURE  0x00000001u
+#define CCP_NT31RAS_WINDOW_16K_FEATURE 0x00000002u
+#define CCP_NT31RAS_WINDOW_32K_FEATURE 0x00000004u
+#define CCP_NT31RAS_WINDOW_64K_FEATURE 0x00000008u
+#define CCP_NT31RAS_WINDOW_8K  8192u
+#define CCP_NT31RAS_WINDOW_16K 16384u
+#define CCP_NT31RAS_WINDOW_32K 32768u
+#define CCP_NT31RAS_WINDOW_64K 65536u
+
+/* CCP option numbers */
+#define CCP_OPT_PREDICTOR1 PPP_CCP_METHOD_PREDICTOR1
+#define CCP_OPT_PREDICTOR2 PPP_CCP_METHOD_PREDICTOR2
+#define CCP_OPT_LZS        PPP_CCP_METHOD_LZS
+#define CCP_OPT_MPPE       PPP_CCP_METHOD_MPPE
+#define CCP_OPT_BSD        PPP_CCP_METHOD_BSD
+#define CCP_OPT_LZS_DCP    PPP_CCP_METHOD_LZS_DCP
+#define CCP_OPT_DEFLATE    PPP_CCP_METHOD_DEFLATE
+#define CCP_OPT_V44        PPP_CCP_METHOD_V44
+#define CCP_OPT_NT31RAS    PPP_CCP_METHOD_NT31RAS
+
+static inline uint8_t
+ppp_mppe_minimum_strength(uint32_t bitmask)
+{
+    if (bitmask & CCP_MPPE_40)
+        return 40;
+    if (bitmask & CCP_MPPE_56)
+        return 56;
+    if (bitmask & CCP_MPPE_128)
+        return 128;
+    return 0;
+}
+
 /* PPP Protocol Numbers */
 #define PPP_PROTO_IP              0x0021 /* Internet Protocol (RFC 1661) */
 #define PPP_PROTO_VJ_COMPRESSED   0x002D /* Van Jacobson Compressed TCP/IP (RFC 1144 / RFC 1332) */
@@ -151,12 +192,12 @@ typedef struct ppp_mppe_state_t {
 
 /* Auth protocol values for LCP option 3 */
 #define PPP_AUTH_PROTO_SPAP_OLD            0xC021 /* Shiva Password Authentication Protocol (Early/Alternate Assignment) */
-#define PPP_AUTH_PROTO_PAP                 0xC023 /* Password Authentication Protocol */
-#define PPP_AUTH_PROTO_SHIVA_PAP           0xC027 /* Shiva Password Authentication Protocol */
+#define PPP_AUTH_PROTO_PAP                 PPP_PROTO_PAP /* Password Authentication Protocol */
+#define PPP_AUTH_PROTO_SHIVA_PAP           PPP_PROTO_SPAP /* Shiva Password Authentication Protocol */
 #define PPP_AUTH_PROTO_DES_AUTH            0xC221 /* Individual Software Products DES Authentication Protocol */
-#define PPP_AUTH_PROTO_CHAP                0xC223 /* Challenge-Handshake Authentication Protocol */
+#define PPP_AUTH_PROTO_CHAP                PPP_PROTO_CHAP /* Challenge-Handshake Authentication Protocol */
 #define PPP_AUTH_PROTO_RSA                 0xC225 /* RSA Authentication Protocol */
-#define PPP_AUTH_PROTO_EAP                 0xC227 /* Extensible Authentication Protocol */
+#define PPP_AUTH_PROTO_EAP                 PPP_PROTO_EAP /* Extensible Authentication Protocol */
 #define PPP_AUTH_PROTO_MITSUBISHI_SIEP     0xC229 /* Mitsubishi Security Info Exchange Protocol */
 #define PPP_AUTH_PROTO_VSAP                0xC05B /* Vendor-Specific Authentication Protocol */
 #define PPP_AUTH_PROTO_PUBLIC_KEY          0xC26F /* Stampede Technologies Public Key Authentication Protocol */
@@ -212,6 +253,7 @@ struct ppp_mppp_bundle_t;
 /* Maximum PPP frame size */
 #define PPP_MAX_FRAME   2048 /* Maximum receive unit buffer size for raw HDLC/PPP packet framing */
 #define PPP_DEFAULT_MRU 1500 /* Default Maximum Receive Unit length (RFC 1661) */
+#define PPP_MIN_MRU      128 /* Minimum MRU supported by this implementation */
 
 #define PPP_CCP_METHOD_NONE           0   /* OUI-based / Proprietary Compression (RFC 1962) */
 #define PPP_CCP_METHOD_PREDICTOR1     1   /* Predictor Type 1 (RFC 1978) */
@@ -220,7 +262,7 @@ struct ppp_mppp_bundle_t;
 #define PPP_CCP_METHOD_HPPPC         16   /* Hewlett-Packard Packet-by-Packet Compression (RFC 1962) - Not yet implemented */
 #define PPP_CCP_METHOD_LZS           17   /* Stac Electronics LZS (RFC 1974) */
 #define PPP_CCP_METHOD_MPPE          18   /* Microsoft Point-to-Point Encryption / Compression (RFC 2118 / RFC 3078) */
-#define PPP_CCP_METHOD_MPPC          19   /* Incorrect - Value 19 is reserved for Gandalf FZA */
+#define PPP_CCP_METHOD_MPPC          0xFF /* Internal MPPC codec identifier; wire negotiation uses option 18 */
 #define PPP_CCP_METHOD_GANDALF_FZA   19   /* Gandalf FZA Compression (RFC 1962) - Not yet implemented */
 #define PPP_CCP_METHOD_V42BIS        20   /* V.42bis compression, draft assignment (RFC 1962) - Not yet implemented */
 #define PPP_CCP_METHOD_BSD           21   /* BSD Compress / LZW (RFC 1977) */
