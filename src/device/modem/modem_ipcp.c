@@ -200,6 +200,10 @@ ipcp_handle_config_request(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
     int     total   = (pkt[2] << 8) | pkt[3];
     int     pos     = 4;
     bool    peer_vj = false;
+    bool    seen_dns1 = false;
+    bool    seen_dns2 = false;
+    bool    seen_wins1 = false;
+    bool    seen_wins2 = false;
     uint8_t peer_vj_max_slot_id = 0;
     bool    peer_vj_comp_slot_id = false;
 
@@ -246,7 +250,11 @@ ipcp_handle_config_request(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
                 break;
 
             case IPCP_OPT_DNS_PRIMARY:
-                if (opt_len == 6) {
+                seen_dns1 = true;
+                if (ctx->ipcp_dns_wins_mode == 0) {
+                    memcpy(rej + rej_len, pkt + pos, opt_len);
+                    rej_len += opt_len;
+                } else if (opt_len == 6) {
                     uint32_t requested_dns = ipcp_get_ip(pkt + pos + 2);
                     if (requested_dns == 0 && ctx->dns1 == 0) {
                         memcpy(rej + rej_len, pkt + pos, opt_len);
@@ -268,7 +276,11 @@ ipcp_handle_config_request(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
                 break;
 
             case IPCP_OPT_DNS_SECONDARY:
-                if (opt_len == 6) {
+                seen_dns2 = true;
+                if (ctx->ipcp_dns_wins_mode == 0) {
+                    memcpy(rej + rej_len, pkt + pos, opt_len);
+                    rej_len += opt_len;
+                } else if (opt_len == 6) {
                     uint32_t requested_dns = ipcp_get_ip(pkt + pos + 2);
                     if (requested_dns == 0 && ctx->dns2 == 0) {
                         memcpy(rej + rej_len, pkt + pos, opt_len);
@@ -290,7 +302,14 @@ ipcp_handle_config_request(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
 
             case IPCP_OPT_NBNS_PRIMARY:
             case IPCP_OPT_NBNS_SECONDARY:
-                if (opt_len == 6) {
+                if (opt_type == IPCP_OPT_NBNS_PRIMARY)
+                    seen_wins1 = true;
+                else
+                    seen_wins2 = true;
+                if (ctx->ipcp_dns_wins_mode == 0) {
+                    memcpy(rej + rej_len, pkt + pos, opt_len);
+                    rej_len += opt_len;
+                } else if (opt_len == 6) {
                     uint32_t server = opt_type == IPCP_OPT_NBNS_PRIMARY ? ctx->wins1 : ctx->wins2;
                     uint32_t requested_server = ipcp_get_ip(pkt + pos + 2);
                     if (server == 0 && requested_server == 0) {
@@ -315,12 +334,20 @@ ipcp_handle_config_request(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
                 if (opt_len == 6 && pkt[pos + 2] == 0 && pkt[pos + 3] == 0x2D
                     && pkt[pos + 5] <= 1) {
                     uint8_t max_slot_id = pkt[pos + 4];
-                    if (max_slot_id <= IPCP_VJ_MAX_SLOT_ID) {
+                    if (max_slot_id <= IPCP_VJ_MAX_SLOT_ID
+                        && !(ctx->ipcp_vj_mode == 2 && pkt[pos + 5] != 0)) {
                         memcpy(ack + ack_len, pkt + pos, opt_len);
                         ack_len += opt_len;
                         peer_vj = true;
                         peer_vj_max_slot_id = max_slot_id;
                         peer_vj_comp_slot_id = pkt[pos + 5] != 0;
+                    } else if (max_slot_id <= IPCP_VJ_MAX_SLOT_ID) {
+                        nak[nak_len++] = IPCP_OPT_IP_COMPRESSION;
+                        nak[nak_len++] = 6;
+                        nak[nak_len++] = 0;
+                        nak[nak_len++] = 0x2D;
+                        nak[nak_len++] = max_slot_id;
+                        nak[nak_len++] = 0;
                     } else {
                         nak[nak_len++] = IPCP_OPT_IP_COMPRESSION;
                         nak[nak_len++] = 6;
@@ -342,6 +369,20 @@ ipcp_handle_config_request(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
                 break;
         }
         pos += opt_len;
+    }
+
+    if (ctx->ipcp_vj_mode == 2 && !peer_vj && nak_len == 4 && rej_len == 4) {
+        ipcp_log(ctx->log, "IPCP: Client omitted required Van Jacobson compression\n");
+        ctx->state = PPP_STATE_DEAD;
+        return;
+    }
+
+    if (ctx->ipcp_dns_wins_mode == 2
+        && ((ctx->dns1 != 0 && !seen_dns1) || (ctx->dns2 != 0 && !seen_dns2)
+            || (ctx->wins1 != 0 && !seen_wins1) || (ctx->wins2 != 0 && !seen_wins2))) {
+        ipcp_log(ctx->log, "IPCP: Client omitted a required DNS/WINS option\n");
+        ctx->state = PPP_STATE_DEAD;
+        return;
     }
 
     if (rej_len > 4) {
@@ -421,6 +462,10 @@ ipcp_handle_config_nak(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
              } else if (opt_type == IPCP_OPT_IP_COMPRESSION && opt_len == 6
                      && pkt[pos + 2] == 0 && pkt[pos + 3] == 0x2D
                      && pkt[pos + 4] <= IPCP_VJ_MAX_SLOT_ID && pkt[pos + 5] <= 1) {
+                 if (ctx->ipcp_vj_mode == 2 && pkt[pos + 5] != 0) {
+                     ctx->state = PPP_STATE_DEAD;
+                     return;
+                 }
                  ctx->vj_rx_max_slot_id = pkt[pos + 4];
                  ctx->vj_rx_comp_slot_id = pkt[pos + 5] != 0;
         }
@@ -448,8 +493,13 @@ ipcp_handle_config_reject(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
         uint8_t opt_len = pkt[pos + 1];
         if (pkt[pos] == IPCP_OPT_IP_ADDRESS)
             rejected_address = true;
-        else if (pkt[pos] == IPCP_OPT_IP_COMPRESSION)
+        else if (pkt[pos] == IPCP_OPT_IP_COMPRESSION) {
+            if (ctx->ipcp_vj_mode == 2) {
+                ctx->state = PPP_STATE_DEAD;
+                return;
+            }
             ctx->ipcp_vj_request = false;
+        }
         pos += opt_len;
     }
 

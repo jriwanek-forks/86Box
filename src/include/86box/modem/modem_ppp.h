@@ -264,6 +264,8 @@ typedef struct ppp_ctx_t {
     bool            peer_acfc;
     bool            request_pfc;
     bool            request_acfc;
+    uint8_t         ppp_pfc_mode;
+    uint8_t         ppp_acfc_mode;
     char            multilink_group[64];
     bool            multilink_request_mrru;
     bool            multilink_request_short_sequence;
@@ -305,6 +307,12 @@ typedef struct ppp_ctx_t {
     bool            mppe_tx_enabled;
     bool            mppe_rx_enabled;
     uint8_t         mppe_min_bits;
+    uint32_t        mppe_allowed_bits;
+    uint8_t         ccp_mode;
+    uint8_t         ccp_direction;
+    uint8_t         ppp_compression;
+    uint8_t         mppe_key_state_mode;
+    uint8_t         mppe_format;
     ppp_mppe_state_t mppe_tx;
     ppp_mppe_state_t mppe_rx;
 
@@ -365,6 +373,7 @@ typedef struct ppp_ctx_t {
     bool            ipcp_req_sent;
     uint32_t        ipcp_request_ip;
     bool            ipcp_vj_request;
+    uint8_t         ipcp_vj_mode;
     bool            vj_tx_enabled;
     bool            vj_rx_enabled;
     uint8_t         vj_tx_max_slot_id;
@@ -381,6 +390,7 @@ typedef struct ppp_ctx_t {
     uint32_t        dns2;
     uint32_t        wins1;
     uint32_t        wins2;
+    uint8_t         ipcp_dns_wins_mode;
 
     /* HDLC frame assembly (receiving from serial) */
     uint8_t         rx_buf[PPP_MAX_FRAME];
