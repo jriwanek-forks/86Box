@@ -9,7 +9,7 @@
  *          Simple old text printers were unable to do any formatting
  *          of the text. They were just sheets of paper with a fixed
  *          size (in the U.S., this would be Letter, 8.5"x11") with a
- *          set of fixed margings to allow for proper operation of the
+ *          set of fixed margins to allow for proper operation of the
  *          printer mechanics. This would lead to a page being 66 lines
  *          of 80 characters each.
  *
@@ -67,8 +67,6 @@
 #define FULL_PAGE 1 /* set if no top/bot margins */
 
 /* Default page values (for now.) */
-#define PAGE_WIDTH  LETTER_PAGE_WIDTH
-#define PAGE_HEIGHT LETTER_PAGE_HEIGHT
 #define PAGE_LMARGIN 0.25 /* 0.25" left and right */
 #define PAGE_RMARGIN 0.25
 #if FULL_PAGE
@@ -217,9 +215,9 @@ timeout_timer(void *priv)
 static void
 reset_printer(prnt_t *dev)
 {
-    /* TODO: these three should be configurable */
-    dev->page_width   = PAGE_WIDTH;
-    dev->page_height  = PAGE_HEIGHT;
+    /* TODO: these should be configurable */
+    dev->page_width   = LETTER_PAGE_WIDTH;
+    dev->page_height  = LETTER_PAGE_HEIGHT;
     dev->left_margin  = PAGE_LMARGIN;
     dev->right_margin = PAGE_RMARGIN;
     dev->top_margin   = PAGE_TMARGIN;
