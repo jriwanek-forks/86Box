@@ -66,6 +66,8 @@ typedef struct ps_t {
     bool        pjl;
     bool        pjl_command;
 
+    bool        interpreter_ref;
+
     uint8_t     data;
 
     char        printer_path[260];
@@ -91,26 +93,48 @@ typedef struct gsapi_revision_s {
     long        revisiondate;
 } gsapi_revision_t;
 
-static int(GSDLLAPI *gsapi_revision)(gsapi_revision_t *pr, int len);
-static int(GSDLLAPI *gsapi_new_instance)(void **pinstance, void *caller_handle);
-static void(GSDLLAPI *gsapi_delete_instance)(void *instance);
-static int(GSDLLAPI *gsapi_set_arg_encoding)(void *instance, int encoding);
-static int(GSDLLAPI *gsapi_init_with_args)(void *instance, int argc, char **argv);
-static int(GSDLLAPI *gsapi_exit)(void *instance);
+typedef struct gsapi_api_s {
+    int(GSDLLAPI *revision)(gsapi_revision_t *pr, int len);
+    int(GSDLLAPI *new_instance)(void **pinstance, void *caller_handle);
+    void(GSDLLAPI *delete_instance)(void *instance);
+    int(GSDLLAPI *set_arg_encoding)(void *instance, int encoding);
+    int(GSDLLAPI *init_with_args)(void *instance, int argc, char **argv);
+    int(GSDLLAPI *exit)(void *instance);
+} gsapi_api_t;
+
+/* Ghostscript and GhostPCL have similarly named APIs but are separate modules.
+   Keep their function tables and module lifetimes independent. */
+static gsapi_api_t ghostscript_api;
+static gsapi_api_t ghostpcl_api;
 
 static dllimp_t ghostscript_imports[] = {
   // clang-format off
-    { "gsapi_revision",         &gsapi_revision         },
-    { "gsapi_new_instance",     &gsapi_new_instance     },
-    { "gsapi_delete_instance",  &gsapi_delete_instance  },
-    { "gsapi_set_arg_encoding", &gsapi_set_arg_encoding },
-    { "gsapi_init_with_args",   &gsapi_init_with_args   },
-    { "gsapi_exit",             &gsapi_exit             },
-    { NULL,                     NULL                    }
+    { "gsapi_revision",         &ghostscript_api.revision         },
+    { "gsapi_new_instance",     &ghostscript_api.new_instance     },
+    { "gsapi_delete_instance",  &ghostscript_api.delete_instance  },
+    { "gsapi_set_arg_encoding", &ghostscript_api.set_arg_encoding },
+    { "gsapi_init_with_args",   &ghostscript_api.init_with_args   },
+    { "gsapi_exit",             &ghostscript_api.exit             },
+    { NULL,                      NULL                             }
+  // clang-format on
+};
+
+static dllimp_t ghostpcl_imports[] = {
+  // clang-format off
+    { "gsapi_revision",         &ghostpcl_api.revision         },
+    { "gsapi_new_instance",     &ghostpcl_api.new_instance     },
+    { "gsapi_delete_instance",  &ghostpcl_api.delete_instance  },
+    { "gsapi_set_arg_encoding", &ghostpcl_api.set_arg_encoding },
+    { "gsapi_init_with_args",   &ghostpcl_api.init_with_args   },
+    { "gsapi_exit",             &ghostpcl_api.exit             },
+    { NULL,                      NULL                          }
   // clang-format on
 };
 
 static void *ghostscript_handle = NULL;
+static void *ghostpcl_handle    = NULL;
+static unsigned ghostscript_refs = 0;
+static unsigned ghostpcl_refs    = 0;
 
 static void
 pulse_timer(void *priv)
@@ -133,6 +157,7 @@ convert_to_pdf(ps_t *dev)
     char         input_fn[1024];
     char         output_fn[1024];
     char        *gsargv[11];
+    gsapi_api_t *api = dev->pcl ? &ghostpcl_api : &ghostscript_api;
 
     strcpy(input_fn, dev->printer_path);
     path_slash(input_fn);
@@ -170,21 +195,21 @@ convert_to_pdf(ps_t *dev)
     gsargv[arg++] = output_fn;
     gsargv[arg++] = input_fn;
 
-    code = gsapi_new_instance(&instance, dev);
+    code = api->new_instance(&instance, dev);
     if (code < 0)
         return code;
 
-    code = gsapi_set_arg_encoding(instance, GS_ARG_ENCODING_UTF8);
+    code = api->set_arg_encoding(instance, GS_ARG_ENCODING_UTF8);
 
     if (code == 0)
-        code = gsapi_init_with_args(instance, arg, gsargv);
+        code = api->init_with_args(instance, arg, gsargv);
 
     if (code == 0 || code == gs_error_Quit)
-        code = gsapi_exit(instance);
+        code = api->exit(instance);
     else
-        gsapi_exit(instance);
+        api->exit(instance);
 
-    gsapi_delete_instance(instance);
+    api->delete_instance(instance);
 
     if (code == 0)
         plat_remove(input_fn);
@@ -194,13 +219,109 @@ convert_to_pdf(ps_t *dev)
     return code;
 }
 
+static bool
+interpreter_available(const ps_t *dev)
+{
+    return dev->pcl ? (ghostpcl_handle != NULL) : (ghostscript_handle != NULL);
+}
+
+static bool
+load_interpreter(ps_t *dev)
+{
+    static const char *ghostscript_libs[] = {
+#ifdef _WIN32
+        "gsdll64.dll", "libgs-10.dll", "libgs-9.dll"
+#elif defined(__APPLE__)
+        "libgs.dylib"
+#else
+        "libgs.so.10", "libgs.so.9", "libgs.so"
+#endif
+    };
+    static const char *ghostpcl_libs[] = {
+#ifdef _WIN32
+        "gpcl6dll64.dll", "libgpcl6-10.dll", "libgpcl6-9.dll"
+#elif defined(__APPLE__)
+        "libgpcl6.dylib", "libgpcl6.9.dylib", "libgpcl6.9.54.dylib"
+#else
+        "libgpcl6.so.10", "libgpcl6.so.9", "libgpcl6.so"
+#endif
+    };
+    const char *const *libs = dev->pcl ? ghostpcl_libs : ghostscript_libs;
+    size_t             lib_count = dev->pcl ? (sizeof(ghostpcl_libs) / sizeof(ghostpcl_libs[0]))
+                                             : (sizeof(ghostscript_libs) / sizeof(ghostscript_libs[0]));
+    dllimp_t          *imports = dev->pcl ? ghostpcl_imports : ghostscript_imports;
+    gsapi_api_t       *api = dev->pcl ? &ghostpcl_api : &ghostscript_api;
+    void             **handle = dev->pcl ? &ghostpcl_handle : &ghostscript_handle;
+    unsigned          *refs = dev->pcl ? &ghostpcl_refs : &ghostscript_refs;
+    gsapi_revision_t   rev;
+
+    if (*handle == NULL) {
+        for (size_t i = 0; i < lib_count; i++) {
+            *handle = dynld_module(libs[i], imports);
+            if (*handle != NULL)
+                break;
+        }
+    }
+
+    if (*handle == NULL) {
+        ui_msgbox(MBX_WARNING, plat_get_string(dev->pcl ? STRING_GHOSTPCL_ERROR : STRING_GHOSTSCRIPT_ERROR));
+        return false;
+    }
+
+    if ((api->revision == NULL) || (api->revision(&rev, sizeof(rev)) != 0)) {
+        if (*refs == 0) {
+            dynld_close(*handle);
+            *handle = NULL;
+            memset(api, 0, sizeof(*api));
+        }
+        return false;
+    }
+
+    (*refs)++;
+    dev->interpreter_ref = true;
+    pclog("Loaded %s, rev %ld (%ld)\n", rev.product, rev.revision, rev.revisiondate);
+    return true;
+}
+
+static void
+release_interpreter(ps_t *dev)
+{
+    void     **handle;
+    unsigned  *refs;
+    gsapi_api_t *api;
+
+    if (!dev->interpreter_ref)
+        return;
+
+    if (dev->pcl) {
+        handle = &ghostpcl_handle;
+        refs   = &ghostpcl_refs;
+        api    = &ghostpcl_api;
+    } else {
+        handle = &ghostscript_handle;
+        refs   = &ghostscript_refs;
+        api    = &ghostscript_api;
+    }
+
+    if (*refs > 0)
+        (*refs)--;
+
+    if ((*refs == 0) && (*handle != NULL)) {
+        dynld_close(*handle);
+        *handle = NULL;
+        memset(api, 0, sizeof(*api));
+    }
+
+    dev->interpreter_ref = false;
+}
+
 static void
 reset_ps(ps_t *dev)
 {
     dev->ack = false;
 
     if (dev->pending) {
-        if ((dev->lang != LANG_RAW) && (ghostscript_handle != NULL))
+        if ((dev->lang != LANG_RAW) && interpreter_available(dev))
             convert_to_pdf(dev);
 
         dev->filename[0] = 0;
@@ -254,7 +375,7 @@ write_buffer(ps_t *dev, bool finish)
     dev->buffer_pos = 0;
 
     if (finish) {
-        if ((dev->lang != LANG_RAW) && (ghostscript_handle != NULL))
+        if ((dev->lang != LANG_RAW) && interpreter_available(dev))
             convert_to_pdf(dev);
 
         dev->filename[0] = 0;
@@ -272,7 +393,7 @@ timeout_timer(void *priv)
     if (dev->buffer_pos != 0)
         write_buffer(dev, true);
     else if (dev->pending) {
-        if ((dev->lang != LANG_RAW) && (ghostscript_handle != NULL))
+        if ((dev->lang != LANG_RAW) && interpreter_available(dev))
             convert_to_pdf(dev);
 
         dev->filename[0] = 0;
@@ -497,8 +618,10 @@ ps_read_status(void *priv)
 static void *
 ps_init(const device_t *info)
 {
-    ps_t            *dev = (ps_t *) calloc(1, sizeof(ps_t));
-    gsapi_revision_t rev;
+    ps_t *dev = (ps_t *) calloc(1, sizeof(ps_t));
+
+    if (dev == NULL)
+        return NULL;
 
     dev->ctrl = 0x04;
     dev->pcl  = false;
@@ -506,33 +629,8 @@ ps_init(const device_t *info)
     dev->lpt  = lpt_attach(ps_write_data, ps_write_ctrl, ps_strobe, ps_read_status, NULL, NULL, NULL, dev);
     dev->lang = device_get_config_int("language");
 
-    if (dev->lang != LANG_RAW) {
-        /* Try loading the DLL. */
-        static const char *ghostscript_libs[] = {
-#ifdef _WIN32
-            "gsdll64.dll", "libgs-10.dll", "libgs-9.dll"
-#elif defined(__APPLE__)
-            "libgs.dylib"
-#else
-            "libgs.so.10", "libgs.so.9", "libgs.so"
-#endif
-        };
-        for (int i = 0; i < (sizeof(ghostscript_libs) / sizeof(ghostscript_libs[0])); i++) {
-            if ((ghostscript_handle = dynld_module(ghostscript_libs[i], ghostscript_imports)))
-                break;
-        }
-
-        if (ghostscript_handle == NULL) {
-            ui_msgbox(MBX_WARNING, plat_get_string(STRING_GHOSTSCRIPT_ERROR));
-        } else {
-            if (gsapi_revision(&rev, sizeof(rev)) == 0) {
-                pclog("Loaded %s, rev %ld (%ld)\n", rev.product, rev.revision, rev.revisiondate);
-            } else {
-                dynld_close(ghostscript_handle);
-                ghostscript_handle = NULL;
-            }
-        }
-    }
+    if (dev->lang != LANG_RAW)
+        load_interpreter(dev);
 
     /* Cache print folder path. */
     memset(dev->printer_path, 0x00, sizeof(dev->printer_path));
@@ -552,8 +650,10 @@ ps_init(const device_t *info)
 static void *
 pcl_init(const device_t *info)
 {
-    ps_t            *dev = (ps_t *) calloc(1, sizeof(ps_t));
-    gsapi_revision_t rev;
+    ps_t *dev = (ps_t *) calloc(1, sizeof(ps_t));
+
+    if (dev == NULL)
+        return NULL;
 
     dev->ctrl = 0x04;
     dev->pcl  = true;
@@ -561,33 +661,8 @@ pcl_init(const device_t *info)
     dev->lpt  = lpt_attach(ps_write_data, ps_write_ctrl, ps_strobe, ps_read_status, NULL, NULL, NULL, dev);
     dev->lang = device_get_config_int("language");
 
-    if (dev->lang != LANG_RAW) {
-        /* Try loading the DLL. */
-        static const char *ghostpcl_libs[] = {
-#ifdef _WIN32
-            "gpcl6dll64.dll", "libgpcl6-10.dll", "libgpcl6-9.dll"
-#elif defined(__APPLE__)
-            "libgpcl6.dylib", "libgpcl6.9.dylib", "libgpcl6.9.54.dylib"
-#else
-            "libgpcl6.so.10", "libgpcl6.so.9", "libgpcl6.so"
-#endif
-        };
-        for (int i = 0; i < (sizeof(ghostpcl_libs) / sizeof(ghostpcl_libs[0])); i++) {
-            if ((ghostscript_handle = dynld_module(ghostpcl_libs[i], ghostscript_imports)))
-                break;
-        }
-
-        if (ghostscript_handle == NULL) {
-            ui_msgbox(MBX_WARNING, plat_get_string(STRING_GHOSTPCL_ERROR));
-        } else {
-            if (gsapi_revision(&rev, sizeof(rev)) == 0) {
-                pclog("Loaded %s, rev %ld (%ld)\n", rev.product, rev.revision, rev.revisiondate);
-            } else {
-                dynld_close(ghostscript_handle);
-                ghostscript_handle = NULL;
-            }
-        }
-    }
+    if (dev->lang != LANG_RAW)
+        load_interpreter(dev);
 
     /* Cache print folder path. */
     memset(dev->printer_path, 0x00, sizeof(dev->printer_path));
@@ -615,10 +690,7 @@ ps_close(void *priv)
     if (dev->buffer[0] != 0)
         write_buffer(dev, true);
 
-    if (ghostscript_handle != NULL) {
-        dynld_close(ghostscript_handle);
-        ghostscript_handle = NULL;
-    }
+    release_interpreter(dev);
 
     timer_disable(&dev->pulse_timer);
     timer_disable(&dev->timeout_timer);
