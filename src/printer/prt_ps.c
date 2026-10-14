@@ -15,6 +15,11 @@
  *          Copyright 2019-2026 David Hrdlička.
  *          Copyright 2024-2026 Cacodemon345.
  */
+/*
+ * Compatibility work copy based on prt_ps.c. The original baseline is left
+ * unchanged. This version adds generic PJL/UEL handling, binary-safe output, and separate
+ * Ghostscript/GhostPCL API lifetimes while retaining the two existing devices.
+ */
 #include <inttypes.h>
 #include <memory.h>
 #include <stdbool.h>
@@ -31,6 +36,7 @@
 #include <86box/plat_dynld.h>
 #include <86box/ui.h>
 #include "cpu.h"
+#include <86box/prt_papersizes.h>
 
 #ifdef _WIN32
 #    define GSDLLAPI __stdcall
@@ -64,8 +70,8 @@ typedef struct ps_t {
     bool        pcl;
     bool        pending;
     bool        pjl;
-    bool        pjl_command;
-
+    bool        pjl_mismatch;
+    bool        pjl_line_overflow;
     bool        interpreter_ref;
 
     uint8_t     data;
@@ -76,11 +82,15 @@ typedef struct ps_t {
     uint8_t     buffer[POSTSCRIPT_BUFFER_LENGTH];
 
     uint8_t     ctrl;
-    uint8_t     pcl_escape;
 
-    uint16_t    pjl_command_start;
+    char        pjl_line[256];
+    size_t      pjl_line_pos;
+    uint8_t     uel_candidate[9];
+    size_t      uel_pos;
 
     int         lang;
+    int         paper_size;
+    int         resolution;
 
     size_t      buffer_pos;
 } ps_t;
@@ -156,8 +166,14 @@ convert_to_pdf(ps_t *dev)
     void        *instance = NULL;
     char         input_fn[1024];
     char         output_fn[1024];
-    char        *gsargv[11];
+    char         resolution_arg[32];
+    char         resolution_prolog[192];
+    char         width_arg[48];
+    char         height_arg[48];
+    char        *gsargv[20];
     gsapi_api_t *api = dev->pcl ? &ghostpcl_api : &ghostscript_api;
+    double       paper_width = 0.0;
+    double       paper_height = 0.0;
 
     strcpy(input_fn, dev->printer_path);
     path_slash(input_fn);
@@ -171,6 +187,78 @@ convert_to_pdf(ps_t *dev)
     gsargv[arg++] = "-dBATCH";
     gsargv[arg++] = "-dSAFER";
     gsargv[arg++] = "-sDEVICE=pdfwrite";
+
+    /* An automatic setting leaves the incoming job's page size/resolution
+       alone. Explicit paper settings model the physical media available in
+       the generic printer and therefore constrain the interpreter's media. */
+    switch (dev->paper_size) {
+        case 1: paper_width = LETTER_PAGE_WIDTH;  paper_height = LETTER_PAGE_HEIGHT;  break;
+        case 2: paper_width = LEGAL_PAGE_WIDTH;   paper_height = LEGAL_PAGE_HEIGHT;   break;
+        case 3: paper_width = LEDGER_PAGE_WIDTH;  paper_height = LEDGER_PAGE_HEIGHT;  break;
+        case 4: paper_width = A0_PAGE_WIDTH;      paper_height = A0_PAGE_HEIGHT;      break;
+        case 5: paper_width = A1_PAGE_WIDTH;      paper_height = A1_PAGE_HEIGHT;      break;
+        case 6: paper_width = A2_PAGE_WIDTH;      paper_height = A2_PAGE_HEIGHT;      break;
+        case 7: paper_width = A3_PAGE_WIDTH;      paper_height = A3_PAGE_HEIGHT;      break;
+        case 8: paper_width = A4_PAGE_WIDTH;      paper_height = A4_PAGE_HEIGHT;      break;
+        case 9:  paper_width = B4_PAGE_WIDTH;  paper_height = B4_PAGE_HEIGHT;  break;
+        case 10: paper_width = A5_PAGE_WIDTH;  paper_height = A5_PAGE_HEIGHT;  break;
+        case 11: paper_width = A6_PAGE_WIDTH;  paper_height = A6_PAGE_HEIGHT;  break;
+        case 12: paper_width = A7_PAGE_WIDTH;  paper_height = A7_PAGE_HEIGHT;  break;
+        case 13: paper_width = A8_PAGE_WIDTH;  paper_height = A8_PAGE_HEIGHT;  break;
+        case 14: paper_width = A9_PAGE_WIDTH;  paper_height = A9_PAGE_HEIGHT;  break;
+        case 15: paper_width = A10_PAGE_WIDTH; paper_height = A10_PAGE_HEIGHT; break;
+        case 16: paper_width = B0_PAGE_WIDTH;  paper_height = B0_PAGE_HEIGHT;  break;
+        case 17: paper_width = B1_PAGE_WIDTH;  paper_height = B1_PAGE_HEIGHT;  break;
+        case 18: paper_width = B2_PAGE_WIDTH;  paper_height = B2_PAGE_HEIGHT;  break;
+        case 19: paper_width = B3_PAGE_WIDTH;  paper_height = B3_PAGE_HEIGHT;  break;
+        case 20: paper_width = B5_PAGE_WIDTH;  paper_height = B5_PAGE_HEIGHT;  break;
+        case 21: paper_width = B6_PAGE_WIDTH;  paper_height = B6_PAGE_HEIGHT;  break;
+        case 22: paper_width = B7_PAGE_WIDTH;  paper_height = B7_PAGE_HEIGHT;  break;
+        case 23: paper_width = B8_PAGE_WIDTH;  paper_height = B8_PAGE_HEIGHT;  break;
+        case 24: paper_width = B9_PAGE_WIDTH;  paper_height = B9_PAGE_HEIGHT;  break;
+        case 25: paper_width = B10_PAGE_WIDTH; paper_height = B10_PAGE_HEIGHT; break;
+        case 26: paper_width = EXECUTIVE_PAGE_WIDTH; paper_height = EXECUTIVE_PAGE_HEIGHT; break;
+        case 27: paper_width = STATEMENT_PAGE_WIDTH; paper_height = STATEMENT_PAGE_HEIGHT; break;
+        case 28: paper_width = FOLIO_PAGE_WIDTH; paper_height = FOLIO_PAGE_HEIGHT; break;
+        case 29: paper_width = TEN_BY_FOURTEEN_PAGE_WIDTH; paper_height = TEN_BY_FOURTEEN_PAGE_HEIGHT; break;
+        case 30: paper_width = ANSI_C_PAGE_WIDTH; paper_height = ANSI_C_PAGE_HEIGHT; break;
+        case 31: paper_width = ANSI_D_PAGE_WIDTH; paper_height = ANSI_D_PAGE_HEIGHT; break;
+        case 32: paper_width = ANSI_E_PAGE_WIDTH; paper_height = ANSI_E_PAGE_HEIGHT; break;
+        case 33: paper_width = ENVELOPE_DL_PAGE_WIDTH; paper_height = ENVELOPE_DL_PAGE_HEIGHT; break;
+        case 34: paper_width = ENVELOPE_C5_PAGE_WIDTH; paper_height = ENVELOPE_C5_PAGE_HEIGHT; break;
+        case 35: paper_width = ENVELOPE_NO10_PAGE_WIDTH; paper_height = ENVELOPE_NO10_PAGE_HEIGHT; break;
+        case 36: paper_width = ENVELOPE_MONARCH_PAGE_WIDTH; paper_height = ENVELOPE_MONARCH_PAGE_HEIGHT; break;
+        default: break;
+    }
+
+    if (dev->resolution > 0) {
+        snprintf(resolution_arg, sizeof(resolution_arg), "-r%d", dev->resolution);
+        gsargv[arg++] = resolution_arg;
+    }
+
+    if (!dev->pcl) {
+        /* Ghostscript does not provide statusdict/setresolution by default,
+           while this Windows driver conditionally calls it. Supply a generic
+           implementation: preserve the job's requested DPI in automatic mode,
+           or force the configured printer DPI when the user selected one. */
+        if (dev->resolution > 0) {
+            snprintf(resolution_prolog, sizeof(resolution_prolog),
+                     "statusdict begin /setresolution { pop 1 dict dup /HWResolution [%d %d] put setpagedevice } bind def end",
+                     dev->resolution, dev->resolution);
+        } else {
+            snprintf(resolution_prolog, sizeof(resolution_prolog),
+                     "statusdict begin /setresolution { /requested_dpi exch def 1 dict dup /HWResolution [ requested_dpi requested_dpi ] put setpagedevice } bind def end");
+        }
+    }
+
+    if ((paper_width > 0.0) && (paper_height > 0.0)) {
+        snprintf(width_arg, sizeof(width_arg), "-dDEVICEWIDTHPOINTS=%.4f", paper_width * 72.0);
+        snprintf(height_arg, sizeof(height_arg), "-dDEVICEHEIGHTPOINTS=%.4f", paper_height * 72.0);
+        gsargv[arg++] = width_arg;
+        gsargv[arg++] = height_arg;
+        gsargv[arg++] = "-dFIXEDMEDIA";
+    }
+
     if (dev->pcl) {
         if (dev->lang == LANG_PCL_6)
             gsargv[arg++] = "-LPCLXL";
@@ -193,6 +281,13 @@ convert_to_pdf(ps_t *dev)
     gsargv[arg++] = "-q";
     gsargv[arg++] = "-o";
     gsargv[arg++] = output_fn;
+    if (!dev->pcl) {
+        /* -c executes PostScript immediately, so keep it after interpreter
+           and device options and explicitly mark the following input file. */
+        gsargv[arg++] = "-c";
+        gsargv[arg++] = resolution_prolog;
+        gsargv[arg++] = "-f";
+    }
     gsargv[arg++] = input_fn;
 
     code = api->new_instance(&instance, dev);
@@ -331,6 +426,12 @@ reset_ps(ps_t *dev)
 
     dev->buffer[0]  = 0;
     dev->buffer_pos = 0;
+    dev->pjl        = false;
+    dev->pjl_mismatch = false;
+    dev->uel_pos = 0;
+    dev->pjl_line_pos = 0;
+    dev->pjl_line_overflow = false;
+    dev->pjl_line[0] = 0;
 
     timer_disable(&dev->pulse_timer);
     timer_stop(&dev->timeout_timer);
@@ -358,16 +459,16 @@ write_buffer(ps_t *dev, bool finish)
     path_slash(path);
     strcat(path, dev->filename);
 
-    fp = plat_fopen(path, dev->pcl ? "ab" : "a");
+    /* PostScript streams can contain binary data and must not undergo text-mode
+       newline translation. buffer_pos, not a C-string terminator, is authoritative. */
+    fp = plat_fopen(path, "ab");
     if (fp == NULL)
         return;
 
-    fseek(fp, 0, SEEK_END);
-
-    if (dev->pcl)
-        fwrite(dev->buffer, 1, dev->buffer_pos, fp);
-    else
-        fprintf(fp, "%.*s", POSTSCRIPT_BUFFER_LENGTH, (const char *) dev->buffer);
+    if (fwrite(dev->buffer, 1, dev->buffer_pos, fp) != dev->buffer_pos) {
+        fclose(fp);
+        return;
+    }
 
     fclose(fp);
 
@@ -415,126 +516,268 @@ ps_write_data(uint8_t val, void *priv)
     dev->data = val;
 }
 
+static void
+append_buffer(ps_t *dev, uint8_t val)
+{
+    if (dev->buffer_pos >= POSTSCRIPT_BUFFER_LENGTH - 1) {
+        write_buffer(dev, false);
+        if (dev->buffer_pos >= POSTSCRIPT_BUFFER_LENGTH - 1)
+            return;
+    }
+
+    dev->buffer[dev->buffer_pos++] = val;
+    dev->buffer[dev->buffer_pos]   = 0;
+}
+
+static int
+ascii_upper(int c)
+{
+    return (c >= 'a' && c <= 'z') ? c - ('a' - 'A') : c;
+}
+
+static bool
+pjl_equal(const char *a, const char *b, size_t n)
+{
+    while (n-- > 0) {
+        if ((*a == 0) || (*b == 0) ||
+            (ascii_upper((unsigned char) *a++) != ascii_upper((unsigned char) *b++)))
+            return false;
+    }
+
+    return true;
+}
+
+static const char *
+pjl_skip_space(const char *p)
+{
+    while ((*p == ' ') || (*p == '\t'))
+        p++;
+
+    return p;
+}
+
+static bool
+pjl_enter_language(const char *line, const char *language)
+{
+    const char *p = pjl_skip_space(line);
+    size_t      n = strlen(language);
+
+    if (!pjl_equal(p, "@PJL", 4))
+        return false;
+    p = pjl_skip_space(p + 4);
+
+    if (!pjl_equal(p, "ENTER", 5) || ((p[5] != ' ') && (p[5] != '\t')))
+        return false;
+    p = pjl_skip_space(p + 5);
+
+    if (!pjl_equal(p, "LANGUAGE", 8))
+        return false;
+    p = pjl_skip_space(p + 8);
+
+    if (*p != '=')
+        return false;
+    p++;
+    p = pjl_skip_space(p);
+
+    if (!pjl_equal(p, language, n))
+        return false;
+
+    p += n;
+    return (*p == 0) || (*p == ' ') || (*p == '\t');
+}
+
+static bool
+pjl_is_command(const char *line)
+{
+    const char *p = pjl_skip_space(line);
+
+    return pjl_equal(p, "@PJL", 4) &&
+           ((p[4] == 0) || (p[4] == ' ') || (p[4] == '\t'));
+}
+
+static void
+process_pjl_data(ps_t *dev, uint8_t val)
+{
+    static const uint8_t uel[] = { 0x1b, '%', '-', '1', '2', '3', '4', '5', 'X' };
+
+    /* UEL can also terminate a PJL job after @PJL EOJ and its newline. */
+    if (dev->uel_pos != 0) {
+        if (val == uel[dev->uel_pos]) {
+            dev->uel_candidate[dev->uel_pos++] = val;
+            if (dev->uel_pos == sizeof(uel)) {
+                dev->uel_pos = 0;
+                dev->pjl_line_pos = 0;
+                dev->pjl_line_overflow = false;
+                dev->pjl_line[0] = 0;
+            }
+            return;
+        }
+
+        for (size_t i = 0; i < dev->uel_pos; i++) {
+            if (dev->pjl_line_pos < sizeof(dev->pjl_line) - 1)
+                dev->pjl_line[dev->pjl_line_pos++] = (char) dev->uel_candidate[i];
+            else
+                dev->pjl_line_overflow = true;
+        }
+        dev->pjl_line[dev->pjl_line_pos] = 0;
+        dev->uel_pos = 0;
+    }
+
+    if (val == uel[0]) {
+        dev->uel_candidate[0] = val;
+        dev->uel_pos = 1;
+        return;
+    }
+
+    if (val != '\n') {
+        if (dev->pjl_line_pos < sizeof(dev->pjl_line) - 1) {
+            dev->pjl_line[dev->pjl_line_pos++] = (char) val;
+            dev->pjl_line[dev->pjl_line_pos] = 0;
+
+            /* A second UEL can follow @PJL EOJ while already in PJL mode. */
+            if ((dev->pjl_line_pos >= sizeof(uel) - 1) &&
+                !memcmp(&dev->pjl_line[dev->pjl_line_pos - (sizeof(uel) - 1)],
+                        uel, sizeof(uel) - 1)) {
+                dev->pjl_line_pos -= sizeof(uel) - 1;
+                dev->pjl_line[dev->pjl_line_pos] = 0;
+            }
+        } else {
+            /* Ignore overlong PJL lines instead of allowing the print buffer to overflow. */
+            dev->pjl_line_overflow = true;
+        }
+        return;
+    }
+
+    dev->pjl_line[dev->pjl_line_pos] = 0;
+    bool had_cr = (dev->pjl_line_pos > 0) && (dev->pjl_line[dev->pjl_line_pos - 1] == '\r');
+    if (had_cr)
+        dev->pjl_line[--dev->pjl_line_pos] = 0;
+
+    if (!dev->pjl_line_overflow && pjl_is_command(dev->pjl_line)) {
+        bool enter_ps  = pjl_enter_language(dev->pjl_line, "POSTSCRIPT");
+        bool enter_pcl = pjl_enter_language(dev->pjl_line, "PCL");
+
+        /* PJL is transport/job control, not PostScript or PCL input. */
+        if (enter_ps || enter_pcl) {
+            if ((enter_ps && !dev->pcl) || (enter_pcl && dev->pcl)) {
+                dev->pjl_mismatch = false;
+                dev->pjl = false;
+            } else {
+                /* Do not feed a mismatched language to the wrong interpreter. */
+                dev->pjl_mismatch = true;
+            }
+        }
+    } else if (!dev->pjl_line_overflow && (dev->pjl_line_pos != 0) && !dev->pjl_mismatch) {
+        /* A non-PJL line means language data has started without an ENTER command. */
+        dev->pjl = false;
+        for (size_t i = 0; i < dev->pjl_line_pos; i++)
+            append_buffer(dev, (uint8_t) dev->pjl_line[i]);
+        if (had_cr)
+            append_buffer(dev, '\r');
+        append_buffer(dev, '\n');
+    }
+
+    dev->pjl_line_pos      = 0;
+    dev->pjl_line_overflow = false;
+    dev->pjl_line[0]       = 0;
+}
+
 static int
 process_escape(ps_t *dev, int do_pjl)
 {
-    int ret = 0;
+    static const uint8_t uel[] = { 0x1b, '%', '-', '1', '2', '3', '4', '5', 'X' };
 
-    if (dev->data == 0x1b)
-        dev->pcl_escape = 1;
-    else  switch (dev->pcl_escape) {
-        default:
-            break;
-        case 1:
-            dev->pcl_escape = (dev->data == 0x25) ? 2 : 0;
-            break;
-        case 2:
-            dev->pcl_escape = (dev->data == 0x2d) ? 3 : 0;
-            break;
-        case 3:
-            dev->pcl_escape = (dev->data == 0x31) ? 4 : 0;
-            break;
-        case 4:
-            dev->pcl_escape = (dev->data == 0x32) ? 5 : 0;
-            break;
-        case 5:
-            dev->pcl_escape = (dev->data == 0x33) ? 6 : 0;
-            break;
-        case 6:
-            dev->pcl_escape = (dev->data == 0x34) ? 7 : 0;
-            break;
-        case 7:
-            dev->pcl_escape = (dev->data == 0x35) ? 8 : 0;
-            break;
-        case 8:
-            dev->pcl_escape = 0;
-            if (dev->data == 0x58) {
-                if (do_pjl)
-                    dev->pjl = true;
+    /* Return 1 when consumed as a complete UEL, 2 while holding a possible
+       UEL prefix, and 0 when the caller should process the current byte. */
+    if (dev->uel_pos == 0) {
+        if (dev->data != uel[0])
+            return 0;
 
-                dev->buffer[dev->buffer_pos++] = dev->data;
-                dev->buffer[dev->buffer_pos]   = 0;
-
-                /* Wipe the slate clean so that there won't be a bogus empty page output to PDF. */
-                dev->pending  = false;
-                ret = 1;
-            }
-            break;
+        dev->uel_candidate[0] = dev->data;
+        dev->uel_pos = 1;
+        return 2;
     }
 
-    return ret;
+    if (dev->data == uel[dev->uel_pos]) {
+        dev->uel_candidate[dev->uel_pos++] = dev->data;
+        if (dev->uel_pos < sizeof(uel))
+            return 2;
+
+        dev->uel_pos = 0;
+        if (do_pjl) {
+            dev->pjl_line_pos = 0;
+            dev->pjl_line_overflow = false;
+            dev->pjl_line[0] = 0;
+            dev->pjl = true;
+            dev->pending = false;
+            return 1;
+        }
+
+        for (size_t i = 0; i < sizeof(uel); i++)
+            append_buffer(dev, uel[i]);
+        return 1;
+    }
+
+    /* This was an ordinary ESC sequence. Restore every held byte before
+       processing the byte that disproved the UEL candidate. */
+    for (size_t i = 0; i < dev->uel_pos; i++)
+        append_buffer(dev, dev->uel_candidate[i]);
+    dev->uel_pos = 0;
+
+    if (dev->data == uel[0]) {
+        dev->uel_candidate[0] = dev->data;
+        dev->uel_pos = 1;
+        return 2;
+    }
+
+    return 0;
 }
 
 static void
 process_data(ps_t *dev)
 {
+    /* Raw mode is an exact byte capture: do not parse or strip PJL/UEL. */
     if (dev->lang == LANG_RAW) {
-        if ((dev->data == 0x1b) || (dev->pcl_escape > 0)) {
-            if (process_escape(dev, 0))
+        append_buffer(dev, dev->data);
+        return;
+    }
+
+    /* PJL is recognized automatically for either generic printer backend. */
+    if (dev->pjl) {
+        process_pjl_data(dev, dev->data);
+        return;
+    }
+
+    /* The Universal Exit Language sequence is recognized in both PS and PCL. */
+    if ((dev->data == 0x1b) || (dev->uel_pos > 0)) {
+        if (process_escape(dev, 1) != 0)
+            return;
+    }
+
+    if (!dev->pcl && ((dev->data < 0x20) || (dev->data == 0x7f))) {
+        /* On PostScript, ignore unsupported controls but preserve legal whitespace. */
+        switch (dev->data) {
+            case '\t':
+            case '\n':
+            case '\f':
+            case '\r':
+                break;
+
+            case '\0':
+                dev->data = ' ';
+                break;
+
+            /* Ctrl+D is a common PostScript job terminator. */
+            case '\4':
+                write_buffer(dev, true);
                 return;
-        }
-    } else {
-        /* On PCL, check for escape sequences. */
-        if (dev->pcl) {
-            if (dev->pjl) {
-                dev->buffer[dev->buffer_pos++] = dev->data;
 
-                /* Filter out any PJL commands. */
-                if (dev->pjl_command && (dev->data == '\n')) {
-                    dev->pjl_command = false;
-                    if (!memcmp(&(dev->buffer[dev->pjl_command_start]), "@PJL ENTER LANGUAGE=PCL", 0x17))
-                        dev->pjl = false;
-                    else if (!memcmp(&(dev->buffer[dev->pjl_command_start]), "@PJL ENTER LANGUAGE=POSTSCRIPT", 0x1e))
-                        fatal("Printing PostScript using the PCL printer is not (yet) supported!\n");
-                    dev->buffer[dev->buffer_pos] = 0x00;
-                    dev->buffer_pos = dev->pjl_command_start;
-                } else if (!dev->pjl_command && (dev->buffer_pos >= 0x05) && !memcmp(&(dev->buffer[dev->buffer_pos - 0x5]), "@PJL ", 0x05)) {
-                    dev->pjl_command = true;
-                    dev->pjl_command_start = dev->buffer_pos - 0x05;
-                } else if (!dev->pjl_command && (dev->data == 0x1b))
-                    /* The universal exit code is also valid in PJL. */
-                    dev->pcl_escape = 1;
-
-                dev->buffer[dev->buffer_pos]   = 0;
+            default:
                 return;
-            } else if ((dev->data == 0x1b) || (dev->pcl_escape > 0)) {
-                if (process_escape(dev, 1))
-                    return;
-            }
-        } else if ((dev->data < 0x20) || (dev->data == 0x7f)) {
-            /* On PostScript, check for non-printable characters. */
-            switch (dev->data) {
-                /* The following characters are considered white-space
-                   by the PostScript specification */
-                case '\t':
-                case '\n':
-                case '\f':
-                case '\r':
-                    break;
-
-                /* Same with NUL, except we better change it to a space first */
-                case '\0':
-                    dev->data = ' ';
-                    break;
-
-                /* Ctrl+D (0x04) marks the end of the document */
-                case '\4':
-                    write_buffer(dev, true);
-                    return;
-
-                /* Don't bother with the others */
-                default:
-                    return;
-            }
         }
     }
 
-    /* Flush the buffer if we have run to its end */
-    if (dev->buffer_pos == POSTSCRIPT_BUFFER_LENGTH - 1)
-        write_buffer(dev, false);
-
-    dev->buffer[dev->buffer_pos++] = dev->data;
-    dev->buffer[dev->buffer_pos]   = 0;
+    append_buffer(dev, dev->data);
 }
 
 static void
@@ -627,7 +870,9 @@ ps_init(const device_t *info)
     dev->pcl  = false;
 
     dev->lpt  = lpt_attach(ps_write_data, ps_write_ctrl, ps_strobe, ps_read_status, NULL, NULL, NULL, dev);
-    dev->lang = device_get_config_int("language");
+    dev->lang       = device_get_config_int("language");
+    dev->paper_size = device_get_config_int("paper_size");
+    dev->resolution = device_get_config_int("resolution");
 
     if (dev->lang != LANG_RAW)
         load_interpreter(dev);
@@ -659,7 +904,9 @@ pcl_init(const device_t *info)
     dev->pcl  = true;
 
     dev->lpt  = lpt_attach(ps_write_data, ps_write_ctrl, ps_strobe, ps_read_status, NULL, NULL, NULL, dev);
-    dev->lang = device_get_config_int("language");
+    dev->lang       = device_get_config_int("language");
+    dev->paper_size = device_get_config_int("paper_size");
+    dev->resolution = device_get_config_int("resolution");
 
     if (dev->lang != LANG_RAW)
         load_interpreter(dev);
@@ -715,6 +962,74 @@ static const device_config_t lpt_prt_ps_config[] = {
         },
         .bios           = { { 0 } }
     },
+    {
+        .name           = "paper_size",
+        .description    = "Paper Size",
+        .type           = CONFIG_SELECTION,
+        .default_string = NULL,
+        .default_int    = 0,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = {
+            { .description = "Use job setting", .value = 0 },
+            { .description = "Letter",          .value = 1 },
+            { .description = "Legal",           .value = 2 },
+            { .description = "Ledger / Tabloid",.value = 3 },
+            { .description = "A0",              .value = 4 },
+            { .description = "A1",              .value = 5 },
+            { .description = "A2",              .value = 6 },
+            { .description = "A3",              .value = 7 },
+            { .description = "A4",              .value = 8 },
+            { .description = "B4",              .value = 9 },
+            { .description = "A5",              .value = 10 },
+            { .description = "A6",              .value = 11 },
+            { .description = "A7",              .value = 12 },
+            { .description = "A8",              .value = 13 },
+            { .description = "A9",              .value = 14 },
+            { .description = "A10",             .value = 15 },
+            { .description = "B0",              .value = 16 },
+            { .description = "B1",              .value = 17 },
+            { .description = "B2",              .value = 18 },
+            { .description = "B3",              .value = 19 },
+            { .description = "B5",              .value = 20 },
+            { .description = "B6",              .value = 21 },
+            { .description = "B7",              .value = 22 },
+            { .description = "B8",              .value = 23 },
+            { .description = "B9",              .value = 24 },
+            { .description = "B10",             .value = 25 },
+            { .description = "Executive",        .value = 26 },
+            { .description = "Statement",        .value = 27 },
+            { .description = "Folio",            .value = 28 },
+            { .description = "10 x 14",          .value = 29 },
+            { .description = "ANSI C",           .value = 30 },
+            { .description = "ANSI D",           .value = 31 },
+            { .description = "ANSI E",           .value = 32 },
+            { .description = "Envelope DL",      .value = 33 },
+            { .description = "Envelope C5",      .value = 34 },
+            { .description = "Envelope #10",     .value = 35 },
+            { .description = "Envelope Monarch", .value = 36 },
+            { .description = "" }
+        },
+        .bios           = { { 0 } }
+    },
+    {
+        .name           = "resolution",
+        .description    = "Resolution (DPI)",
+        .type           = CONFIG_SELECTION,
+        .default_string = NULL,
+        .default_int    = 0,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = {
+            { .description = "Use job setting", .value = 0 },
+            { .description = "150 DPI",         .value = 150 },
+            { .description = "300 DPI",         .value = 300 },
+            { .description = "600 DPI",         .value = 600 },
+            { .description = "1200 DPI",        .value = 1200 },
+            { .description = "" }
+        },
+        .bios           = { { 0 } }
+    },
     { .name = "", .description = "", .type = CONFIG_END }
 };
 // clang-format on
@@ -736,6 +1051,74 @@ static const device_config_t lpt_prt_pcl_config[] = {
             { .description = "PDF (HP-RTL)", .value = LANG_HP_RTL },
             { .description = "PDF (PCL 6)",  .value = LANG_PCL_6  },
             { .description = ""                                   }
+        },
+        .bios           = { { 0 } }
+    },
+    {
+        .name           = "paper_size",
+        .description    = "Paper Size",
+        .type           = CONFIG_SELECTION,
+        .default_string = NULL,
+        .default_int    = 0,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = {
+            { .description = "Use job setting", .value = 0 },
+            { .description = "Letter",          .value = 1 },
+            { .description = "Legal",           .value = 2 },
+            { .description = "Ledger / Tabloid",.value = 3 },
+            { .description = "A0",              .value = 4 },
+            { .description = "A1",              .value = 5 },
+            { .description = "A2",              .value = 6 },
+            { .description = "A3",              .value = 7 },
+            { .description = "A4",              .value = 8 },
+            { .description = "B4",              .value = 9 },
+            { .description = "A5",              .value = 10 },
+            { .description = "A6",              .value = 11 },
+            { .description = "A7",              .value = 12 },
+            { .description = "A8",              .value = 13 },
+            { .description = "A9",              .value = 14 },
+            { .description = "A10",             .value = 15 },
+            { .description = "B0",              .value = 16 },
+            { .description = "B1",              .value = 17 },
+            { .description = "B2",              .value = 18 },
+            { .description = "B3",              .value = 19 },
+            { .description = "B5",              .value = 20 },
+            { .description = "B6",              .value = 21 },
+            { .description = "B7",              .value = 22 },
+            { .description = "B8",              .value = 23 },
+            { .description = "B9",              .value = 24 },
+            { .description = "B10",             .value = 25 },
+            { .description = "Executive",        .value = 26 },
+            { .description = "Statement",        .value = 27 },
+            { .description = "Folio",            .value = 28 },
+            { .description = "10 x 14",          .value = 29 },
+            { .description = "ANSI C",           .value = 30 },
+            { .description = "ANSI D",           .value = 31 },
+            { .description = "ANSI E",           .value = 32 },
+            { .description = "Envelope DL",      .value = 33 },
+            { .description = "Envelope C5",      .value = 34 },
+            { .description = "Envelope #10",     .value = 35 },
+            { .description = "Envelope Monarch", .value = 36 },
+            { .description = "" }
+        },
+        .bios           = { { 0 } }
+    },
+    {
+        .name           = "resolution",
+        .description    = "Resolution (DPI)",
+        .type           = CONFIG_SELECTION,
+        .default_string = NULL,
+        .default_int    = 0,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = {
+            { .description = "Use job setting", .value = 0 },
+            { .description = "150 DPI",         .value = 150 },
+            { .description = "300 DPI",         .value = 300 },
+            { .description = "600 DPI",         .value = 600 },
+            { .description = "1200 DPI",        .value = 1200 },
+            { .description = "" }
         },
         .bios           = { { 0 } }
     },
