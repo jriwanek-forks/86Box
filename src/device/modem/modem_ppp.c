@@ -2068,14 +2068,20 @@ ppp_process_frame(ppp_ctx_t *ctx, const uint8_t *frame, int frame_len, bool reas
         if (protocol < PPP_PROTO_IP || protocol > 0x00FA)
             return;
     } else if (protocol == PPP_PROTO_MPPE) {
+        /* MPPE control frames are not handled here; they are usually processed
+           during the decryption phase or ignored if not needed. */
         return;
     } else if (ctx->mppe_keys_ready && !ctx->ccp_plaintext_fallback && ctx->ccp_open
                && protocol >= PPP_PROTO_IP && protocol <= 0x00FA
                && ctx->mppe_rx_enabled) {
-        return;
+        /* If we're here, it means an IP packet arrived that SHOULD have been encrypted,
+           but it's arriving in plaintext (or vice versa). For compatibility with Windows 95,
+           we allow it to pass through instead of dropping it. */
+        MODEM_DEBUG_LOG(ctx->log, "PPP: Allowing potentially mis-encrypted packet (proto=0x%04X)\\\n", protocol);
     } else if (ctx->mppe_keys_ready && !ctx->ccp_plaintext_fallback && !ctx->ccp_open
                && protocol >= PPP_PROTO_IP && protocol <= 0x00FA) {
-        return;
+        /* Similarly, allow packets when CCP is not yet open but MPPE keys are ready. */
+        MODEM_DEBUG_LOG(ctx->log, "PPP: Allowing potentially mis-encrypted packet (proto=0x%04X, CCP closed)\\\n", protocol);
     }
 
             ppp_log(ctx->log, "PPP: Received frame proto=%s (0x%04X) len=%d (state=%s)\n",
