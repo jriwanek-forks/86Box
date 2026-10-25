@@ -16,6 +16,7 @@
  */
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdio.h>
 #include <stdint.h>
 #include <string.h>
 #include <86box/modem/modem_ppp.h>
@@ -191,6 +192,7 @@ ccp_log_packet(ppp_ctx_t *ctx, const char *direction, const uint8_t *pkt, int to
         uint8_t type;
         uint8_t option_len;
         uint32_t value = 0;
+        char details[256] = "";
 
         if (pos + 2 > total) {
             MODEM_DEBUG_LOG(ctx->log, "CCP: malformed option header at offset=%d\n", pos);
@@ -208,43 +210,42 @@ ccp_log_packet(ppp_ctx_t *ctx, const char *direction, const uint8_t *pkt, int to
         else if (type == CCP_OPT_NT31RAS && option_len >= 6)
             value = ccp_get_le_u32(pkt + pos + 2);
 
-        MODEM_DEBUG_LOG(ctx->log, "CCP: %s option=%s (type=%u) length=%u",
-                        direction, ccp_option_name(type, value), (unsigned) type,
-                        (unsigned) option_len);
         if (type == CCP_OPT_MPPE && option_len == 6) {
-            MODEM_DEBUG_LOG(ctx->log, " bits=0x%08X mppc=%s key-40=%s key-56=%s "
-                            "key-128=%s stateless=%s",
-                            (unsigned) value, (value & CCP_MPPC) ? "yes" : "no",
-                            (value & CCP_MPPE_40) ? "yes" : "no",
-                            (value & CCP_MPPE_56) ? "yes" : "no",
-                            (value & CCP_MPPE_128) ? "yes" : "no",
-                            (value & CCP_MPPE_STATELESS) ? "yes" : "no");
+            snprintf(details, sizeof(details), " bits=0x%08X mppc=%s key-40=%s key-56=%s "
+                     "key-128=%s stateless=%s",
+                     (unsigned) value, (value & CCP_MPPC) ? "yes" : "no",
+                     (value & CCP_MPPE_40) ? "yes" : "no",
+                     (value & CCP_MPPE_56) ? "yes" : "no",
+                     (value & CCP_MPPE_128) ? "yes" : "no",
+                     (value & CCP_MPPE_STATELESS) ? "yes" : "no");
         } else if (type == CCP_OPT_DEFLATE && option_len == 4) {
-            MODEM_DEBUG_LOG(ctx->log, " window=0x%02X method=0x%02X",
-                            pkt[pos + 2], pkt[pos + 3]);
+            snprintf(details, sizeof(details), " window=0x%02X method=0x%02X",
+                     pkt[pos + 2], pkt[pos + 3]);
         } else if (type == CCP_OPT_BSD && option_len == 3) {
-            MODEM_DEBUG_LOG(ctx->log, " version-and-bits=0x%02X", pkt[pos + 2]);
+            snprintf(details, sizeof(details), " version-and-bits=0x%02X", pkt[pos + 2]);
         } else if (type == CCP_OPT_LZS && option_len == 5) {
             uint8_t check_mode = pkt[pos + 4];
-            MODEM_DEBUG_LOG(ctx->log, " history-count=%u check-mode=%u (%s)",
-                            (unsigned) (((uint16_t) pkt[pos + 2] << 8) | pkt[pos + 3]),
-                            (unsigned) check_mode, ccp_lzs_check_mode_name(check_mode));
+            snprintf(details, sizeof(details), " history-count=%u check-mode=%u (%s)",
+                     (unsigned) (((uint16_t) pkt[pos + 2] << 8) | pkt[pos + 3]),
+                     (unsigned) check_mode, ccp_lzs_check_mode_name(check_mode));
         } else if (type == CCP_OPT_LZS_DCP && option_len == 6) {
-            MODEM_DEBUG_LOG(ctx->log, " history-count=%u check-mode=%u process-mode=%u",
-                            (unsigned) (((uint16_t) pkt[pos + 2] << 8) | pkt[pos + 3]),
-                            (unsigned) pkt[pos + 4], (unsigned) pkt[pos + 5]);
+            snprintf(details, sizeof(details), " history-count=%u check-mode=%u process-mode=%u",
+                     (unsigned) (((uint16_t) pkt[pos + 2] << 8) | pkt[pos + 3]),
+                     (unsigned) pkt[pos + 4], (unsigned) pkt[pos + 5]);
         } else if (type == CCP_OPT_NT31RAS && option_len == 22) {
             uint32_t receive_features = ccp_get_le_u32(pkt + pos + 6);
             uint32_t maximum_send = ccp_get_le_u32(pkt + pos + 10);
             uint32_t maximum_receive = ccp_get_le_u32(pkt + pos + 14);
-            MODEM_DEBUG_LOG(ctx->log, " send-features=0x%08X receive-features=0x%08X"
-                            " send-window=%u receive-window=%u max-send=%u max-receive=%u",
-                            (unsigned) value, (unsigned) receive_features,
-                            (unsigned) ccp_nt31ras_window_size(value),
-                            (unsigned) ccp_nt31ras_window_size(receive_features),
-                            (unsigned) maximum_send, (unsigned) maximum_receive);
+            snprintf(details, sizeof(details), " send-features=0x%08X receive-features=0x%08X"
+                     " send-window=%u receive-window=%u max-send=%u max-receive=%u",
+                     (unsigned) value, (unsigned) receive_features,
+                     (unsigned) ccp_nt31ras_window_size(value),
+                     (unsigned) ccp_nt31ras_window_size(receive_features),
+                     (unsigned) maximum_send, (unsigned) maximum_receive);
         }
-        MODEM_DEBUG_LOG(ctx->log, "\n");
+        MODEM_DEBUG_LOG(ctx->log, "CCP: %s option=%s (type=%u) length=%u%s\n",
+                        direction, ccp_option_name(type, value), (unsigned) type,
+                        (unsigned) option_len, details);
         pos += option_len;
     }
 }
@@ -606,6 +607,7 @@ ccp_handle_config_request(ppp_ctx_t *ctx, const uint8_t *pkt, int total)
     uint32_t selected_tx_window = 0;
     uint8_t selected_tx_bsd_bits = 0;
     uint8_t selected_method = PPP_CCP_METHOD_NONE;
+    int selected_mppc_pos = -1;
 
     ctx->ccp_ack_sent = false;
     ctx->ccp_peer_mppe = false;
@@ -633,6 +635,16 @@ ccp_handle_config_request(ppp_ctx_t *ctx, const uint8_t *pkt, int total)
                                                 | pkt[pos + 3]);
             uint8_t check_mode = pkt[pos + 4];
             saw_lzs = true;
+            /* The peer may list MPPC before LZS regardless of our configured
+               preference. For preference 1, keep the LZS offer and reject
+               the earlier MPPC option so the peer retries with LZS alone. */
+            if (selected_method == PPP_CCP_METHOD_MPPC
+                && ctx->ppp_compression == 1 && selected_mppc_pos >= 0) {
+                memcpy(rej + rej_len, pkt + selected_mppc_pos, 6);
+                rej_len += 6;
+                selected_method = PPP_CCP_METHOD_NONE;
+                selected_mppc_pos = -1;
+            }
             if (selected_method != PPP_CCP_METHOD_NONE || ctx->mppe_min_bits > 0
                 || ctx->ppp_compression == 0) {
                 memcpy(rej + rej_len, pkt + pos, option_len);
@@ -740,15 +752,16 @@ ccp_handle_config_request(ppp_ctx_t *ctx, const uint8_t *pkt, int total)
                                || ((ctx->mppe_key_state_mode == 3 || ctx->mppe_key_state_mode == 5)
                                    && state_flag);
             saw_mppe = true;
-            if ((bits & ~(CCP_MPPC | CCP_MPPE_OFFER)) != 0
+            if ((bits & ~(CCP_MPPC | CCP_MPPE_OFFER | CCP_MPPE_D)) != 0
                 || (key_bits == 0 && bits != CCP_MPPC)) {
                 memcpy(rej + rej_len, pkt + pos, option_len);
                 rej_len += option_len;
             } else if (key_bits == 0) {
                 if (selected_method == PPP_CCP_METHOD_NONE && ctx->mppe_min_bits == 0
-                    && ctx->ccp_direction != 2 && ctx->ppp_compression != 0)
+                    && ctx->ccp_direction != 2 && ctx->ppp_compression != 0) {
                     selected_method = PPP_CCP_METHOD_MPPC;
-                else {
+                    selected_mppc_pos = pos;
+                } else {
                     memcpy(rej + rej_len, pkt + pos, option_len);
                     rej_len += option_len;
                 }
@@ -768,7 +781,8 @@ ccp_handle_config_request(ppp_ctx_t *ctx, const uint8_t *pkt, int total)
                 nak[nak_len++] = 6;
                 ccp_put_u32(nak + nak_len, suggested);
                 nak_len += 4;
-            } else if (key_bits != preferred_key || (key_bits & (key_bits - 1)) != 0
+            } else if ((bits & CCP_MPPE_D) != 0
+                       || key_bits != preferred_key || (key_bits & (key_bits - 1)) != 0
                        || state_mismatch) {
                 uint32_t chosen = ctx->mppe_min_bits > 0 ? required_key : preferred_key;
                 uint32_t suggested = (bits & CCP_MPPC) | chosen;
@@ -850,6 +864,15 @@ ccp_handle_config_request(ppp_ctx_t *ctx, const uint8_t *pkt, int total)
             ppp_mppe_configure(&ctx->mppe_tx, ccp_key_bits_to_length(selected_bits),
                                !(selected_bits & CCP_MPPE_STATELESS));
         ccp_update_state(ctx);
+        /* An empty Configure-Request means the peer has no CCP options left
+           after our Configure-Reject. Treat that as a completed negotiation
+           without compression when MPPE is optional, so IPCP can enter the
+           network phase instead of waiting for CCP to open. */
+        if (total == 4 && selected_method == PPP_CCP_METHOD_NONE
+            && selected_bits == 0 && ctx->mppe_min_bits == 0
+            && !ctx->ccp_req_sent) {
+            ppp_ccp_fallback_plaintext(ctx);
+        }
         ppp_advance_state(ctx);
     }
 }
@@ -1077,7 +1100,7 @@ ppp_ccp_process(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
             } else {
                 ccp_send_response(ctx, PPP_CODE_RESET_ACK, pkt[1], NULL, 0);
             }
-            ppp_mppe_request_rekey(&ctx->mppe_tx);
+            ppp_mppe_request_reset(&ctx->mppe_tx);
             if (ctx->ccp_tx_method != PPP_CCP_METHOD_NONE
                 && ctx->ccp_tx_method != PPP_CCP_METHOD_LZS_EXTENDED
                 && ctx->ccp_tx_method != PPP_CCP_METHOD_LZS)

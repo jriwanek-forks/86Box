@@ -149,7 +149,7 @@ ppp_mppe_configure(ppp_mppe_state_t *state, uint8_t key_bits, bool stateful)
     state->next_count = 0;
     state->last_count = 0x0FFF;
     state->receive_initialized = false;
-    state->force_rekey = false;
+    state->force_reset = false;
     state->discard = false;
     state->reset_requested = false;
     memset(state->session_key, 0, sizeof(state->session_key));
@@ -225,7 +225,7 @@ ppp_mppe_derive_mschapv1_keys(const uint8_t password_hash_hash[16],
 
 bool
 ppp_mppe_encrypt(ppp_mppe_state_t *state, const uint8_t *plain, size_t plain_len,
-                 uint8_t *out, size_t out_capacity, size_t *out_len)
+                 uint8_t mppc_flags, uint8_t *out, size_t out_capacity, size_t *out_len)
 {
     uint16_t count;
     bool flushed;
@@ -236,11 +236,16 @@ ppp_mppe_encrypt(ppp_mppe_state_t *state, const uint8_t *plain, size_t plain_len
         return false;
 
     count = state->next_count;
-    flushed = !state->stateful || (count & 0x00FF) == 0x00FF || state->force_rekey;
-    if (flushed)
+    flushed = !state->stateful || (count & 0x00FF) == 0x00FF || state->force_reset;
+    if (state->force_reset)
+        mppe_rc4_init(&state->rc4, state->session_key, state->key_length);
+    else if (flushed)
         mppe_rekey(state);
-    state->force_rekey = false;
-    out[0] = (uint8_t) (0x10 | (flushed ? 0x80 : 0) | (count >> 8));
+    state->force_reset = false;
+    out[0] = (uint8_t) (PPP_MPPE_FLAG_ENCRYPTED
+                        | (flushed ? PPP_MPPE_FLAG_FLUSHED : 0)
+                        | (mppc_flags & (PPP_MPPE_FLAG_AT_FRONT | PPP_MPPE_FLAG_COMPRESSED))
+                        | (count >> 8));
     out[1] = (uint8_t) count;
     mppe_rc4_crypt(&state->rc4, plain, out + PPP_MPPE_HEADER_LENGTH, plain_len);
     state->next_count = (uint16_t) ((count + 1) & 0x0FFF);
@@ -260,14 +265,16 @@ ppp_mppe_decrypt(ppp_mppe_state_t *state, const uint8_t *packet, size_t packet_l
     if (!state || !packet || !out || !out_len || packet_len <= PPP_MPPE_HEADER_LENGTH)
         return false;
     encrypted_len = packet_len - PPP_MPPE_HEADER_LENGTH;
-    flags = packet[0] & 0xF0;
+    flags = packet[0] & PPP_MPPE_FLAGS_MASK;
+    /* MPPE does not interpret B/C. When MPPC is also negotiated, those
+       bits carry MPPC's AT_FRONT and COMPRESSED flags for the CCP decoder. */
     if (out_capacity < encrypted_len || state->key_length == 0
-        || !(flags & 0x10) || (flags & 0x60) != 0)
+        || !(flags & PPP_MPPE_FLAG_ENCRYPTED))
         return false;
 
     count = (uint16_t) (((packet[0] & 0x0F) << 8) | packet[1]);
     if (!state->stateful) {
-        if (!(flags & 0x80))
+        if (!(flags & PPP_MPPE_FLAG_FLUSHED))
             return false;
         delta = (uint16_t) ((count - state->last_count) & 0x0FFF);
         if (delta == 0 || delta > 0x0800)
@@ -277,7 +284,7 @@ ppp_mppe_decrypt(ppp_mppe_state_t *state, const uint8_t *packet, size_t packet_l
             state->last_count = (uint16_t) ((state->last_count + 1) & 0x0FFF);
         }
     } else if (state->discard) {
-        if (!(flags & 0x80))
+        if (!(flags & PPP_MPPE_FLAG_FLUSHED))
             return false;
         while ((state->next_count & 0x0F00) != (count & 0x0F00)) {
             mppe_rekey(state);
@@ -288,12 +295,12 @@ ppp_mppe_decrypt(ppp_mppe_state_t *state, const uint8_t *packet, size_t packet_l
         state->reset_requested = false;
     } else {
         if (count != state->next_count
-            || ((count & 0x00FF) == 0x00FF && !(flags & 0x80))) {
+            || ((count & 0x00FF) == 0x00FF && !(flags & PPP_MPPE_FLAG_FLUSHED))) {
             state->discard = true;
             state->reset_requested = true;
             return false;
         }
-        if (flags & 0x80)
+        if (flags & PPP_MPPE_FLAG_FLUSHED)
             mppe_rekey(state);
     }
 
@@ -307,8 +314,8 @@ ppp_mppe_decrypt(ppp_mppe_state_t *state, const uint8_t *packet, size_t packet_l
 }
 
 void
-ppp_mppe_request_rekey(ppp_mppe_state_t *state)
+ppp_mppe_request_reset(ppp_mppe_state_t *state)
 {
     if (state && state->key_length > 0)
-        state->force_rekey = true;
+        state->force_reset = true;
 }

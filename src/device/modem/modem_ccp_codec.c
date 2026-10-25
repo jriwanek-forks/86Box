@@ -18,6 +18,7 @@
 #include <string.h>
 #include <zlib.h>
 #include <86box/modem/modem_ppp.h>
+#include <86box/modem/modem_mppe.h>
 
 #define PREDICTOR_TABLE_SIZE 65536
 #define PREDICTOR_HEADER_SIZE 2
@@ -25,9 +26,9 @@
 #define PREDICTOR2_STREAM_CAPACITY (PPP_MAX_FRAME * 3)
 #define MPPC_HISTORY_SIZE 8192
 #define MPPC_HISTORY_MASK (MPPC_HISTORY_SIZE - 1)
-#define MPPC_FLUSHED 0x80
-#define MPPC_AT_FRONT 0x40
-#define MPPC_COMPRESSED 0x20
+#define MPPC_FLUSHED PPP_MPPE_FLAG_FLUSHED
+#define MPPC_AT_FRONT PPP_MPPE_FLAG_AT_FRONT
+#define MPPC_COMPRESSED PPP_MPPE_FLAG_COMPRESSED
 #define MPPC_RESERVED 0x10
 #define LZS_WINDOW_SIZE 2047
 #define LZS_EXTENDED_PROTOCOL PPP_PROTO_MPPE
@@ -1566,6 +1567,18 @@ ppp_ccp_codec_flush(ppp_ctx_t *ctx, bool transmit)
         codec->lzs_extended.tx_flush = true;
         return;
     }
+    if (codec && codec->method == PPP_CCP_METHOD_MPPC) {
+        if (transmit) {
+            codec->mppc.tx_flush = true;
+            codec->mppc.tx_position = 0;
+            codec->mppc.tx_history_length = 0;
+        } else {
+            codec->mppc.rx_flush = true;
+            codec->mppc.rx_position = 0;
+            codec->mppc.rx_history_length = 0;
+        }
+        return;
+    }
     if (!codec || codec->method != PPP_CCP_METHOD_NT31RAS)
         return;
     codec->nt31ras.current = 1;
@@ -2235,18 +2248,19 @@ ppp_ccp_codec_compress(ppp_ctx_t *ctx, const uint8_t *input, int input_len,
         uint16_t count = codec->mppc.tx_count & 0x0FFF;
         bool flushed = codec->mppc.tx_flush;
         bool at_front = false;
+        uint16_t packet_start_position;
 
         if (output_capacity < input_len + 2 || input_len > MPPC_HISTORY_SIZE)
             return false;
 
-        if (flushed) {
+        if (flushed || (size_t) codec->mppc.tx_position + (size_t) input_len
+                        > MPPC_HISTORY_SIZE) {
             mppc_history_reset(codec->mppc.tx_history, &codec->mppc.tx_position,
                                &codec->mppc.tx_history_length);
-        } else if ((size_t) codec->mppc.tx_position + (size_t) input_len > MPPC_HISTORY_SIZE) {
-            mppc_history_move_to_front(codec->mppc.tx_history, &codec->mppc.tx_position,
-                                       codec->mppc.tx_history_length);
+            flushed = true;
             at_front = true;
         }
+        packet_start_position = codec->mppc.tx_position;
 
         memset(encoded, 0, sizeof(encoded));
         for (int pos = 0; pos < input_len;) {
@@ -2260,7 +2274,7 @@ ppp_ccp_codec_compress(ppp_ctx_t *ctx, const uint8_t *input, int input_len,
                     int source_pos = pos + length - offset;
                     uint8_t source = source_pos < 0
                                    ? codec->mppc.tx_history[
-                                         ((size_t) codec->mppc.tx_position + MPPC_HISTORY_SIZE
+                                         ((size_t) packet_start_position + MPPC_HISTORY_SIZE
                                           + source_pos) & MPPC_HISTORY_MASK]
                                    : input[source_pos];
                     if (input[pos + length] != source)
@@ -2451,6 +2465,7 @@ ppp_ccp_codec_decompress(ppp_ctx_t *ctx, const uint8_t *input, int input_len,
                                &codec->mppc.rx_history_length);
             codec->mppc.rx_flush = false;
             codec->mppc.rx_count = count;
+            ctx->ccp_reset_pending = false;
         } else if (codec->mppc.rx_flush || count != codec->mppc.rx_count) {
             return false;
         }

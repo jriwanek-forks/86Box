@@ -499,9 +499,9 @@ send_uncompressed:
         slot->ip_proto = in[IP_PROTO];
         ctx->last_conn_send = slot->conn_id;
 
-        /* Output: full IP packet with connection number in protocol field */
+        /* RFC 1144 carries the connection number in the IP protocol field. */
         memcpy(out, in, in_len);
-        out[IP_PROTO] = VJ_TYPE_UNCOMPRESSED_TCP | slot->conn_id;
+        out[IP_PROTO] = slot->conn_id;
 
         *type = VJ_TYPE_UNCOMPRESSED_TCP;
         return in_len;
@@ -769,9 +769,37 @@ cslip_decompress_packet(cslip_ctx_t *ctx, const uint8_t *in, int in_len,
         uint8_t first = in[0];
         if (first & 0x80)
             type = VJ_TYPE_COMPRESSED_TCP;
-        else if (in_len > 9 && (first >> 4) == 4
-                 && (in[IP_PROTO] & 0xF0) == VJ_TYPE_UNCOMPRESSED_TCP)
+        else if (first >= 0x70) {
+            /*
+             * CSLIP marks an uncompressed TCP packet in the high bits of
+             * the first IP header byte. Restore the IPv4 version/IHL before
+             * passing the packet to the normal VJ decoder; its protocol
+             * field contains the connection slot number.
+             */
             type = VJ_TYPE_UNCOMPRESSED_TCP;
+            memcpy(out, in, in_len);
+            out[IP_VHL] &= (uint8_t) ~VJ_UNCOMPRESSED_MARKER;
+            in = out;
+        }
+        else if (in_len >= 20 && (first >> 4) == 4) {
+            int      ip_hdr_len = (first & 0x0F) * 4;
+            uint16_t ip_len     = vj_get16(in + IP_LEN);
+
+            if (ip_hdr_len >= 20 && ip_hdr_len <= in_len
+                && ip_len >= ip_hdr_len + 20 && ip_len <= in_len) {
+                uint8_t proto = in[IP_PROTO];
+                bool    legacy_marker = (proto & 0xF0) == VJ_TYPE_UNCOMPRESSED_TCP;
+
+                /* Accept the older 0x7x protocol-field marker as well. */
+                if (legacy_marker) {
+                    int tcp_hdr_len = (in[ip_hdr_len + TCP_DOFF] >> 4) * 4;
+
+                    if (tcp_hdr_len >= 20
+                        && tcp_hdr_len <= ip_len - ip_hdr_len)
+                        type = VJ_TYPE_UNCOMPRESSED_TCP;
+                }
+            }
+        }
     }
 
     MODEM_DEBUG_LOG(ctx->log, "CSLIP: RX VJ type=%s (%d) input=%d toss=%u\n",

@@ -25,6 +25,9 @@
 #include <86box/log.h>
 #include <86box/modem/modem_debug.h>
 
+#define SLIP_AUTH_USERNAME_PROMPT "\r\n86Box SLIP Server\r\nlogin: "
+#define SLIP_AUTH_PASSWORD_PROMPT "\r\nPassword: "
+
 #ifdef ENABLE_MODEM_LOG
 extern uint8_t modem_do_log;
 
@@ -93,7 +96,7 @@ slip_auth_start(slip_auth_ctx_t *ctx)
     memset(ctx->username_buf, 0, sizeof(ctx->username_buf));
     memset(ctx->password_buf, 0, sizeof(ctx->password_buf));
 
-    slip_auth_send_string(ctx, "\r\n86Box SLIP Server\r\nUsername: ");
+    slip_auth_send_string(ctx, SLIP_AUTH_USERNAME_PROMPT);
     ctx->state = SLIP_AUTH_RECV_USERNAME;
 
     slip_auth_log(ctx->log, "SLIP Auth: Started, waiting for username\n");
@@ -114,11 +117,16 @@ slip_auth_rx_byte(slip_auth_ctx_t *ctx, uint8_t byte)
             if (byte == '\r' || byte == '\n') {
                 ctx->ignore_lf = byte == '\r';
                 ctx->username_buf[ctx->username_pos] = '\0';
+                if (ctx->username_pos == 0) {
+                    /* DUN scripts commonly send CR first to prompt a login banner. */
+                    slip_auth_send_string(ctx, SLIP_AUTH_USERNAME_PROMPT);
+                    break;
+                }
                 slip_auth_log(ctx->log, "SLIP Auth: Got username '%s'\n", ctx->username_buf);
                 MODEM_DEBUG_LOG(ctx->log, "SLIP Auth: username field length=%u\n",
                                 (unsigned) ctx->username_pos);
 
-                slip_auth_send_string(ctx, "\r\nPassword: ");
+                slip_auth_send_string(ctx, SLIP_AUTH_PASSWORD_PROMPT);
                 ctx->state = SLIP_AUTH_RECV_PASSWORD;
             } else if (byte == '\b' || byte == 0x7F) {
                 if (ctx->username_pos > 0) {

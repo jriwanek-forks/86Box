@@ -45,7 +45,7 @@ typedef struct ppp_mppe_state_t {
     uint8_t  key_length;
     bool     stateful;
     bool     receive_initialized;
-    bool     force_rekey;
+    bool     force_reset;
     bool     discard;
     bool     reset_requested;
     bool     mschapv1_key_derivation;
@@ -64,10 +64,13 @@ typedef struct ppp_mppe_state_t {
 
 /* Microsoft Point-to-Point Encryption flags (RFC 3078) */
 #define CCP_MPPE_STATELESS 0x01000000u
+#define CCP_MPPE_D         0x00000010u /* Obsolete MPPE option bit (RFC 3078) */
 #define CCP_MPPE_40        0x00000020u
 #define CCP_MPPE_128       0x00000040u
 #define CCP_MPPE_56        0x00000080u
 #define CCP_MPPE_KEY_BITS  (CCP_MPPE_128 | CCP_MPPE_56 | CCP_MPPE_40)
+#define CCP_MPPE_DISABLED  0u
+#define CCP_MPPE_AUTOMATIC 0x20000000u /* Config selector: accept any strength, choose strongest offered */
 #define CCP_MPPC           0x00000001u
 #define CCP_MPPE_OFFER     (CCP_MPPE_STATELESS | CCP_MPPE_KEY_BITS)
 #define CCP_NT31RAS_FEATURES 0x0000000Fu
@@ -241,6 +244,93 @@ typedef enum {
     PPP_AUTH_CHAP_SHA512,
     PPP_AUTH_EAP
 } ppp_auth_type_t;
+
+/* Config values retain the historical extra MS-CHAP/MPPE selection. */
+typedef enum {
+    PPP_AUTH_CONFIG_NONE = PPP_AUTH_NONE,
+    PPP_AUTH_CONFIG_PAP = PPP_AUTH_PAP,
+    PPP_AUTH_CONFIG_CHAP_MD5 = PPP_AUTH_CHAP_MD5,
+    PPP_AUTH_CONFIG_MSCHAP = PPP_AUTH_MSCHAP,
+    PPP_AUTH_CONFIG_MSCHAPV2 = PPP_AUTH_MSCHAPV2,
+    PPP_AUTH_CONFIG_MSCHAP_MPPE = PPP_AUTH_CONFIG_MSCHAPV2 + 1,
+    PPP_AUTH_CONFIG_CHAP_SHA1 = PPP_AUTH_CHAP_SHA1 + 1,
+    PPP_AUTH_CONFIG_CHAP_SHA256 = PPP_AUTH_CHAP_SHA256 + 1,
+    PPP_AUTH_CONFIG_CHAP_SHA384 = PPP_AUTH_CHAP_SHA384 + 1,
+    PPP_AUTH_CONFIG_CHAP_SHA512 = PPP_AUTH_CHAP_SHA512 + 1,
+    PPP_AUTH_CONFIG_EAP = PPP_AUTH_EAP + 1
+} ppp_auth_config_t;
+
+static inline ppp_auth_type_t
+ppp_auth_type_from_config(int config_value)
+{
+    switch (config_value) {
+        case PPP_AUTH_CONFIG_PAP:         return PPP_AUTH_PAP;
+        case PPP_AUTH_CONFIG_CHAP_MD5:    return PPP_AUTH_CHAP_MD5;
+        case PPP_AUTH_CONFIG_MSCHAP:      return PPP_AUTH_MSCHAP;
+        case PPP_AUTH_CONFIG_MSCHAPV2:
+        case PPP_AUTH_CONFIG_MSCHAP_MPPE: return PPP_AUTH_MSCHAPV2;
+        case PPP_AUTH_CONFIG_CHAP_SHA1:   return PPP_AUTH_CHAP_SHA1;
+        case PPP_AUTH_CONFIG_CHAP_SHA256: return PPP_AUTH_CHAP_SHA256;
+        case PPP_AUTH_CONFIG_CHAP_SHA384: return PPP_AUTH_CHAP_SHA384;
+        case PPP_AUTH_CONFIG_CHAP_SHA512: return PPP_AUTH_CHAP_SHA512;
+        case PPP_AUTH_CONFIG_EAP:         return PPP_AUTH_EAP;
+        case PPP_AUTH_CONFIG_NONE:
+        default:                          return PPP_AUTH_NONE;
+    }
+}
+
+typedef enum {
+    PPP_COMPRESSION_DISABLED = 0,
+    PPP_COMPRESSION_PREFER_LZS = 1,
+    PPP_COMPRESSION_PREFER_MPPC = 2,
+    PPP_COMPRESSION_PREFER_PREDICTOR = 3,
+    PPP_COMPRESSION_PREFER_MPPC_LZS = 4
+} ppp_compression_preference_t;
+
+typedef enum {
+    PPP_CCP_MODE_ENABLED = 0,
+    PPP_CCP_MODE_DISABLED = 1,
+    PPP_CCP_MODE_PASSIVE = 2
+} ppp_ccp_mode_t;
+
+typedef enum {
+    PPP_CCP_DIRECTION_BIDIRECTIONAL = 0,
+    PPP_CCP_DIRECTION_TRANSMIT_ONLY = 1,
+    PPP_CCP_DIRECTION_RECEIVE_ONLY = 2,
+    PPP_CCP_DIRECTION_ASYMMETRIC_PREFERRED = 3
+} ppp_ccp_direction_t;
+
+typedef enum {
+    PPP_VJ_COMPRESSION_DISABLED = 0,
+    PPP_VJ_COMPRESSION_ALLOWED = 1,
+    PPP_VJ_COMPRESSION_REQUIRED = 2
+} ppp_vj_compression_mode_t;
+
+typedef enum {
+    PPP_MPPE_STATE_OFFER_STATELESS = 0,
+    PPP_MPPE_STATE_OFFER_STATEFUL = 1,
+    PPP_MPPE_STATE_REQUIRE_STATELESS = 2,
+    PPP_MPPE_STATE_REQUIRE_STATEFUL = 3,
+    PPP_MPPE_STATE_AUTO_STATELESS_PREFERRED = 4,
+    PPP_MPPE_STATE_AUTO_STATEFUL_PREFERRED = 5
+} ppp_mppe_key_state_mode_t;
+
+typedef enum {
+    PPP_MPPE_FORMAT_STANDARD = 0,
+    PPP_MPPE_FORMAT_LEGACY_DRAFT = 1
+} ppp_mppe_format_t;
+
+typedef enum {
+    PPP_LCP_COMPRESSION_DISABLED = 0,
+    PPP_LCP_COMPRESSION_OFFER = 1,
+    PPP_LCP_COMPRESSION_REQUIRE = 2
+} ppp_lcp_compression_mode_t;
+
+typedef enum {
+    PPP_IPCP_DNS_WINS_DISABLED = 0,
+    PPP_IPCP_DNS_WINS_OFFER = 1,
+    PPP_IPCP_DNS_WINS_REQUIRE = 2
+} ppp_ipcp_dns_wins_mode_t;
 
 typedef enum {
     PPP_EAP_STATE_IDLE,

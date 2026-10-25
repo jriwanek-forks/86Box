@@ -658,6 +658,32 @@ ppp_process_ras_frame(ppp_ctx_t *ctx, const uint8_t *frame, int frame_length)
 }
 
 /* Send raw HDLC-framed data to the serial line */
+static void
+ppp_debug_log_hex(ppp_ctx_t *ctx, const char *label, const uint8_t *data, int length)
+{
+    char   line[128];
+    int    dump_length = length < 16 ? length : 16;
+    int    written;
+    size_t used;
+
+    if (!ctx || !label || (!data && dump_length > 0) || dump_length < 0)
+        return;
+
+    written = snprintf(line, sizeof(line), "%s (%d/%d bytes)=", label,
+                       dump_length, length);
+    if (written < 0)
+        return;
+    used = (size_t) written < sizeof(line) ? (size_t) written : sizeof(line) - 1;
+
+    for (int i = 0; i < dump_length && used + 2 < sizeof(line); i++) {
+        written = snprintf(line + used, sizeof(line) - used, "%02X", data[i]);
+        if (written != 2)
+            break;
+        used += (size_t) written;
+    }
+    MODEM_DEBUG_LOG(ctx->log, "%s\n", line);
+}
+
 void
 ppp_send_frame(ppp_ctx_t *ctx, uint16_t protocol, const uint8_t *data, int len)
 {
@@ -666,6 +692,7 @@ ppp_send_frame(ppp_ctx_t *ctx, uint16_t protocol, const uint8_t *data, int len)
     uint8_t  encrypted[PPP_MAX_FRAME * 2];
     uint8_t  plaintext[PPP_MAX_FRAME];
     uint8_t  ccp_compressed[PPP_MAX_FRAME * 2];
+    uint8_t  mppc_flags = 0;
     int      raw_len = 0;
     int      out_len = 0;
     uint16_t fcs;
@@ -685,11 +712,14 @@ ppp_send_frame(ppp_ctx_t *ctx, uint16_t protocol, const uint8_t *data, int len)
         return;
     }
 
-    if (ctx->mppe_keys_ready
-        && ((!ctx->ccp_open && !ctx->ccp_plaintext_fallback)
-            || ctx->state != PPP_STATE_NETWORK)
-        && protocol >= PPP_PROTO_IP && protocol <= 0x00FA && !multilink_frame)
+    /* MS-CHAPv2 derives MPPE keys even when the peer has disabled encryption.
+       Keys being available does not mean plaintext is forbidden: only enforce
+       encryption when the local configuration requires MPPE. */
+    if (ctx->mppe_min_bits > 0 && !ctx->mppe_tx_enabled
+        && protocol >= PPP_PROTO_IP && protocol <= 0x00FA && !multilink_frame) {
+        ppp_log(ctx->log, "PPP: Dropping plaintext network packet while required MPPE is inactive\n");
         return;
+    }
 
     if (!multilink_frame && ctx->mppe_tx_enabled
         && protocol >= PPP_PROTO_IP && protocol <= 0x00FA) {
@@ -708,14 +738,22 @@ ppp_send_frame(ppp_ctx_t *ctx, uint16_t protocol, const uint8_t *data, int len)
         size_t mppe_input_len = (size_t) len + 2;
         if (ctx->ccp_tx_method == PPP_CCP_METHOD_MPPC) {
             int compressed_len;
+            if (!ctx->mppe_tx.stateful
+                || (ctx->mppe_tx.next_count & 0x00FF) == 0x00FF
+                || ctx->mppe_tx.force_reset)
+                ppp_ccp_codec_flush(ctx, true);
             if (!ppp_ccp_codec_compress(ctx, plaintext, (int) mppe_input_len,
                                         ccp_compressed, sizeof(ccp_compressed),
-                                        &compressed_len))
+                                        &compressed_len)
+                || compressed_len < PPP_MPPE_HEADER_LENGTH)
                 return;
-            mppe_input = ccp_compressed;
-            mppe_input_len = (size_t) compressed_len;
+            mppc_flags = ccp_compressed[0] & (PPP_MPPE_FLAG_FLUSHED
+                                              | PPP_MPPE_FLAG_AT_FRONT
+                                              | PPP_MPPE_FLAG_COMPRESSED);
+            mppe_input = ccp_compressed + PPP_MPPE_HEADER_LENGTH;
+            mppe_input_len = (size_t) compressed_len - PPP_MPPE_HEADER_LENGTH;
         }
-        if (!ppp_mppe_encrypt(&ctx->mppe_tx, mppe_input, mppe_input_len,
+        if (!ppp_mppe_encrypt(&ctx->mppe_tx, mppe_input, mppe_input_len, mppc_flags,
                               encrypted, sizeof(encrypted), &encrypted_len))
             return;
         wire_protocol = PPP_PROTO_MPPE;
@@ -849,6 +887,13 @@ ppp_send_frame(ppp_ctx_t *ctx, uint16_t protocol, const uint8_t *data, int len)
                     ppp_ccp_method_name(ctx->ccp_tx_method),
                     (unsigned) ctx->mppe_tx_enabled,
                     (unsigned) compress_ac, (unsigned) compress_protocol);
+    if (wire_protocol == PPP_PROTO_MPPE
+        && ctx->ccp_tx_method == PPP_CCP_METHOD_MPPC) {
+        ppp_debug_log_hex(ctx, ctx->mppe_tx_enabled
+                                   ? "PPP: MPPE TX wire payload"
+                                   : "PPP: MPPC TX packet",
+                          wire_data, wire_len);
+    }
     ctx->serial_push(ctx->modem, frame, out_len);
 }
 
@@ -1727,6 +1772,7 @@ ppp_process_lcp(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
                 ppp_log(ctx->log, "PPP: Peer rejected protocol %s (0x%04X)\n",
                         ppp_protocol_name((uint16_t) (((uint16_t) pkt[4] << 8) | pkt[5])),
                         (unsigned) (((uint16_t) pkt[4] << 8) | pkt[5]));
+                ppp_debug_log_hex(ctx, "PPP: Protocol-Reject data", pkt + 4, total - 4);
             } else {
                 ppp_log(ctx->log, "PPP: Received malformed Protocol-Reject\n");
             }
@@ -1913,10 +1959,6 @@ ppp_process_frame(ppp_ctx_t *ctx, const uint8_t *frame, int frame_len, bool reas
 
     if (protocol == PPP_PROTO_LCP && !ac_present)
         return;
-    if (protocol == PPP_PROTO_MPPE && protocol_compressed
-        && ctx->ccp_rx_method == PPP_CCP_METHOD_LZS_EXTENDED)
-        return;
-
     const uint8_t *data     = frame + data_offset;
     int            data_len = frame_len - data_offset;
     uint16_t       wire_protocol = protocol;
@@ -1925,6 +1967,7 @@ ppp_process_frame(ppp_ctx_t *ctx, const uint8_t *frame, int frame_len, bool reas
     const char    *decode_method = "none";
 #endif
     uint8_t        decrypted[PPP_MAX_FRAME];
+    uint8_t        mppc_input[PPP_MAX_FRAME + PPP_MPPE_HEADER_LENGTH];
     uint8_t        decompressed[PPP_MAX_FRAME];
 
     MODEM_DEBUG_LOG(ctx->log, "PPP: RX wire-protocol=%s (0x%04X) wire-payload=%d "
@@ -1965,7 +2008,15 @@ ppp_process_frame(ppp_ctx_t *ctx, const uint8_t *frame, int frame_len, bool reas
     #endif
         if (ctx->ccp_rx_method == PPP_CCP_METHOD_MPPC) {
             int decompressed_len;
-            if (!ppp_ccp_codec_decompress(ctx, decrypted, (int) decrypted_len,
+            uint16_t count = (uint16_t) (((data[0] & 0x0F) << 8) | data[1]);
+            mppc_input[0] = (uint8_t) ((data[0] & (PPP_MPPE_FLAG_FLUSHED
+                                                   | PPP_MPPE_FLAG_AT_FRONT
+                                                   | PPP_MPPE_FLAG_COMPRESSED))
+                                       | (count >> 8));
+            mppc_input[1] = (uint8_t) count;
+            memcpy(mppc_input + PPP_MPPE_HEADER_LENGTH, decrypted, decrypted_len);
+            if (!ppp_ccp_codec_decompress(ctx, mppc_input,
+                                         (int) decrypted_len + PPP_MPPE_HEADER_LENGTH,
                                           decompressed, sizeof(decompressed),
                                           &decompressed_len)
                 || decompressed_len < 2)
@@ -2000,7 +2051,6 @@ ppp_process_frame(ppp_ctx_t *ctx, const uint8_t *frame, int frame_len, bool reas
                 #endif
         if (ctx->ccp_reset_pending
             && (ctx->ccp_rx_method == PPP_CCP_METHOD_PREDICTOR2
-                || ctx->ccp_rx_method == PPP_CCP_METHOD_MPPC
                 || ctx->ccp_rx_method == PPP_CCP_METHOD_LZS))
             return;
         if (ctx->ccp_rx_method == PPP_CCP_METHOD_PREDICTOR2) {
@@ -2290,9 +2340,6 @@ ppp_wrap_ip(ppp_ctx_t *ctx, const uint8_t *ip_pkt, int len)
         ppp_log(ctx->log, "PPP: Dropping invalid IP packet (%d bytes)\n", len);
         return;
     }
-    if (ctx->mppe_keys_ready && !ctx->ccp_open && !ctx->ccp_plaintext_fallback)
-        return;
-
     if (ctx->vj_tx_enabled && ctx->vj_tx_ctx && len > 0
         && ctx->ccp_tx_method != PPP_CCP_METHOD_NT31RAS) {
         uint8_t compressed[PPP_MAX_FRAME + VJ_MAX_HDR];

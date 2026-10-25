@@ -448,6 +448,12 @@ typedef struct modem_t {
     /* PPP authentication settings */
     int              ppp_auth_type;    /* ppp_auth_type_t value from config */
     int              mppe_bitmask;     /* Permitted MPPE key strengths; zero leaves encryption optional */
+    int              ppp_compression;
+    int              ccp_mode;
+    int              ccp_direction;
+    int              mppe_key_state_mode;
+    int              mppe_format;
+    int              ipcp_dns_wins_mode;
     int              ipcp_vj_header_compression;
     int              ppp_acfc;
     int              ppp_pfc;
@@ -1691,6 +1697,8 @@ modem_dial(modem_t *modem, const char *str)
               modem_connection_type_name(modem->connection_type), modem->connection_type);
         modem_enter_connected_state(modem);
         modem->numberinprogress[0] = 0;
+        /* Do not carry queued serial data over from a previous IP session. */
+        fifo8_reset(&modem->rx_data);
 
         if (modem->connection_type == MODEM_TYPE_PPP
             || modem->connection_type == MODEM_TYPE_RAS) {
@@ -1717,19 +1725,19 @@ modem_dial(modem_t *modem, const char *str)
                                         ? modem->ppp_multilink_group : NULL);
 
             /* Configure PPP auth from device settings */
-            if (modem->ppp_auth_type == 5)
-                modem->ppp_ctx->auth_type = PPP_AUTH_MSCHAPV2;
-            else if (modem->ppp_auth_type >= 6)
-                modem->ppp_ctx->auth_type = (ppp_auth_type_t) (modem->ppp_auth_type - 1);
-            else
-                modem->ppp_ctx->auth_type = (ppp_auth_type_t) modem->ppp_auth_type;
-            modem->ppp_ctx->mppe_allowed_bits = (uint32_t) modem->mppe_bitmask;
-            modem->ppp_ctx->mppe_min_bits = ppp_mppe_minimum_strength((uint32_t) modem->mppe_bitmask);
-            modem->ppp_ctx->ppp_compression = (uint8_t) device_get_config_int("ppp_compression");
-            modem->ppp_ctx->ccp_mode = (uint8_t) device_get_config_int("ccp_mode");
-            modem->ppp_ctx->ccp_direction = (uint8_t) device_get_config_int("ccp_direction");
-            modem->ppp_ctx->mppe_key_state_mode = (uint8_t) device_get_config_int("mppe_key_state_mode");
-            modem->ppp_ctx->mppe_format = (uint8_t) device_get_config_int("mppe_format");
+            modem->ppp_ctx->auth_type = ppp_auth_type_from_config(modem->ppp_auth_type);
+            if ((uint32_t) modem->mppe_bitmask == CCP_MPPE_AUTOMATIC) {
+                modem->ppp_ctx->mppe_allowed_bits = CCP_MPPE_KEY_BITS;
+                modem->ppp_ctx->mppe_min_bits = 0;
+            } else {
+                modem->ppp_ctx->mppe_allowed_bits = (uint32_t) modem->mppe_bitmask;
+                modem->ppp_ctx->mppe_min_bits = ppp_mppe_minimum_strength((uint32_t) modem->mppe_bitmask);
+            }
+            modem->ppp_ctx->ppp_compression = (uint8_t) modem->ppp_compression;
+            modem->ppp_ctx->ccp_mode = (uint8_t) modem->ccp_mode;
+            modem->ppp_ctx->ccp_direction = (uint8_t) modem->ccp_direction;
+            modem->ppp_ctx->mppe_key_state_mode = (uint8_t) modem->mppe_key_state_mode;
+            modem->ppp_ctx->mppe_format = (uint8_t) modem->mppe_format;
             modem->ppp_ctx->ppp_acfc_mode = (uint8_t) modem->ppp_acfc;
             modem->ppp_ctx->ppp_pfc_mode = (uint8_t) modem->ppp_pfc;
             modem->ppp_ctx->request_acfc = modem->ppp_acfc != 0;
@@ -1743,7 +1751,7 @@ modem_dial(modem_t *modem, const char *str)
 #if 0
             modem_apply_network_wins(modem->ppp_ctx, modem->card);
 #endif
-            modem->ppp_ctx->ipcp_dns_wins_mode = (uint8_t) device_get_config_int("ipcp_dns_wins_mode");
+            modem->ppp_ctx->ipcp_dns_wins_mode = (uint8_t) modem->ipcp_dns_wins_mode;
             if (modem->ppp_dns1)
                 modem->ppp_ctx->dns1 = modem->ppp_dns1;
             if (modem->ppp_dns2)
@@ -3164,6 +3172,10 @@ modem_rx(void *priv, uint8_t *buf, int io_len)
         return 0;
     }
 
+    /* Keep binary SLIP frames off the serial line while the login prompt is active. */
+    if (modem->slip_auth_ctx && modem->slip_auth_ctx->active)
+        return 0;
+
     /* PPP mode: wrap IP packet in PPP HDLC framing */
     if (modem->ppp_active && modem->ppp_ctx) {
         if (!ppp_multilink_is_owner(modem->ppp_ctx))
@@ -3215,6 +3227,8 @@ modem_rx(void *priv, uint8_t *buf, int io_len)
                               comp_buf, &comp_type);
 
         if (comp_len > 0) {
+            if (comp_type == VJ_TYPE_UNCOMPRESSED_TCP)
+                comp_buf[0] |= VJ_UNCOMPRESSED_MARKER;
             bool queued = modem_queue_slip_frame(modem, comp_buf, (size_t) comp_len);
             free(comp_buf);
             return queued ? 1 : 0;
@@ -3513,6 +3527,12 @@ modem_init(UNUSED(const device_t *info))
     modem->fax_support = (uint8_t) device_get_config_int("fax_voice_support");
     modem->ppp_auth_type   = device_get_config_int("ppp_auth_type");
     modem->mppe_bitmask    = device_get_config_int("mppe_bitmask");
+    modem->ppp_compression = device_get_config_int("ppp_compression");
+    modem->ccp_mode = device_get_config_int("ccp_mode");
+    modem->ccp_direction = device_get_config_int("ccp_direction");
+    modem->mppe_key_state_mode = device_get_config_int("mppe_key_state_mode");
+    modem->mppe_format = device_get_config_int("mppe_format");
+    modem->ipcp_dns_wins_mode = device_get_config_int("ipcp_dns_wins_mode");
     modem->ipcp_vj_header_compression = device_get_config_int("ipcp_vj_header_compression");
     modem->ppp_acfc = device_get_config_int("ppp_acfc");
     modem->ppp_pfc = device_get_config_int("ppp_pfc");
@@ -3666,7 +3686,7 @@ static const device_config_t modem_config[] = {
         .description    = "Connection Type",
         .type           = CONFIG_SELECTION,
         .default_string = NULL,
-        .default_int    = 1,
+        .default_int    = MODEM_TYPE_PPP,
         .file_filter    = NULL,
         .spinner        = { 0 },
         .selection      = {
@@ -3724,35 +3744,36 @@ static const device_config_t modem_config[] = {
         .description    = "PPP Authentication",
         .type           = CONFIG_SELECTION,
         .default_string = NULL,
-        .default_int    = 4,
+        .default_int    = PPP_AUTH_CONFIG_MSCHAPV2,
         .file_filter    = NULL,
         .spinner        = { 0 },
         .selection      = {
-            { .description = "None",       .value = 0 },
-            { .description = "PAP",        .value = 1 },
-            { .description = "CHAP (MD5)", .value = 2 },
-            { .description = "MS-CHAP",    .value = 3 },
-            { .description = "MS-CHAPv2",  .value = 4 },
-            { .description = "MS-CHAP (MPPE key generation; uses MS-CHAPv2)", .value = 5 },
-            { .description = "CHAP (SHA-1)",   .value = 6 },
-            { .description = "CHAP (SHA-256)", .value = 7 },
-            { .description = "CHAP (SHA-384)", .value = 8 },
-            { .description = "CHAP (SHA-512)", .value = 9 },
-            { .description = "EAP (MD5-Challenge)", .value = 10 },
+            { .description = "None",       .value = PPP_AUTH_CONFIG_NONE },
+            { .description = "PAP",        .value = PPP_AUTH_CONFIG_PAP },
+            { .description = "CHAP (MD5)", .value = PPP_AUTH_CONFIG_CHAP_MD5 },
+            { .description = "MS-CHAP",    .value = PPP_AUTH_CONFIG_MSCHAP },
+            { .description = "MS-CHAPv2",  .value = PPP_AUTH_CONFIG_MSCHAPV2 },
+            { .description = "MS-CHAP (MPPE key generation; uses MS-CHAPv2)", .value = PPP_AUTH_CONFIG_MSCHAP_MPPE },
+            { .description = "CHAP (SHA-1)",   .value = PPP_AUTH_CONFIG_CHAP_SHA1 },
+            { .description = "CHAP (SHA-256)", .value = PPP_AUTH_CONFIG_CHAP_SHA256 },
+            { .description = "CHAP (SHA-384)", .value = PPP_AUTH_CONFIG_CHAP_SHA384 },
+            { .description = "CHAP (SHA-512)", .value = PPP_AUTH_CONFIG_CHAP_SHA512 },
+            { .description = "EAP (MD5-Challenge)", .value = PPP_AUTH_CONFIG_EAP },
             { .description = ""                       }
         },
         .bios           = { { 0 } }
     },
     {
         .name           = "mppe_bitmask",
-        .description    = "Offered MPPE Key Strengths (lowest selected strength required)",
+        .description    = "MPPE Key Strength Policy",
         .type           = CONFIG_SELECTION,
         .default_string = NULL,
-        .default_int    = 0,
+        .default_int    = CCP_MPPE_AUTOMATIC,
         .file_filter    = NULL,
         .spinner        = { 0 },
         .selection      = {
-            { .description = "Disabled",                       .value = 0                                        },
+            { .description = "Automatic",                      .value = CCP_MPPE_AUTOMATIC               },
+            { .description = "Disabled",                       .value = CCP_MPPE_DISABLED                       },
             { .description = "40-Bit",                         .value = CCP_MPPE_40                              },
             { .description = "56-Bit",                         .value = CCP_MPPE_56                              },
             { .description = "40+56-Bit (require 40-Bit)",     .value = CCP_MPPE_40 | CCP_MPPE_56                },
@@ -3824,15 +3845,15 @@ static const device_config_t modem_config[] = {
         .description    = "PPP Payload Compression",
         .type           = CONFIG_SELECTION,
         .default_string = NULL,
-        .default_int    = 2,
+        .default_int    = PPP_COMPRESSION_PREFER_MPPC,
         .file_filter    = NULL,
         .spinner        = { 0 },
         .selection      = {
-            { .description = "Disabled",                                            .value = 0 },
-            { .description = "Prefer Stac LZS Extended to MPPC",                    .value = 1 },
-            { .description = "Prefer MPPC to Stac LZS Extended",                    .value = 2 },
-            { .description = "Prefer Predictor Type 1 to Stac LZS Extended / MPPC", .value = 3 },
-            { .description = "Prefer MPPC / Stac LZS Extended to Predictor Type 1", .value = 4 },
+            { .description = "Disabled",                                            .value = PPP_COMPRESSION_DISABLED },
+            { .description = "Prefer Stac LZS Extended to MPPC",                    .value = PPP_COMPRESSION_PREFER_LZS },
+            { .description = "Prefer MPPC to Stac LZS Extended",                    .value = PPP_COMPRESSION_PREFER_MPPC },
+            { .description = "Prefer Predictor Type 1 to Stac LZS Extended / MPPC", .value = PPP_COMPRESSION_PREFER_PREDICTOR },
+            { .description = "Prefer MPPC / Stac LZS Extended to Predictor Type 1", .value = PPP_COMPRESSION_PREFER_MPPC_LZS },
             { .description = ""                                                                }
         },
         .bios           = { { 0 } }
@@ -3842,13 +3863,13 @@ static const device_config_t modem_config[] = {
         .description    = "CCP Negotiation Mode",
         .type           = CONFIG_SELECTION,
         .default_string = NULL,
-        .default_int    = 0,
+        .default_int    = PPP_CCP_MODE_ENABLED,
         .file_filter    = NULL,
         .spinner        = { 0 },
         .selection      = {
-            { .description = "Enabled",                                 .value = 0 },
-            { .description = "Disabled (Skip CCP phase entirely)",      .value = 1 },
-            { .description = "Passive (Respond to peer requests only)", .value = 2 },
+            { .description = "Enabled",                                 .value = PPP_CCP_MODE_ENABLED },
+            { .description = "Disabled (Skip CCP phase entirely)",      .value = PPP_CCP_MODE_DISABLED },
+            { .description = "Passive (Respond to peer requests only)", .value = PPP_CCP_MODE_PASSIVE },
             { .description = ""                                                    }
         },
         .bios           = { { 0 } }
@@ -3858,14 +3879,14 @@ static const device_config_t modem_config[] = {
         .description    = "CCP Directional Negotiation",
         .type           = CONFIG_SELECTION,
         .default_string = NULL,
-        .default_int    = 0,
+        .default_int    = PPP_CCP_DIRECTION_BIDIRECTIONAL,
         .file_filter    = NULL,
         .spinner        = { 0 },
         .selection      = {
-            { .description = "Bidirectional",        .value = 0 },
-            { .description = "Transmit-Only",        .value = 1 },
-            { .description = "Receive-Only",         .value = 2 },
-            { .description = "Asymmetric Preferred", .value = 3 },
+            { .description = "Bidirectional",        .value = PPP_CCP_DIRECTION_BIDIRECTIONAL },
+            { .description = "Transmit-Only",        .value = PPP_CCP_DIRECTION_TRANSMIT_ONLY },
+            { .description = "Receive-Only",         .value = PPP_CCP_DIRECTION_RECEIVE_ONLY },
+            { .description = "Asymmetric Preferred", .value = PPP_CCP_DIRECTION_ASYMMETRIC_PREFERRED },
             { .description = ""                                 }
         },
         .bios           = { { 0 } }
@@ -3875,13 +3896,13 @@ static const device_config_t modem_config[] = {
         .description    = "IPCP Header Compression",
         .type           = CONFIG_SELECTION,
         .default_string = NULL,
-        .default_int    = 1,
+        .default_int    = PPP_VJ_COMPRESSION_ALLOWED,
         .file_filter    = NULL,
         .spinner        = { 0 },
         .selection      = {
-            { .description = "Disabled",                                                          .value = 0 },
-            { .description = "Allow VJ TCP/IP Header Compression (Slot IDs Compression Allowed)", .value = 1 },
-            { .description = "Require VJ TCP/IP Header Compression (Compress Slot IDs Disabled)", .value = 2 },
+            { .description = "Disabled",                                                          .value = PPP_VJ_COMPRESSION_DISABLED },
+            { .description = "Allow VJ TCP/IP Header Compression (Slot IDs Compression Allowed)", .value = PPP_VJ_COMPRESSION_ALLOWED },
+            { .description = "Require VJ TCP/IP Header Compression (Compress Slot IDs Disabled)", .value = PPP_VJ_COMPRESSION_REQUIRED },
             { .description = ""                                                                              }
         },
         .bios           = { { 0 } }
@@ -3891,16 +3912,16 @@ static const device_config_t modem_config[] = {
         .description    = "MPPE Key State Mode",
         .type           = CONFIG_SELECTION,
         .default_string = NULL,
-        .default_int    = 0,
+        .default_int    = PPP_MPPE_STATE_OFFER_STATELESS,
         .file_filter    = NULL,
         .spinner        = { 0 },
         .selection      = {
-            { .description = "Offer Stateless",                                         .value = 0 },
-            { .description = "Offer Stateful",                                          .value = 1 },
-            { .description = "Require Stateless",                                       .value = 2 },
-            { .description = "Require Stateful",                                        .value = 3 },
-            { .description = "Auto-Negotiate (Stateless preferred, Stateful fallback)", .value = 4 },
-            { .description = "Auto-Negotiate (Stateful preferred, Stateless fallback)", .value = 5 },
+            { .description = "Offer Stateless",                                         .value = PPP_MPPE_STATE_OFFER_STATELESS },
+            { .description = "Offer Stateful",                                          .value = PPP_MPPE_STATE_OFFER_STATEFUL },
+            { .description = "Require Stateless",                                       .value = PPP_MPPE_STATE_REQUIRE_STATELESS },
+            { .description = "Require Stateful",                                        .value = PPP_MPPE_STATE_REQUIRE_STATEFUL },
+            { .description = "Auto-Negotiate (Stateless preferred, Stateful fallback)", .value = PPP_MPPE_STATE_AUTO_STATELESS_PREFERRED },
+            { .description = "Auto-Negotiate (Stateful preferred, Stateless fallback)", .value = PPP_MPPE_STATE_AUTO_STATEFUL_PREFERRED },
             { .description = ""                                                                    }
         },
         .bios           = { { 0 } }
@@ -3910,12 +3931,12 @@ static const device_config_t modem_config[] = {
         .description    = "MPPE Specification Format",
         .type           = CONFIG_SELECTION,
         .default_string = NULL,
-        .default_int    = 0,
+        .default_int    = PPP_MPPE_FORMAT_STANDARD,
         .file_filter    = NULL,
         .spinner        = { 0 },
         .selection      = {
-            { .description = "Standard MS-MPPE (RFC 3078 / Type 18)", .value = 0 },
-            { .description = "Legacy Draft MPPE (RFC 2118 Draft)",    .value = 1 },
+            { .description = "Standard MS-MPPE (RFC 3078 / Type 18)", .value = PPP_MPPE_FORMAT_STANDARD },
+            { .description = "Legacy Draft MPPE (RFC 2118 Draft)",    .value = PPP_MPPE_FORMAT_LEGACY_DRAFT },
             { .description = ""                                                  }
         },
         .bios           = { { 0 } }
@@ -3925,13 +3946,13 @@ static const device_config_t modem_config[] = {
         .description    = "LCP Address/Control Field Compression (ACFC)",
         .type           = CONFIG_SELECTION,
         .default_string = NULL,
-        .default_int    = 1,
+        .default_int    = PPP_LCP_COMPRESSION_OFFER,
         .file_filter    = NULL,
         .spinner        = { 0 },
         .selection      = {
-            { .description = "Disabled (Always send 2-byte header 0xFF03)", .value = 0 },
-            { .description = "Offer ACFC",                                  .value = 1 },
-            { .description = "Require ACFC",                                .value = 2 },
+            { .description = "Disabled (Always send 2-byte header 0xFF03)", .value = PPP_LCP_COMPRESSION_DISABLED },
+            { .description = "Offer ACFC",                                  .value = PPP_LCP_COMPRESSION_OFFER },
+            { .description = "Require ACFC",                                .value = PPP_LCP_COMPRESSION_REQUIRE },
             { .description = ""                                                        }
         },
         .bios           = { { 0 } }
@@ -3941,13 +3962,13 @@ static const device_config_t modem_config[] = {
         .description    = "LCP Protocol Field Compression (PFC)",
         .type           = CONFIG_SELECTION,
         .default_string = NULL,
-        .default_int    = 1,
+        .default_int    = PPP_LCP_COMPRESSION_OFFER,
         .file_filter    = NULL,
         .spinner        = { 0 },
         .selection      = {
-            { .description = "Disabled (Always send 2-byte protocol ID)", .value = 0 },
-            { .description = "Offer PFC (Compress 0x0021 to 0x21)",       .value = 1 },
-            { .description = "Require PFC",                               .value = 2 },
+            { .description = "Disabled (Always send 2-byte protocol ID)", .value = PPP_LCP_COMPRESSION_DISABLED },
+            { .description = "Offer PFC (Compress 0x0021 to 0x21)",       .value = PPP_LCP_COMPRESSION_OFFER },
+            { .description = "Require PFC",                               .value = PPP_LCP_COMPRESSION_REQUIRE },
             { .description = ""                                                      }
         },
         .bios           = { { 0 } }
@@ -3957,13 +3978,13 @@ static const device_config_t modem_config[] = {
         .description    = "IPCP DNS/WINS Information Delivery",
         .type           = CONFIG_SELECTION,
         .default_string = NULL,
-        .default_int    = 1,
+        .default_int    = PPP_IPCP_DNS_WINS_OFFER,
         .file_filter    = NULL,
         .spinner        = { 0 },
         .selection      = {
-            { .description = "Don't supply Name Servers",                             .value = 0 },
-            { .description = "Offer Primary/Secondary DNS & WINS",                    .value = 1 },
-            { .description = "Require Client to accept Primary/Secondary DNS & WINS", .value = 2 },
+            { .description = "Don't supply Name Servers",                             .value = PPP_IPCP_DNS_WINS_DISABLED },
+            { .description = "Offer Primary/Secondary DNS & WINS",                    .value = PPP_IPCP_DNS_WINS_OFFER },
+            { .description = "Require Client to accept Primary/Secondary DNS & WINS", .value = PPP_IPCP_DNS_WINS_REQUIRE },
             { .description = ""                                                                  }
         },
         .bios           = { { 0 } }

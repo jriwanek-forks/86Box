@@ -24,6 +24,7 @@ extern "C" {
 #define VJ_TYPE_IP               0x40
 #define VJ_TYPE_UNCOMPRESSED_TCP 0x70
 #define VJ_TYPE_COMPRESSED_TCP   0x80
+#define VJ_UNCOMPRESSED_MARKER   0x30
 
 /* Change mask flags for compressed TCP */
 #define VJ_NEW_C 0x40 /* Connection number changed */
