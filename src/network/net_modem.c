@@ -3385,6 +3385,7 @@ modem_cmdpause_timer_callback(void *priv)
                 modem_enter_idle_state(modem);
             } else {
                 modem->ringing = true;
+                modem_sound_event(modem->sound, MODEM_SOUND_RINGING, NULL, 0);
                 modem_send_res(modem, ResRING);
                 if (modem->serial != NULL)
                     serial_set_ri(modem->serial, !serial_get_ri(modem->serial));

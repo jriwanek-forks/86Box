@@ -26,7 +26,8 @@ enum {
     MODEM_SOUND_DIAL,
     MODEM_SOUND_ANSWER,
     MODEM_SOUND_CONNECT,
-    MODEM_SOUND_BUSY
+    MODEM_SOUND_BUSY,
+    MODEM_SOUND_RINGING
 };
 
 modem_sound_t *modem_sound_init(void);

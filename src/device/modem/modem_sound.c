@@ -49,7 +49,7 @@ typedef struct {
     char number[128];
 } sound_event_t;
 
-enum { PH_IDLE, PH_DIAL, PH_RING, PH_HANDSHAKE, PH_ONLINE, PH_BUSY };
+enum { PH_IDLE, PH_DIAL, PH_RING, PH_HANDSHAKE, PH_ONLINE, PH_BUSY, PH_RINGING };
 enum { STEP_TONE, STEP_DTMF, STEP_PULSE, STEP_SILENCE };
 
 struct modem_sound_t {
@@ -219,6 +219,11 @@ modem_sound_apply_event(modem_sound_t *sound, int type)
             sound->phase = PH_BUSY;
             sound->sample = 0;
             break;
+        case MODEM_SOUND_RINGING:
+            sound->phase = PH_RINGING;
+            sound->sample = 0;
+            sound->phase1 = sound->phase2 = sound->phase3 = 0.0;
+            break;
         case MODEM_SOUND_HANGUP:
         default:
             sound->phase = PH_IDLE;
@@ -274,14 +279,34 @@ static double
 modem_ringback(modem_sound_t *sound)
 {
     const uint32_t ms = (uint32_t) (((uint64_t) sound->sample * 1000u) / sound->rate);
-    return (ms % 5000 < 1000) ? modem_oscillator(&sound->phase1, 425, sound->rate) : 0.0;
+    return (ms % 6000 < 2000)
+               ? 0.5 * modem_oscillator(&sound->phase1, 440, sound->rate)
+                     + 0.5 * modem_oscillator(&sound->phase2, 480, sound->rate)
+               : 0.0;
 }
 
 static double
 modem_busy_tone(modem_sound_t *sound)
 {
     const uint32_t ms = (uint32_t) (((uint64_t) sound->sample * 1000u) / sound->rate);
-    return (ms % 1000 < 500) ? modem_oscillator(&sound->phase1, 425, sound->rate) : 0.0;
+    return (ms % 1000 < 500)
+               ? 0.5 * modem_oscillator(&sound->phase1, 480, sound->rate)
+                     + 0.5 * modem_oscillator(&sound->phase2, 620, sound->rate)
+               : 0.0;
+}
+
+static double
+modem_ringing_tone(modem_sound_t *sound)
+{
+    const uint32_t ms = (uint32_t) (((uint64_t) sound->sample * 1000u) / sound->rate);
+    if (ms % 6000 >= 2000)
+        return 0.0;
+
+    /* A 20 Hz burst-gated dual tone gives the modem speaker a bell-like ring. */
+    const double carrier = 0.5 * modem_oscillator(&sound->phase1, 440, sound->rate)
+                         + 0.5 * modem_oscillator(&sound->phase2, 480, sound->rate);
+    const double ring_gate = modem_oscillator(&sound->phase3, 20, sound->rate);
+    return (ring_gate > 0.0) ? carrier : 0.0;
 }
 
 static double
@@ -330,6 +355,9 @@ modem_sound_sample(modem_sound_t *sound, int mode)
             sound->phase = PH_IDLE;
         else if (mode == 1 || mode == 2 || mode == 3)
             value = 0.6 * modem_busy_tone(sound);
+    } else if (sound->phase == PH_RINGING) {
+        if (mode != 0)
+            value = 0.6 * modem_ringing_tone(sound);
     } else if (sound->phase == PH_HANDSHAKE) {
         if (mode == 1 || mode == 2 || mode == 3) {
             const uint32_t ms = (uint32_t) (((uint64_t) sound->sample * 1000u) / sound->rate);
@@ -361,6 +389,7 @@ modem_sound_get_buffer(int32_t *buffer, uint16_t length, void *priv)
         double sample = modem_sound_sample(sound, mode);
            const int audible = (sound->phase == PH_DIAL && (mode == 1 || mode == 2))
                         || ((sound->phase == PH_RING || sound->phase == PH_BUSY
+                            || sound->phase == PH_RINGING
                             || sound->phase == PH_HANDSHAKE) && mode != 0)
                         || (sound->phase == PH_ONLINE && mode == 2);
         if (audible)
