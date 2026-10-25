@@ -359,6 +359,7 @@ typedef struct modem_t {
     uint32_t tcpIpConnCounter;
     bool     tcpIpSocketConnected;
     bool     call_progress_active;
+    bool     local_ip_dialing;
     bool     call_answer_sound_started;
     uint32_t call_progress_elapsed_ms;
     uint32_t call_answer_at_ms;
@@ -1555,6 +1556,7 @@ modem_enter_idle_state(modem_t *modem)
     modem->tcpIpConnCounter    = 0;
     modem->tcpIpSocketConnected = false;
     modem->call_progress_active = false;
+    modem->local_ip_dialing = false;
     modem->call_answer_sound_started = false;
     modem->call_progress_elapsed_ms = 0;
     modem->call_answer_at_ms = 0;
@@ -1682,6 +1684,97 @@ modem_reset(modem_t *modem)
     modem->numericresponse = false;
 }
 
+static void
+modem_start_local_ip_connection(modem_t *modem)
+{
+    modem_enter_connected_state(modem);
+    modem->numberinprogress[0] = 0;
+    /* Do not carry queued serial data over from a previous IP session. */
+    fifo8_reset(&modem->rx_data);
+
+    if (modem->connection_type == MODEM_TYPE_PPP
+        || modem->connection_type == MODEM_TYPE_RAS) {
+        /* PPP mode */
+        modem->ppp_active = true;
+        modem->tcpIpMode  = false;
+        modem->ppp_ctx    = ppp_init(modem, modem->log, modem_ppp_serial_push, modem_ppp_network_send_ip);
+        if (!modem->ppp_ctx) {
+            modem_log(modem->log, "PPP initialization failed\n");
+            modem_enter_idle_state(modem);
+            modem_send_res(modem, ResNOCARRIER);
+            return;
+        }
+
+        if (modem->card && modem->card->slirp_host_ip) {
+            modem->ppp_ctx->our_ip = modem->card->slirp_host_ip;
+            modem->ppp_ctx->peer_ip = modem->card->slirp_dhcp_ip;
+            modem->ppp_ctx->dns1 = modem->card->slirp_dns_ip;
+            modem->ppp_ctx->dns2 = modem->card->slirp_dns_ip;
+        }
+
+        ppp_multilink_configure(modem->ppp_ctx,
+                                modem->connection_type == MODEM_TYPE_PPP
+                                    ? modem->ppp_multilink_group : NULL);
+
+        /* Configure PPP auth from device settings */
+        modem->ppp_ctx->auth_type = ppp_auth_type_from_config(modem->ppp_auth_type);
+        if ((uint32_t) modem->mppe_bitmask == CCP_MPPE_AUTOMATIC) {
+            modem->ppp_ctx->mppe_allowed_bits = CCP_MPPE_KEY_BITS;
+            modem->ppp_ctx->mppe_min_bits = 0;
+        } else {
+            modem->ppp_ctx->mppe_allowed_bits = (uint32_t) modem->mppe_bitmask;
+            modem->ppp_ctx->mppe_min_bits = ppp_mppe_minimum_strength((uint32_t) modem->mppe_bitmask);
+        }
+        modem->ppp_ctx->ppp_compression = (uint8_t) modem->ppp_compression;
+        modem->ppp_ctx->ccp_mode = (uint8_t) modem->ccp_mode;
+        modem->ppp_ctx->ccp_direction = (uint8_t) modem->ccp_direction;
+        modem->ppp_ctx->mppe_key_state_mode = (uint8_t) modem->mppe_key_state_mode;
+        modem->ppp_ctx->mppe_format = (uint8_t) modem->mppe_format;
+        modem->ppp_ctx->ppp_acfc_mode = (uint8_t) modem->ppp_acfc;
+        modem->ppp_ctx->ppp_pfc_mode = (uint8_t) modem->ppp_pfc;
+        modem->ppp_ctx->request_acfc = modem->ppp_acfc != 0;
+        modem->ppp_ctx->request_pfc = modem->ppp_pfc != 0;
+        modem->ppp_ctx->ipcp_vj_mode = (uint8_t) modem->ipcp_vj_header_compression;
+        modem->ppp_ctx->ipcp_vj_request = modem->ipcp_vj_header_compression != 0;
+        memcpy(modem->ppp_ctx->username, modem->username, sizeof(modem->ppp_ctx->username));
+        memcpy(modem->ppp_ctx->password, modem->password, sizeof(modem->ppp_ctx->password));
+        modem->ppp_ctx->wins1 = modem->ppp_wins1;
+        modem->ppp_ctx->wins2 = modem->ppp_wins2;
+#if 0
+        modem_apply_network_wins(modem->ppp_ctx, modem->card);
+#endif
+        modem->ppp_ctx->ipcp_dns_wins_mode = (uint8_t) modem->ipcp_dns_wins_mode;
+        if (modem->ppp_dns1)
+            modem->ppp_ctx->dns1 = modem->ppp_dns1;
+        if (modem->ppp_dns2)
+            modem->ppp_ctx->dns2 = modem->ppp_dns2;
+        ppp_start(modem->ppp_ctx);
+        if (modem->ppp_ctx->state == PPP_STATE_DEAD) {
+            modem_log(modem->log, "PPP startup failed\n");
+            modem_enter_idle_state(modem);
+            modem_send_res(modem, ResNOCARRIER);
+            return;
+        }
+    } else {
+        /* SLIP or CSLIP mode */
+        modem->tcpIpMode    = false;
+        modem->cslip_enabled = (modem->connection_type == MODEM_TYPE_CSLIP);
+
+        /* A configured username enables SLIP authentication; the password may be empty. */
+        if (modem->username[0]) {
+            modem->slip_auth_ctx = slip_auth_init(modem, modem->log, modem_ppp_serial_push,
+                                                  modem->username, modem->password);
+            if (!modem->slip_auth_ctx) {
+                modem_log(modem->log, "SLIP authentication initialization failed\n");
+                modem_enter_idle_state(modem);
+                modem_send_res(modem, ResNOCARRIER);
+                return;
+            }
+            slip_auth_start(modem->slip_auth_ctx);
+        }
+    }
+}
+
 void
 modem_dial(modem_t *modem, const char *str)
 {
@@ -1695,92 +1788,15 @@ modem_dial(modem_t *modem, const char *str)
         || !strcmp(str, "000000000000")) {
         modem_log(modem->log, "Entering local IP mode (type=%s (%d))\n",
               modem_connection_type_name(modem->connection_type), modem->connection_type);
-        modem_enter_connected_state(modem);
         modem->numberinprogress[0] = 0;
-        /* Do not carry queued serial data over from a previous IP session. */
-        fifo8_reset(&modem->rx_data);
-
-        if (modem->connection_type == MODEM_TYPE_PPP
-            || modem->connection_type == MODEM_TYPE_RAS) {
-            /* PPP mode */
-            modem->ppp_active = true;
-            modem->tcpIpMode  = false;
-            modem->ppp_ctx    = ppp_init(modem, modem->log, modem_ppp_serial_push, modem_ppp_network_send_ip);
-            if (!modem->ppp_ctx) {
-                modem_log(modem->log, "PPP initialization failed\n");
-                modem_enter_idle_state(modem);
-                modem_send_res(modem, ResNOCARRIER);
-                return;
-            }
-
-            if (modem->card && modem->card->slirp_host_ip) {
-                modem->ppp_ctx->our_ip = modem->card->slirp_host_ip;
-                modem->ppp_ctx->peer_ip = modem->card->slirp_dhcp_ip;
-                modem->ppp_ctx->dns1 = modem->card->slirp_dns_ip;
-                modem->ppp_ctx->dns2 = modem->card->slirp_dns_ip;
-            }
-
-            ppp_multilink_configure(modem->ppp_ctx,
-                                    modem->connection_type == MODEM_TYPE_PPP
-                                        ? modem->ppp_multilink_group : NULL);
-
-            /* Configure PPP auth from device settings */
-            modem->ppp_ctx->auth_type = ppp_auth_type_from_config(modem->ppp_auth_type);
-            if ((uint32_t) modem->mppe_bitmask == CCP_MPPE_AUTOMATIC) {
-                modem->ppp_ctx->mppe_allowed_bits = CCP_MPPE_KEY_BITS;
-                modem->ppp_ctx->mppe_min_bits = 0;
-            } else {
-                modem->ppp_ctx->mppe_allowed_bits = (uint32_t) modem->mppe_bitmask;
-                modem->ppp_ctx->mppe_min_bits = ppp_mppe_minimum_strength((uint32_t) modem->mppe_bitmask);
-            }
-            modem->ppp_ctx->ppp_compression = (uint8_t) modem->ppp_compression;
-            modem->ppp_ctx->ccp_mode = (uint8_t) modem->ccp_mode;
-            modem->ppp_ctx->ccp_direction = (uint8_t) modem->ccp_direction;
-            modem->ppp_ctx->mppe_key_state_mode = (uint8_t) modem->mppe_key_state_mode;
-            modem->ppp_ctx->mppe_format = (uint8_t) modem->mppe_format;
-            modem->ppp_ctx->ppp_acfc_mode = (uint8_t) modem->ppp_acfc;
-            modem->ppp_ctx->ppp_pfc_mode = (uint8_t) modem->ppp_pfc;
-            modem->ppp_ctx->request_acfc = modem->ppp_acfc != 0;
-            modem->ppp_ctx->request_pfc = modem->ppp_pfc != 0;
-            modem->ppp_ctx->ipcp_vj_mode = (uint8_t) modem->ipcp_vj_header_compression;
-            modem->ppp_ctx->ipcp_vj_request = modem->ipcp_vj_header_compression != 0;
-            memcpy(modem->ppp_ctx->username, modem->username, sizeof(modem->ppp_ctx->username));
-            memcpy(modem->ppp_ctx->password, modem->password, sizeof(modem->ppp_ctx->password));
-            modem->ppp_ctx->wins1 = modem->ppp_wins1;
-            modem->ppp_ctx->wins2 = modem->ppp_wins2;
-#if 0
-            modem_apply_network_wins(modem->ppp_ctx, modem->card);
-#endif
-            modem->ppp_ctx->ipcp_dns_wins_mode = (uint8_t) modem->ipcp_dns_wins_mode;
-            if (modem->ppp_dns1)
-                modem->ppp_ctx->dns1 = modem->ppp_dns1;
-            if (modem->ppp_dns2)
-                modem->ppp_ctx->dns2 = modem->ppp_dns2;
-            ppp_start(modem->ppp_ctx);
-            if (modem->ppp_ctx->state == PPP_STATE_DEAD) {
-                modem_log(modem->log, "PPP startup failed\n");
-                modem_enter_idle_state(modem);
-                modem_send_res(modem, ResNOCARRIER);
-                return;
-            }
-        } else {
-            /* SLIP or CSLIP mode */
-            modem->tcpIpMode    = false;
-            modem->cslip_enabled = (modem->connection_type == MODEM_TYPE_CSLIP);
-
-            /* A configured username enables SLIP authentication; the password may be empty. */
-            if (modem->username[0]) {
-                modem->slip_auth_ctx = slip_auth_init(modem, modem->log, modem_ppp_serial_push,
-                                                      modem->username, modem->password);
-                if (!modem->slip_auth_ctx) {
-                    modem_log(modem->log, "SLIP authentication initialization failed\n");
-                    modem_enter_idle_state(modem);
-                    modem_send_res(modem, ResNOCARRIER);
-                    return;
-                }
-                slip_auth_start(modem->slip_auth_ctx);
-            }
-        }
+        modem->call_progress_active = true;
+        modem->local_ip_dialing = true;
+        modem->call_answer_sound_started = false;
+        modem->call_progress_elapsed_ms = 0;
+        modem->call_answer_at_ms = 0;
+        modem->call_connect_at_ms = modem_sound_dial_ms(MODEM_LOCAL_DIAL_SOUND_NUMBER,
+                                                        modem->reg[8], modem->pulse_dial)
+                                   + MODEM_LOCAL_DIAL_CONNECT_DELAY_MS;
         modem_sound_event(modem->sound, MODEM_SOUND_DIAL, MODEM_LOCAL_DIAL_SOUND_NUMBER,
                           (modem->reg[8] & 0xff) | (modem->pulse_dial << 8)
                               | MODEM_SOUND_DIAL_CONNECT_AFTER);
@@ -3310,16 +3326,23 @@ modem_cmdpause_timer_callback(void *priv)
 
     if (modem->call_progress_active) {
         modem->call_progress_elapsed_ms++;
-        if (modem->tcpIpSocketConnected && !modem->call_answer_sound_started
-            && modem->call_progress_elapsed_ms >= modem->call_answer_at_ms) {
-            modem_sound_event(modem->sound, MODEM_SOUND_ANSWER, NULL, 0);
-            modem->call_answer_sound_started = true;
-        }
-        if (modem->tcpIpSocketConnected
+        if (modem->local_ip_dialing
             && modem->call_progress_elapsed_ms >= modem->call_connect_at_ms) {
             modem->call_progress_active = false;
-            modem->tcpIpSocketConnected = false;
-            modem_enter_connected_state(modem);
+            modem->local_ip_dialing = false;
+            modem_start_local_ip_connection(modem);
+        } else {
+            if (modem->tcpIpSocketConnected && !modem->call_answer_sound_started
+                && modem->call_progress_elapsed_ms >= modem->call_answer_at_ms) {
+                modem_sound_event(modem->sound, MODEM_SOUND_ANSWER, NULL, 0);
+                modem->call_answer_sound_started = true;
+            }
+            if (modem->tcpIpSocketConnected
+                && modem->call_progress_elapsed_ms >= modem->call_connect_at_ms) {
+                modem->call_progress_active = false;
+                modem->tcpIpSocketConnected = false;
+                modem_enter_connected_state(modem);
+            }
         }
     }
 
