@@ -34,8 +34,51 @@
 #define EVENT_QUEUE_SIZE 16
 #define MAX_STEPS 256
 #define DIAL_TONE_MS 800
-#define RING_MS 2600
 #define HANDSHAKE_MS 8000
+
+enum {
+    RING_PATTERN_NORTH_AMERICA,
+    RING_PATTERN_UK,
+    RING_PATTERN_EUROPE,
+    RING_PATTERN_JAPAN
+};
+
+typedef struct {
+    int dial_f1;
+    int dial_f2;
+    int ring_f1;
+    int ring_f2;
+    int busy_f1;
+    int busy_f2;
+    int ring_pattern;
+    uint32_t ring_wait_ms;
+    uint32_t busy_on_ms;
+    uint32_t busy_off_ms;
+} modem_tone_profile_t;
+
+/* Continental Europe uses the German 425 Hz profile as a representative. */
+static const modem_tone_profile_t modem_tone_profiles[MODEM_SOUND_REGION_COUNT] = {
+    [MODEM_SOUND_REGION_NORTH_AMERICA] = {
+        .dial_f1 = 350, .dial_f2 = 440, .ring_f1 = 440, .ring_f2 = 480,
+        .busy_f1 = 480, .busy_f2 = 620, .ring_pattern = RING_PATTERN_NORTH_AMERICA,
+        .ring_wait_ms = 2600, .busy_on_ms = 500, .busy_off_ms = 500
+    },
+    [MODEM_SOUND_REGION_UK] = {
+        .dial_f1 = 350, .dial_f2 = 440, .ring_f1 = 400, .ring_f2 = 450,
+        .busy_f1 = 400, .busy_f2 = 0, .ring_pattern = RING_PATTERN_UK,
+        .ring_wait_ms = 2900, .busy_on_ms = 375, .busy_off_ms = 375
+    },
+    [MODEM_SOUND_REGION_EUROPE] = {
+        .dial_f1 = 425, .dial_f2 = 0, .ring_f1 = 425, .ring_f2 = 0,
+        .busy_f1 = 425, .busy_f2 = 0, .ring_pattern = RING_PATTERN_EUROPE,
+        .ring_wait_ms = 5000, .busy_on_ms = 480, .busy_off_ms = 480
+    },
+    [MODEM_SOUND_REGION_JAPAN] = {
+        .dial_f1 = 400, .dial_f2 = 0, .ring_f1 = 400, .ring_f2 = 0,
+        .busy_f1 = 400, .busy_f2 = 0, .ring_pattern = RING_PATTERN_JAPAN,
+        .ring_wait_ms = 2800, .busy_on_ms = 500, .busy_off_ms = 500
+    }
+};
 
 typedef struct {
     int kind;
@@ -58,6 +101,7 @@ struct modem_sound_t {
     atomic_uint read_index;
     atomic_int mode;
     atomic_int level;
+    atomic_int region;
     int in_use;
     int handler_registered;
     int phase;
@@ -74,6 +118,8 @@ struct modem_sound_t {
     double phase1;
     double phase2;
     double phase3;
+    double phase4;
+    double noise_filter;
     uint32_t noise_state;
 };
 
@@ -93,6 +139,62 @@ modem_noise(modem_sound_t *sound)
 {
     sound->noise_state = sound->noise_state * 1664525u + 1013904223u;
     return ((double) (sound->noise_state >> 8) / 8388608.0) - 1.0;
+}
+
+static const modem_tone_profile_t *
+modem_sound_profile(modem_sound_t *sound)
+{
+    int region = atomic_load(&sound->region);
+    if (region < 0 || region >= MODEM_SOUND_REGION_COUNT)
+        region = MODEM_SOUND_REGION_NORTH_AMERICA;
+    return &modem_tone_profiles[region];
+}
+
+static double
+modem_tone(modem_sound_t *sound, int f1, int f2)
+{
+    double value = modem_oscillator(&sound->phase1, f1, sound->rate);
+    if (f2)
+        value = 0.5 * value + 0.5 * modem_oscillator(&sound->phase2, f2, sound->rate);
+    return value;
+}
+
+static double
+modem_dial_tone(modem_sound_t *sound)
+{
+    const modem_tone_profile_t *profile = modem_sound_profile(sound);
+    return modem_tone(sound, profile->dial_f1, profile->dial_f2);
+}
+
+static int
+modem_ring_cadence_on(int pattern, uint32_t ms)
+{
+    switch (pattern) {
+        case RING_PATTERN_UK: {
+            const uint32_t cycle = ms % 3000;
+            return cycle < 400 || (cycle >= 600 && cycle < 1000);
+        }
+        case RING_PATTERN_EUROPE:
+            return ms % 5000 < 1000;
+        case RING_PATTERN_JAPAN:
+            return ms % 3000 < 1000;
+        case RING_PATTERN_NORTH_AMERICA:
+        default:
+            return ms % 6000 < 2000;
+    }
+}
+
+static double
+modem_line_fizz(modem_sound_t *sound, double carrier, double noise_level)
+{
+    const double white = modem_noise(sound);
+    sound->noise_filter += 0.025 * (white - sound->noise_filter);
+    const double filtered_noise = white - sound->noise_filter;
+    const double flutter = 0.96 + 0.04 * modem_oscillator(&sound->phase4, 7.0, sound->rate);
+    double fizz = carrier * flutter + noise_level * filtered_noise;
+    if ((sound->noise_state & 0x7fffu) == 0)
+        fizz += (sound->noise_state & 0x8000u) ? 0.12 : -0.12;
+    return fizz;
 }
 
 static uint32_t
@@ -174,8 +276,23 @@ modem_sound_dial_ms(const char *number, int s8, int pulse)
     return ms;
 }
 
-uint32_t modem_sound_ring_ms(void) { return RING_MS; }
+uint32_t
+modem_sound_ring_ms(modem_sound_t *sound)
+{
+    return sound ? modem_sound_profile(sound)->ring_wait_ms : 2600;
+}
+
 uint32_t modem_sound_handshake_ms(void) { return HANDSHAKE_MS; }
+
+void
+modem_sound_set_region(modem_sound_t *sound, int region)
+{
+    if (!sound)
+        return;
+    if (region < 0 || region >= MODEM_SOUND_REGION_COUNT)
+        region = MODEM_SOUND_REGION_NORTH_AMERICA;
+    atomic_store(&sound->region, region);
+}
 
 void
 modem_sound_event(modem_sound_t *sound, int type, const char *number, int arg)
@@ -278,33 +395,34 @@ modem_dtmf(modem_sound_t *sound, int digit)
 static double
 modem_ringback(modem_sound_t *sound)
 {
+    const modem_tone_profile_t *profile = modem_sound_profile(sound);
     const uint32_t ms = (uint32_t) (((uint64_t) sound->sample * 1000u) / sound->rate);
-    return (ms % 6000 < 2000)
-               ? 0.5 * modem_oscillator(&sound->phase1, 440, sound->rate)
-                     + 0.5 * modem_oscillator(&sound->phase2, 480, sound->rate)
+    return modem_ring_cadence_on(profile->ring_pattern, ms)
+               ? modem_tone(sound, profile->ring_f1, profile->ring_f2)
                : 0.0;
 }
 
 static double
 modem_busy_tone(modem_sound_t *sound)
 {
+    const modem_tone_profile_t *profile = modem_sound_profile(sound);
     const uint32_t ms = (uint32_t) (((uint64_t) sound->sample * 1000u) / sound->rate);
-    return (ms % 1000 < 500)
-               ? 0.5 * modem_oscillator(&sound->phase1, 480, sound->rate)
-                     + 0.5 * modem_oscillator(&sound->phase2, 620, sound->rate)
+    const uint32_t cycle = profile->busy_on_ms + profile->busy_off_ms;
+    return (ms % cycle < profile->busy_on_ms)
+               ? modem_tone(sound, profile->busy_f1, profile->busy_f2)
                : 0.0;
 }
 
 static double
 modem_ringing_tone(modem_sound_t *sound)
 {
+    const modem_tone_profile_t *profile = modem_sound_profile(sound);
     const uint32_t ms = (uint32_t) (((uint64_t) sound->sample * 1000u) / sound->rate);
-    if (ms % 6000 >= 2000)
+    if (!modem_ring_cadence_on(profile->ring_pattern, ms))
         return 0.0;
 
     /* A 20 Hz burst-gated dual tone gives the modem speaker a bell-like ring. */
-    const double carrier = 0.5 * modem_oscillator(&sound->phase1, 440, sound->rate)
-                         + 0.5 * modem_oscillator(&sound->phase2, 480, sound->rate);
+    const double carrier = modem_tone(sound, profile->ring_f1, profile->ring_f2);
     const double ring_gate = modem_oscillator(&sound->phase3, 20, sound->rate);
     return (ring_gate > 0.0) ? carrier : 0.0;
 }
@@ -320,8 +438,7 @@ modem_sound_sample(modem_sound_t *sound, int mode)
             if (mode == 1 || mode == 2) {
                 switch (step->kind) {
                     case STEP_TONE:
-                        value = 0.5 * modem_oscillator(&sound->phase1, 350, sound->rate)
-                              + 0.5 * modem_oscillator(&sound->phase2, 440, sound->rate);
+                        value = modem_dial_tone(sound);
                         break;
                     case STEP_DTMF: value = modem_dtmf(sound, step->digit); break;
                     case STEP_PULSE: value = elapsed < (uint32_t) (sound->rate / 400) ? 0.7 * modem_noise(sound) : 0.0; break;
@@ -366,9 +483,10 @@ modem_sound_sample(modem_sound_t *sound, int mode)
                  : ms < 4000 ? 0.5 * modem_oscillator(&sound->phase1, 1200, sound->rate)
                              + 0.5 * modem_oscillator(&sound->phase2, 2400, sound->rate)
                  : 0.6 * hiss + 0.4 * hiss * modem_oscillator(&sound->phase3, 1800, sound->rate);
+            value = modem_line_fizz(sound, value, ms < 4000 ? 0.08 : 0.18);
         }
     } else if (sound->phase == PH_ONLINE && mode == 2)
-        value = 0.08 * modem_noise(sound);
+        value = modem_line_fizz(sound, 0.0, 0.08);
     sound->sample++;
     return value;
 }
@@ -414,6 +532,7 @@ modem_sound_init(void)
             atomic_init(&modem_speakers[i]->read_index, 0);
             atomic_init(&modem_speakers[i]->mode, 1);
             atomic_init(&modem_speakers[i]->level, 2);
+            atomic_init(&modem_speakers[i]->region, MODEM_SOUND_REGION_NORTH_AMERICA);
             modem_speakers[i]->noise_state = 0x4d4f4445u + (uint32_t) i;
         }
         if (!modem_speakers[i]->in_use) {

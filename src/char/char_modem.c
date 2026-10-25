@@ -1821,7 +1821,7 @@ modem_dial(modem_t *modem, const char *str)
         modem->call_answer_sound_started = false;
         modem->call_progress_elapsed_ms = 0;
         modem->call_answer_at_ms = modem_sound_dial_ms(sound_number, modem->reg[8], modem->pulse_dial)
-                       + modem_sound_ring_ms();
+                       + modem_sound_ring_ms(modem->sound);
         modem->call_connect_at_ms = modem->call_answer_at_ms + modem_sound_handshake_ms();
         modem_sound_event(modem->sound, MODEM_SOUND_DIAL, sound_number,
                   (modem->reg[8] & 0xff) | (modem->pulse_dial << 8));
@@ -3542,6 +3542,7 @@ modem_init(UNUSED(const device_t *info))
     modem->baudrate    = 115200;
     modem->modem_identity = device_get_config_int("modem_identity");
     modem->sound = modem_sound_init();
+    modem_sound_set_region(modem->sound, device_get_config_int("sound_region"));
     sound_in_add_handler(modem_voice_capture, modem);
     sound_add_handler(modem_voice_playback, modem);
     modem->listen_port = device_get_config_int("listen_port");
@@ -3666,6 +3667,23 @@ static const device_config_t modem_config[] = {
         .selection      = {
             { .description = "Generic 86Box Modem", .value = MODEM_IDENTITY_GENERIC },
             { .description = "Diamond SupraExpress 56e PRO", .value = MODEM_IDENTITY_SUPRAEXPRESS },
+            { .description = "" }
+        },
+        .bios           = { { 0 } }
+    },
+    {
+        .name           = "sound_region",
+        .description    = "Telephone Tone Region",
+        .type           = CONFIG_SELECTION,
+        .default_string = NULL,
+        .default_int    = MODEM_SOUND_REGION_NORTH_AMERICA,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = {
+            { .description = "North America",      .value = MODEM_SOUND_REGION_NORTH_AMERICA },
+            { .description = "United Kingdom",     .value = MODEM_SOUND_REGION_UK },
+            { .description = "Continental Europe", .value = MODEM_SOUND_REGION_EUROPE },
+            { .description = "Japan",              .value = MODEM_SOUND_REGION_JAPAN },
             { .description = "" }
         },
         .bios           = { { 0 } }
