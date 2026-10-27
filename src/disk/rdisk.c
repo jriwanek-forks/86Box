@@ -94,7 +94,7 @@ const uint8_t rdisk_command_flags[0x100] = {
 
    To use an alternate, change its 0 to 1 (and make sure the ones above it stay 0).
 
-   LS-240 (default and alternate 2): INQUIRY product "LS-120/240 00", revision "K047", from Aaru
+   LS-240 (default and alternate 2): INQUIRY product "LS-120/240    00", revision "K047", from Aaru
    device report 67 (https://aaru.app/report/67; reported behind an OnSpec USB bridge).  That
    report has no ATA IDENTIFY data, so the LS-240 ATA model and firmware are derived from the
    INQUIRY strings and are NOT confirmed.  The Imation alternate's LS-240 strings are simply the
@@ -112,24 +112,24 @@ const uint8_t rdisk_command_flags[0x100] = {
 #    define SUPERDISK_240_ATA_MODEL  "SUPERDISK  240       ATAPI"
 #elif 0
 #    define SUPERDISK_VENDOR         "MATSHITA"
-#    define SUPERDISK_120_PRODUCT    "LS-120 VER5 00  "
-#    define SUPERDISK_240_PRODUCT    "LS-120/240 00   "                      /* Report 67 */
+#    define SUPERDISK_120_PRODUCT    "LS-120 VER5   00"
+#    define SUPERDISK_240_PRODUCT    "LS-120/240    00"                      /* Report 67 */
 #    define SUPERDISK_120_REV        "F523"
 #    define SUPERDISK_240_REV        "K047"
 #    define SUPERDISK_120_FW         "F523M5A9"
 #    define SUPERDISK_240_FW         "K047    "                              /* Derived */
-#    define SUPERDISK_120_ATA_MODEL  "LS-120 VER5 00 UHD Floppy"
-#    define SUPERDISK_240_ATA_MODEL  "LS-120/240 00"                         /* Derived */
+#    define SUPERDISK_120_ATA_MODEL  "LS-120 VER5   00 UHD Floppy"          /* Report 66; internal spacing inferred from INQUIRY */
+#    define SUPERDISK_240_ATA_MODEL  "LS-120/240    00"                      /* Derived */
 #else
 #    define SUPERDISK_VENDOR         "MATSHITA"
 #    define SUPERDISK_120_PRODUCT    "LS-120 COSM   04"
-#    define SUPERDISK_240_PRODUCT    "LS-120/240 00   "                      /* Report 67 */
+#    define SUPERDISK_240_PRODUCT    "LS-120/240    00"                      /* Report 67 */
 #    define SUPERDISK_120_REV        "0270"
 #    define SUPERDISK_240_REV        "K047"
 #    define SUPERDISK_120_FW         "0270    "
 #    define SUPERDISK_240_FW         "K047    "                              /* Derived */
 #    define SUPERDISK_120_ATA_MODEL  "LS-120 COSM   04"
-#    define SUPERDISK_240_ATA_MODEL  "LS-120/240 00"                         /* Derived */
+#    define SUPERDISK_240_ATA_MODEL  "LS-120/240    00"                      /* Derived */
 #endif
 
 #define IS_SUPERDISK(t) (((t) == RDISK_TYPE_SUPERDISK_120) || ((t) == RDISK_TYPE_SUPERDISK_240))
@@ -141,6 +141,12 @@ static uint64_t zip_250_mode_sense_page_flags = (GPMODEP_R_W_ERROR_PAGE | GPMODE
                                                  GPMODEP_ALL_PAGES);
 /* SuperDisk drives are not Iomega drives, so unlike the Zip 250 they do NOT
    get the Iomega vendor page (0x2f) - Iomega's drivers use it to recognize a Zip. */
+/* Jaz drives have no flexible disk page (unlike the ATAPI Zip 250): a real Jaz 1GB (Aaru report 49)
+   reports pages 1, 2, 8 and the Iomega page 0x2f only. */
+static uint64_t jaz_mode_sense_page_flags = (GPMODEP_R_W_ERROR_PAGE | GPMODEP_DISCONNECT_PAGE |
+                                             GPMODEP_CACHING_PAGE | GPMODEP_IOMEGA_PAGE |
+                                             GPMODEP_ALL_PAGES);
+
 #define SUPERDISK_MEDIUM_TYPES_PAGE 0x0b    /* Medium Types Supported */
 #define SUPERDISK_RBAC_PAGE         0x1b    /* Removable Block Access Capabilities */
 /* The real LS-120 (Aaru report 66) has page 3, the real LS-240 (report 67) has page 0x1b instead. */
@@ -216,6 +222,40 @@ static const mode_sense_pages_t zip_250_mode_sense_pages_changeable = {
                  0xff,                                0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
                  0xff,                                0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
                  0xff,                                0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00 },
+      [0x08] = { GPMODE_CACHING_PAGE,                 0x0a, 0x04, 0x00, 0xff, 0xff, 0x00, 0x00,
+                 0xff,                                0xff, 0xff, 0xff                         },
+      [0x2f] = { GPMODE_IOMEGA_PAGE,                  0x04, 0xff, 0xff, 0xff, 0xff             } }
+};
+
+/*
+   Jaz mode-sense pages, from Aaru device report 49 (https://aaru.app/report/49), a real SCSI
+   iomega jaz 1GB, firmware H.72.  All three standard pages have the PS (parameters saveable) bit set.
+     - Page 1:  AWRE and ARRE enabled, read retries 100, write retries 100.  Unlike the Zip
+                drives the "most expedient recovery first" (EER) flag is not set.
+     - Page 2:  buffer full ratio 32, buffer empty ratio 32, no data transfer disconnect control.
+                The limit fields were not reported and are left at 0.
+     - Page 8:  write cache enabled, no multiple selection, pre-fetch up to 65535 blocks (same
+                bytes as the Zip 250's caching page apart from PS).
+     - Page 2F: the report only says "unknown page"; the Zip 250's bytes are reused and are
+                NOT confirmed for the Jaz.
+   There is no report for the Jaz 2GB or for an ATAPI Jaz: both use these tables as the closest
+   available data, for both buses.  The changeable masks are placeholders.
+ */
+static const mode_sense_pages_t jaz_mode_sense_pages_default = {
+    { [0x01] = { 0x80 | GPMODE_R_W_ERROR_PAGE,        0x0a, 0xc0, 0x64, 0x00, 0x00, 0x00, 0x00,
+                 0x64,                                0x00, 0x00, 0x00                         },
+      [0x02] = { 0x80 | GPMODE_DISCONNECT_PAGE,       0x0e, 0x20, 0x20, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
+      [0x08] = { 0x80 | GPMODE_CACHING_PAGE,          0x0a, 0x04, 0x00, 0xff, 0xff, 0x00, 0x00,
+                 0xff,                                0xff, 0xff, 0xff                         },
+      [0x2f] = { GPMODE_IOMEGA_PAGE,                  0x04, 0x5c, 0x0f, 0x3c, 0x0f             } }
+};
+
+static const mode_sense_pages_t jaz_mode_sense_pages_changeable = {
+    { [0x01] = { GPMODE_R_W_ERROR_PAGE,               0x0a, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00,
+                 0xff,                                0x00, 0x00, 0x00                         },
+      [0x02] = { GPMODE_DISCONNECT_PAGE,              0x0e, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
       [0x08] = { GPMODE_CACHING_PAGE,                 0x0a, 0x04, 0x00, 0xff, 0xff, 0x00, 0x00,
                  0xff,                                0xff, 0xff, 0xff                         },
       [0x2f] = { GPMODE_IOMEGA_PAGE,                  0x04, 0xff, 0xff, 0xff, 0xff             } }
@@ -725,6 +765,8 @@ rdisk_mode_sense_load(rdisk_t *dev)
             memcpy(&dev->ms_pages_saved, &zip_100_mode_sense_pages_default_scsi, sizeof(mode_sense_pages_t));
         else
             memcpy(&dev->ms_pages_saved, &zip_100_mode_sense_pages_default, sizeof(mode_sense_pages_t));
+    } else if ((dev->drv->type == RDISK_TYPE_JAZ_1GB) || (dev->drv->type == RDISK_TYPE_JAZ_2GB)) {
+        memcpy(&dev->ms_pages_saved, &jaz_mode_sense_pages_default, sizeof(mode_sense_pages_t));
     } else if (dev->drv->type == RDISK_TYPE_SUPERDISK_120) {
         memcpy(&dev->ms_pages_saved, &superdisk_120_mode_sense_pages_default, sizeof(mode_sense_pages_t));
     } else if (dev->drv->type == RDISK_TYPE_SUPERDISK_240) {
@@ -779,6 +821,8 @@ rdisk_mode_sense_page_flags(const rdisk_t *dev)
 {
     if (dev->drv->type == RDISK_TYPE_ZIP_100)
         return zip_100_mode_sense_page_flags;
+    else if ((dev->drv->type == RDISK_TYPE_JAZ_1GB) || (dev->drv->type == RDISK_TYPE_JAZ_2GB))
+        return jaz_mode_sense_page_flags;
     else if (dev->drv->type == RDISK_TYPE_SUPERDISK_120)
         return superdisk_120_mode_sense_page_flags;
     else if (dev->drv->type == RDISK_TYPE_SUPERDISK_240)
@@ -796,6 +840,8 @@ rdisk_mode_sense_pages_changeable(const rdisk_t *dev)
 {
     if (dev->drv->type == RDISK_TYPE_ZIP_100)
         return &zip_100_mode_sense_pages_changeable;
+    else if ((dev->drv->type == RDISK_TYPE_JAZ_1GB) || (dev->drv->type == RDISK_TYPE_JAZ_2GB))
+        return &jaz_mode_sense_pages_changeable;
     else if (IS_SUPERDISK(dev->drv->type))
         return &superdisk_mode_sense_pages_changeable;
     else if (dev->drv->type == RDISK_TYPE_SYJET_1_5GB)
@@ -845,6 +891,8 @@ zip_mode_sense_read(const rdisk_t *dev, const uint8_t pgctl,
                     return zip_100_mode_sense_pages_default_scsi.pages[page][pos];
                 else
                     return zip_100_mode_sense_pages_default.pages[page][pos];
+            } else if ((dev->drv->type == RDISK_TYPE_JAZ_1GB) || (dev->drv->type == RDISK_TYPE_JAZ_2GB)) {
+                return jaz_mode_sense_pages_default.pages[page][pos];
             } else if (dev->drv->type == RDISK_TYPE_SUPERDISK_120) {
                 return superdisk_120_mode_sense_pages_default.pages[page][pos];
             } else if (dev->drv->type == RDISK_TYPE_SUPERDISK_240) {
