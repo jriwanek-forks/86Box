@@ -2985,16 +2985,10 @@ rdisk_identify(const ide_t *ide, const int ide_has_dma)
 {
     const rdisk_t *rdisk = (rdisk_t *) ide->sc;
 
-    /*
-       ATAPI device, direct-access device, removable media, interrupt DRQ:
-
-       Using (2 << 5) below makes the ASUS P/I-P55TP4XE identify the RDISK drive
-       as a LS-120.
-     */
     if (IS_SUPERDISK(rdisk_drives[rdisk->id].type))
-        ide->buffer[0] = 0x8000 | (0 << 8) | 0x80 | (2 << 5);
+        ide->buffer[0] = 0x8000 | (0 << 8) | 0x80 | (2 << 5); /* ATAPI device, Direct Access device, removable media, accelerated DRQ */
     else
-        ide->buffer[0] = 0x8000 | (0 << 8) | 0x80 | (1 << 5);
+        ide->buffer[0] = 0x8000 | (0 << 8) | 0x80 | (1 << 5); /* ATAPI device, Direct Access device, removable media, interrupt DRQ */
 
     ide_padstr((char *) (ide->buffer + 10), "", 20);    /* Serial Number */
     ide->buffer[49]  = 0x200;                                  /* LBA supported */
@@ -3077,7 +3071,10 @@ rdisk_drive_reset(const int c)
             id->phase_data_out   = rdisk_phase_data_out;
             id->command_stop     = rdisk_command_stop;
             id->bus_master_error = rdisk_bus_master_error;
-            id->interrupt_drq    = 1;
+            if IS_SUPERDISK(dev->drv->type))
+                id->interrupt_drq    = 0;
+            else
+                id->interrupt_drq    = 1;
 
             ide_atapi_attach(id);
         }
