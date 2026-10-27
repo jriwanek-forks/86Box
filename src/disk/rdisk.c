@@ -146,6 +146,10 @@ const uint8_t rdisk_command_flags[0x100] = {
 #    define ZIP_750_REV    "78.a"
 #endif
 
+/* The Floptical and the Bernoulli Box II drives are narrow (8-bit) SCSI drives. */
+#define IS_NARROW_SCSI_ONLY(t) (((t) == RDISK_TYPE_FLOPTICAL_20) || ((t) == RDISK_TYPE_BERNOULLI_90) || \
+                                ((t) == RDISK_TYPE_BERNOULLI_150) || ((t) == RDISK_TYPE_BERNOULLI_230))
+
 static uint64_t zip_100_mode_sense_page_flags = (GPMODEP_R_W_ERROR_PAGE | GPMODEP_DISCONNECT_PAGE |
                                                  GPMODEP_IOMEGA_PAGE | GPMODEP_ALL_PAGES);
 static uint64_t zip_250_mode_sense_page_flags = (GPMODEP_R_W_ERROR_PAGE | GPMODEP_FLEXIBLE_DISK_PAGE |
@@ -168,6 +172,31 @@ static uint64_t clik_mode_sense_page_flags = (GPMODEP_R_W_ERROR_PAGE | GPMODEP_I
                                               GPMODEP_ALL_PAGES);
 /* The Zip 750 reports the same page set as the Zip 250 (Aaru report 53), so it uses
    zip_250_mode_sense_page_flags and zip_250_mode_sense_pages_changeable. */
+
+/* Mode page numbers that have no GPMODE_* constant. */
+#define MS_PAGE_RIGID_DISK       0x04
+#define MS_PAGE_VERIFY_ERROR     0x07
+#define MS_PAGE_MEDIUM_TYPES     0x0b
+#define MS_PAGE_RBAC             0x1b
+#define MS_PAGE_INFO_EXCEPTIONS  0x1c
+
+/* Sony HiFD (Aaru report 118): pages 1, 3, 5, 7, 8, 0B, 1B and 1C. */
+static uint64_t hifd_mode_sense_page_flags = (GPMODEP_R_W_ERROR_PAGE | GPMODEP_FORMAT_DEVICE_PAGE |
+                                              GPMODEP_FLEXIBLE_DISK_PAGE | (1ULL << MS_PAGE_VERIFY_ERROR) |
+                                              GPMODEP_CACHING_PAGE | (1ULL << MS_PAGE_MEDIUM_TYPES) |
+                                              (1ULL << MS_PAGE_RBAC) | (1ULL << MS_PAGE_INFO_EXCEPTIONS) |
+                                              GPMODEP_ALL_PAGES);
+/* Floptical (Aaru report 258): pages 1, 3 and 4 are implemented here; 5, 0B and 2E also exist on the drive
+   but their contents are not decoded in the report. */
+static uint64_t floptical_mode_sense_page_flags = (GPMODEP_R_W_ERROR_PAGE | GPMODEP_FORMAT_DEVICE_PAGE |
+                                                   (1ULL << MS_PAGE_RIGID_DISK) | GPMODEP_ALL_PAGES);
+/* Bernoulli Box II 90 (report 186): pages 1, 2, 3, 4 (and an undecoded 2F, not implemented). */
+static uint64_t bernoulli_90_mode_sense_page_flags = (GPMODEP_R_W_ERROR_PAGE | GPMODEP_DISCONNECT_PAGE |
+                                                      GPMODEP_FORMAT_DEVICE_PAGE | (1ULL << MS_PAGE_RIGID_DISK) |
+                                                      GPMODEP_ALL_PAGES);
+/* Bernoulli 150 / 230 (reports 202 / 311): pages 1, 2, 8 (and an undecoded 2F, not implemented). */
+static uint64_t bernoulli_150_mode_sense_page_flags = (GPMODEP_R_W_ERROR_PAGE | GPMODEP_DISCONNECT_PAGE |
+                                                       GPMODEP_CACHING_PAGE | GPMODEP_ALL_PAGES);
 
 #define SUPERDISK_MEDIUM_TYPES_PAGE 0x0b    /* Medium Types Supported */
 #define SUPERDISK_RBAC_PAGE         0x1b    /* Removable Block Access Capabilities */
@@ -358,6 +387,143 @@ static const mode_sense_pages_t zip_750_mode_sense_pages_default = {
       [0x08] = { GPMODE_CACHING_PAGE,                 0x0a, 0x04, 0x00, 0xff, 0xff, 0x00, 0x00,
                  0xff,                                0xff, 0xff, 0xff                         },
       [0x2f] = { GPMODE_IOMEGA_PAGE,                  0x04, 0x5c, 0x0f, 0x3c, 0x0f             } }
+};
+
+/*
+   Sony HiFD mode-sense pages, from Aaru device report 118 (https://aaru.app/report/118), a real ATAPI
+   SONY HiFD SFD200, firmware 1264:
+     - Page 1:  AWRE and ARRE enabled, read retries 32, write retries 32.
+     - Page 3:  11570 tracks/zone, 2049 alternate sectors/zone, 34 sectors/track, 512 bytes/sector,
+                interleave 0, no skews, flags HSEC | RMB | SURF.
+     - Page 5:  28000 kbit/s, 13 heads, 890 cylinders, 34 sectors/track, 512 bytes/sector, 3600 rpm
+                (13 * 890 * 34 = 393380 sectors).  "1 step pulse per cylinder" is SPC = 0 (Aaru prints SPC + 1).
+     - Page 7:  verify retries 32.
+     - Page 8:  write cache enabled, no pre-fetch.
+     - Page 0B: medium types 0x40 and 0x42 (the HiFD medium is type 0x42).
+     - Page 1B: supports reporting progress of format, 1 LUN (byte layout from the SFF-8070 / Linux
+                ide-floppy structure, as for the LS-240).
+     - Page 1C: informational exceptions enabled, method of reporting 13.
+   The changeable masks are not in the report and are placeholders.
+ */
+static const mode_sense_pages_t hifd_mode_sense_pages_default = {
+    { [0x01] = { GPMODE_R_W_ERROR_PAGE,               0x0a, 0xc0, 0x20, 0x00, 0x00, 0x00, 0x00,
+                 0x20,                                0x00, 0x00, 0x00                         },
+      [0x03] = { GPMODE_FORMAT_DEVICE_PAGE,           0x16, 0x2d, 0x32, 0x08, 0x01, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x22, 0x02, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00, 0x70, 0x00, 0x00, 0x00 },
+      [0x05] = { GPMODE_FLEXIBLE_DISK_PAGE,           0x1e, 0x6d, 0x60, 0x0d, 0x22, 0x02, 0x00,
+                 0x03,                                0x7a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00, 0x0e, 0x10, 0x00, 0x00 },
+      [0x07] = { MS_PAGE_VERIFY_ERROR,                0x0a, 0x00, 0x20, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00                         },
+      [0x08] = { GPMODE_CACHING_PAGE,                 0x0a, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00                         },
+      [0x0b] = { MS_PAGE_MEDIUM_TYPES,                0x06, 0x00, 0x00, 0x40, 0x42, 0x00, 0x00 },
+      [0x1b] = { MS_PAGE_RBAC,                        0x0a, 0x40, 0x01, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00                         },
+      [0x1c] = { MS_PAGE_INFO_EXCEPTIONS,             0x0a, 0x00, 0x0d, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00                         } }
+};
+
+static const mode_sense_pages_t hifd_mode_sense_pages_changeable = {
+    { [0x01] = { GPMODE_R_W_ERROR_PAGE,               0x0a, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00,
+                 0xff,                                0x00, 0x00, 0x00                         },
+      [0x03] = { GPMODE_FORMAT_DEVICE_PAGE,           0x16, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
+      [0x05] = { GPMODE_FLEXIBLE_DISK_PAGE,           0x1e, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+                 0xff,                                0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+                 0xff,                                0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+                 0xff,                                0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00 },
+      [0x07] = { MS_PAGE_VERIFY_ERROR,                0x0a, 0x00, 0xff, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00                         },
+      [0x08] = { GPMODE_CACHING_PAGE,                 0x0a, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00                         },
+      [0x0b] = { MS_PAGE_MEDIUM_TYPES,                0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
+      [0x1b] = { MS_PAGE_RBAC,                        0x0a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00                         },
+      [0x1c] = { MS_PAGE_INFO_EXCEPTIONS,             0x0a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00                         } }
+};
+
+/*
+   Floptical mode-sense pages, from Aaru device report 258 (https://aaru.app/report/258), a real SCSI-1
+   INSITE I325VM Floptical, firmware 0387, 20 MB medium (40662 blocks):
+     - Page 1:  only the "transfer back unrecovered data" (TB) flag is set; no retry counts.
+     - Page 3:  all zero (no flags).
+     - Page 4:  all zero (0 heads, 0 cylinders).
+   The drive also reports pages 5, 0B and 2E, which the report could not decode; they are NOT implemented.
+   The report also says the drive reads 720 KB and 1.44 MB floppy media, which this emulation does not.
+ */
+static const mode_sense_pages_t floptical_mode_sense_pages_default = {
+    { [0x01] = { GPMODE_R_W_ERROR_PAGE,               0x06, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00 },
+      [0x03] = { GPMODE_FORMAT_DEVICE_PAGE,           0x16, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
+      [0x04] = { MS_PAGE_RIGID_DISK,                  0x16, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 } }
+};
+
+static const mode_sense_pages_t floptical_mode_sense_pages_changeable = {
+    { [0x01] = { GPMODE_R_W_ERROR_PAGE,               0x06, 0x20, 0x00, 0x00, 0x00, 0x00, 0x00 },
+      [0x03] = { GPMODE_FORMAT_DEVICE_PAGE,           0x16, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
+      [0x04] = { MS_PAGE_RIGID_DISK,                  0x16, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 } }
+};
+
+/*
+   Bernoulli Box II mode-sense pages (all three are SCSI-only drives).
+
+   Bernoulli 90 - Aaru report 186 (https://aaru.app/report/186), IOMEGA BETA90, firmware 1.4:
+     - Page 1:  AWRE, ARRE, EER, read retries 11.  No write retry count is reported (6-byte page).
+     - Page 2:  buffer full ratio 208, buffer empty ratio 128, no data transfer disconnect control.
+     - Page 3:  29 sectors/track, 512 bytes/sector, flags HSEC | RMB | SURF.
+     - Page 4:  758 cylinders, 8 heads (8 * 758 * 29 = 175856 sectors).
+   Bernoulli 150 / 230 - Aaru reports 202 (BETA150, firmware T.47) and 311 (BETA230, firmware 2.02),
+   which report the same pages (the 150 was only tested with a 90 MB cartridge, the 230 with none):
+     - Page 1:  AWRE, ARRE, EER, read retries 22 (6-byte page).
+     - Page 2:  all zero, no data transfer disconnect control.
+     - Page 8:  write cache enabled, pre-fetch for up to 65535 blocks, minimum pre-fetch 64, maximum 65535.
+   All three also report an Iomega page 2F that the reports could not decode; it is NOT implemented.
+   The changeable masks are placeholders.
+ */
+static const mode_sense_pages_t bernoulli_90_mode_sense_pages_default = {
+    { [0x01] = { GPMODE_R_W_ERROR_PAGE,               0x06, 0xc8, 0x0b, 0x00, 0x00, 0x00, 0x00 },
+      [0x02] = { GPMODE_DISCONNECT_PAGE,              0x0e, 0xd0, 0x80, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
+      [0x03] = { GPMODE_FORMAT_DEVICE_PAGE,           0x16, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x1d, 0x02, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00, 0x70, 0x00, 0x00, 0x00 },
+      [0x04] = { MS_PAGE_RIGID_DISK,                  0x16, 0x00, 0x02, 0xf6, 0x08, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 } }
+};
+
+static const mode_sense_pages_t bernoulli_150_mode_sense_pages_default = {
+    { [0x01] = { GPMODE_R_W_ERROR_PAGE,               0x06, 0xc8, 0x16, 0x00, 0x00, 0x00, 0x00 },
+      [0x02] = { GPMODE_DISCONNECT_PAGE,              0x0e, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
+      [0x08] = { GPMODE_CACHING_PAGE,                 0x0a, 0x04, 0x00, 0xff, 0xff, 0x00, 0x40,
+                 0xff,                                0xff, 0xff, 0xff                         } }
+};
+
+static const mode_sense_pages_t bernoulli_mode_sense_pages_changeable = {
+    { [0x01] = { GPMODE_R_W_ERROR_PAGE,               0x06, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00 },
+      [0x02] = { GPMODE_DISCONNECT_PAGE,              0x0e, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
+      [0x03] = { GPMODE_FORMAT_DEVICE_PAGE,           0x16, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
+      [0x04] = { MS_PAGE_RIGID_DISK,                  0x16, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
+      [0x08] = { GPMODE_CACHING_PAGE,                 0x0a, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00                         } }
 };
 
 /*
@@ -579,6 +745,16 @@ rdisk_max_medium_size(const rdisk_t *dev)
             return CLIK_SECTORS;
         case RDISK_TYPE_ZIP_750:
             return ZIP_750_SECTORS;
+        case RDISK_TYPE_HIFD_200:
+            return HIFD_SECTORS;
+        case RDISK_TYPE_FLOPTICAL_20:
+            return FLOPTICAL_SECTORS;
+        case RDISK_TYPE_BERNOULLI_90:
+            return BERNOULLI_90_SECTORS;
+        case RDISK_TYPE_BERNOULLI_150:
+            return BERNOULLI_150_SECTORS;
+        case RDISK_TYPE_BERNOULLI_230:
+            return BERNOULLI_230_SECTORS;
         default:
             return ZIP_250_SECTORS;
     }
@@ -611,6 +787,19 @@ rdisk_supports_medium_size(const rdisk_t *dev, const uint32_t sectors)
            real drive, not enforced here). */
         case RDISK_TYPE_ZIP_750:
             return (sectors == ZIP_SECTORS) || (sectors == ZIP_250_SECTORS) || (sectors == ZIP_750_SECTORS);
+        case RDISK_TYPE_HIFD_200:
+            return sectors == HIFD_SECTORS;
+        case RDISK_TYPE_FLOPTICAL_20:
+            return sectors == FLOPTICAL_SECTORS;
+        /* The higher-capacity Bernoulli drives also take the lower-capacity cartridges (the real
+           compatibility - read/write vs. read-only - is not enforced here). */
+        case RDISK_TYPE_BERNOULLI_90:
+            return sectors == BERNOULLI_90_SECTORS;
+        case RDISK_TYPE_BERNOULLI_150:
+            return (sectors == BERNOULLI_90_SECTORS) || (sectors == BERNOULLI_150_SECTORS);
+        case RDISK_TYPE_BERNOULLI_230:
+            return (sectors == BERNOULLI_90_SECTORS) || (sectors == BERNOULLI_150_SECTORS) ||
+                   (sectors == BERNOULLI_230_SECTORS);
         default:
             return (sectors == ZIP_SECTORS) || (sectors == ZIP_250_SECTORS) ||
                    (sectors == JAZ_1GB_SECTORS) || (sectors == JAZ_2GB_SECTORS);
@@ -884,6 +1073,14 @@ rdisk_mode_sense_load(rdisk_t *dev)
         memcpy(&dev->ms_pages_saved, &clik_mode_sense_pages_default, sizeof(mode_sense_pages_t));
     } else if (dev->drv->type == RDISK_TYPE_ZIP_750) {
         memcpy(&dev->ms_pages_saved, &zip_750_mode_sense_pages_default, sizeof(mode_sense_pages_t));
+    } else if (dev->drv->type == RDISK_TYPE_HIFD_200) {
+        memcpy(&dev->ms_pages_saved, &hifd_mode_sense_pages_default, sizeof(mode_sense_pages_t));
+    } else if (dev->drv->type == RDISK_TYPE_FLOPTICAL_20) {
+        memcpy(&dev->ms_pages_saved, &floptical_mode_sense_pages_default, sizeof(mode_sense_pages_t));
+    } else if (dev->drv->type == RDISK_TYPE_BERNOULLI_90) {
+        memcpy(&dev->ms_pages_saved, &bernoulli_90_mode_sense_pages_default, sizeof(mode_sense_pages_t));
+    } else if ((dev->drv->type == RDISK_TYPE_BERNOULLI_150) || (dev->drv->type == RDISK_TYPE_BERNOULLI_230)) {
+        memcpy(&dev->ms_pages_saved, &bernoulli_150_mode_sense_pages_default, sizeof(mode_sense_pages_t));
     } else if (dev->drv->type == RDISK_TYPE_SUPERDISK_120) {
         memcpy(&dev->ms_pages_saved, &superdisk_120_mode_sense_pages_default, sizeof(mode_sense_pages_t));
     } else if (dev->drv->type == RDISK_TYPE_SUPERDISK_240) {
@@ -944,6 +1141,14 @@ rdisk_mode_sense_page_flags(const rdisk_t *dev)
         return jaz_2gb_mode_sense_page_flags;
     else if (dev->drv->type == RDISK_TYPE_CLIK_40)
         return clik_mode_sense_page_flags;
+    else if (dev->drv->type == RDISK_TYPE_HIFD_200)
+        return hifd_mode_sense_page_flags;
+    else if (dev->drv->type == RDISK_TYPE_FLOPTICAL_20)
+        return floptical_mode_sense_page_flags;
+    else if (dev->drv->type == RDISK_TYPE_BERNOULLI_90)
+        return bernoulli_90_mode_sense_page_flags;
+    else if ((dev->drv->type == RDISK_TYPE_BERNOULLI_150) || (dev->drv->type == RDISK_TYPE_BERNOULLI_230))
+        return bernoulli_150_mode_sense_page_flags;
     else if (dev->drv->type == RDISK_TYPE_SUPERDISK_120)
         return superdisk_120_mode_sense_page_flags;
     else if (dev->drv->type == RDISK_TYPE_SUPERDISK_240)
@@ -967,6 +1172,13 @@ rdisk_mode_sense_pages_changeable(const rdisk_t *dev)
         return &jaz_2gb_mode_sense_pages_changeable;
     else if (dev->drv->type == RDISK_TYPE_CLIK_40)
         return &clik_mode_sense_pages_changeable;
+    else if (dev->drv->type == RDISK_TYPE_HIFD_200)
+        return &hifd_mode_sense_pages_changeable;
+    else if (dev->drv->type == RDISK_TYPE_FLOPTICAL_20)
+        return &floptical_mode_sense_pages_changeable;
+    else if ((dev->drv->type == RDISK_TYPE_BERNOULLI_90) || (dev->drv->type == RDISK_TYPE_BERNOULLI_150) ||
+             (dev->drv->type == RDISK_TYPE_BERNOULLI_230))
+        return &bernoulli_mode_sense_pages_changeable;
     else if (IS_SUPERDISK(dev->drv->type))
         return &superdisk_mode_sense_pages_changeable;
     else if (dev->drv->type == RDISK_TYPE_SYJET_1_5GB)
@@ -1048,6 +1260,14 @@ rdisk_mode_sense_read(const rdisk_t *dev, const uint8_t pgctl,
                 return clik_mode_sense_pages_default.pages[page][pos];
             } else if (dev->drv->type == RDISK_TYPE_ZIP_750) {
                 return zip_750_mode_sense_pages_default.pages[page][pos];
+            } else if (dev->drv->type == RDISK_TYPE_HIFD_200) {
+                return hifd_mode_sense_pages_default.pages[page][pos];
+            } else if (dev->drv->type == RDISK_TYPE_FLOPTICAL_20) {
+                return floptical_mode_sense_pages_default.pages[page][pos];
+            } else if (dev->drv->type == RDISK_TYPE_BERNOULLI_90) {
+                return bernoulli_90_mode_sense_pages_default.pages[page][pos];
+            } else if ((dev->drv->type == RDISK_TYPE_BERNOULLI_150) || (dev->drv->type == RDISK_TYPE_BERNOULLI_230)) {
+                return bernoulli_150_mode_sense_pages_default.pages[page][pos];
             } else if (dev->drv->type == RDISK_TYPE_SUPERDISK_120) {
                 return superdisk_120_mode_sense_pages_default.pages[page][pos];
             } else if (dev->drv->type == RDISK_TYPE_SUPERDISK_240) {
@@ -2320,6 +2540,10 @@ rdisk_command(scsi_common_t *sc, const uint8_t *cdb)
                             ide_padstr8(dev->buffer + idx, 8, "iomega  ");
                         else if (dev->drv->type == RDISK_TYPE_SYJET_1_5GB || dev->drv->type == RDISK_TYPE_SPARQ_1GB)
                             ide_padstr8(dev->buffer + idx, 8, "SyQuest ");
+                        else if (dev->drv->type == RDISK_TYPE_HIFD_200)
+                            ide_padstr8(dev->buffer + idx, 8, "SONY    ");
+                        else if (dev->drv->type == RDISK_TYPE_FLOPTICAL_20)
+                            ide_padstr8(dev->buffer + idx, 8, "INSITE  ");
                         else if (IS_SUPERDISK(dev->drv->type))
                             ide_padstr8(dev->buffer + idx, 8, SUPERDISK_VENDOR);
                         else if (dev->drv->type >= RDISK_TYPE_ZIP_100)
@@ -2348,6 +2572,16 @@ rdisk_command(scsi_common_t *sc, const uint8_t *cdb)
                             ide_padstr8(dev->buffer + idx, 40, "ZIP 750         ");
                         else if (dev->drv->type == RDISK_TYPE_CLIK_40)
                             ide_padstr8(dev->buffer + idx, 40, "Clik! 40 CZ     ");
+                        else if (dev->drv->type == RDISK_TYPE_HIFD_200)
+                            ide_padstr8(dev->buffer + idx, 40, "HiFD            ");
+                        else if (dev->drv->type == RDISK_TYPE_FLOPTICAL_20)
+                            ide_padstr8(dev->buffer + idx, 40, "I325VM        *F");
+                        else if (dev->drv->type == RDISK_TYPE_BERNOULLI_90)
+                            ide_padstr8(dev->buffer + idx, 40, "BETA90          ");
+                        else if (dev->drv->type == RDISK_TYPE_BERNOULLI_150)
+                            ide_padstr8(dev->buffer + idx, 40, "BETA150         ");
+                        else if (dev->drv->type == RDISK_TYPE_BERNOULLI_230)
+                            ide_padstr8(dev->buffer + idx, 40, "BETA230         ");
                         else
                             ide_padstr8(dev->buffer + 16, 40, device_identify);      /* Product */
                         idx += 40;
@@ -2373,11 +2607,14 @@ rdisk_command(scsi_common_t *sc, const uint8_t *cdb)
                 /* SCSI-2 compliant */
                 dev->buffer[2] = (dev->drv->bus_type == RDISK_BUS_SCSI) ? 0x02 : 0x00;
                 dev->buffer[3] = (dev->drv->bus_type == RDISK_BUS_SCSI) ? 0x02 : 0x21;
+                /* The Floptical is a SCSI-1 device (Aaru report 258). */
+                if ((dev->drv->type == RDISK_TYPE_FLOPTICAL_20) && (dev->drv->bus_type == RDISK_BUS_SCSI))
+                    dev->buffer[2] = 0x01;
 #if 0
                 dev->buffer[4] = 31;
 #endif
                 dev->buffer[4] = 0;
-                if (dev->drv->bus_type == RDISK_BUS_SCSI) {
+                if ((dev->drv->bus_type == RDISK_BUS_SCSI) && !IS_NARROW_SCSI_ONLY(dev->drv->type)) {
                     dev->buffer[6] = 1;       /* 16-bit transfers supported */
                     dev->buffer[7] = 0x20;    /* Wide bus supported */
                 }
@@ -2387,6 +2624,10 @@ rdisk_command(scsi_common_t *sc, const uint8_t *cdb)
                     ide_padstr8(dev->buffer + 8, 8, "iomega  ");    /* Vendor */
                 } else if (dev->drv->type == RDISK_TYPE_SYJET_1_5GB || dev->drv->type == RDISK_TYPE_SPARQ_1GB) {
                     ide_padstr8(dev->buffer + 8, 8, "SyQuest ");    /* Vendor */
+                } else if (dev->drv->type == RDISK_TYPE_HIFD_200) {
+                    ide_padstr8(dev->buffer + 8, 8, "SONY    ");    /* Vendor */
+                } else if (dev->drv->type == RDISK_TYPE_FLOPTICAL_20) {
+                    ide_padstr8(dev->buffer + 8, 8, "INSITE  ");    /* Vendor */
                 } else if (IS_SUPERDISK(dev->drv->type)) {
                     ide_padstr8(dev->buffer + 8, 8, SUPERDISK_VENDOR);    /* Vendor */
                 } else {
@@ -2443,6 +2684,26 @@ rdisk_command(scsi_common_t *sc, const uint8_t *cdb)
                     /* Aaru report 50: IOMEGA / Clik! 40 CZ / 30cJ */
                     ide_padstr8(dev->buffer + 16, 16, "Clik! 40 CZ     ");
                     ide_padstr8(dev->buffer + 32, 4, "30cJ");
+                } else if (dev->drv->type == RDISK_TYPE_HIFD_200) {
+                    /* Aaru report 118: SONY / HiFD / 1264 */
+                    ide_padstr8(dev->buffer + 16, 16, "HiFD            ");
+                    ide_padstr8(dev->buffer + 32, 4, "1264");
+                } else if (dev->drv->type == RDISK_TYPE_FLOPTICAL_20) {
+                    /* Aaru report 258: INSITE / I325VM        *F / 0387 (the spaces are in the raw field) */
+                    ide_padstr8(dev->buffer + 16, 16, "I325VM        *F");
+                    ide_padstr8(dev->buffer + 32, 4, "0387");
+                } else if (dev->drv->type == RDISK_TYPE_BERNOULLI_90) {
+                    /* Aaru report 186: IOMEGA / BETA90 / 1.4 */
+                    ide_padstr8(dev->buffer + 16, 16, "BETA90          ");
+                    ide_padstr8(dev->buffer + 32, 4, "1.4");
+                } else if (dev->drv->type == RDISK_TYPE_BERNOULLI_150) {
+                    /* Aaru report 202: IOMEGA / BETA150 / T.47 */
+                    ide_padstr8(dev->buffer + 16, 16, "BETA150         ");
+                    ide_padstr8(dev->buffer + 32, 4, "T.47");
+                } else if (dev->drv->type == RDISK_TYPE_BERNOULLI_230) {
+                    /* Aaru report 311: IOMEGA / BETA230 / 2.02 */
+                    ide_padstr8(dev->buffer + 16, 16, "BETA230         ");
+                    ide_padstr8(dev->buffer + 32, 4, "2.02");
                 } else {
                     ide_padstr8(dev->buffer + 8, 8,
                                 EMU_NAME);          /* Vendor */
@@ -2542,6 +2803,9 @@ atapi_out:
             /* Current/Maximum capacity header */
             if ((dev->drv->type == RDISK_TYPE_ZIP_100) ||
                 (dev->drv->type == RDISK_TYPE_CLIK_40) ||
+                (dev->drv->type == RDISK_TYPE_HIFD_200) ||
+                (dev->drv->type == RDISK_TYPE_FLOPTICAL_20) ||
+                (dev->drv->type == RDISK_TYPE_BERNOULLI_90) ||
                 (dev->drv->type == RDISK_TYPE_JAZ_1GB) ||
                 (dev->drv->type == RDISK_TYPE_SYJET_1_5GB) ||
                 (dev->drv->type == RDISK_TYPE_SPARQ_1GB)) {
@@ -2949,6 +3213,21 @@ rdisk_sparq_identify(const ide_t *ide, const int ide_has_dma)
 }
 
 /*
+   Sony HiFD: from Aaru report 118 (a real ATAPI SONY HiFD SFD200, firmware 1264): ATA/ATAPI-4 only,
+   minor version not specified.  The report's general configuration says "DRQ within 3 ms"; word 0,
+   the PIO/MDMA words and the DMA capability are left to the IDE core.
+ */
+static void
+rdisk_hifd_identify(const ide_t *ide)
+{
+    ide_padstr((char *) (ide->buffer + 23), "1264", 8);                         /* Firmware */
+    ide_padstr((char *) (ide->buffer + 27), "SONY HiFD SFD200", 40);            /* Model */
+
+    ide->buffer[80] = 0x0010;    /* ATA/ATAPI-4 */
+    ide->buffer[81] = 0x0000;    /* Minor version not specified */
+}
+
+/*
    Clik! 40: strings and capabilities from Aaru report 50 (a real ATAPI IOMEGA Clik! 40 CZ,
    firmware 30cJ): ATA-1 through ATA/ATAPI-4 (T13 1153D revision 15), PIO only.  The model string's
    internal spacing is as displayed in the report and may differ from the raw bytes.  The IORDY bits,
@@ -3011,6 +3290,8 @@ rdisk_identify(const ide_t *ide, const int ide_has_dma)
         rdisk_superdisk_identify(ide, ide_has_dma, rdisk_drives[rdisk->id].type);
     else if (rdisk_drives[rdisk->id].type == RDISK_TYPE_CLIK_40)
         rdisk_clik_identify(ide);
+    else if (rdisk_drives[rdisk->id].type == RDISK_TYPE_HIFD_200)
+        rdisk_hifd_identify(ide);
     else if (rdisk_drives[rdisk->id].type == RDISK_TYPE_ZIP_750)
         rdisk_zip_750_identify(ide, ide_has_dma);
     else
