@@ -83,15 +83,19 @@ const uint8_t rdisk_command_flags[0x100] = {
 };
 
 /*
-   SuperDisk (LS-120 / LS-240) identity strings.
+   SuperDisk (LS-120 / LS-240) identity strings.  Pick ONE identity set below.
 
-   Default: the Matsushita-made drives as they answer on real hardware
-   (the LS-120 strings are those of an LS-120 COSM 04).  The LS-240 product
-   and ATA model strings are modelled on the LS-120 ones and are NOT
-   confirmed against a real drive - correct them if a real value surfaces.
+   Default (the final #else): Matsushita "COSM 04", as a real Matsushita LS-120 COSM 04
+   answers (taken from the original code comment).
 
-   Alternate: the Imation branding already listed in rdisk_drive_types[]
-   in rdisk.h.  Change the #if 0 below to #if 1 to use it instead.
+   Alternate 1 (#if 0): the Imation branding already listed in rdisk_drive_types[] in rdisk.h.
+   Alternate 2 (#elif 0): a real LS-120 "VER5 00" (firmware F523), from Aaru device report 66
+   (https://aaru.app/report/66; it was reported behind a Shuttle E-USB bridge).
+
+   To use an alternate, change its 0 to 1 (and make sure the ones above it stay 0).
+
+   The LS-240 strings are modelled on the LS-120 ones and are NOT confirmed against a real
+   drive - correct them if a real value surfaces.
  */
 #if 0
 #    define SUPERDISK_VENDOR         "IMATION "
@@ -103,6 +107,16 @@ const uint8_t rdisk_command_flags[0x100] = {
 #    define SUPERDISK_240_FW         "04      "
 #    define SUPERDISK_120_ATA_MODEL  "SUPERDISK 120 ATAPI"                   /* ATA model, 40      */
 #    define SUPERDISK_240_ATA_MODEL  "SUPERDISK  240       ATAPI"
+#elif 0
+#    define SUPERDISK_VENDOR         "MATSHITA"
+#    define SUPERDISK_120_PRODUCT    "LS-120 VER5 00  "
+#    define SUPERDISK_240_PRODUCT    "LS-240 COSM   04"                      /* No real VER5 LS-240 report: same as default */
+#    define SUPERDISK_120_REV        "F523"
+#    define SUPERDISK_240_REV        "0270"
+#    define SUPERDISK_120_FW         "F523M5A9"
+#    define SUPERDISK_240_FW         "0270    "
+#    define SUPERDISK_120_ATA_MODEL  "LS-120 VER5 00 UHD Floppy"
+#    define SUPERDISK_240_ATA_MODEL  "LS-240 COSM   04"
 #else
 #    define SUPERDISK_VENDOR         "MATSHITA"
 #    define SUPERDISK_120_PRODUCT    "LS-120 COSM   04"
@@ -124,8 +138,9 @@ static uint64_t zip_250_mode_sense_page_flags = (GPMODEP_R_W_ERROR_PAGE | GPMODE
                                                  GPMODEP_ALL_PAGES);
 /* SuperDisk drives are not Iomega drives, so unlike the Zip 250 they do NOT
    get the Iomega vendor page (0x2f) - Iomega's drivers use it to recognize a Zip. */
-static uint64_t superdisk_mode_sense_page_flags = (GPMODEP_R_W_ERROR_PAGE | GPMODEP_FLEXIBLE_DISK_PAGE |
-                                                   GPMODEP_CACHING_PAGE | GPMODEP_ALL_PAGES);
+static uint64_t superdisk_mode_sense_page_flags = (GPMODEP_R_W_ERROR_PAGE | GPMODEP_FORMAT_DEVICE_PAGE |
+                                                   GPMODEP_FLEXIBLE_DISK_PAGE | GPMODEP_CACHING_PAGE |
+                                                   GPMODEP_ALL_PAGES);
 /* Unlike the Iomega-made Zip/Jaz drives above, the SyJet is a SyQuest drive and
    its SCSI Technical Reference documents no Iomega-style vendor page or vendor
    EJECT command, so it gets its own (non-Iomega) standard SCSI-2 page set. */
@@ -196,42 +211,67 @@ static const mode_sense_pages_t zip_250_mode_sense_pages_changeable = {
 };
 
 /*
-   SuperDisk mode-sense pages.  Page 5 (Flexible Disk) geometry is derived from the
-   media sector counts in rdisk.h:
-     LS-120: 963 cylinders x 8 heads x 32 sectors x 512 bytes (963 * 256 sectors)
-     LS-240: 1834 cylinders x 8 heads x 32 sectors x 512 bytes (469504 sectors)
-   The transfer rate, rotation rate and the R/W error and caching page bytes are
-   copied from the Zip 250 pages / are placeholders, NOT confirmed against a real
-   drive.
+   SuperDisk mode-sense pages.
+
+   LS-120: transcribed from Aaru device report 66 (https://aaru.app/report/66), a real
+   MATSHITA LS-120 VER5 00 (firmware F523):
+     - Page 1:  read retries 1, write retries 2, no flags set.
+     - Page 3:  32 tracks/zone, no alternates, 32 sectors/track, 512 bytes/sector,
+                interleave 0, track skew 10, cylinder skew 0, flags SSEC | RMB | SURF.
+     - Page 5:  4265 kbit/s, 8 heads, 963 cylinders, 32 sectors/track, 512 bytes/sector,
+                720 rpm.  The motor on/off delays and the step fields could not be mapped
+                to raw bytes from the report and are left at 0.
+     - Page 8:  all zero (no flags, no prefetch).
+   The report also lists page 0Bh (medium types supported), which is not implemented here.
+   The changeable masks are NOT in the report and are placeholders (page 5 is fully
+   changeable so guests can still MODE SELECT their geometry).
+
+   LS-240: no real report is available.  The geometry (262 cylinders, 32 heads, 56 sectors/track
+   = 469504 sectors) is a secondary-source value, and everything else is copied from the LS-120.
+   Treat as unconfirmed.
+
+   Unlike the Zip 250 these have NO Iomega vendor page (0x2f).
  */
 static const mode_sense_pages_t superdisk_120_mode_sense_pages_default = {
-    { [0x01] = { GPMODE_R_W_ERROR_PAGE,               0x06, 0xc8, 0x64, 0x00, 0x00, 0x00, 0x00 },
-      [0x05] = { GPMODE_FLEXIBLE_DISK_PAGE,           0x1e, 0x80, 0x00, 0x08, 0x20, 0x02, 0x00,
+    { [0x01] = { GPMODE_R_W_ERROR_PAGE,               0x0a, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00,
+                 0x02,                                0x00, 0x00, 0x00                         },
+      [0x03] = { GPMODE_FORMAT_DEVICE_PAGE,           0x16, 0x00, 0x20, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x20, 0x02, 0x00, 0x00, 0x00,
+                 0x00,                                0x0a, 0x00, 0x00, 0xb0, 0x00, 0x00, 0x00 },
+      [0x05] = { GPMODE_FLEXIBLE_DISK_PAGE,           0x1e, 0x10, 0xa9, 0x08, 0x20, 0x02, 0x00,
                  0x03,                                0xc3, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                  0x00,                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                  0x00,                                0x00, 0x00, 0x00, 0x02, 0xd0, 0x00, 0x00 },
-      [0x08] = { GPMODE_CACHING_PAGE,                 0x0a, 0x04, 0x00, 0xff, 0xff, 0x00, 0x00,
-                 0xff,                                0xff, 0xff, 0xff                         } }
+      [0x08] = { GPMODE_CACHING_PAGE,                 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00                         } }
 };
 
 static const mode_sense_pages_t superdisk_240_mode_sense_pages_default = {
-    { [0x01] = { GPMODE_R_W_ERROR_PAGE,               0x06, 0xc8, 0x64, 0x00, 0x00, 0x00, 0x00 },
-      [0x05] = { GPMODE_FLEXIBLE_DISK_PAGE,           0x1e, 0x80, 0x00, 0x08, 0x20, 0x02, 0x00,
-                 0x07,                                0x2a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    { [0x01] = { GPMODE_R_W_ERROR_PAGE,               0x0a, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00,
+                 0x02,                                0x00, 0x00, 0x00                         },
+      [0x03] = { GPMODE_FORMAT_DEVICE_PAGE,           0x16, 0x00, 0x20, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x38, 0x02, 0x00, 0x00, 0x00,
+                 0x00,                                0x0a, 0x00, 0x00, 0xb0, 0x00, 0x00, 0x00 },
+      [0x05] = { GPMODE_FLEXIBLE_DISK_PAGE,           0x1e, 0x10, 0xa9, 0x20, 0x38, 0x02, 0x00,
+                 0x01,                                0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                  0x00,                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                  0x00,                                0x00, 0x00, 0x00, 0x02, 0xd0, 0x00, 0x00 },
-      [0x08] = { GPMODE_CACHING_PAGE,                 0x0a, 0x04, 0x00, 0xff, 0xff, 0x00, 0x00,
-                 0xff,                                0xff, 0xff, 0xff                         } }
+      [0x08] = { GPMODE_CACHING_PAGE,                 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00                         } }
 };
 
 static const mode_sense_pages_t superdisk_mode_sense_pages_changeable = {
-    { [0x01] = { GPMODE_R_W_ERROR_PAGE,               0x06, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00 },
+    { [0x01] = { GPMODE_R_W_ERROR_PAGE,               0x0a, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00,
+                 0xff,                                0x00, 0x00, 0x00                         },
+      [0x03] = { GPMODE_FORMAT_DEVICE_PAGE,           0x16, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
       [0x05] = { GPMODE_FLEXIBLE_DISK_PAGE,           0x1e, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
                  0xff,                                0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
                  0xff,                                0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
                  0xff,                                0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00 },
-      [0x08] = { GPMODE_CACHING_PAGE,                 0x0a, 0x04, 0x00, 0xff, 0xff, 0x00, 0x00,
-                 0xff,                                0xff, 0xff, 0xff                         } }
+      [0x08] = { GPMODE_CACHING_PAGE,                 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00                         } }
 };
 
 /*
@@ -745,13 +785,29 @@ zip_mode_sense_read(const rdisk_t *dev, const uint8_t pgctl,
     switch (pgctl) {
         case 0:
         case 3:
-            /* An LS-240 drive with LS-120 media inserted reports the LS-120 geometry. */
-            if ((dev->drv->type == RDISK_TYPE_SUPERDISK_240) && (page == 5) &&
+            /* An LS-240 drive with LS-120 media inserted reports the LS-120 geometry
+               (963 cylinders, 8 heads, 32 sectors per track). */
+            if ((dev->drv->type == RDISK_TYPE_SUPERDISK_240) &&
                 (dev->drv->medium_size == SUPERDISK_SECTORS)) {
-                if (pos == 8)
-                    return 0x03;
-                if (pos == 9)
-                    return 0xc3;
+                if (page == 5) {
+                    switch (pos) {
+                        case 4:
+                            return 0x08;
+                        case 5:
+                            return 0x20;
+                        case 8:
+                            return 0x03;
+                        case 9:
+                            return 0xc3;
+                        default:
+                            break;
+                    }
+                } else if (page == 3) {
+                    if (pos == 10)
+                        return 0x00;
+                    if (pos == 11)
+                        return 0x20;
+                }
             }
             if (!IS_SUPERDISK(dev->drv->type) && (dev->drv->type != RDISK_TYPE_ZIP_100) &&
                 (page == 5) && (pos == 9) && (dev->drv->medium_size == ZIP_SECTORS))
