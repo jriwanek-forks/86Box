@@ -26,7 +26,12 @@
 
 #define ZIP_250_SECTORS     (489532)
 
-#define ZIP_750_SECTORS     (1470464) /* https://aaru.app/report/189 */
+/* Estimated.  A real Zip 750 (Aaru device report 53, only tested with Zip 100 media)
+   reports a flexible disk page geometry of 718 cylinders x 64 heads x 32 sectors, i.e. 1,470,464
+   sectors.  The Zip 250's block count is slightly higher than its page geometry (489,532 vs.
+   489,472), so the real value is probably at or a little above 1,470,464, not below it.  Confirm
+   with a real READ CAPACITY before relying on this for image sizes. */
+#define ZIP_750_SECTORS     (1468596)
 
 #define JAZ_1GB_SECTORS     (2091050)
 
@@ -35,6 +40,10 @@
 #define SUPERDISK_SECTORS      (963 * 256)
 
 #define SUPERDISK_240_SECTORS     (469504)
+
+/* 78882 blocks of 512 bytes (40,387,584 bytes) per Aaru device report 50, a real
+   Iomega Clik! 40 CZ with a Clik! medium. */
+#define CLIK_SECTORS              (78882)
 
 /* Last LBA of 2,929,799 (i.e. 2,929,800 sectors) per the SyQuest SyJet SCSI
    Technical Reference (1997, P/N 112857-001A), section "Read Capacity (25H)". */
@@ -52,15 +61,16 @@ enum {
     RDISK_TYPE_GENERIC = 0,
     RDISK_TYPE_ZIP_100,
     RDISK_TYPE_ZIP_250,
-#if 0
-    RDISK_TYPE_ZIP_750,
-#endif
     RDISK_TYPE_JAZ_1GB,
     RDISK_TYPE_JAZ_2GB,
     RDISK_TYPE_SYJET_1_5GB,
     RDISK_TYPE_SPARQ_1GB,
     RDISK_TYPE_SUPERDISK_120,
-    RDISK_TYPE_SUPERDISK_240
+    RDISK_TYPE_SUPERDISK_240,
+    /* Appended, in the same order as the media in rdisk_types[] below, so that the
+       values of the types above do not change. */
+    RDISK_TYPE_CLIK_40,
+    RDISK_TYPE_ZIP_750
 };
 
 typedef struct rdisk_type_t {
@@ -68,19 +78,18 @@ typedef struct rdisk_type_t {
     uint16_t bytes_per_sector;
 } rdisk_type_t;
 
-#define KNOWN_RDISK_TYPES 8
+#define KNOWN_RDISK_TYPES 10
 static const rdisk_type_t rdisk_types[KNOWN_RDISK_TYPES] = {
     { ZIP_SECTORS,           512 },
     { ZIP_250_SECTORS,       512 },
-#if 0
-    { ZIP_750_SECTORS,       512 },
-#endif
     { JAZ_1GB_SECTORS,       512 },
     { JAZ_2GB_SECTORS,       512 },
     { SYJET_SECTORS,         512 },
     { SPARQ_SECTORS,         512 },
     { SUPERDISK_SECTORS,     512 },
-    { SUPERDISK_240_SECTORS, 512 }
+    { SUPERDISK_240_SECTORS, 512 },
+    { CLIK_SECTORS,          512 },
+    { ZIP_750_SECTORS,       512 }
 };
 
 typedef struct rdisk_drive_type_t {
@@ -90,25 +99,29 @@ typedef struct rdisk_drive_type_t {
     int8_t      supported_media[KNOWN_RDISK_TYPES];
 } rdisk_drive_type_t;
 
-#define KNOWN_RDISK_DRIVE_TYPES 9
+#define KNOWN_RDISK_DRIVE_TYPES 11
+/* supported_media[] is indexed like rdisk_types[]: Zip 100, Zip 250, Jaz 1GB, Jaz 2GB,
+   SyJet, SparQ, SuperDisk 120, SuperDisk 240, Clik! 40, Zip 750. */
 static const rdisk_drive_type_t rdisk_drive_types[KNOWN_RDISK_DRIVE_TYPES] = {
-    { "86BOX",    "REMOVABLE DISK",             "5.00", { 1, 1, 1, 1, 1, 1, 1, 1 }},
-    { "IOMEGA",   "ZIP 100",                    "E.08", { 1, 0, 0, 0, 0, 0, 0, 0 }},
-    { "IOMEGA",   "ZIP 250",                    "42.S", { 1, 1, 0, 0, 0, 0, 0, 0 }},
-#if 0
-    { "IOMEGA",   "ZIP 750",                    "71.u", { 1, 1, 1, 0, 0, 0, 0, 0 }}, /* https://aaru.app/report/189 */
-#endif
-    { "IOMEGA",   "JAZ 1GB",                    "H.72", { 0, 0, 1, 0, 0, 0, 0, 0 }},
-    { "IOMEGA",   "JAZ 2GB",                    "E.17", { 0, 0, 1, 1, 0, 0, 0 ,0 }},
+    { "86BOX",    "REMOVABLE DISK",             "5.00", { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }},
+    { "IOMEGA",   "ZIP 100",                    "E.08", { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0 }},
+    { "IOMEGA",   "ZIP 250",                    "42.S", { 1, 1, 0, 0, 0, 0, 0, 0, 0, 0 }},
+    { "IOMEGA",   "JAZ 1GB",                    "H.72", { 0, 0, 1, 0, 0, 0, 0, 0, 0, 0 }},
+    { "IOMEGA",   "JAZ 2GB",                    "E.17", { 0, 0, 1, 1, 0, 0, 0, 0, 0, 0 }},
     /* Firmware revision "1.06" is a placeholder: the real SyJet's revision
        string could not be confirmed from the SCSI Technical Reference or
        any real-world SCSI probe log. Correct it if a real value surfaces. */
-    { "SYQUEST",  "SyJet 1.5GB",                "1.06", { 0, 0, 0, 0, 1, 0, 0, 0 }},
+    { "SYQUEST",  "SyJet 1.5GB",                "1.06", { 0, 0, 0, 0, 1, 0, 0, 0, 0, 0 }},
     /* Firmware revision "1.03" is likewise an unconfirmed placeholder - the
        SparQ's EIDE Technical Reference doesn't give a real example string. */
-    { "SYQUEST",  "SparQ 1.0GB",                "1.03", { 0, 0, 0, 0, 0, 1, 0, 0 }},
-    { "IMATION",  "SUPERDISK 120 ATAPI",        "04",   { 0, 0, 0, 0, 0, 0, 1, 0 }},
-    { "IMATION",  "SUPERDISK  240       ATAPI", "04",   { 0, 0, 0, 0, 0, 0, 1, 1 }}
+    { "SYQUEST",  "SparQ 1.0GB",                "1.03", { 0, 0, 0, 0, 0, 1, 0, 0, 0, 0 }},
+    { "IMATION",  "SUPERDISK 120 ATAPI",        "04",   { 0, 0, 0, 0, 0, 0, 1, 0, 0, 0 }},
+    { "IMATION",  "SUPERDISK  240       ATAPI", "04",   { 0, 0, 0, 0, 0, 0, 1, 1, 0, 0 }},
+    /* From Aaru device report 50, a real ATAPI Clik! 40 CZ. */
+    { "IOMEGA",   "Clik! 40 CZ",               "30cJ", { 0, 0, 0, 0, 0, 0, 0, 0, 1, 0 }},
+    /* Firmware "72.u" is from Aaru device report 53 (a USB Zip 750).  Compatibility: reads and
+       writes 750 and 250 MB media, reads (read-only) 100 MB media. */
+    { "IOMEGA",   "ZIP 750",                    "72.u", { 1, 1, 0, 0, 0, 0, 0, 0, 0, 1 }}
 };
 
 enum {
