@@ -291,7 +291,7 @@ static const mode_sense_pages_t jaz_mode_sense_pages_changeable = {
      - The changeable masks are not in the reports and are placeholders (page 5 is fully
        changeable so guests can still MODE SELECT their geometry).
      - What an LS-240 reports for page 5 with LS-120 media inserted (only the geometry is
-       overridden in zip_mode_sense_read).
+       overridden in rdisk_mode_sense_read).
 
    Unlike the Zip 250 these have NO Iomega vendor page (0x2f).
  */
@@ -854,7 +854,7 @@ rdisk_mode_sense_pages_changeable(const rdisk_t *dev)
 
 /* SCSI Mode Sense 6/10. */
 static uint8_t
-zip_mode_sense_read(const rdisk_t *dev, const uint8_t pgctl,
+rdisk_mode_sense_read(const rdisk_t *dev, const uint8_t pgctl,
                     const uint8_t page, const uint8_t pos)
 {
     switch (pgctl) {
@@ -948,12 +948,12 @@ rdisk_mode_sense(const rdisk_t *dev, uint8_t *buf, uint32_t pos,
     for (uint8_t i = 0; i < 0x40; i++) {
         if ((page == GPMODE_ALL_PAGES) || (page == i)) {
             if (pf & (1LL << ((uint64_t) page))) {
-                const uint8_t msplen = zip_mode_sense_read(dev, pgctl, i, 1);
-                buf[pos++]           = zip_mode_sense_read(dev, pgctl, i, 0);
+                const uint8_t msplen = rdisk_mode_sense_read(dev, pgctl, i, 1);
+                buf[pos++]           = rdisk_mode_sense_read(dev, pgctl, i, 0);
                 buf[pos++]           = msplen;
                 rdisk_log(dev->log, "MODE SENSE: Page [%02X] length %i\n", i, msplen);
                 for (uint8_t j = 0; j < msplen; j++)
-                    buf[pos++] = zip_mode_sense_read(dev, pgctl, i, 2 + j);
+                    buf[pos++] = rdisk_mode_sense_read(dev, pgctl, i, 2 + j);
             }
         }
     }
