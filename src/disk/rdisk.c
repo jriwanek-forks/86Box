@@ -2783,10 +2783,14 @@ rdisk_identify(const ide_t *ide, const int ide_has_dma)
     /*
        ATAPI device, direct-access device, removable media, interrupt DRQ:
 
-       Using (2 << 5) below makes the ASUS P/I-P54TP4XE misdentify the RDISK drive
+       Using (2 << 5) below makes the ASUS P/I-P55TP4XE identify the RDISK drive
        as a LS-120.
      */
-    ide->buffer[0] = 0x8000 | (0 << 8) | 0x80 | (1 << 5);
+    if (IS_SUPERDISK(rdisk_drives[rdisk->id].type))
+        ide->buffer[0] = 0x8000 | (0 << 8) | 0x80 | (2 << 5);
+    else
+        ide->buffer[0] = 0x8000 | (0 << 8) | 0x80 | (1 << 5);
+
     ide_padstr((char *) (ide->buffer + 10), "", 20);    /* Serial Number */
     ide->buffer[49]  = 0x200;                                  /* LBA supported */
     /* Interpret zero byte count limit as maximum length */
