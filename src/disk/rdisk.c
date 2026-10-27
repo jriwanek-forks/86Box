@@ -134,6 +134,18 @@ const uint8_t rdisk_command_flags[0x100] = {
 
 #define IS_SUPERDISK(t) (((t) == RDISK_TYPE_SUPERDISK_120) || ((t) == RDISK_TYPE_SUPERDISK_240))
 
+/*
+   Zip 750 firmware revision.  Default: "78.a", from the full INQUIRY dump of a real Zip 750 in
+   ZuluIDE firmware issue 39 (build date 08/27/02, copyright 2002).  Alternate (#if 0): "72.u", from
+   Aaru device report 53, where the date and copyright string were not captured, so the same
+   ones are used with it.  Both were seen on USB drives; the revision of a real ATAPI Zip 750 is unknown.
+ */
+#if 0
+#    define ZIP_750_REV    "72.u"
+#else
+#    define ZIP_750_REV    "78.a"
+#endif
+
 static uint64_t zip_100_mode_sense_page_flags = (GPMODEP_R_W_ERROR_PAGE | GPMODEP_DISCONNECT_PAGE |
                                                  GPMODEP_IOMEGA_PAGE | GPMODEP_ALL_PAGES);
 static uint64_t zip_250_mode_sense_page_flags = (GPMODEP_R_W_ERROR_PAGE | GPMODEP_FLEXIBLE_DISK_PAGE |
@@ -199,12 +211,17 @@ static const mode_sense_pages_t zip_250_mode_sense_pages_default = {
       [0x2f] = { GPMODE_IOMEGA_PAGE,                  0x04, 0x5c, 0x0f, 0x3c, 0x0f             } }
 };
 
+/* SCSI Zip 100, from sginfo output of a real SCSI Zip 100 (firmware D.06) in Gough's "Experiments:
+   ZIP Disk Defect Lists, Mode Page Changes, Protected Cartridges" (2015): read retries 22, write
+   retries 49, recovery time limit 12320 ms (0x3020), fair arbitration 2 (byte 12 = 0x20), first burst
+   size 8224 (0x2020), page 2F 5c 0f b4 05.  (The ATAPI table keeps the values the ATAPI drive
+   there reported: write retries 90, recovery time 20512 ms.) */
 static const mode_sense_pages_t zip_100_mode_sense_pages_default_scsi = {
     { [0x01] = { GPMODE_R_W_ERROR_PAGE,               0x0a, 0xc8, 0x16, 0x00, 0x00, 0x00, 0x00,
-                 0x5a,                                0x00, 0x50, 0x20                         },
+                 0x31,                                0x00, 0x30, 0x20                         },
       [0x02] = { GPMODE_DISCONNECT_PAGE,              0x0e, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                 0x00,                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
-      [0x2f] = { GPMODE_IOMEGA_PAGE,                  0x04, 0x5c, 0x0f, 0xff, 0x0f             } }
+                 0x00,                                0x00, 0x00, 0x00, 0x20, 0x00, 0x20, 0x20 },
+      [0x2f] = { GPMODE_IOMEGA_PAGE,                  0x04, 0x5c, 0x0f, 0xb4, 0x05             } }
 };
 
 static const mode_sense_pages_t zip_250_mode_sense_pages_default_scsi = {
@@ -325,15 +342,18 @@ static const mode_sense_pages_t clik_mode_sense_pages_changeable = {
                 pulse per cylinder, 3676 rpm (718 * 64 * 32 = 1470464 sectors).
      - Page 8:  write cache enabled, pre-fetch up to 65535 blocks (as the Zip 250).
      - Page 2F: reported as an unknown page; the Zip 250's bytes are reused and are NOT confirmed.
-   It was reported behind a USB bridge, so the 6-byte page 1 layout, the ATAPI strings and the
-   caching page's exact layout are assumed to match the Zip 250's.  With a Zip 100 or Zip 250 medium
-   inserted, only the cylinder count is switched (see zip_750_media_geometry); that is ESTIMATED.
+   The raw bytes of a USB Zip 750 (ZuluIDE firmware issue 39, firmware 78.a) match this table
+   exactly for pages 1, 5 and 8 (6-byte page 1; the 1 step pulse per cylinder that Aaru prints is SPC = 0).
+   Page 2F depends on the bus: that Zip 750 reports 5c 01 0f 0f, the same as a USB Zip 100, while
+   ATAPI drives report the Zip 250's 5c 0f 3c 0f (used here, as this emulates an ATAPI drive) and a SCSI
+   Zip 100 reports 5c 0f b4 05.  With a Zip 100 or Zip 250 medium inserted, only the cylinder count is
+   switched (see zip_750_media_geometry); that is ESTIMATED.
  */
 static const mode_sense_pages_t zip_750_mode_sense_pages_default = {
     { [0x01] = { GPMODE_R_W_ERROR_PAGE,               0x06, 0xc8, 0x64, 0x00, 0x00, 0x00, 0x00 },
       [0x05] = { GPMODE_FLEXIBLE_DISK_PAGE,           0x1e, 0x80, 0x00, 0x40, 0x20, 0x02, 0x00,
                  0x02,                                0xce, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                 0x00,                                0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00,
+                 0x00,                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                  0x00,                                0x00, 0x00, 0x00, 0x0e, 0x5c, 0x00, 0x00 },
       [0x08] = { GPMODE_CACHING_PAGE,                 0x0a, 0x04, 0x00, 0xff, 0xff, 0x00, 0x00,
                  0xff,                                0xff, 0xff, 0xff                         },
@@ -364,8 +384,10 @@ static const mode_sense_pages_t zip_750_mode_sense_pages_default = {
                 style layout used by Linux's ide-floppy, not from the report itself.
 
    Not mapped / unconfirmed:
-     - Page 5: "1 step pulse per cylinder" is byte 22 (SPC) in both reports and is set.  The
-       motor-off delay (reported as 400 for both drives, unit unclear) is left at 0.
+     - Page 5: both reports print "1 step pulse per cylinder".  The raw bytes of a real Zip 750
+       (ZuluIDE issue 39) have byte 22 (SPC) = 0 where Aaru prints the same line, so Aaru prints SPC + 1
+       and byte 22 is 0 here.  The motor-off delay (reported as 400 for both drives, unit unclear) is
+       left at 0.
      - Page 0B "medium type one" is not printed in either report; it is assumed to be 0.
      - The changeable masks are not in the reports and are placeholders (page 5 is fully
        changeable so guests can still MODE SELECT their geometry).
@@ -382,7 +404,7 @@ static const mode_sense_pages_t superdisk_120_mode_sense_pages_default = {
                  0x00,                                0x0a, 0x00, 0x00, 0xb0, 0x00, 0x00, 0x00 },
       [0x05] = { GPMODE_FLEXIBLE_DISK_PAGE,           0x1e, 0x10, 0xa9, 0x08, 0x20, 0x02, 0x00,
                  0x03,                                0xc3, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                 0x00,                                0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00,
+                 0x00,                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                  0x00,                                0x00, 0x00, 0x00, 0x02, 0xd0, 0x00, 0x00 },
       [0x08] = { GPMODE_CACHING_PAGE,                 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                  0x00,                                0x00, 0x00, 0x00                         },
@@ -394,7 +416,7 @@ static const mode_sense_pages_t superdisk_240_mode_sense_pages_default = {
                  0x02,                                0x00, 0x00, 0x00                         },
       [0x05] = { GPMODE_FLEXIBLE_DISK_PAGE,           0x1e, 0x5d, 0x98, 0x20, 0x38, 0x02, 0x00,
                  0x01,                                0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                 0x00,                                0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00,
+                 0x00,                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                  0x00,                                0x00, 0x00, 0x00, 0x05, 0xdc, 0x00, 0x00 },
       [0x08] = { GPMODE_CACHING_PAGE,                 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                  0x00,                                0x00, 0x00, 0x00                         },
@@ -2409,9 +2431,14 @@ rdisk_command(scsi_common_t *sc, const uint8_t *cdb)
                     ide_padstr8(dev->buffer + 16, 16, SUPERDISK_240_PRODUCT);
                     ide_padstr8(dev->buffer + 32, 4, SUPERDISK_240_REV);
                 } else if (dev->drv->type == RDISK_TYPE_ZIP_750) {
-                    /* Aaru report 53 (a USB Zip 750): IOMEGA / ZIP 750 / 72.u */
+                    /* Real USB Zip 750 (ZuluIDE issue 39): IOMEGA / ZIP 750 / 78.a, like the Zip 250
+                       it carries a build date at 36 and a copyright string at 96. */
                     ide_padstr8(dev->buffer + 16, 16, "ZIP 750         ");
-                    ide_padstr8(dev->buffer + 32, 4, "72.u");
+                    ide_padstr8(dev->buffer + 32, 4, ZIP_750_REV);
+                    if (max_len >= 44)
+                        ide_padstr8(dev->buffer + 36, 8, "08/27/02");
+                    if (max_len >= 122)
+                        ide_padstr8(dev->buffer + 96, 26, "(c) Copyright IOMEGA 2002 ");
                 } else if (dev->drv->type == RDISK_TYPE_CLIK_40) {
                     /* Aaru report 50: IOMEGA / Clik! 40 CZ / 30cJ */
                     ide_padstr8(dev->buffer + 16, 16, "Clik! 40 CZ     ");
@@ -2938,13 +2965,13 @@ rdisk_clik_identify(const ide_t *ide)
 }
 
 /*
-   Zip 750: firmware "72.u" is from the USB Zip 750 in Aaru report 53; the ATAPI drive's own firmware
-   and model string are NOT confirmed (the model follows the Zip 250's layout).
+   Zip 750: the firmware is ZIP_750_REV (seen on USB drives); the ATAPI drive's own firmware and
+   model string are NOT confirmed (the model follows the Zip 250's layout).
  */
 static void
 rdisk_zip_750_identify(const ide_t *ide, const int ide_has_dma)
 {
-    ide_padstr((char *) (ide->buffer + 23), "72.u", 8);                              /* Firmware */
+    ide_padstr((char *) (ide->buffer + 23), ZIP_750_REV, 8);                              /* Firmware */
     ide_padstr((char *) (ide->buffer + 27), "IOMEGA  ZIP 750       ATAPI", 40);      /* Model */
 
     if (ide_has_dma) {
