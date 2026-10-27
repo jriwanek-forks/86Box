@@ -119,9 +119,10 @@ static const rdisk_drive_type_t rdisk_drive_types[KNOWN_RDISK_DRIVE_TYPES] = {
     { "IMATION",  "SUPERDISK  240       ATAPI", "04",   { 0, 0, 0, 0, 0, 0, 1, 1, 0, 0 }},
     /* From Aaru device report 50, a real ATAPI Clik! 40 CZ. */
     { "IOMEGA",   "Clik! 40 CZ",               "30cJ", { 0, 0, 0, 0, 0, 0, 0, 0, 1, 0 }},
-    /* Firmware "72.u" is from Aaru device report 53 (a USB Zip 750).  Compatibility: reads and
-       writes 750 and 250 MB media, reads (read-only) 100 MB media. */
-    { "IOMEGA",   "ZIP 750",                    "72.u", { 1, 1, 0, 0, 0, 0, 0, 0, 0, 1 }}
+    /* Firmware "78.a" is from a real USB Zip 750 (ZuluIDE firmware issue 39); "72.u" was also seen
+       (Aaru device report 53).  Compatibility: reads and writes 750 and 250 MB media, reads
+       (read-only) 100 MB media. */
+    { "IOMEGA",   "ZIP 750",                    "78.a", { 1, 1, 0, 0, 0, 0, 0, 0, 0, 1 }}
 };
 
 enum {
