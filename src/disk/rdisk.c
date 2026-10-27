@@ -82,11 +82,50 @@ const uint8_t rdisk_command_flags[0x100] = {
     [0xbd]          = IMPLEMENTED
 };
 
+/*
+   SuperDisk (LS-120 / LS-240) identity strings.
+
+   Default: the Matsushita-made drives as they answer on real hardware
+   (the LS-120 strings are those of an LS-120 COSM 04).  The LS-240 product
+   and ATA model strings are modelled on the LS-120 ones and are NOT
+   confirmed against a real drive - correct them if a real value surfaces.
+
+   Alternate: the Imation branding already listed in rdisk_drive_types[]
+   in rdisk.h.  Change the #if 0 below to #if 1 to use it instead.
+ */
+#if 0
+#    define SUPERDISK_VENDOR         "IMATION "
+#    define SUPERDISK_120_PRODUCT    "SUPERDISK 120   "                      /* INQUIRY, 16 chars  */
+#    define SUPERDISK_240_PRODUCT    "SUPERDISK 240   "
+#    define SUPERDISK_120_REV        "04  "                                  /* INQUIRY, 4 chars   */
+#    define SUPERDISK_240_REV        "04  "
+#    define SUPERDISK_120_FW         "04      "                              /* ATA firmware, 8    */
+#    define SUPERDISK_240_FW         "04      "
+#    define SUPERDISK_120_ATA_MODEL  "SUPERDISK 120 ATAPI"                   /* ATA model, 40      */
+#    define SUPERDISK_240_ATA_MODEL  "SUPERDISK  240       ATAPI"
+#else
+#    define SUPERDISK_VENDOR         "MATSHITA"
+#    define SUPERDISK_120_PRODUCT    "LS-120 COSM   04"
+#    define SUPERDISK_240_PRODUCT    "LS-240 COSM   04"
+#    define SUPERDISK_120_REV        "0270"
+#    define SUPERDISK_240_REV        "0270"
+#    define SUPERDISK_120_FW         "0270    "
+#    define SUPERDISK_240_FW         "0270    "
+#    define SUPERDISK_120_ATA_MODEL  "LS-120 COSM   04"
+#    define SUPERDISK_240_ATA_MODEL  "LS-240 COSM   04"
+#endif
+
+#define IS_SUPERDISK(t) (((t) == RDISK_TYPE_SUPERDISK_120) || ((t) == RDISK_TYPE_SUPERDISK_240))
+
 static uint64_t zip_100_mode_sense_page_flags = (GPMODEP_R_W_ERROR_PAGE | GPMODEP_DISCONNECT_PAGE |
                                                  GPMODEP_IOMEGA_PAGE | GPMODEP_ALL_PAGES);
 static uint64_t zip_250_mode_sense_page_flags = (GPMODEP_R_W_ERROR_PAGE | GPMODEP_FLEXIBLE_DISK_PAGE |
                                                  GPMODEP_CACHING_PAGE | GPMODEP_IOMEGA_PAGE |
                                                  GPMODEP_ALL_PAGES);
+/* SuperDisk drives are not Iomega drives, so unlike the Zip 250 they do NOT
+   get the Iomega vendor page (0x2f) - Iomega's drivers use it to recognize a Zip. */
+static uint64_t superdisk_mode_sense_page_flags = (GPMODEP_R_W_ERROR_PAGE | GPMODEP_FLEXIBLE_DISK_PAGE |
+                                                   GPMODEP_CACHING_PAGE | GPMODEP_ALL_PAGES);
 /* Unlike the Iomega-made Zip/Jaz drives above, the SyJet is a SyQuest drive and
    its SCSI Technical Reference documents no Iomega-style vendor page or vendor
    EJECT command, so it gets its own (non-Iomega) standard SCSI-2 page set. */
@@ -154,6 +193,45 @@ static const mode_sense_pages_t zip_250_mode_sense_pages_changeable = {
       [0x08] = { GPMODE_CACHING_PAGE,                 0x0a, 0x04, 0x00, 0xff, 0xff, 0x00, 0x00,
                  0xff,                                0xff, 0xff, 0xff                         },
       [0x2f] = { GPMODE_IOMEGA_PAGE,                  0x04, 0xff, 0xff, 0xff, 0xff             } }
+};
+
+/*
+   SuperDisk mode-sense pages.  Page 5 (Flexible Disk) geometry is derived from the
+   media sector counts in rdisk.h:
+     LS-120: 963 cylinders x 8 heads x 32 sectors x 512 bytes (963 * 256 sectors)
+     LS-240: 1834 cylinders x 8 heads x 32 sectors x 512 bytes (469504 sectors)
+   The transfer rate, rotation rate and the R/W error and caching page bytes are
+   copied from the Zip 250 pages / are placeholders, NOT confirmed against a real
+   drive.
+ */
+static const mode_sense_pages_t superdisk_120_mode_sense_pages_default = {
+    { [0x01] = { GPMODE_R_W_ERROR_PAGE,               0x06, 0xc8, 0x64, 0x00, 0x00, 0x00, 0x00 },
+      [0x05] = { GPMODE_FLEXIBLE_DISK_PAGE,           0x1e, 0x80, 0x00, 0x08, 0x20, 0x02, 0x00,
+                 0x03,                                0xc3, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00, 0x02, 0xd0, 0x00, 0x00 },
+      [0x08] = { GPMODE_CACHING_PAGE,                 0x0a, 0x04, 0x00, 0xff, 0xff, 0x00, 0x00,
+                 0xff,                                0xff, 0xff, 0xff                         } }
+};
+
+static const mode_sense_pages_t superdisk_240_mode_sense_pages_default = {
+    { [0x01] = { GPMODE_R_W_ERROR_PAGE,               0x06, 0xc8, 0x64, 0x00, 0x00, 0x00, 0x00 },
+      [0x05] = { GPMODE_FLEXIBLE_DISK_PAGE,           0x1e, 0x80, 0x00, 0x08, 0x20, 0x02, 0x00,
+                 0x07,                                0x2a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00, 0x02, 0xd0, 0x00, 0x00 },
+      [0x08] = { GPMODE_CACHING_PAGE,                 0x0a, 0x04, 0x00, 0xff, 0xff, 0x00, 0x00,
+                 0xff,                                0xff, 0xff, 0xff                         } }
+};
+
+static const mode_sense_pages_t superdisk_mode_sense_pages_changeable = {
+    { [0x01] = { GPMODE_R_W_ERROR_PAGE,               0x06, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00 },
+      [0x05] = { GPMODE_FLEXIBLE_DISK_PAGE,           0x1e, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+                 0xff,                                0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+                 0xff,                                0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+                 0xff,                                0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00 },
+      [0x08] = { GPMODE_CACHING_PAGE,                 0x0a, 0x04, 0x00, 0xff, 0xff, 0x00, 0x00,
+                 0xff,                                0xff, 0xff, 0xff                         } }
 };
 
 /*
@@ -580,6 +658,10 @@ rdisk_mode_sense_load(rdisk_t *dev)
             memcpy(&dev->ms_pages_saved, &zip_100_mode_sense_pages_default_scsi, sizeof(mode_sense_pages_t));
         else
             memcpy(&dev->ms_pages_saved, &zip_100_mode_sense_pages_default, sizeof(mode_sense_pages_t));
+    } else if (dev->drv->type == RDISK_TYPE_SUPERDISK_120) {
+        memcpy(&dev->ms_pages_saved, &superdisk_120_mode_sense_pages_default, sizeof(mode_sense_pages_t));
+    } else if (dev->drv->type == RDISK_TYPE_SUPERDISK_240) {
+        memcpy(&dev->ms_pages_saved, &superdisk_240_mode_sense_pages_default, sizeof(mode_sense_pages_t));
     } else if (dev->drv->type == RDISK_TYPE_SYJET_1_5GB) {
         if (rdisk_drives[dev->id].bus_type == RDISK_BUS_SCSI)
             memcpy(&dev->ms_pages_saved, &syjet_mode_sense_pages_default_scsi, sizeof(mode_sense_pages_t));
@@ -630,6 +712,8 @@ rdisk_mode_sense_page_flags(const rdisk_t *dev)
 {
     if (dev->drv->type == RDISK_TYPE_ZIP_100)
         return zip_100_mode_sense_page_flags;
+    else if (IS_SUPERDISK(dev->drv->type))
+        return superdisk_mode_sense_page_flags;
     else if (dev->drv->type == RDISK_TYPE_SYJET_1_5GB)
         return syjet_mode_sense_page_flags;
     else if (dev->drv->type == RDISK_TYPE_SPARQ_1GB)
@@ -643,6 +727,8 @@ rdisk_mode_sense_pages_changeable(const rdisk_t *dev)
 {
     if (dev->drv->type == RDISK_TYPE_ZIP_100)
         return &zip_100_mode_sense_pages_changeable;
+    else if (IS_SUPERDISK(dev->drv->type))
+        return &superdisk_mode_sense_pages_changeable;
     else if (dev->drv->type == RDISK_TYPE_SYJET_1_5GB)
         return &syjet_mode_sense_pages_changeable;
     else if (dev->drv->type == RDISK_TYPE_SPARQ_1GB)
@@ -659,8 +745,16 @@ zip_mode_sense_read(const rdisk_t *dev, const uint8_t pgctl,
     switch (pgctl) {
         case 0:
         case 3:
-            if ((dev->drv->type != RDISK_TYPE_ZIP_100) && (page == 5) && (pos == 9) &&
-                (dev->drv->medium_size == ZIP_SECTORS))
+            /* An LS-240 drive with LS-120 media inserted reports the LS-120 geometry. */
+            if ((dev->drv->type == RDISK_TYPE_SUPERDISK_240) && (page == 5) &&
+                (dev->drv->medium_size == SUPERDISK_SECTORS)) {
+                if (pos == 8)
+                    return 0x03;
+                if (pos == 9)
+                    return 0xc3;
+            }
+            if (!IS_SUPERDISK(dev->drv->type) && (dev->drv->type != RDISK_TYPE_ZIP_100) &&
+                (page == 5) && (pos == 9) && (dev->drv->medium_size == ZIP_SECTORS))
                 return 0x60;
             return dev->ms_pages_saved.pages[page][pos];
         case 1:
@@ -671,6 +765,10 @@ zip_mode_sense_read(const rdisk_t *dev, const uint8_t pgctl,
                     return zip_100_mode_sense_pages_default_scsi.pages[page][pos];
                 else
                     return zip_100_mode_sense_pages_default.pages[page][pos];
+            } else if (dev->drv->type == RDISK_TYPE_SUPERDISK_120) {
+                return superdisk_120_mode_sense_pages_default.pages[page][pos];
+            } else if (dev->drv->type == RDISK_TYPE_SUPERDISK_240) {
+                return superdisk_240_mode_sense_pages_default.pages[page][pos];
             } else if (dev->drv->type == RDISK_TYPE_SYJET_1_5GB) {
                 if (dev->drv->bus_type == RDISK_BUS_SCSI)
                     return syjet_mode_sense_pages_default_scsi.pages[page][pos];
@@ -1939,6 +2037,8 @@ rdisk_command(scsi_common_t *sc, const uint8_t *cdb)
                             ide_padstr8(dev->buffer + idx, 8, "iomega  ");
                         else if (dev->drv->type == RDISK_TYPE_SYJET_1_5GB || dev->drv->type == RDISK_TYPE_SPARQ_1GB)
                             ide_padstr8(dev->buffer + idx, 8, "SyQuest ");
+                        else if (IS_SUPERDISK(dev->drv->type))
+                            ide_padstr8(dev->buffer + idx, 8, SUPERDISK_VENDOR);
                         else if (dev->drv->type >= RDISK_TYPE_ZIP_100)
                             ide_padstr8(dev->buffer + idx, 8, "IOMEGA  ");
                         else
@@ -1957,6 +2057,10 @@ rdisk_command(scsi_common_t *sc, const uint8_t *cdb)
                             ide_padstr8(dev->buffer + idx, 40, "SyJet           ");
                         else if (dev->drv->type == RDISK_TYPE_SPARQ_1GB)
                             ide_padstr8(dev->buffer + idx, 40, "SparQ           ");
+                        else if (dev->drv->type == RDISK_TYPE_SUPERDISK_120)
+                            ide_padstr8(dev->buffer + idx, 40, SUPERDISK_120_PRODUCT);
+                        else if (dev->drv->type == RDISK_TYPE_SUPERDISK_240)
+                            ide_padstr8(dev->buffer + idx, 40, SUPERDISK_240_PRODUCT);
                         else
                             ide_padstr8(dev->buffer + 16, 40, device_identify);      /* Product */
                         idx += 40;
@@ -1996,8 +2100,8 @@ rdisk_command(scsi_common_t *sc, const uint8_t *cdb)
                     ide_padstr8(dev->buffer + 8, 8, "iomega  ");    /* Vendor */
                 } else if (dev->drv->type == RDISK_TYPE_SYJET_1_5GB || dev->drv->type == RDISK_TYPE_SPARQ_1GB) {
                     ide_padstr8(dev->buffer + 8, 8, "SyQuest ");    /* Vendor */
-                } else if (dev->drv->type == RDISK_TYPE_SUPERDISK_120) {
-                    ide_padstr8(dev->buffer + 8, 8, "MATSHITA");    /* Vendor */
+                } else if (IS_SUPERDISK(dev->drv->type)) {
+                    ide_padstr8(dev->buffer + 8, 8, SUPERDISK_VENDOR);    /* Vendor */
                 } else {
                     ide_padstr8(dev->buffer + 8, 8, "IOMEGA  ");    /* Vendor */
                 }
@@ -2034,9 +2138,11 @@ rdisk_command(scsi_common_t *sc, const uint8_t *cdb)
                     /* Revision - not confirmed real, see rdisk.h comment. */
                     ide_padstr8(dev->buffer + 32, 4, "1.03");
                 } else if (dev->drv->type == RDISK_TYPE_SUPERDISK_120) {
-                    /* As a real Matsushita LS-120 COSM 04 answers. */
-                    ide_padstr8(dev->buffer + 16, 16, "LS-120 COSM   04");
-                    ide_padstr8(dev->buffer + 32, 4, "0270");
+                    ide_padstr8(dev->buffer + 16, 16, SUPERDISK_120_PRODUCT);
+                    ide_padstr8(dev->buffer + 32, 4, SUPERDISK_120_REV);
+                } else if (dev->drv->type == RDISK_TYPE_SUPERDISK_240) {
+                    ide_padstr8(dev->buffer + 16, 16, SUPERDISK_240_PRODUCT);
+                    ide_padstr8(dev->buffer + 32, 4, SUPERDISK_240_REV);
                 } else {
                     ide_padstr8(dev->buffer + 8, 8,
                                 EMU_NAME);          /* Vendor */
@@ -2434,6 +2540,24 @@ rdisk_zip_250_identify(const ide_t *ide, const int ide_has_dma)
 }
 
 static void
+rdisk_superdisk_identify(const ide_t *ide, const int ide_has_dma, const uint32_t type)
+{
+    if (type == RDISK_TYPE_SUPERDISK_240) {
+        ide_padstr((char *) (ide->buffer + 23), SUPERDISK_240_FW, 8);          /* Firmware */
+        ide_padstr((char *) (ide->buffer + 27), SUPERDISK_240_ATA_MODEL, 40);  /* Model */
+    } else {
+        ide_padstr((char *) (ide->buffer + 23), SUPERDISK_120_FW, 8);          /* Firmware */
+        ide_padstr((char *) (ide->buffer + 27), SUPERDISK_120_ATA_MODEL, 40);  /* Model */
+    }
+
+    if (ide_has_dma) {
+        ide->buffer[80] = 0x70;    /* Supported ATA versions : ATA/ATAPI-4 ATA/ATAPI-6 */
+        /* Maximum ATA revision supported : ATA/ATAPI-6 T13 1410D revision 3a */
+        ide->buffer[81] = 0x19;
+    }
+}
+
+static void
 rdisk_generic_identify(const ide_t *ide, const int ide_has_dma, const rdisk_t *rdisk)
 {
     char model[40];
@@ -2552,6 +2676,8 @@ rdisk_identify(const ide_t *ide, const int ide_has_dma)
         rdisk_syjet_identify(ide, ide_has_dma);
     else if (rdisk_drives[rdisk->id].type == RDISK_TYPE_SPARQ_1GB)
         rdisk_sparq_identify(ide, ide_has_dma);
+    else if (IS_SUPERDISK(rdisk_drives[rdisk->id].type))
+        rdisk_superdisk_identify(ide, ide_has_dma, rdisk_drives[rdisk->id].type);
     else
         rdisk_generic_identify(ide, ide_has_dma, rdisk);
 }
