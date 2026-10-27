@@ -33,6 +33,23 @@
    with a real READ CAPACITY before relying on this for image sizes. */
 #define ZIP_750_SECTORS     (1468596)
 
+/* 393,380 blocks per Aaru device report 118, a real Sony HiFD SFD200 with a HiFD medium
+   (13 heads x 890 cylinders x 34 sectors). */
+#define HIFD_SECTORS            (393380)
+
+/* 40,662 blocks per Aaru device report 258, a real INSITE I325VM Floptical with a 20 MB medium. */
+#define FLOPTICAL_SECTORS       (40662)
+
+/* 175,856 blocks per Aaru device reports 186 and 202 (8 heads x 758 cylinders x 29 sectors). */
+#define BERNOULLI_90_SECTORS    (175856)
+
+/* ESTIMATED.  No report captured the block count of a 150 MB or 230 MB Bernoulli cartridge, so these are
+   simply the marketing capacities (150,000,000 / 512 and 230,000,000 / 512).  The 90 MB cartridge's real
+   size is 0.04% above its marketing figure, so the real values are probably slightly higher.  Replace
+   them with the real READ CAPACITY values before relying on them for image sizes. */
+#define BERNOULLI_150_SECTORS   (292969)
+#define BERNOULLI_230_SECTORS   (449219)
+
 #define JAZ_1GB_SECTORS     (2091050)
 
 #define JAZ_2GB_SECTORS     (3915600)
@@ -70,7 +87,12 @@ enum {
     /* Appended, in the same order as the media in rdisk_types[] below, so that the
        values of the types above do not change. */
     RDISK_TYPE_CLIK_40,
-    RDISK_TYPE_ZIP_750
+    RDISK_TYPE_ZIP_750,
+    RDISK_TYPE_HIFD_200,
+    RDISK_TYPE_FLOPTICAL_20,
+    RDISK_TYPE_BERNOULLI_90,
+    RDISK_TYPE_BERNOULLI_150,
+    RDISK_TYPE_BERNOULLI_230
 };
 
 typedef struct rdisk_type_t {
@@ -78,7 +100,7 @@ typedef struct rdisk_type_t {
     uint16_t bytes_per_sector;
 } rdisk_type_t;
 
-#define KNOWN_RDISK_TYPES 10
+#define KNOWN_RDISK_TYPES 15
 static const rdisk_type_t rdisk_types[KNOWN_RDISK_TYPES] = {
     { ZIP_SECTORS,           512 },
     { ZIP_250_SECTORS,       512 },
@@ -89,7 +111,12 @@ static const rdisk_type_t rdisk_types[KNOWN_RDISK_TYPES] = {
     { SUPERDISK_SECTORS,     512 },
     { SUPERDISK_240_SECTORS, 512 },
     { CLIK_SECTORS,          512 },
-    { ZIP_750_SECTORS,       512 }
+    { ZIP_750_SECTORS,       512 },
+    { HIFD_SECTORS,          512 },
+    { FLOPTICAL_SECTORS,     512 },
+    { BERNOULLI_90_SECTORS,  512 },
+    { BERNOULLI_150_SECTORS, 512 },
+    { BERNOULLI_230_SECTORS, 512 }
 };
 
 typedef struct rdisk_drive_type_t {
@@ -99,30 +126,42 @@ typedef struct rdisk_drive_type_t {
     int8_t      supported_media[KNOWN_RDISK_TYPES];
 } rdisk_drive_type_t;
 
-#define KNOWN_RDISK_DRIVE_TYPES 11
-/* supported_media[] is indexed like rdisk_types[]: Zip 100, Zip 250, Jaz 1GB, Jaz 2GB,
-   SyJet, SparQ, SuperDisk 120, SuperDisk 240, Clik! 40, Zip 750. */
+#define KNOWN_RDISK_DRIVE_TYPES 16
+/* supported_media[] is indexed like rdisk_types[]: Zip 100, Zip 250, Jaz 1GB, Jaz 2GB, SyJet, SparQ,
+   SuperDisk 120, SuperDisk 240, Clik! 40, Zip 750, HiFD, Floptical, Bernoulli 90, 150 and 230. */
 static const rdisk_drive_type_t rdisk_drive_types[KNOWN_RDISK_DRIVE_TYPES] = {
-    { "86BOX",    "REMOVABLE DISK",             "5.00", { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }},
-    { "IOMEGA",   "ZIP 100",                    "E.08", { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0 }},
-    { "IOMEGA",   "ZIP 250",                    "42.S", { 1, 1, 0, 0, 0, 0, 0, 0, 0, 0 }},
-    { "IOMEGA",   "JAZ 1GB",                    "H.72", { 0, 0, 1, 0, 0, 0, 0, 0, 0, 0 }},
-    { "IOMEGA",   "JAZ 2GB",                    "E.17", { 0, 0, 1, 1, 0, 0, 0, 0, 0, 0 }},
+    { "86BOX",    "REMOVABLE DISK",             "5.00", { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 } },
+    { "IOMEGA",   "ZIP 100",                    "E.08", { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    { "IOMEGA",   "ZIP 250",                    "42.S", { 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    { "IOMEGA",   "JAZ 1GB",                    "H.72", { 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    { "IOMEGA",   "JAZ 2GB",                    "E.17", { 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
     /* Firmware revision "1.06" is a placeholder: the real SyJet's revision
        string could not be confirmed from the SCSI Technical Reference or
        any real-world SCSI probe log. Correct it if a real value surfaces. */
-    { "SYQUEST",  "SyJet 1.5GB",                "1.06", { 0, 0, 0, 0, 1, 0, 0, 0, 0, 0 }},
+    { "SYQUEST",  "SyJet 1.5GB",                "1.06", { 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
     /* Firmware revision "1.03" is likewise an unconfirmed placeholder - the
        SparQ's EIDE Technical Reference doesn't give a real example string. */
-    { "SYQUEST",  "SparQ 1.0GB",                "1.03", { 0, 0, 0, 0, 0, 1, 0, 0, 0, 0 }},
-    { "IMATION",  "SUPERDISK 120 ATAPI",        "04",   { 0, 0, 0, 0, 0, 0, 1, 0, 0, 0 }},
-    { "IMATION",  "SUPERDISK  240       ATAPI", "04",   { 0, 0, 0, 0, 0, 0, 1, 1, 0, 0 }},
+    { "SYQUEST",  "SparQ 1.0GB",                "1.03", { 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    { "IMATION",  "SUPERDISK 120 ATAPI",        "04",   { 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    { "IMATION",  "SUPERDISK  240       ATAPI", "04",   { 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0 } },
     /* From Aaru device report 50, a real ATAPI Clik! 40 CZ. */
-    { "IOMEGA",   "Clik! 40 CZ",               "30cJ", { 0, 0, 0, 0, 0, 0, 0, 0, 1, 0 }},
+    { "IOMEGA",   "Clik! 40 CZ",               "30cJ", { 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0 } },
     /* Firmware "78.a" is from a real USB Zip 750 (ZuluIDE firmware issue 39); "72.u" was also seen
        (Aaru device report 53).  Compatibility: reads and writes 750 and 250 MB media, reads
        (read-only) 100 MB media. */
-    { "IOMEGA",   "ZIP 750",                    "78.a", { 1, 1, 0, 0, 0, 0, 0, 0, 0, 1 }}
+    { "IOMEGA",   "ZIP 750",                    "78.a", { 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0 } },
+    /* From Aaru device report 118, a real ATAPI Sony HiFD SFD200. */
+    { "SONY",     "HiFD",                       "1264", { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0 } },
+    /* From Aaru device report 258, a real SCSI-1 INSITE Floptical (the INQUIRY product field is
+       "I325VM" + 8 spaces + "*F").  It also reads 720 KB and 1.44 MB floppies, not modelled. */
+    { "INSITE",   "I325VM *F",                  "0387", { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0 } },
+    /* From Aaru device reports 186 (BETA90), 202 (BETA150) and 311 (BETA230), all SCSI-only drives.
+       Compatibility of the larger drives with the smaller cartridges is an assumption (the 150 is
+       documented as read/write compatible with 90 MB cartridges; the 230 is only described as
+       backwards compatible with most earlier capacities). */
+    { "IOMEGA",   "BETA90",                     "1.4",  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0 } },
+    { "IOMEGA",   "BETA150",                    "T.47", { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0 } },
+    { "IOMEGA",   "BETA230",                    "2.02", { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1 } }
 };
 
 enum {
