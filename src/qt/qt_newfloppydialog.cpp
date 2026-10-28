@@ -230,11 +230,13 @@ NewFloppyDialog::onCreate()
             {
                 fileType = fi.suffix().toLower() == QStringLiteral("zdi") ? FileType::Zdi : FileType::Img;
 
+                // Fetch the actual global rdisk_types index from the combobox item's user data
+                int typeIndex = ui->comboBoxSize->currentData().toInt();
+                uint32_t sectors = rdisk_types[typeIndex].sectors;
+
                 std::atomic_bool res;
-                std::thread      t([this, &res, filename, fileType, &progress] {
-                    res = createRDiskSectorImage(filename,
-                                                  rdisk_types[ui->comboBoxSize->currentIndex()].sectors,
-                                                  fileType, progress);
+                std::thread      t([this, &res, filename, fileType, sectors, &progress] {
+                    res = createRDiskSectorImage(filename, sectors, fileType, progress);
                 });
                 progress.exec();
                 t.join();
@@ -766,6 +768,87 @@ NewFloppyDialog::createRDiskSectorImage(const QString &filename, uint32_t total_
 
         /* Root directory = 0x3FE00
         Data = 0x38200 */
+    } else if ((total_sectors == SUPERDISK_SECTORS) || (total_sectors == SUPERDISK_240_SECTORS) ||
+               (total_sectors == FD_720K_SECTORS)   || (total_sectors == FD_1440K_SECTORS)   ||
+               (total_sectors == FD32MB_SECTORS)    || (total_sectors == EZ135_SECTORS)) {
+        /* Superfloppy Boot Sector (LBA 0) for LS-120, LS-240, standard floppies, and compatible media */
+        const uint16_t bpb_bytes_per_sec   = 512;
+        const uint8_t  bpb_sec_per_cluster = (total_sectors == FD32MB_SECTORS) ? 4 :
+                                             (total_sectors == SUPERDISK_SECTORS) ? 4 :
+                                             (total_sectors == SUPERDISK_240_SECTORS) ? 8 :
+                                             (total_sectors == EZ135_SECTORS) ? 32 : 1;
+        const uint16_t bpb_res_sectors     = 1;
+        const uint8_t  bpb_num_fats        = 2;
+        const uint16_t bpb_root_entries    = (total_sectors == FD_720K_SECTORS || total_sectors == FD_1440K_SECTORS) ? 224 : 512;
+        const uint8_t  bpb_media           = (total_sectors == FD_720K_SECTORS) ? 0xF9 :
+                                             (total_sectors == FD_1440K_SECTORS) ? 0xF0 : 0xF8;
+        const uint16_t bpb_fat_size_16     = (total_sectors == SUPERDISK_SECTORS) ? 241 :
+                                             (total_sectors == SUPERDISK_240_SECTORS) ? 230 :
+                                             (total_sectors == FD32MB_SECTORS) ? 64 : 0;
+        const uint16_t bpb_sec_per_track   = (total_sectors == FD_720K_SECTORS) ? 9 :
+                                             (total_sectors == FD_1440K_SECTORS) ? 18 : 32;
+        const uint16_t bpb_heads           = (total_sectors == FD_720K_SECTORS || total_sectors == FD_1440K_SECTORS) ? 2 :
+                                             (total_sectors == SUPERDISK_240_SECTORS) ? 32 :
+                                             (total_sectors == EZ135_SECTORS) ? 16 : 64;
+        const uint32_t bpb_hidden_sec      = 0;
+        const uint8_t  bpb_drive_num       = 0x00; // Might be 0x80 on EZ135 or others
+
+        // Jump instruction (eb 3e 90) + OEM Name
+        empty[0x0000] = 0xEB;
+        empty[0x0001] = 0x3E; /* Used to be 0x58, pretty sure that's for FAT32 */
+        empty[0x0002] = 0x90;
+#if 0
+        memcpy(&(empty[0x0003]), "MSWIN4.0", 8);
+#else
+        memcpy(&(empty[0x0003]), "86BOX", 5);
+        memset(&(empty[0x0008]), 0, 3);
+#endif
+
+        *(uint16_t *) &(empty[0x000B]) = bpb_bytes_per_sec;
+        empty[0x000D]                  = bpb_sec_per_cluster;
+        *(uint16_t *) &(empty[0x000E]) = bpb_res_sectors;
+        empty[0x0010]                  = bpb_num_fats;
+        *(uint16_t *) &(empty[0x0011]) = bpb_root_entries;
+        *(uint16_t *) &(empty[0x0013]) = (total_sectors >= 65536) ? 0 : (uint16_t) total_sectors;
+        empty[0x0015]                  = bpb_media;
+        *(uint16_t *) &(empty[0x0016]) = bpb_fat_size_16;
+        *(uint16_t *) &(empty[0x0018]) = bpb_sec_per_track;
+        *(uint16_t *) &(empty[0x001A]) = bpb_heads;
+        *(uint32_t *) &(empty[0x001C]) = bpb_hidden_sec;
+        *(uint32_t *) &(empty[0x0020]) = total_sectors;
+
+        empty[0x0024] = bpb_drive_num;
+        empty[0x0025] = 0; // Reserved
+        empty[0x0026] = 0x29; /* Boot signature */
+        empty[0x0027] = random_generate();
+        empty[0x0028] = random_generate();
+        empty[0x0029] = random_generate();
+        empty[0x002A] = random_generate();
+
+        memset(&(empty[0x002B]), 0x00, 0x000B);
+        memset(&(empty[0x0036]), 0x20, 0x0008);
+
+#if 0
+            memcpy(&(empty[0x002B]), "NO NAME    ", 11);
+#else
+            memcpy(&(empty[0x002B]), "           ", 11);
+#endif
+
+        empty[0x0036] = 'F';
+        empty[0x0037] = 'A';
+        empty[0x0038] = 'T';
+        empty[0x0039] = (total_sectors <= 4080) ? '1' : '1';
+        empty[0x003A] = (total_sectors <= 4080) ? '2' : '6';
+        memset(&(empty[0x003B]), 0x20, 0x0003);
+
+        *(uint16_t *) &(empty[0x01FE]) = 0xAA55;
+
+        if (bpb_fat_size_16 > 0) {
+            /* Initialize FAT entries (FAT 1 and FAT 2 start markers) for formats using explicit FAT size */
+            *(uint32_t *) &(empty[0x0200]) = 0xFFFFFFF8;
+            uint32_t fat2_offset = (bpb_res_sectors + bpb_fat_size_16) * 512;
+            *(uint32_t *) &(empty[fat2_offset]) = 0xFFFFFFF8;
+        }
     }
 
     pbar.setMaximum(pbar_max);
