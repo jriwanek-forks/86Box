@@ -40,8 +40,8 @@ enum {
 #define TAPE_DRIVE_TYPE_ATAPI      TAPE_BUS_ATAPI
 #define TAPE_DRIVE_TYPE_SCSI       TAPE_BUS_SCSI
 #define TAPE_DRIVE_TYPE_FDC        TAPE_BUS_FDC
-#define TAPE_DRIVE_TYPE_SCSI_ATAPI -2
-#define TAPE_DRIVE_TYPE_NONE       -1
+#define TAPE_DRIVE_TYPE_SCSI_ATAPI (-2)
+#define TAPE_DRIVE_TYPE_NONE       (-1)
 
 /* Tape media type definitions. */
 typedef struct tape_type_t {

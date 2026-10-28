@@ -135,10 +135,10 @@ enum {
 #define RDISK_DRIVE_TYPE_LPT            RDISK_BUS_LPT
 #define RDISK_DRIVE_TYPE_ATAPI          RDISK_BUS_ATAPI
 #define RDISK_DRIVE_TYPE_SCSI           RDISK_BUS_SCSI
-#define RDISK_DRIVE_TYPE_SCSI_ATAPI     -2
-#define RDISK_DRIVE_TYPE_NONE           -1
-#define RDISK_DRIVE_TYPE_ATAPI_LPT      -3
-#define RDISK_DRIVE_TYPE_SCSI_ATAPI_LPT -4
+#define RDISK_DRIVE_TYPE_SCSI_ATAPI     (-2)
+#define RDISK_DRIVE_TYPE_NONE           (-1)
+#define RDISK_DRIVE_TYPE_ATAPI_LPT      (-3)
+#define RDISK_DRIVE_TYPE_SCSI_ATAPI_LPT (-4)
 
 typedef struct rdisk_drive_type_t {
     const char *vendor;

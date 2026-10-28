@@ -61,10 +61,10 @@ enum {
 #define MO_DRIVE_TYPE_LPT            MO_BUS_LPT
 #define MO_DRIVE_TYPE_ATAPI          MO_BUS_ATAPI
 #define MO_DRIVE_TYPE_SCSI           MO_BUS_SCSI
-#define MO_DRIVE_TYPE_SCSI_ATAPI     -2
-#define MO_DRIVE_TYPE_NONE           -1
-#define MO_DRIVE_TYPE_ATAPI_LPT      -3
-#define MO_DRIVE_TYPE_SCSI_ATAPI_LPT -4
+#define MO_DRIVE_TYPE_SCSI_ATAPI     (-2)
+#define MO_DRIVE_TYPE_NONE           (-1)
+#define MO_DRIVE_TYPE_ATAPI_LPT      (-3)
+#define MO_DRIVE_TYPE_SCSI_ATAPI_LPT (-4)
 
 typedef struct mo_drive_type_t {
     const char *vendor;
