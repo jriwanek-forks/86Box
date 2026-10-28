@@ -135,6 +135,8 @@ const uint8_t rdisk_command_flags[0x100] = {
 #define IS_ZIP(t) (((t) == RDISK_TYPE_ZIP_100) || ((t) == RDISK_TYPE_ZIP_250) || ((t) == RDISK_TYPE_ZIP_750))
 #define IS_SUPERDISK(t) (((t) == RDISK_TYPE_SUPERDISK_120) || ((t) == RDISK_TYPE_SUPERDISK_240))
 #define IS_BERNOULLI(t) ((t == RDISK_TYPE_BERNOULLI_90) || (t == RDISK_TYPE_BERNOULLI_150) || (t == RDISK_TYPE_BERNOULLI_230))
+#define IS_SYQUEST(t)   (((t) == RDISK_TYPE_SYJET_1_5GB) || ((t) == RDISK_TYPE_SPARQ_1GB) || \
+                         ((t) == RDISK_TYPE_SQ5200C) || ((t) == RDISK_TYPE_SQ3105S) || ((t) == RDISK_TYPE_EZ230S))
 
 /*
    Zip 750 firmware revision.  Default: "78.a", from the full INQUIRY dump of a real Zip 750 in
@@ -150,8 +152,22 @@ const uint8_t rdisk_command_flags[0x100] = {
 
 /* Drive types that only belong on the SCSI bus (drive_type in rdisk.h: the Floptical and the Bernoulli
    Box II drives) are the older narrow (8-bit) SCSI drives. */
-#define IS_NARROW_SCSI_ONLY(t) (((t) < KNOWN_RDISK_DRIVE_TYPES) && \
-                                (rdisk_drive_types[(t)].drive_type == RDISK_DRIVE_TYPE_SCSI))
+#define IS_NARROW_SCSI_ONLY(t) ((((t) < KNOWN_RDISK_DRIVE_TYPES) && \
+                                 (rdisk_drive_types[(t)].drive_type == RDISK_DRIVE_TYPE_SCSI)) || \
+                                ((t) == RDISK_TYPE_ORB_2_2GB))    /* The ORB2-SE is a narrow SCSI drive too. */
+
+/*
+   SyJet-S (SCSI) firmware revision.  Real SyJet-S drives were seen with 0111 (Aaru report 327), 0095
+   (report 328) and 0117 (report 329); none of the reports include more than the INQUIRY data.
+   Default: 0117, the highest.  To use another, change the 0 of its #if/#elif to 1.
+ */
+#if 0
+#    define SYJET_S_REV    "0095"
+#elif 0
+#    define SYJET_S_REV    "0111"
+#else
+#    define SYJET_S_REV    "0117"
+#endif
 
 static uint64_t zip_100_mode_sense_page_flags = (GPMODEP_R_W_ERROR_PAGE | GPMODEP_DISCONNECT_PAGE |
                                                  GPMODEP_IOMEGA_PAGE | GPMODEP_ALL_PAGES);
@@ -182,6 +198,7 @@ static uint64_t clik_mode_sense_page_flags = (GPMODEP_R_W_ERROR_PAGE | GPMODEP_I
 #define MS_PAGE_MEDIUM_TYPES     0x0b
 #define MS_PAGE_RBAC             0x1b
 #define MS_PAGE_INFO_EXCEPTIONS  0x1c
+#define MS_PAGE_CONTROL          0x0a
 
 /* Sony HiFD (Aaru report 118): pages 1, 3, 5, 7, 8, 0B, 1B and 1C. */
 static uint64_t hifd_mode_sense_page_flags = (GPMODEP_R_W_ERROR_PAGE | GPMODEP_FORMAT_DEVICE_PAGE |
@@ -535,7 +552,8 @@ static const mode_sense_pages_t bernoulli_mode_sense_pages_changeable = {
    LS-120 - report 66 (https://aaru.app/report/66), MATSHITA LS-120 VER5 00, firmware F523:
      - Page 1:  read retries 1, write retries 2, no flags set.
      - Page 3:  32 tracks/zone, no alternates, 32 sectors/track, 512 bytes/sector,
-                interleave 0, track skew 10, cylinder skew 0, flags SSEC | RMB | SURF.
+                interleave 0, track skew 10, cylinder skew 0, flags SSEC | RMB (the report says
+                addressing runs "in one cylinder", i.e. SURF is clear; byte 20 = 0xa0).
      - Page 5:  4265 kbit/s, 8 heads, 963 cylinders, 32 sectors/track, 512 bytes/sector, 720 rpm.
      - Page 8:  all zero (no flags, no prefetch).
      - Page 0B: medium types 0x10, 0x11, 0x20.
@@ -570,7 +588,7 @@ static const mode_sense_pages_t superdisk_120_mode_sense_pages_default = {
                  0x02,                                0x00, 0x00, 0x00                         },
       [0x03] = { GPMODE_FORMAT_DEVICE_PAGE,           0x16, 0x00, 0x20, 0x00, 0x00, 0x00, 0x00,
                  0x00,                                0x00, 0x00, 0x20, 0x02, 0x00, 0x00, 0x00,
-                 0x00,                                0x0a, 0x00, 0x00, 0xb0, 0x00, 0x00, 0x00 },
+                 0x00,                                0x0a, 0x00, 0x00, 0xa0, 0x00, 0x00, 0x00 },
       [0x05] = { GPMODE_FLEXIBLE_DISK_PAGE,           0x1e, 0x10, 0xa9, 0x08, 0x20, 0x02, 0x00,
                  0x03,                                0xc3, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                  0x00,                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -719,94 +737,216 @@ static const mode_sense_pages_t sparq_mode_sense_pages_changeable = {
                  0x00,                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                  0x00,                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 } }
 };
+/*
+   Castlewood ORB 2.2 GB mode-sense pages, from Aaru device report 200 (https://aaru.app/report/200),
+   a real SCSI-2 CWS ORB2 -SE U ID 0, firmware D01K:
+     - Page 1:  read retries 32, write retries 32, no flags.
+     - Page 2:  buffer full ratio 255, no data transfer disconnect control.
+     - Page 3:  1234 tracks/zone, 380 alternate sectors/zone, 30 alternate tracks/zone, 60 alternate
+                tracks/LUN, 63 sectors/track, 512 bytes/sector, interleave 0, track skew 15, cylinder
+                skew 15, flags HSEC | RMB (SURF clear: addressing runs "in one cylinder").
+     - Page 4:  PS, 128 heads, 534 cylinders (the report prints no rotation rate).
+     - Page 7:  verify retries 32.   - Page 8: all zero.   - Page 0A (control): all zero.
+   Pages 09h and 0Ch exist but could not be decoded and are not implemented.  Changeable masks are
+   placeholders.
+ */
+static const mode_sense_pages_t orb_mode_sense_pages_default = {
+    { [0x01] = { GPMODE_R_W_ERROR_PAGE,               0x0a, 0x00, 0x20, 0x00, 0x00, 0x00, 0x00,
+                 0x20,                                0x00, 0x00, 0x00                         },
+      [0x02] = { GPMODE_DISCONNECT_PAGE,              0x0e, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
+      [0x03] = { GPMODE_FORMAT_DEVICE_PAGE,           0x16, 0x04, 0xd2, 0x01, 0x7c, 0x00, 0x1e,
+                 0x00,                                0x3c, 0x00, 0x3f, 0x02, 0x00, 0x00, 0x00,
+                 0x00,                                0x0f, 0x00, 0x0f, 0x60, 0x00, 0x00, 0x00 },
+      [0x04] = { 0x80 | MS_PAGE_RIGID_DISK,           0x16, 0x00, 0x02, 0x16, 0x80, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
+      [0x07] = { MS_PAGE_VERIFY_ERROR,                0x0a, 0x00, 0x20, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00                         },
+      [0x08] = { GPMODE_CACHING_PAGE,                 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00                         },
+      [0x0a] = { MS_PAGE_CONTROL,                     0x0a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00                         } }
+};
+
+/*
+   SyQuest SQ5200C (5.25" SQ400 / SQ800 / SQ2000), from Aaru device report 197
+   (https://aaru.app/report/197), a real SCSI-2 SyQuest SQ5200C, firmware 3CE4 (MODE SENSE(6) only):
+     - Page 1:  PS, read retries 3, write retries 14, no flags.
+     - Page 2:  PS, buffer full ratio 192, buffer empty ratio 128.
+     - Page 3:  903 tracks/zone, 384 alternate sectors/zone, 4 alternate tracks/zone, 32 alternate
+                tracks/LUN, 96 sectors/track, 512 bytes/sector, interleave 1, track skew 32, cylinder
+                skew 0, flags HSEC | RMB | SURF.
+     - Page 4:  2 heads, 2260 cylinders, 3220 rpm.   - Page 8: PS, all zero.
+   Pages 0Ch and 20h exist but could not be decoded and are not implemented.  The geometry is what
+   the drive reported with its tested media and is not switched per medium.  Changeable masks are
+   placeholders.
+ */
+static const mode_sense_pages_t sq5200c_mode_sense_pages_default = {
+    { [0x01] = { 0x80 | GPMODE_R_W_ERROR_PAGE,        0x0a, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00,
+                 0x0e,                                0x00, 0x00, 0x00                         },
+      [0x02] = { 0x80 | GPMODE_DISCONNECT_PAGE,       0x0e, 0xc0, 0x80, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
+      [0x03] = { GPMODE_FORMAT_DEVICE_PAGE,           0x16, 0x03, 0x87, 0x01, 0x80, 0x00, 0x04,
+                 0x00,                                0x20, 0x00, 0x60, 0x02, 0x00, 0x00, 0x01,
+                 0x00,                                0x20, 0x00, 0x00, 0x70, 0x00, 0x00, 0x00 },
+      [0x04] = { MS_PAGE_RIGID_DISK,                  0x16, 0x00, 0x08, 0xd4, 0x02, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00, 0x0c, 0x94, 0x00, 0x00 },
+      [0x08] = { 0x80 | GPMODE_CACHING_PAGE,          0x0a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00                         } }
+};
+
+/*
+   SyQuest SQ3105S (SQ310): Aaru device report 196 (https://aaru.app/report/196) shows no standard mode
+   pages at all (only an undecoded vendor page), so none are implemented.
+ */
+static const mode_sense_pages_t sq3105s_mode_sense_pages_default = { { { 0 } } };
+
+/*
+   SyQuest EZFlyer 230 (EZ135 / EZFlyer media), from Aaru device report 195 (https://aaru.app/report/195),
+   a real SCSI-2 SyQuest EZ230S, firmware 7220 (MODE SENSE(6) only):
+     - Page 1:  PS only, no retry counts.
+     - Page 2:  PS, buffer full ratio 192, buffer empty ratio 128.
+     - Page 3:  887 tracks/zone, 280 alternate sectors/zone, 2 alternate tracks/zone, 8 alternate
+                tracks/LUN, 140 sectors/track, 512 bytes/sector, interleave 1, track skew 24, cylinder
+                skew 24, flags HSEC | RMB | SURF.
+     - Page 4:  1 head, 4192 cylinders, 3600 rpm.
+     - Page 8:  PS, write cache enabled, demand-read retention priority 1 ("evicted sooner").
+   Pages 0Ch and 20h exist but could not be decoded and are not implemented.  Changeable masks are
+   placeholders.
+ */
+static const mode_sense_pages_t ez230s_mode_sense_pages_default = {
+    { [0x01] = { 0x80 | GPMODE_R_W_ERROR_PAGE,        0x0a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00                         },
+      [0x02] = { 0x80 | GPMODE_DISCONNECT_PAGE,       0x0e, 0xc0, 0x80, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
+      [0x03] = { GPMODE_FORMAT_DEVICE_PAGE,           0x16, 0x03, 0x77, 0x01, 0x18, 0x00, 0x02,
+                 0x00,                                0x08, 0x00, 0x8c, 0x02, 0x00, 0x00, 0x01,
+                 0x00,                                0x18, 0x00, 0x18, 0x70, 0x00, 0x00, 0x00 },
+      [0x04] = { MS_PAGE_RIGID_DISK,                  0x16, 0x00, 0x10, 0x60, 0x01, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00, 0x0e, 0x10, 0x00, 0x00 },
+      [0x08] = { 0x80 | GPMODE_CACHING_PAGE,          0x0a, 0x04, 0x10, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00                         } }
+};
+
+/* Shared placeholder changeable masks for the ORB and the SyQuest SCSI drives above. */
+static const mode_sense_pages_t scsi_removable_mode_sense_pages_changeable = {
+    { [0x01] = { GPMODE_R_W_ERROR_PAGE,               0x0a, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00,
+                 0xff,                                0x00, 0x00, 0x00                         },
+      [0x02] = { GPMODE_DISCONNECT_PAGE,              0x0e, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
+      [0x03] = { GPMODE_FORMAT_DEVICE_PAGE,           0x16, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
+      [0x04] = { MS_PAGE_RIGID_DISK,                  0x16, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 },
+      [0x07] = { MS_PAGE_VERIFY_ERROR,                0x0a, 0x00, 0xff, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00                         },
+      [0x08] = { GPMODE_CACHING_PAGE,                 0x0a, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00                         },
+      [0x0a] = { MS_PAGE_CONTROL,                     0x0a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00                         } }
+};
+
+/* Per-drive-type mode page sets for the types added from the later Aaru reports, so that adding a drive
+   no longer means touching every mode-sense dispatcher. */
+typedef struct rdisk_ms_set_t {
+    uint32_t                  type;
+    uint64_t                  flags;
+    const mode_sense_pages_t *def;
+    const mode_sense_pages_t *chg;
+} rdisk_ms_set_t;
+
+static const rdisk_ms_set_t rdisk_ms_sets[] = {
+    { RDISK_TYPE_ORB_2_2GB, (GPMODEP_R_W_ERROR_PAGE | GPMODEP_DISCONNECT_PAGE | GPMODEP_FORMAT_DEVICE_PAGE |
+                             (1ULL << MS_PAGE_RIGID_DISK) | (1ULL << MS_PAGE_VERIFY_ERROR) |
+                             GPMODEP_CACHING_PAGE | (1ULL << MS_PAGE_CONTROL) | GPMODEP_ALL_PAGES),
+      &orb_mode_sense_pages_default, &scsi_removable_mode_sense_pages_changeable },
+    { RDISK_TYPE_SQ5200C,   (GPMODEP_R_W_ERROR_PAGE | GPMODEP_DISCONNECT_PAGE | GPMODEP_FORMAT_DEVICE_PAGE |
+                             (1ULL << MS_PAGE_RIGID_DISK) | GPMODEP_CACHING_PAGE | GPMODEP_ALL_PAGES),
+      &sq5200c_mode_sense_pages_default, &scsi_removable_mode_sense_pages_changeable },
+    { RDISK_TYPE_SQ3105S,   GPMODEP_ALL_PAGES,
+      &sq3105s_mode_sense_pages_default, &scsi_removable_mode_sense_pages_changeable },
+    { RDISK_TYPE_EZ230S,    (GPMODEP_R_W_ERROR_PAGE | GPMODEP_DISCONNECT_PAGE | GPMODEP_FORMAT_DEVICE_PAGE |
+                             (1ULL << MS_PAGE_RIGID_DISK) | GPMODEP_CACHING_PAGE | GPMODEP_ALL_PAGES),
+      &ez230s_mode_sense_pages_default, &scsi_removable_mode_sense_pages_changeable }
+};
+
+static const rdisk_ms_set_t *
+rdisk_find_ms_set(const uint32_t type)
+{
+    for (size_t i = 0; i < (sizeof(rdisk_ms_sets) / sizeof(rdisk_ms_sets[0])); i++) {
+        if (rdisk_ms_sets[i].type == type)
+            return &rdisk_ms_sets[i];
+    }
+
+    return NULL;
+}
 // clang-format on
 
 static void rdisk_command_complete(rdisk_t *dev);
 static void rdisk_init(rdisk_t *dev);
 
+/* A medium's size in 512-byte units, which is what medium_size and the image size use. */
+static uint32_t
+rdisk_media_sectors_512(const uint32_t media)
+{
+    return rdisk_types[media].sectors * (rdisk_types[media].bytes_per_sector >> 9);
+}
+
+static uint32_t
+rdisk_drive_type_of(const rdisk_t *dev)
+{
+    return (dev->drv->type < KNOWN_RDISK_DRIVE_TYPES) ? dev->drv->type : RDISK_TYPE_GENERIC;
+}
+
+/* The largest medium this drive type takes, from supported_media[] in rdisk.h.  The generic drive
+   takes every medium but reports the Zip 250's size, as it always has. */
 static uint32_t
 rdisk_max_medium_size(const rdisk_t *dev)
 {
-    switch (dev->drv->type) {
-        case RDISK_TYPE_ZIP_100:
-            return ZIP_SECTORS;
-        case RDISK_TYPE_ZIP_250:
-            return ZIP_250_SECTORS;
-        case RDISK_TYPE_JAZ_1GB:
-            return JAZ_1GB_SECTORS;
-        case RDISK_TYPE_JAZ_2GB:
-            return JAZ_2GB_SECTORS;
-        case RDISK_TYPE_SUPERDISK_120:
-            return SUPERDISK_SECTORS;
-        case RDISK_TYPE_SUPERDISK_240:
-            return SUPERDISK_240_SECTORS;
-        case RDISK_TYPE_SYJET_1_5GB:
-            return SYJET_SECTORS;
-        case RDISK_TYPE_SPARQ_1GB:
-            return SPARQ_SECTORS;
-        case RDISK_TYPE_CLIK_40:
-            return CLIK_SECTORS;
-        case RDISK_TYPE_ZIP_750:
-            return ZIP_750_SECTORS;
-        case RDISK_TYPE_HIFD_200:
-            return HIFD_SECTORS;
-        case RDISK_TYPE_FLOPTICAL_20:
-            return FLOPTICAL_SECTORS;
-        case RDISK_TYPE_BERNOULLI_90:
-            return BERNOULLI_90_SECTORS;
-        case RDISK_TYPE_BERNOULLI_150:
-            return BERNOULLI_150_SECTORS;
-        case RDISK_TYPE_BERNOULLI_230:
-            return BERNOULLI_230_SECTORS;
-        default:
-            return ZIP_250_SECTORS;
+    const uint32_t type = rdisk_drive_type_of(dev);
+    uint32_t       max  = 0;
+
+    if (type == RDISK_TYPE_GENERIC)
+        return ZIP_250_SECTORS;
+
+    for (uint32_t i = 0; i < KNOWN_RDISK_TYPES; i++) {
+        if (rdisk_drive_types[type].supported_media[i] && (rdisk_media_sectors_512(i) > max))
+            max = rdisk_media_sectors_512(i);
     }
+
+    return max;
 }
 
+/* Does this image size (in 512-byte sectors) match a medium the drive type supports? */
 static int
 rdisk_supports_medium_size(const rdisk_t *dev, const uint32_t sectors)
 {
-    switch (dev->drv->type) {
-        case RDISK_TYPE_ZIP_100:
-            return sectors == ZIP_SECTORS;
-        case RDISK_TYPE_ZIP_250:
-            return (sectors == ZIP_SECTORS) || (sectors == ZIP_250_SECTORS);
-        case RDISK_TYPE_JAZ_1GB:
-            return sectors == JAZ_1GB_SECTORS;
-        case RDISK_TYPE_JAZ_2GB:
-            return (sectors == JAZ_1GB_SECTORS) || (sectors == JAZ_2GB_SECTORS);
-        /* An LS-240 drive reads LS-120 media, so accept both there. */
-        case RDISK_TYPE_SUPERDISK_120:
-            return sectors == SUPERDISK_SECTORS;
-        case RDISK_TYPE_SUPERDISK_240:
-            return (sectors == SUPERDISK_SECTORS) || (sectors == SUPERDISK_240_SECTORS);
-        case RDISK_TYPE_SYJET_1_5GB:
-            return sectors == SYJET_SECTORS;
-        case RDISK_TYPE_SPARQ_1GB:
-            return sectors == SPARQ_SECTORS;
-        case RDISK_TYPE_CLIK_40:
-            return sectors == CLIK_SECTORS;
-        /* A Zip 750 reads and writes Zip 250 media and reads Zip 100 media (read-only on the
-           real drive, not enforced here). */
-        case RDISK_TYPE_ZIP_750:
-            return (sectors == ZIP_SECTORS) || (sectors == ZIP_250_SECTORS) || (sectors == ZIP_750_SECTORS);
-        case RDISK_TYPE_HIFD_200:
-            return sectors == HIFD_SECTORS;
-        case RDISK_TYPE_FLOPTICAL_20:
-            return sectors == FLOPTICAL_SECTORS;
-        /* The higher-capacity Bernoulli drives also take the lower-capacity cartridges (the real
-           compatibility - read/write vs. read-only - is not enforced here). */
-        case RDISK_TYPE_BERNOULLI_90:
-            return sectors == BERNOULLI_90_SECTORS;
-        case RDISK_TYPE_BERNOULLI_150:
-            return (sectors == BERNOULLI_90_SECTORS) || (sectors == BERNOULLI_150_SECTORS);
-        case RDISK_TYPE_BERNOULLI_230:
-            return (sectors == BERNOULLI_90_SECTORS) || (sectors == BERNOULLI_150_SECTORS) ||
-                   (sectors == BERNOULLI_230_SECTORS);
-        default:
-            return (sectors == ZIP_SECTORS) || (sectors == ZIP_250_SECTORS) ||
-                   (sectors == JAZ_1GB_SECTORS) || (sectors == JAZ_2GB_SECTORS);
+    const uint32_t type = rdisk_drive_type_of(dev);
+
+    for (uint32_t i = 0; i < KNOWN_RDISK_TYPES; i++) {
+        if (rdisk_drive_types[type].supported_media[i] && (rdisk_media_sectors_512(i) == sectors))
+            return 1;
     }
+
+    return 0;
+}
+
+/* Drives that only ever took one medium always report that medium's size in READ FORMAT CAPACITIES. */
+static int
+rdisk_single_medium_drive(const rdisk_t *dev)
+{
+    const uint32_t type  = rdisk_drive_type_of(dev);
+    int            count = 0;
+
+    for (uint32_t i = 0; i < KNOWN_RDISK_TYPES; i++)
+        count += (rdisk_drive_types[type].supported_media[i] != 0);
+
+    return (type != RDISK_TYPE_GENERIC) && (count == 1);
 }
 
 #ifdef ENABLE_RDISK_LOG
@@ -1088,6 +1228,8 @@ rdisk_mode_sense_load(rdisk_t *dev)
         memcpy(&dev->ms_pages_saved, &superdisk_120_mode_sense_pages_default, sizeof(mode_sense_pages_t));
     } else if (dev->drv->type == RDISK_TYPE_SUPERDISK_240) {
         memcpy(&dev->ms_pages_saved, &superdisk_240_mode_sense_pages_default, sizeof(mode_sense_pages_t));
+    } else if (rdisk_find_ms_set(dev->drv->type) != NULL) {
+        memcpy(&dev->ms_pages_saved, rdisk_find_ms_set(dev->drv->type)->def, sizeof(mode_sense_pages_t));
     } else if (dev->drv->type == RDISK_TYPE_SYJET_1_5GB) {
         if (rdisk_drives[dev->id].bus_type == RDISK_BUS_SCSI)
             memcpy(&dev->ms_pages_saved, &syjet_mode_sense_pages_default_scsi, sizeof(mode_sense_pages_t));
@@ -1156,6 +1298,8 @@ rdisk_mode_sense_page_flags(const rdisk_t *dev)
         return superdisk_120_mode_sense_page_flags;
     else if (dev->drv->type == RDISK_TYPE_SUPERDISK_240)
         return superdisk_240_mode_sense_page_flags;
+    else if (rdisk_find_ms_set(dev->drv->type) != NULL)
+        return rdisk_find_ms_set(dev->drv->type)->flags;
     else if (dev->drv->type == RDISK_TYPE_SYJET_1_5GB)
         return syjet_mode_sense_page_flags;
     else if (dev->drv->type == RDISK_TYPE_SPARQ_1GB)
@@ -1183,6 +1327,8 @@ rdisk_mode_sense_pages_changeable(const rdisk_t *dev)
         return &bernoulli_mode_sense_pages_changeable;
     else if (IS_SUPERDISK(dev->drv->type))
         return &superdisk_mode_sense_pages_changeable;
+    else if (rdisk_find_ms_set(dev->drv->type) != NULL)
+        return rdisk_find_ms_set(dev->drv->type)->chg;
     else if (dev->drv->type == RDISK_TYPE_SYJET_1_5GB)
         return &syjet_mode_sense_pages_changeable;
     else if (dev->drv->type == RDISK_TYPE_SPARQ_1GB)
@@ -1213,6 +1359,76 @@ zip_750_media_geometry(const rdisk_t *dev, const uint8_t page, const uint8_t pos
     return -1;
 }
 
+/* SuperDisk, HiFD and Floptical drives also take ordinary PC floppy media.  With one inserted, page 5
+   (flexible disk) reports the standard geometry of that format (ESTIMATED from the PC floppy formats; the
+   reports only captured the drives' own media).  The FD32MB's geometry is not known and is left alone.
+   Returns -1 if not applicable. */
+static int
+rdisk_floppy_media_geometry(const rdisk_t *dev, const uint8_t page, const uint8_t pos)
+{
+    uint16_t rate;
+    uint16_t cyl;
+    uint16_t bps;
+    uint16_t rpm;
+    uint8_t  heads = 2;
+    uint8_t  spt;
+
+    if ((page != 5) || !(IS_SUPERDISK(dev->drv->type) || (dev->drv->type == RDISK_TYPE_HIFD_200) ||
+                         (dev->drv->type == RDISK_TYPE_FLOPTICAL_20)))
+        return -1;
+
+    switch (dev->drv->medium_size) {
+        case 2880:    /* 1.44 MB */
+            rate = 500;
+            cyl  = 80;
+            bps  = 512;
+            rpm  = 300;
+            spt  = 18;
+            break;
+        case 1440:    /* 720 KB */
+            rate = 250;
+            cyl  = 80;
+            bps  = 512;
+            rpm  = 300;
+            spt  = 9;
+            break;
+        case 2464:    /* 1.2 MB, 1024-byte sectors (NEC 2HD) */
+            rate = 500;
+            cyl  = 77;
+            bps  = 1024;
+            rpm  = 360;
+            spt  = 8;
+            break;
+        default:
+            return -1;
+    }
+
+    switch (pos) {
+        case 2:
+            return rate >> 8;
+        case 3:
+            return rate & 0xff;
+        case 4:
+            return heads;
+        case 5:
+            return spt;
+        case 6:
+            return bps >> 8;
+        case 7:
+            return bps & 0xff;
+        case 8:
+            return cyl >> 8;
+        case 9:
+            return cyl & 0xff;
+        case 28:
+            return rpm >> 8;
+        case 29:
+            return rpm & 0xff;
+        default:
+            return -1;
+    }
+}
+
 /* SCSI Mode Sense 6/10. */
 static uint8_t
 rdisk_mode_sense_read(const rdisk_t *dev, const uint8_t pgctl,
@@ -1221,6 +1437,8 @@ rdisk_mode_sense_read(const rdisk_t *dev, const uint8_t pgctl,
     switch (pgctl) {
         case 0:
         case 3:
+            if (rdisk_floppy_media_geometry(dev, page, pos) >= 0)
+                return (uint8_t) rdisk_floppy_media_geometry(dev, page, pos);
             /* An LS-240 drive with LS-120 media inserted reports the LS-120 geometry
                (963 cylinders, 8 heads, 32 sectors per track). */
             if ((dev->drv->type == RDISK_TYPE_SUPERDISK_240) &&
@@ -1274,6 +1492,8 @@ rdisk_mode_sense_read(const rdisk_t *dev, const uint8_t pgctl,
                 return superdisk_120_mode_sense_pages_default.pages[page][pos];
             } else if (dev->drv->type == RDISK_TYPE_SUPERDISK_240) {
                 return superdisk_240_mode_sense_pages_default.pages[page][pos];
+            } else if (rdisk_find_ms_set(dev->drv->type) != NULL) {
+                return rdisk_find_ms_set(dev->drv->type)->def->pages[page][pos];
             } else if (dev->drv->type == RDISK_TYPE_SYJET_1_5GB) {
                 if (dev->drv->bus_type == RDISK_BUS_SCSI)
                     return syjet_mode_sense_pages_default_scsi.pages[page][pos];
@@ -2540,8 +2760,10 @@ rdisk_command(scsi_common_t *sc, const uint8_t *cdb)
                         /* Vendor */
                         if (dev->drv->type == RDISK_TYPE_JAZ_1GB || dev->drv->type == RDISK_TYPE_JAZ_2GB)
                             ide_padstr8(dev->buffer + idx, 8, "iomega  ");
-                        else if (dev->drv->type == RDISK_TYPE_SYJET_1_5GB || dev->drv->type == RDISK_TYPE_SPARQ_1GB)
+                        else if (IS_SYQUEST(dev->drv->type))
                             ide_padstr8(dev->buffer + idx, 8, "SyQuest ");
+                        else if (dev->drv->type == RDISK_TYPE_ORB_2_2GB)
+                            ide_padstr8(dev->buffer + idx, 8, "CWS ORB2");
                         else if (dev->drv->type == RDISK_TYPE_HIFD_200)
                             ide_padstr8(dev->buffer + idx, 8, "SONY    ");
                         else if (dev->drv->type == RDISK_TYPE_FLOPTICAL_20)
@@ -2563,7 +2785,16 @@ rdisk_command(scsi_common_t *sc, const uint8_t *cdb)
                         else if (dev->drv->type == RDISK_TYPE_JAZ_1GB)
                             ide_padstr8(dev->buffer + idx, 40, "jaz 1GB         ");
                         else if (dev->drv->type == RDISK_TYPE_SYJET_1_5GB)
-                            ide_padstr8(dev->buffer + idx, 40, "SyJet           ");
+                            ide_padstr8(dev->buffer + idx, 40,
+                                        (dev->drv->bus_type == RDISK_BUS_SCSI) ? "SyJet-S         " : "SyJet           ");
+                        else if (dev->drv->type == RDISK_TYPE_ORB_2_2GB)
+                            ide_padstr8(dev->buffer + idx, 40, "-SE U ID 0      ");
+                        else if (dev->drv->type == RDISK_TYPE_SQ5200C)
+                            ide_padstr8(dev->buffer + idx, 40, "SQ5200C         ");
+                        else if (dev->drv->type == RDISK_TYPE_SQ3105S)
+                            ide_padstr8(dev->buffer + idx, 40, "SQ3105S         ");
+                        else if (dev->drv->type == RDISK_TYPE_EZ230S)
+                            ide_padstr8(dev->buffer + idx, 40, "EZ230S          ");
                         else if (dev->drv->type == RDISK_TYPE_SPARQ_1GB)
                             ide_padstr8(dev->buffer + idx, 40, "SparQ           ");
                         else if (dev->drv->type == RDISK_TYPE_SUPERDISK_120)
@@ -2624,8 +2855,10 @@ rdisk_command(scsi_common_t *sc, const uint8_t *cdb)
 
                 if (dev->drv->type == RDISK_TYPE_JAZ_2GB || dev->drv->type == RDISK_TYPE_JAZ_1GB) {
                     ide_padstr8(dev->buffer + 8, 8, "iomega  ");    /* Vendor */
-                } else if (dev->drv->type == RDISK_TYPE_SYJET_1_5GB || dev->drv->type == RDISK_TYPE_SPARQ_1GB) {
+                } else if (IS_SYQUEST(dev->drv->type)) {
                     ide_padstr8(dev->buffer + 8, 8, "SyQuest ");    /* Vendor */
+                } else if (dev->drv->type == RDISK_TYPE_ORB_2_2GB) {
+                    ide_padstr8(dev->buffer + 8, 8, "CWS ORB2");    /* Vendor */
                 } else if (dev->drv->type == RDISK_TYPE_HIFD_200) {
                     ide_padstr8(dev->buffer + 8, 8, "SONY    ");    /* Vendor */
                 } else if (dev->drv->type == RDISK_TYPE_FLOPTICAL_20) {
@@ -2658,10 +2891,16 @@ rdisk_command(scsi_common_t *sc, const uint8_t *cdb)
                     ide_padstr8(dev->buffer + 16, 16, "jaz 1GB         ");
                     ide_padstr8(dev->buffer + 32, 4, "H.72");
                 } else if (dev->drv->type == RDISK_TYPE_SYJET_1_5GB) {
-                    /* Product */
-                    ide_padstr8(dev->buffer + 16, 16, "SyJet           ");
-                    /* Revision - not confirmed real, see rdisk.h comment. */
-                    ide_padstr8(dev->buffer + 32, 4, "1.06");
+                    if (dev->drv->bus_type == RDISK_BUS_SCSI) {
+                        /* Real SCSI SyJet-S (Aaru reports 327, 328, 329). */
+                        ide_padstr8(dev->buffer + 16, 16, "SyJet-S         ");
+                        ide_padstr8(dev->buffer + 32, 4, SYJET_S_REV);
+                    } else {
+                        /* Product */
+                        ide_padstr8(dev->buffer + 16, 16, "SyJet           ");
+                        /* Revision - not confirmed real, see rdisk.h comment. */
+                        ide_padstr8(dev->buffer + 32, 4, "1.06");
+                    }
                 } else if (dev->drv->type == RDISK_TYPE_SPARQ_1GB) {
                     /* Product */
                     ide_padstr8(dev->buffer + 16, 16, "SparQ           ");
@@ -2706,6 +2945,22 @@ rdisk_command(scsi_common_t *sc, const uint8_t *cdb)
                     /* Aaru report 311: IOMEGA / BETA230 / 2.02 */
                     ide_padstr8(dev->buffer + 16, 16, "BETA230         ");
                     ide_padstr8(dev->buffer + 32, 4, "2.02");
+                } else if (dev->drv->type == RDISK_TYPE_ORB_2_2GB) {
+                    /* Aaru report 200: "CWS ORB2" / "-SE U ID 0" / D01K */
+                    ide_padstr8(dev->buffer + 16, 16, "-SE U ID 0      ");
+                    ide_padstr8(dev->buffer + 32, 4, "D01K");
+                } else if (dev->drv->type == RDISK_TYPE_SQ5200C) {
+                    /* Aaru report 197: SyQuest / SQ5200C / 3CE4 */
+                    ide_padstr8(dev->buffer + 16, 16, "SQ5200C         ");
+                    ide_padstr8(dev->buffer + 32, 4, "3CE4");
+                } else if (dev->drv->type == RDISK_TYPE_SQ3105S) {
+                    /* Aaru report 196: SyQuest / SQ3105S / 1_21 */
+                    ide_padstr8(dev->buffer + 16, 16, "SQ3105S         ");
+                    ide_padstr8(dev->buffer + 32, 4, "1_21");
+                } else if (dev->drv->type == RDISK_TYPE_EZ230S) {
+                    /* Aaru report 195: SyQuest / EZ230S / 7220 */
+                    ide_padstr8(dev->buffer + 16, 16, "EZ230S          ");
+                    ide_padstr8(dev->buffer + 32, 4, "7220");
                 } else {
                     ide_padstr8(dev->buffer + 8, 8,
                                 EMU_NAME);          /* Vendor */
@@ -2803,15 +3058,9 @@ atapi_out:
                 dev->buffer[pos++] = 8;
 
             /* Current/Maximum capacity header */
-            if ((dev->drv->type == RDISK_TYPE_ZIP_100) ||
-                (dev->drv->type == RDISK_TYPE_CLIK_40) ||
-                (dev->drv->type == RDISK_TYPE_HIFD_200) ||
-                (dev->drv->type == RDISK_TYPE_FLOPTICAL_20) ||
-                (dev->drv->type == RDISK_TYPE_BERNOULLI_90) ||
-                (dev->drv->type == RDISK_TYPE_JAZ_1GB) ||
-                (dev->drv->type == RDISK_TYPE_SYJET_1_5GB) ||
-                (dev->drv->type == RDISK_TYPE_SPARQ_1GB)) {
-                /* ZIP 100 only supports ZIP 100 media, so we always return the ZIP 100 size. Same for the Jaz 1GB, so we return the Jaz 1GB size. SyJet and SparQ each only ever had one cartridge size, so likewise. */
+            if (rdisk_single_medium_drive(dev)) {
+                /* Drives that only take one medium (Zip 100, Jaz 1GB, SyJet, SparQ, Clik!, Bernoulli 90,
+                   ORB, SQ310...) always return that medium's size. */
                 const uint32_t medium_size = rdisk_max_medium_size(dev);
                 dev->buffer[pos++] = (medium_size >> 24) & 0xff;
                 dev->buffer[pos++] = (medium_size >> 16) & 0xff;
@@ -3203,15 +3452,15 @@ rdisk_syjet_identify(const ide_t *ide, const int ide_has_dma)
 static void
 rdisk_sparq_identify(const ide_t *ide, const int ide_has_dma)
 {
-    /* Firmware - not confirmed real, see rdisk.h comment. */
-    ide_padstr((char *) (ide->buffer + 23), "1.03", 8);
-    /* Model */
-    ide_padstr((char *) (ide->buffer + 27), "SyQuest SparQ 1.0GB", 40);
+    (void) ide_has_dma;    /* The real drive reports the same version words with or without DMA. */
 
-    if (ide_has_dma) {
-        ide->buffer[80] = 0x70;    /* took from the ZIP 250 config, fix if wrong */
-        ide->buffer[81] = 0x19;
-    }
+    /* Model and firmware from Aaru report 175, a real (native ATA) SyQuest SparQ, firmware SA_0043. */
+    ide_padstr((char *) (ide->buffer + 23), "SA_0043", 8);
+    ide_padstr((char *) (ide->buffer + 27), "SyQuest SparQ", 40);
+
+    /* The same report: ATA/ATAPI-4 only, T13 1153D revision 17. */
+    ide->buffer[80] = 0x0010;
+    ide->buffer[81] = 0x0017;
 }
 
 /*
