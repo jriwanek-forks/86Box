@@ -70,40 +70,41 @@ typedef struct mo_drive_type_t {
     const char *vendor;
     const char *model;
     const char *revision;
+    uint8_t     default_media;
     int8_t      drive_type;
     int8_t      supported_media[KNOWN_MO_TYPES];
 } mo_drive_type_t;
 
 #define KNOWN_MO_DRIVE_TYPES 28
 static const mo_drive_type_t mo_drive_types[KNOWN_MO_DRIVE_TYPES] = {
-    { "86BOX",    "MAGNETO OPTICAL", "1.00", MO_DRIVE_TYPE_SCSI_ATAPI, { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }},
-    { "FUJITSU",  "M2512A",          "1314", MO_DRIVE_TYPE_SCSI,       { 1, 1, 0, 0, 0, 0, 0, 0, 0, 0 }},
-    { "FUJITSU",  "M25-MCC3064AP",   "0051", MO_DRIVE_TYPE_ATAPI,      { 1, 1, 1, 1, 0, 0, 0, 0, 0, 0 }}, /* ATAPI */
-    { "FUJITSU",  "M2513-MCC3064SS", "1.00", MO_DRIVE_TYPE_SCSI,       { 1, 1, 1, 1, 0, 0, 0, 0, 0, 0 }},
-    { "FUJITSU",  "MCE3130AP",       "0011", MO_DRIVE_TYPE_ATAPI,      { 1, 1, 1, 1, 1, 0, 0, 0, 0, 0 }}, /* ATAPI */
-    { "FUJITSU",  "MCE3130SS",       "0070", MO_DRIVE_TYPE_SCSI,       { 1, 1, 1, 1, 1, 0, 0, 0, 0, 0 }},
-    { "FUJITSU",  "MCF3064AP",       "0030", MO_DRIVE_TYPE_ATAPI,      { 1, 1, 1, 1, 0, 0, 0, 0, 0, 0 }}, /* ATAPI */
-    { "FUJITSU",  "MCF3064SS",       "0030", MO_DRIVE_TYPE_SCSI,       { 1, 1, 1, 1, 0, 0, 0, 0, 0, 0 }},
-    { "FUJITSU",  "MCF3064UB",       "0030", MO_DRIVE_TYPE_SCSI,       { 1, 1, 1, 1, 0, 0, 0, 0, 0, 0 }}, /* USB */
-    { "FUJITSU",  "MCJ3230AP-S",     "0030", MO_DRIVE_TYPE_ATAPI,      { 1, 1, 1, 1, 0, 0, 0, 0, 0, 0 }}, /* ATAPI */
-    { "FUJITSU",  "MCJ3230SS-S",     "0030", MO_DRIVE_TYPE_SCSI,       { 1, 1, 1, 1, 0, 0, 0, 0, 0, 0 }},
-    { "FUJITSU",  "MCJ3230UB-S",     "0040", MO_DRIVE_TYPE_SCSI,       { 1, 1, 1, 1, 1, 1, 0, 0, 0, 0 }}, /* USB */
-    { "HP",       "S6300.65",        "1.00", MO_DRIVE_TYPE_SCSI,       { 0, 0, 0, 0, 0, 0, 1, 1, 0, 0 }},
-    { "HP",       "C1716C",          "1.00", MO_DRIVE_TYPE_SCSI,       { 0, 0, 0, 0, 0, 0, 1, 1, 0, 1 }},
-    { "IBM",      "0632AAA",         "1.00", MO_DRIVE_TYPE_SCSI,       { 0, 0, 0, 0, 0, 0, 1, 1, 0, 0 }},
-    { "IBM",      "0632CHC",         "1.00", MO_DRIVE_TYPE_SCSI,       { 0, 0, 0, 0, 0, 0, 1, 1, 0, 1 }},
-    { "IBM",      "0632CHX",         "1.00", MO_DRIVE_TYPE_SCSI,       { 0, 0, 0, 0, 0, 0, 1, 1, 0, 1 }},
-    { "IBM",      "MD3125A",         "1.00", MO_DRIVE_TYPE_SCSI,       { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0 }},
-    { "IBM",      "MD3125B",         "1.00", MO_DRIVE_TYPE_SCSI,       { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0 }},
-    { "IBM",      "MTA-3127",        "1.00", MO_DRIVE_TYPE_SCSI,       { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0 }},
-    { "IBM",      "MTA-3230",        "1.00", MO_DRIVE_TYPE_SCSI,       { 1, 1, 0, 0, 0, 0, 0, 0, 0, 0 }},
-    { "MATSHITA", "LF-3000",         "1.00", MO_DRIVE_TYPE_SCSI,       { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0 }},
-    { "MOST",     "RMD-5100",        "1.00", MO_DRIVE_TYPE_SCSI,       { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0 }},
-    { "RICOH",    "RO-5031E",        "1.00", MO_DRIVE_TYPE_SCSI,       { 0, 0, 0, 0, 0, 0, 1, 1, 0, 0 }},
-    { "SONY",     "SMO-C301",        "1.00", MO_DRIVE_TYPE_SCSI,       { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0 }},
-    { "SONY",     "SMO-C501",        "1.00", MO_DRIVE_TYPE_SCSI,       { 0, 0, 0, 0, 0, 0, 1, 1, 0, 0 }},
-    { "TEAC",     "OD-3000",         "1.00", MO_DRIVE_TYPE_SCSI,       { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0 }},
-    { "TOSHIBA",  "OD-D300",         "1.00", MO_DRIVE_TYPE_SCSI,       { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0 }},
+    { "86BOX",    "MAGNETO OPTICAL", "1.00", 0, MO_DRIVE_TYPE_SCSI_ATAPI, { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }},
+    { "FUJITSU",  "M2512A",          "1314", 0, MO_DRIVE_TYPE_SCSI,       { 1, 1, 0, 0, 0, 0, 0, 0, 0, 0 }},
+    { "FUJITSU",  "M25-MCC3064AP",   "0051", 0, MO_DRIVE_TYPE_ATAPI,      { 1, 1, 1, 1, 0, 0, 0, 0, 0, 0 }}, /* ATAPI */
+    { "FUJITSU",  "M2513-MCC3064SS", "1.00", 0, MO_DRIVE_TYPE_SCSI,       { 1, 1, 1, 1, 0, 0, 0, 0, 0, 0 }},
+    { "FUJITSU",  "MCE3130AP",       "0011", 0, MO_DRIVE_TYPE_ATAPI,      { 1, 1, 1, 1, 1, 0, 0, 0, 0, 0 }}, /* ATAPI */
+    { "FUJITSU",  "MCE3130SS",       "0070", 0, MO_DRIVE_TYPE_SCSI,       { 1, 1, 1, 1, 1, 0, 0, 0, 0, 0 }},
+    { "FUJITSU",  "MCF3064AP",       "0030", 0, MO_DRIVE_TYPE_ATAPI,      { 1, 1, 1, 1, 0, 0, 0, 0, 0, 0 }}, /* ATAPI */
+    { "FUJITSU",  "MCF3064SS",       "0030", 0, MO_DRIVE_TYPE_SCSI,       { 1, 1, 1, 1, 0, 0, 0, 0, 0, 0 }},
+    { "FUJITSU",  "MCF3064UB",       "0030", 0, MO_DRIVE_TYPE_SCSI,       { 1, 1, 1, 1, 0, 0, 0, 0, 0, 0 }}, /* USB */
+    { "FUJITSU",  "MCJ3230AP-S",     "0030", 0, MO_DRIVE_TYPE_ATAPI,      { 1, 1, 1, 1, 0, 0, 0, 0, 0, 0 }}, /* ATAPI */
+    { "FUJITSU",  "MCJ3230SS-S",     "0030", 0, MO_DRIVE_TYPE_SCSI,       { 1, 1, 1, 1, 0, 0, 0, 0, 0, 0 }},
+    { "FUJITSU",  "MCJ3230UB-S",     "0040", 0, MO_DRIVE_TYPE_SCSI,       { 1, 1, 1, 1, 1, 1, 0, 0, 0, 0 }}, /* USB */
+    { "HP",       "S6300.65",        "1.00", 0, MO_DRIVE_TYPE_SCSI,       { 0, 0, 0, 0, 0, 0, 1, 1, 0, 0 }},
+    { "HP",       "C1716C",          "1.00", 0, MO_DRIVE_TYPE_SCSI,       { 0, 0, 0, 0, 0, 0, 1, 1, 0, 1 }},
+    { "IBM",      "0632AAA",         "1.00", 0, MO_DRIVE_TYPE_SCSI,       { 0, 0, 0, 0, 0, 0, 1, 1, 0, 0 }},
+    { "IBM",      "0632CHC",         "1.00", 0, MO_DRIVE_TYPE_SCSI,       { 0, 0, 0, 0, 0, 0, 1, 1, 0, 1 }},
+    { "IBM",      "0632CHX",         "1.00", 0, MO_DRIVE_TYPE_SCSI,       { 0, 0, 0, 0, 0, 0, 1, 1, 0, 1 }},
+    { "IBM",      "MD3125A",         "1.00", 0, MO_DRIVE_TYPE_SCSI,       { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0 }},
+    { "IBM",      "MD3125B",         "1.00", 0, MO_DRIVE_TYPE_SCSI,       { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0 }},
+    { "IBM",      "MTA-3127",        "1.00", 0, MO_DRIVE_TYPE_SCSI,       { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0 }},
+    { "IBM",      "MTA-3230",        "1.00", 0, MO_DRIVE_TYPE_SCSI,       { 1, 1, 0, 0, 0, 0, 0, 0, 0, 0 }},
+    { "MATSHITA", "LF-3000",         "1.00", 0, MO_DRIVE_TYPE_SCSI,       { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0 }},
+    { "MOST",     "RMD-5100",        "1.00", 0, MO_DRIVE_TYPE_SCSI,       { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0 }},
+    { "RICOH",    "RO-5031E",        "1.00", 0, MO_DRIVE_TYPE_SCSI,       { 0, 0, 0, 0, 0, 0, 1, 1, 0, 0 }},
+    { "SONY",     "SMO-C301",        "1.00", 0, MO_DRIVE_TYPE_SCSI,       { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0 }},
+    { "SONY",     "SMO-C501",        "1.00", 0, MO_DRIVE_TYPE_SCSI,       { 0, 0, 0, 0, 0, 0, 1, 1, 0, 0 }},
+    { "TEAC",     "OD-3000",         "1.00", 0, MO_DRIVE_TYPE_SCSI,       { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0 }},
+    { "TOSHIBA",  "OD-D300",         "1.00", 0, MO_DRIVE_TYPE_SCSI,       { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0 }},
 };
 
 typedef struct mo_drive_t {

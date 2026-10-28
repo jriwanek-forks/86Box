@@ -29,7 +29,7 @@ public:
         Zdi,
         Mdi,
     };
-    explicit NewFloppyDialog(MediaType type, QWidget *parent = nullptr, int tape_drive_type = -1);
+    explicit NewFloppyDialog(MediaType type, QWidget *parent = nullptr, int drive_type = -1);
     ~NewFloppyDialog();
 
     QString fileName() const;
