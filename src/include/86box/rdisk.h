@@ -245,6 +245,8 @@ typedef struct rdisk_drive_t {
     uint32_t           type;
     uint32_t           medium_size;
     uint32_t           base;
+
+    uint32_t           medium_type;
 } rdisk_drive_t;
 
 typedef struct rdisk_t {

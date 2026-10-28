@@ -986,12 +986,13 @@ MediaMenu::cdromUpdateMenu(int i)
 void
 MediaMenu::rdiskNewImage(int i)
 {
-    NewFloppyDialog dialog(NewFloppyDialog::MediaType::RDisk, parentWidget);
+    NewFloppyDialog dialog(NewFloppyDialog::MediaType::RDisk, parentWidget, rdisk_drives[i].type);
     switch (dialog.exec()) {
         default:
             break;
         case QDialog::Accepted:
             QByteArray filename = dialog.fileName().toUtf8();
+            rdisk_drives[i].medium_type = dialog.mediaTypeIndex();
             rdiskMount(i, filename, false);
             break;
     }
@@ -1166,12 +1167,13 @@ MediaMenu::rdiskUpdateMenu(int i)
 void
 MediaMenu::moNewImage(int i)
 {
-    NewFloppyDialog dialog(NewFloppyDialog::MediaType::Mo, parentWidget);
+    NewFloppyDialog dialog(NewFloppyDialog::MediaType::Mo, parentWidget, mo_drives[i].type);
     switch (dialog.exec()) {
         default:
             break;
         case QDialog::Accepted:
             QByteArray filename = dialog.fileName().toUtf8();
+            mo_drives[i].medium_type = dialog.mediaTypeIndex();
             moMount(i, filename, false);
             break;
     }
