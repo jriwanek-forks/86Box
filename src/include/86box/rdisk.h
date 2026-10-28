@@ -10,8 +10,10 @@
  *          commands, for both ATAPI and SCSI usage.
  *
  * Authors: Miran Grca, <mgrca8@gmail.com>
+ *          Jasmine Iwanek, <jriwanek@gmail.com>
  *
  *          Copyright 2018-2025 Miran Grca.
+ *          Copyright 2022-2026 Jasmine Iwanek.
  */
 #ifndef EMU_RDISK_H
 #define EMU_RDISK_H
@@ -96,82 +98,120 @@ enum {
 };
 
 typedef struct rdisk_type_t {
-    uint32_t sectors;
-    uint16_t bytes_per_sector;
+    const char *name;
+    uint32_t    sectors;
+    uint16_t    bytes_per_sector;
 } rdisk_type_t;
 
 #define KNOWN_RDISK_TYPES 15
 static const rdisk_type_t rdisk_types[KNOWN_RDISK_TYPES] = {
-    { ZIP_SECTORS,           512 },
-    { ZIP_250_SECTORS,       512 },
-    { JAZ_1GB_SECTORS,       512 },
-    { JAZ_2GB_SECTORS,       512 },
-    { SYJET_SECTORS,         512 },
-    { SPARQ_SECTORS,         512 },
-    { SUPERDISK_SECTORS,     512 },
-    { SUPERDISK_240_SECTORS, 512 },
-    { CLIK_SECTORS,          512 },
-    { ZIP_750_SECTORS,       512 },
-    { HIFD_SECTORS,          512 },
-    { FLOPTICAL_SECTORS,     512 },
-    { BERNOULLI_90_SECTORS,  512 },
-    { BERNOULLI_150_SECTORS, 512 },
-    { BERNOULLI_230_SECTORS, 512 }
+    { "ZIP 100",       ZIP_SECTORS,           512 },
+    { "ZIP 250",       ZIP_250_SECTORS,       512 },
+    { "Jaz 1 GB",      JAZ_1GB_SECTORS,       512 },
+    { "Jaz 2 GB",      JAZ_2GB_SECTORS,       512 },
+    { "Syjet",         SYJET_SECTORS,         512 },
+    { "Sparq",         SPARQ_SECTORS,         512 },
+    { "LS-120",        SUPERDISK_SECTORS,     512 },
+    { "LS-120",        SUPERDISK_240_SECTORS, 512 },
+    { "Clik!",         CLIK_SECTORS,          512 },
+    { "ZIP 750",       ZIP_750_SECTORS,       512 },
+    { "HiFD",          HIFD_SECTORS,          512 },
+    { "Floptical",     FLOPTICAL_SECTORS,     512 },
+    { "Bernoulli 90",  BERNOULLI_90_SECTORS,  512 },
+    { "Bernoulli 150", BERNOULLI_150_SECTORS, 512 },
+    { "Bernoulli 230", BERNOULLI_230_SECTORS, 512 }
 };
+
+enum {
+    RDISK_BUS_DISABLED =  0,
+    RDISK_BUS_LPT      =  6,  /* coincides with HDD_BUS_LPT/CDROM_BUS_LPT for config strings */
+    RDISK_BUS_ATAPI    =  8,  /* coincides with HDD_BUS_ATAPI */
+    RDISK_BUS_SCSI     =  9,  /* coincides with HDD_BUS_SCSI */
+    RDISK_BUS_USB      = 10,
+};
+
+/* Which bus(es) a drive type belongs on, modelled on tape_drive_type_t's drive_type in scsi_tape.h.
+   A single bus is that bus's RDISK_BUS_* value; the negative values are combinations. */
+#define RDISK_DRIVE_TYPE_LPT            RDISK_BUS_LPT
+#define RDISK_DRIVE_TYPE_ATAPI          RDISK_BUS_ATAPI
+#define RDISK_DRIVE_TYPE_SCSI           RDISK_BUS_SCSI
+#define RDISK_DRIVE_TYPE_SCSI_ATAPI     -2
+#define RDISK_DRIVE_TYPE_NONE           -1
+#define RDISK_DRIVE_TYPE_ATAPI_LPT      -3
+#define RDISK_DRIVE_TYPE_SCSI_ATAPI_LPT -4
 
 typedef struct rdisk_drive_type_t {
     const char *vendor;
     const char *model;
     const char *revision;
+    int8_t      drive_type;
     int8_t      supported_media[KNOWN_RDISK_TYPES];
 } rdisk_drive_type_t;
 
 #define KNOWN_RDISK_DRIVE_TYPES 16
-/* supported_media[] is indexed like rdisk_types[]: Zip 100, Zip 250, Jaz 1GB, Jaz 2GB, SyJet, SparQ,
+/* drive_type says which bus(es) each type belongs on (see RDISK_DRIVE_TYPE_* above).  These describe
+   the interfaces the real drive shipped with where that is known (from the Aaru device reports, the
+   model strings below and the notes in this file); the generic drive and the Zip 100/250, which
+   rdisk.c emulates on SCSI, ATAPI and through the parallel-port bridge, take all three.  rdisk.c
+   itself does not refuse a type on a bus: use rdisk_drive_type_supports_bus() below to filter.
+   supported_media[] is indexed like rdisk_types[]: Zip 100, Zip 250, Jaz 1GB, Jaz 2GB, SyJet, SparQ,
    SuperDisk 120, SuperDisk 240, Clik! 40, Zip 750, HiFD, Floptical, Bernoulli 90, 150 and 230. */
 static const rdisk_drive_type_t rdisk_drive_types[KNOWN_RDISK_DRIVE_TYPES] = {
-    { "86BOX",    "REMOVABLE DISK",             "5.00", { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 } },
-    { "IOMEGA",   "ZIP 100",                    "E.08", { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
-    { "IOMEGA",   "ZIP 250",                    "42.S", { 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
-    { "IOMEGA",   "JAZ 1GB",                    "H.72", { 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
-    { "IOMEGA",   "JAZ 2GB",                    "E.17", { 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    { "86BOX",    "REMOVABLE DISK",             "5.00", RDISK_DRIVE_TYPE_SCSI_ATAPI_LPT, { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 } },
+    { "IOMEGA",   "ZIP 100",                    "E.08", RDISK_DRIVE_TYPE_SCSI_ATAPI_LPT, { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    { "IOMEGA",   "ZIP 250",                    "42.S", RDISK_DRIVE_TYPE_SCSI_ATAPI_LPT, { 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    /* The Jaz was a SCSI drive; rdisk.c also has ATAPI identify data for it, so both are allowed. */
+    { "IOMEGA",   "JAZ 1GB",                    "H.72", RDISK_DRIVE_TYPE_SCSI_ATAPI, { 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    { "IOMEGA",   "JAZ 2GB",                    "E.17", RDISK_DRIVE_TYPE_SCSI_ATAPI, { 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
     /* Firmware revision "1.06" is a placeholder: the real SyJet's revision
        string could not be confirmed from the SCSI Technical Reference or
        any real-world SCSI probe log. Correct it if a real value surfaces. */
-    { "SYQUEST",  "SyJet 1.5GB",                "1.06", { 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    { "SYQUEST",  "SyJet 1.5GB",                "1.06", RDISK_DRIVE_TYPE_SCSI_ATAPI, { 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
     /* Firmware revision "1.03" is likewise an unconfirmed placeholder - the
-       SparQ's EIDE Technical Reference doesn't give a real example string. */
-    { "SYQUEST",  "SparQ 1.0GB",                "1.03", { 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
-    { "IMATION",  "SUPERDISK 120 ATAPI",        "04",   { 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0 } },
-    { "IMATION",  "SUPERDISK  240       ATAPI", "04",   { 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0 } },
+       SparQ's EIDE Technical Reference doesn't give a real example string.
+       The SparQ only ever shipped as an IDE/EIDE (and external parallel-port) drive, hence
+       ATAPI_LPT; rdisk.c still has SCSI mode pages for it. */
+    { "SYQUEST",  "SparQ 1.0GB",                "1.03", RDISK_DRIVE_TYPE_ATAPI_LPT, { 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    { "IMATION",  "SUPERDISK 120 ATAPI",        "04",   RDISK_DRIVE_TYPE_ATAPI, { 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    { "IMATION",  "SUPERDISK  240       ATAPI", "04",   RDISK_DRIVE_TYPE_ATAPI, { 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0 } },
     /* From Aaru device report 50, a real ATAPI Clik! 40 CZ. */
-    { "IOMEGA",   "Clik! 40 CZ",               "30cJ", { 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0 } },
+    { "IOMEGA",   "Clik! 40 CZ",               "30cJ", RDISK_DRIVE_TYPE_ATAPI, { 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0 } },
     /* Firmware "78.a" is from a real USB Zip 750 (ZuluIDE firmware issue 39); "72.u" was also seen
        (Aaru device report 53).  Compatibility: reads and writes 750 and 250 MB media, reads
        (read-only) 100 MB media. */
-    { "IOMEGA",   "ZIP 750",                    "78.a", { 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0 } },
+    { "IOMEGA",   "ZIP 750",                    "78.a", RDISK_DRIVE_TYPE_ATAPI, { 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0 } },
     /* From Aaru device report 118, a real ATAPI Sony HiFD SFD200. */
-    { "SONY",     "HiFD",                       "1264", { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0 } },
+    { "SONY",     "HiFD",                       "1264", RDISK_DRIVE_TYPE_ATAPI, { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0 } },
     /* From Aaru device report 258, a real SCSI-1 INSITE Floptical (the INQUIRY product field is
        "I325VM" + 8 spaces + "*F").  It also reads 720 KB and 1.44 MB floppies, not modelled. */
-    { "INSITE",   "I325VM *F",                  "0387", { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0 } },
+    { "INSITE",   "I325VM *F",                  "0387", RDISK_DRIVE_TYPE_SCSI, { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0 } },
     /* From Aaru device reports 186 (BETA90), 202 (BETA150) and 311 (BETA230), all SCSI-only drives.
        Compatibility of the larger drives with the smaller cartridges is an assumption (the 150 is
        documented as read/write compatible with 90 MB cartridges; the 230 is only described as
        backwards compatible with most earlier capacities). */
-    { "IOMEGA",   "BETA90",                     "1.4",  { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0 } },
-    { "IOMEGA",   "BETA150",                    "T.47", { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0 } },
-    { "IOMEGA",   "BETA230",                    "2.02", { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1 } }
+    { "IOMEGA",   "BETA90",                     "1.4",  RDISK_DRIVE_TYPE_SCSI, { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0 } },
+    { "IOMEGA",   "BETA150",                    "T.47", RDISK_DRIVE_TYPE_SCSI, { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0 } },
+    { "IOMEGA",   "BETA230",                    "2.02", RDISK_DRIVE_TYPE_SCSI, { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1 } }
 };
 
-enum {
-    RDISK_BUS_DISABLED =  0,
-    RDISK_BUS_LPT      =  6,
-    RDISK_BUS_IDE      =  7,
-    RDISK_BUS_ATAPI    =  8,
-    RDISK_BUS_SCSI     =  9,
-    RDISK_BUS_USB      = 10
-};
+/* Does this drive type belong on this RDISK_BUS_* bus, according to its drive_type? */
+static inline int
+rdisk_drive_type_supports_bus(const int drive_type, const uint8_t bus_type)
+{
+    switch (drive_type) {
+        case RDISK_DRIVE_TYPE_NONE:
+            return 0;
+        case RDISK_DRIVE_TYPE_SCSI_ATAPI:
+            return (bus_type == RDISK_BUS_SCSI) || (bus_type == RDISK_BUS_ATAPI);
+        case RDISK_DRIVE_TYPE_ATAPI_LPT:
+            return (bus_type == RDISK_BUS_ATAPI) || (bus_type == RDISK_BUS_LPT);
+        case RDISK_DRIVE_TYPE_SCSI_ATAPI_LPT:
+            return (bus_type == RDISK_BUS_SCSI) || (bus_type == RDISK_BUS_ATAPI) ||
+                   (bus_type == RDISK_BUS_LPT);
+        default:
+            return drive_type == (int) bus_type;
+    }
+}
 
 typedef struct rdisk_drive_t {
     uint8_t            id;

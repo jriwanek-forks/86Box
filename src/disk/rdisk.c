@@ -146,9 +146,10 @@ const uint8_t rdisk_command_flags[0x100] = {
 #    define ZIP_750_REV    "78.a"
 #endif
 
-/* The Floptical and the Bernoulli Box II drives are narrow (8-bit) SCSI drives. */
-#define IS_NARROW_SCSI_ONLY(t) (((t) == RDISK_TYPE_FLOPTICAL_20) || ((t) == RDISK_TYPE_BERNOULLI_90) || \
-                                ((t) == RDISK_TYPE_BERNOULLI_150) || ((t) == RDISK_TYPE_BERNOULLI_230))
+/* Drive types that only belong on the SCSI bus (drive_type in rdisk.h: the Floptical and the Bernoulli
+   Box II drives) are the older narrow (8-bit) SCSI drives. */
+#define IS_NARROW_SCSI_ONLY(t) (((t) < KNOWN_RDISK_DRIVE_TYPES) && \
+                                (rdisk_drive_types[(t)].drive_type == RDISK_DRIVE_TYPE_SCSI))
 
 static uint64_t zip_100_mode_sense_page_flags = (GPMODEP_R_W_ERROR_PAGE | GPMODEP_DISCONNECT_PAGE |
                                                  GPMODEP_IOMEGA_PAGE | GPMODEP_ALL_PAGES);
@@ -3352,7 +3353,7 @@ rdisk_drive_reset(const int c)
             id->phase_data_out   = rdisk_phase_data_out;
             id->command_stop     = rdisk_command_stop;
             id->bus_master_error = rdisk_bus_master_error;
-            if IS_SUPERDISK(dev->drv->type))
+            if (IS_SUPERDISK(dev->drv->type))
                 id->interrupt_drq    = 0;
             else
                 id->interrupt_drq    = 1;
