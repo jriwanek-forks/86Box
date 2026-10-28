@@ -132,7 +132,9 @@ const uint8_t rdisk_command_flags[0x100] = {
 #    define SUPERDISK_240_ATA_MODEL  "LS-120/240    00"                      /* Derived */
 #endif
 
+#define IS_ZIP(t) (((t) == RDISK_TYPE_ZIP_100) || ((t) == RDISK_TYPE_ZIP_250) || ((t) == RDISK_TYPE_ZIP_750))
 #define IS_SUPERDISK(t) (((t) == RDISK_TYPE_SUPERDISK_120) || ((t) == RDISK_TYPE_SUPERDISK_240))
+#define IS_BERNOULLI(t) ((t == RDISK_TYPE_BERNOULLI_90) || (t == RDISK_TYPE_BERNOULLI_150) || (t == RDISK_TYPE_BERNOULLI_230))
 
 /*
    Zip 750 firmware revision.  Default: "78.a", from the full INQUIRY dump of a real Zip 750 in
@@ -1177,8 +1179,7 @@ rdisk_mode_sense_pages_changeable(const rdisk_t *dev)
         return &hifd_mode_sense_pages_changeable;
     else if (dev->drv->type == RDISK_TYPE_FLOPTICAL_20)
         return &floptical_mode_sense_pages_changeable;
-    else if ((dev->drv->type == RDISK_TYPE_BERNOULLI_90) || (dev->drv->type == RDISK_TYPE_BERNOULLI_150) ||
-             (dev->drv->type == RDISK_TYPE_BERNOULLI_230))
+    else if (IS_BERNOULLI(dev->drv->type))
         return &bernoulli_mode_sense_pages_changeable;
     else if (IS_SUPERDISK(dev->drv->type))
         return &superdisk_mode_sense_pages_changeable;
