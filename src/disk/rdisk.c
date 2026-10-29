@@ -832,6 +832,27 @@ static const mode_sense_pages_t ez230s_mode_sense_pages_default = {
                  0x00,                                0x00, 0x00, 0x00                         } }
 };
 
+/*
+   Caleb UHD144 mode-sense pages - ESTIMATED.  No report of the drive exists, but it identifies itself as an
+   "LS-120" and works with the Imation LS-120 drivers, so the LS-120's pages (Aaru report 66) are used, with
+   page 5 changed to the geometry the media's own boot sector gives (64 heads, 32 sectors/track,
+   281856 / 2048 = 137.625, rounded up to 138 cylinders).  The transfer and rotation rates are the LS-120's.
+ */
+static const mode_sense_pages_t uhd144_mode_sense_pages_default = {
+    { [0x01] = { GPMODE_R_W_ERROR_PAGE,               0x0a, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00,
+                 0x02,                                0x00, 0x00, 0x00                         },
+      [0x03] = { GPMODE_FORMAT_DEVICE_PAGE,           0x16, 0x00, 0x20, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x20, 0x02, 0x00, 0x00, 0x00,
+                 0x00,                                0x0a, 0x00, 0x00, 0xa0, 0x00, 0x00, 0x00 },
+      [0x05] = { GPMODE_FLEXIBLE_DISK_PAGE,           0x1e, 0x10, 0xa9, 0x40, 0x20, 0x02, 0x00,
+                 0x00,                                0x8a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00, 0x02, 0xd0, 0x00, 0x00 },
+      [0x08] = { GPMODE_CACHING_PAGE,                 0x0a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                 0x00,                                0x00, 0x00, 0x00                         },
+      [0x0b] = { SUPERDISK_MEDIUM_TYPES_PAGE,         0x06, 0x00, 0x00, 0x00, 0x10, 0x11, 0x20 } }
+};
+
 /* Shared placeholder changeable masks for the ORB and the SyQuest SCSI drives above. */
 static const mode_sense_pages_t scsi_removable_mode_sense_pages_changeable = {
     { [0x01] = { GPMODE_R_W_ERROR_PAGE,               0x0a, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00,
@@ -873,7 +894,10 @@ static const rdisk_ms_set_t rdisk_ms_sets[] = {
       &sq3105s_mode_sense_pages_default, &scsi_removable_mode_sense_pages_changeable },
     { RDISK_TYPE_EZ230S,    (GPMODEP_R_W_ERROR_PAGE | GPMODEP_DISCONNECT_PAGE | GPMODEP_FORMAT_DEVICE_PAGE |
                              (1ULL << MS_PAGE_RIGID_DISK) | GPMODEP_CACHING_PAGE | GPMODEP_ALL_PAGES),
-      &ez230s_mode_sense_pages_default, &scsi_removable_mode_sense_pages_changeable }
+      &ez230s_mode_sense_pages_default, &scsi_removable_mode_sense_pages_changeable },
+    { RDISK_TYPE_UHD144,    (GPMODEP_R_W_ERROR_PAGE | GPMODEP_FORMAT_DEVICE_PAGE | GPMODEP_FLEXIBLE_DISK_PAGE |
+                             GPMODEP_CACHING_PAGE | (1ULL << SUPERDISK_MEDIUM_TYPES_PAGE) | GPMODEP_ALL_PAGES),
+      &uhd144_mode_sense_pages_default, &superdisk_mode_sense_pages_changeable }
 };
 
 static const rdisk_ms_set_t *
@@ -891,11 +915,11 @@ rdisk_find_ms_set(const uint32_t type)
 static void rdisk_command_complete(rdisk_t *dev);
 static void rdisk_init(rdisk_t *dev);
 
-/* A medium's size in 512-byte units, which is what medium_size and the image size use. */
-static uint32_t
-rdisk_media_sectors_512(const uint32_t media)
+/* A medium's capacity in bytes, from the media table in rdisk.h. */
+static uint64_t
+rdisk_media_bytes(const uint32_t media)
 {
-    return rdisk_types[media].sectors * (rdisk_types[media].bytes_per_sector >> 9);
+    return (uint64_t) rdisk_types[media].sectors * rdisk_types[media].bytes_per_sector;
 }
 
 static uint32_t
@@ -904,37 +928,65 @@ rdisk_drive_type_of(const rdisk_t *dev)
     return (dev->drv->type < KNOWN_RDISK_DRIVE_TYPES) ? dev->drv->type : RDISK_TYPE_GENERIC;
 }
 
+/* Index into rdisk_types[] of the medium that is in the drive, or of the drive's default medium when it
+   is empty.  medium_size is the number of sectors of that medium's own size (bytes_per_sector). */
+static uint32_t
+rdisk_medium_index(const rdisk_t *dev)
+{
+    if ((dev->drv->fp != NULL) && (dev->drv->medium_type < KNOWN_RDISK_TYPES))
+        return dev->drv->medium_type;
+
+    return rdisk_drive_types[rdisk_drive_type_of(dev)].default_media;
+}
+
+/* Bytes per sector of the medium in the drive (the drive's default medium when it is empty). */
+static uint32_t
+rdisk_sector_size(const rdisk_t *dev)
+{
+    return rdisk_types[rdisk_medium_index(dev)].bytes_per_sector;
+}
+
+/* Which of the media the drive type supports has exactly this size in bytes?  -1 if none. */
+static int
+rdisk_find_medium(const rdisk_t *dev, const uint64_t bytes)
+{
+    const uint32_t type = rdisk_drive_type_of(dev);
+
+    for (uint32_t i = 0; i < KNOWN_RDISK_TYPES; i++) {
+        if (rdisk_drive_types[type].supported_media[i] && (rdisk_media_bytes(i) == bytes))
+            return (int) i;
+    }
+
+    return -1;
+}
+
 /* The largest medium this drive type takes, from supported_media[] in rdisk.h.  The generic drive
    takes every medium but reports the Zip 250's size, as it always has. */
 static uint32_t
-rdisk_max_medium_size(const rdisk_t *dev)
+rdisk_max_medium_index(const rdisk_t *dev)
 {
     const uint32_t type = rdisk_drive_type_of(dev);
-    uint32_t       max  = 0;
+    uint32_t       max  = RDISK_MEDIUM_ZIP_250;
+    uint64_t       size = 0;
 
     if (type == RDISK_TYPE_GENERIC)
-        return ZIP_250_SECTORS;
+        return RDISK_MEDIUM_ZIP_250;
 
     for (uint32_t i = 0; i < KNOWN_RDISK_TYPES; i++) {
-        if (rdisk_drive_types[type].supported_media[i] && (rdisk_media_sectors_512(i) > max))
-            max = rdisk_media_sectors_512(i);
+        if (rdisk_drive_types[type].supported_media[i] && (rdisk_media_bytes(i) > size)) {
+            size = rdisk_media_bytes(i);
+            max  = i;
+        }
     }
 
     return max;
 }
 
-/* Does this image size (in 512-byte sectors) match a medium the drive type supports? */
-static int
-rdisk_supports_medium_size(const rdisk_t *dev, const uint32_t sectors)
+/* The number of sectors of that largest medium. */
+static uint32_t
+rdisk_max_medium_size(const rdisk_t *dev)
 {
-    const uint32_t type = rdisk_drive_type_of(dev);
-
-    for (uint32_t i = 0; i < KNOWN_RDISK_TYPES; i++) {
-        if (rdisk_drive_types[type].supported_media[i] && (rdisk_media_sectors_512(i) == sectors))
-            return 1;
-    }
-
-    return 0;
+    return rdisk_types[rdisk_max_medium_index(dev)].sectors;
 }
 
 /* Drives that only ever took one medium always report that medium's size in READ FORMAT CAPACITIES. */
@@ -948,6 +1000,16 @@ rdisk_single_medium_drive(const rdisk_t *dev)
         count += (rdisk_drive_types[type].supported_media[i] != 0);
 
     return (type != RDISK_TYPE_GENERIC) && (count == 1);
+}
+
+/* Media a drive only reads, from the documented compatibility: the Bernoulli 90 and MultiDisk 150
+   read the 44 MB cartridge, and the Zip 750 reads the 100 MB Zip disk, but neither writes them. */
+static int
+rdisk_medium_is_read_only(const uint32_t type, const uint32_t medium)
+{
+    return ((type == RDISK_TYPE_ZIP_750) && (medium == RDISK_MEDIUM_ZIP_100)) ||
+           (((type == RDISK_TYPE_BERNOULLI_90) || (type == RDISK_TYPE_BERNOULLI_150)) &&
+            (medium == RDISK_MEDIUM_BERNOULLI_44));
 }
 
 #ifdef ENABLE_RDISK_LOG
@@ -1038,8 +1100,8 @@ rdisk_load(const rdisk_t *dev, const char *fn, const int skip_insert)
         }
 
         if (ret) {
-            fseek(dev->drv->fp, 0, SEEK_END);
-            int size = ftell(dev->drv->fp);
+            fseeko64(dev->drv->fp, 0, SEEK_END);
+            int64_t size = ftello64(dev->drv->fp);    /* ORB and Jaz images are 2 GB or more */
 
             if ((is_sdi) || (is_zdi)) {
                 /* This is a SDI or ZDI image. */
@@ -1048,15 +1110,22 @@ rdisk_load(const rdisk_t *dev, const char *fn, const int skip_insert)
             } else
                 dev->drv->base = 0;
 
-            if ((size < 0) || ((size & 511) != 0) ||
-                !rdisk_supports_medium_size(dev, (uint32_t) size >> 9)) {
+            const int medium = (size < 0) ? -1 : rdisk_find_medium(dev, (uint64_t) size);
+
+            if ((size < 0) || ((size & 511) != 0) || (medium < 0)) {
                 rdisk_log(dev->log, "File is incorrect size for a RDISK image\n");
                 rdisk_log(dev->log, "Image size is not supported by this removable drive\n");
                 ret = rdisk_load_abort(dev);
             }
 
-            if (ret)
-                dev->drv->medium_size = size >> 9;
+            if (ret) {
+                /* The sector count is in the medium's own sector size (bytes_per_sector). */
+                dev->drv->medium_type = (uint32_t) medium;
+                dev->drv->medium_size = rdisk_types[medium].sectors;
+
+                if (rdisk_medium_is_read_only(rdisk_drive_type_of(dev), (uint32_t) medium))
+                    dev->drv->read_only = 1;
+            }
         }
 
          if (ret) {
@@ -1360,45 +1429,49 @@ zip_750_media_geometry(const rdisk_t *dev, const uint8_t page, const uint8_t pos
     return -1;
 }
 
-/* SuperDisk, HiFD and Floptical drives also take ordinary PC floppy media.  With one inserted, page 5
-   (flexible disk) reports the standard geometry of that format (ESTIMATED from the PC floppy formats; the
-   reports only captured the drives' own media).  The FD32MB's geometry is not known and is left alone.
-   Returns -1 if not applicable. */
+/* SuperDisk, HiFD, Floptical and Caleb drives also take ordinary PC floppy media.  With one inserted,
+   page 5 (flexible disk) reports the geometry of that format: the standard PC geometry of the 720 KB,
+   1.44 MB and NEC 2HD (1.2 MB, 1024-byte sectors) media (ESTIMATED; the reports only captured the drives'
+   own media) and 1024 cylinders x 2 heads x 32 sectors for the FD32MB, whose transfer and rotation rates
+   are not known and are left alone.  Returns -1 if not applicable. */
 static int
 rdisk_floppy_media_geometry(const rdisk_t *dev, const uint8_t page, const uint8_t pos)
 {
-    uint16_t rate;
+    uint16_t rate  = 0;
+    uint16_t rpm   = 0;
     uint16_t cyl;
-    uint16_t bps;
-    uint16_t rpm;
+    uint16_t bps   = 512;
     uint8_t  heads = 2;
     uint8_t  spt;
 
-    if ((page != 5) || !(IS_SUPERDISK(dev->drv->type) || (dev->drv->type == RDISK_TYPE_HIFD_200) ||
-                         (dev->drv->type == RDISK_TYPE_FLOPTICAL_20)))
+    if ((page != 5) || (dev->drv->fp == NULL) ||
+        !(IS_SUPERDISK(dev->drv->type) || (dev->drv->type == RDISK_TYPE_HIFD_200) ||
+          (dev->drv->type == RDISK_TYPE_FLOPTICAL_20) || (dev->drv->type == RDISK_TYPE_UHD144)))
         return -1;
 
-    switch (dev->drv->medium_size) {
-        case 2880:    /* 1.44 MB */
+    switch (dev->drv->medium_type) {
+        case RDISK_MEDIUM_FD_1440K:    /* 1.44 MB */
             rate = 500;
             cyl  = 80;
-            bps  = 512;
             rpm  = 300;
             spt  = 18;
             break;
-        case 1440:    /* 720 KB */
+        case RDISK_MEDIUM_FD_720K:     /* 720 KB */
             rate = 250;
             cyl  = 80;
-            bps  = 512;
             rpm  = 300;
             spt  = 9;
             break;
-        case 2464:    /* 1.2 MB, 1024-byte sectors (NEC 2HD) */
+        case RDISK_MEDIUM_FD_2HD_NEC:  /* 1.2 MB, 1024-byte sectors */
             rate = 500;
             cyl  = 77;
             bps  = 1024;
             rpm  = 360;
             spt  = 8;
+            break;
+        case RDISK_MEDIUM_FD32MB:      /* 32 MB: 1024 cylinders * 2 heads * 32 sectors */
+            cyl = 1024;
+            spt = 32;
             break;
         default:
             return -1;
@@ -1406,9 +1479,9 @@ rdisk_floppy_media_geometry(const rdisk_t *dev, const uint8_t page, const uint8_
 
     switch (pos) {
         case 2:
-            return rate >> 8;
+            return rate ? (rate >> 8) : -1;
         case 3:
-            return rate & 0xff;
+            return rate ? (rate & 0xff) : -1;
         case 4:
             return heads;
         case 5:
@@ -1422,9 +1495,9 @@ rdisk_floppy_media_geometry(const rdisk_t *dev, const uint8_t page, const uint8_
         case 9:
             return cyl & 0xff;
         case 28:
-            return rpm >> 8;
+            return rpm ? (rpm >> 8) : -1;
         case 29:
-            return rpm & 0xff;
+            return rpm ? (rpm & 0xff) : -1;
         default:
             return -1;
     }
@@ -1538,9 +1611,9 @@ rdisk_mode_sense(const rdisk_t *dev, uint8_t *buf, uint32_t pos,
         buf[pos++] = ((dev->drv->medium_size >> 8) & 0xff);
         buf[pos++] = (dev->drv->medium_size & 0xff);
         buf[pos++] = 0; /* Reserved. */
-        buf[pos++] = 0; /* Block length (0x200 = 512 bytes). */
-        buf[pos++] = 2;
-        buf[pos++] = 0;
+        buf[pos++] = (rdisk_sector_size(dev) >> 16) & 0xff;    /* Block length. */
+        buf[pos++] = (rdisk_sector_size(dev) >> 8) & 0xff;
+        buf[pos++] = rdisk_sector_size(dev) & 0xff;
     }
 
     for (uint8_t i = 0; i < 0x40; i++) {
@@ -1579,7 +1652,8 @@ rdisk_update_request_length(rdisk_t *dev, int len, int block_len)
         case 0xa8:
         case 0xaa:
             /* Round it to the nearest 2048 bytes. */
-            dev->max_transfer_len = (dev->max_transfer_len >> 9) << 9;
+            if (block_len > 0)
+                dev->max_transfer_len = (dev->max_transfer_len / block_len) * block_len;
 
             /*
                Make sure total length is not bigger than sum of the lengths of
@@ -1975,10 +2049,12 @@ rdisk_blocks(rdisk_t *dev, int32_t *len, const int out)
             rdisk_lba_out_of_range(dev);
             ret = 0;
         } else {
-            *len    = dev->requested_blocks << 9;
+            const uint32_t bps = rdisk_sector_size(dev);
+
+            *len    = dev->requested_blocks * bps;
 
             for (int i = 0; i < dev->requested_blocks; i++) {
-                if (fseek(dev->drv->fp, dev->drv->base + (dev->sector_pos << 9),
+                if (fseeko64(dev->drv->fp, dev->drv->base + ((uint64_t) dev->sector_pos * bps),
                     SEEK_SET) == -1) {
                     if (out)
                         rdisk_write_error(dev);
@@ -1990,15 +2066,15 @@ rdisk_blocks(rdisk_t *dev, int32_t *len, const int out)
                         break;
 
                     if (out) {
-                        if (fwrite(dev->buffer + (i << 9), 1,
-                                   512, dev->drv->fp) != 512) {
+                        if (fwrite(dev->buffer + (i * bps), 1,
+                                   bps, dev->drv->fp) != bps) {
                             rdisk_log(dev->log, "rdisk_blocks(): Error writing data\n");
                             rdisk_write_error(dev);
                             ret = -1;
                         } else
                             fflush(dev->drv->fp);
-                    } else if (fread(dev->buffer + (i << 9), 1,
-                                     512, dev->drv->fp) != 512) {
+                    } else if (fread(dev->buffer + (i * bps), 1,
+                                     bps, dev->drv->fp) != bps) {
                         rdisk_log(dev->log, "rdisk_blocks(): Error reading data\n");
                         rdisk_read_error(dev);
                         ret = -1;
@@ -2412,7 +2488,7 @@ rdisk_command(scsi_common_t *sc, const uint8_t *cdb)
         case GPCMD_READ_10:
         case GPCMD_READ_12:
             rdisk_set_phase(dev, SCSI_PHASE_DATA_IN);
-            alloc_length = 512;
+            alloc_length = rdisk_sector_size(dev);
 
             switch (cdb[0]) {
                 case GPCMD_READ_6:
@@ -2456,7 +2532,7 @@ rdisk_command(scsi_common_t *sc, const uint8_t *cdb)
                 rdisk_buf_alloc(dev, dev->packet_len);
 
                 const int ret = rdisk_blocks(dev, &alloc_length, 0);
-                alloc_length  = dev->requested_blocks * 512;
+                alloc_length  = dev->requested_blocks * rdisk_sector_size(dev);
 
                 if (ret > 0) {
                     dev->requested_blocks = max_len;
@@ -2464,7 +2540,7 @@ rdisk_command(scsi_common_t *sc, const uint8_t *cdb)
 
                     rdisk_set_buf_len(dev, BufLen, (int32_t *) &dev->packet_len);
 
-                    rdisk_data_command_finish(dev, alloc_length, 512,
+                    rdisk_data_command_finish(dev, alloc_length, rdisk_sector_size(dev),
                                             alloc_length, 0);
 
                     ui_sb_update_icon(SB_RDISK | dev->id,
@@ -2501,7 +2577,7 @@ rdisk_command(scsi_common_t *sc, const uint8_t *cdb)
         case GPCMD_WRITE_12:
         case GPCMD_WRITE_AND_VERIFY_12:
             rdisk_set_phase(dev, SCSI_PHASE_DATA_OUT);
-            alloc_length = 512;
+            alloc_length = rdisk_sector_size(dev);
 
             if (dev->drv->read_only) {
                 rdisk_write_protected(dev);
@@ -2555,11 +2631,11 @@ rdisk_command(scsi_common_t *sc, const uint8_t *cdb)
                 rdisk_buf_alloc(dev, dev->packet_len);
 
                 dev->requested_blocks = max_len;
-                dev->packet_len       = max_len << 9;
+                dev->packet_len       = max_len * rdisk_sector_size(dev);
 
                 rdisk_set_buf_len(dev, BufLen, (int32_t *) &dev->packet_len);
 
-                rdisk_data_command_finish(dev, dev->packet_len, 512,
+                rdisk_data_command_finish(dev, dev->packet_len, rdisk_sector_size(dev),
                                         dev->packet_len, 1);
 
                 ui_sb_update_icon_write(SB_RDISK | dev->id,
@@ -2575,7 +2651,7 @@ rdisk_command(scsi_common_t *sc, const uint8_t *cdb)
 
         case GPCMD_WRITE_SAME_10:
             rdisk_set_phase(dev, SCSI_PHASE_DATA_OUT);
-            alloc_length = 512;
+            alloc_length = rdisk_sector_size(dev);
 
             if ((cdb[1] & 6) == 6)
                 rdisk_invalid_field(dev, cdb[1]);
@@ -2600,7 +2676,7 @@ rdisk_command(scsi_common_t *sc, const uint8_t *cdb)
 
                         rdisk_set_phase(dev, SCSI_PHASE_DATA_OUT);
 
-                        rdisk_data_command_finish(dev, 512, 512,
+                        rdisk_data_command_finish(dev, rdisk_sector_size(dev), rdisk_sector_size(dev),
                                                 alloc_length, 1);
 
                         ui_sb_update_icon_write(SB_RDISK | dev->id,
@@ -2765,6 +2841,8 @@ rdisk_command(scsi_common_t *sc, const uint8_t *cdb)
                             ide_padstr8(dev->buffer + idx, 8, "SyQuest ");
                         else if (dev->drv->type == RDISK_TYPE_ORB_2_2GB)
                             ide_padstr8(dev->buffer + idx, 8, "CWS ORB2");
+                        else if (dev->drv->type == RDISK_TYPE_UHD144)
+                            ide_padstr8(dev->buffer + idx, 8, "Caleb   ");
                         else if (dev->drv->type == RDISK_TYPE_HIFD_200)
                             ide_padstr8(dev->buffer + idx, 8, "SONY    ");
                         else if (dev->drv->type == RDISK_TYPE_FLOPTICAL_20)
@@ -2796,6 +2874,8 @@ rdisk_command(scsi_common_t *sc, const uint8_t *cdb)
                             ide_padstr8(dev->buffer + idx, 40, "SQ3105S         ");
                         else if (dev->drv->type == RDISK_TYPE_EZ230S)
                             ide_padstr8(dev->buffer + idx, 40, "EZ230S          ");
+                        else if (dev->drv->type == RDISK_TYPE_UHD144)
+                            ide_padstr8(dev->buffer + idx, 40, "LS-120          ");
                         else if (dev->drv->type == RDISK_TYPE_SPARQ_1GB)
                             ide_padstr8(dev->buffer + idx, 40, "SparQ           ");
                         else if (dev->drv->type == RDISK_TYPE_SUPERDISK_120)
@@ -2860,6 +2940,8 @@ rdisk_command(scsi_common_t *sc, const uint8_t *cdb)
                     ide_padstr8(dev->buffer + 8, 8, "SyQuest ");    /* Vendor */
                 } else if (dev->drv->type == RDISK_TYPE_ORB_2_2GB) {
                     ide_padstr8(dev->buffer + 8, 8, "CWS ORB2");    /* Vendor */
+                } else if (dev->drv->type == RDISK_TYPE_UHD144) {
+                    ide_padstr8(dev->buffer + 8, 8, "Caleb   ");    /* Vendor */
                 } else if (dev->drv->type == RDISK_TYPE_HIFD_200) {
                     ide_padstr8(dev->buffer + 8, 8, "SONY    ");    /* Vendor */
                 } else if (dev->drv->type == RDISK_TYPE_FLOPTICAL_20) {
@@ -2962,6 +3044,10 @@ rdisk_command(scsi_common_t *sc, const uint8_t *cdb)
                     /* Aaru report 195: SyQuest / EZ230S / 7220 */
                     ide_padstr8(dev->buffer + 16, 16, "EZ230S          ");
                     ide_padstr8(dev->buffer + 32, 4, "7220");
+                } else if (dev->drv->type == RDISK_TYPE_UHD144) {
+                    /* "Caleb LS-120", no firmware revision shown (msfn.org thread on the Caleb UHD144). */
+                    ide_padstr8(dev->buffer + 16, 16, "LS-120          ");
+                    ide_padstr8(dev->buffer + 32, 4, "");
                 } else {
                     ide_padstr8(dev->buffer + 8, 8,
                                 EMU_NAME);          /* Vendor */
@@ -3027,7 +3113,10 @@ atapi_out:
             dev->buffer[1] = (max_len >> 16) & 0xff;
             dev->buffer[2] = (max_len >> 8) & 0xff;
             dev->buffer[3] = max_len & 0xff;
-            dev->buffer[6] = 2; /* 512 = 0x0200 */
+            dev->buffer[4] = (rdisk_sector_size(dev) >> 24) & 0xff;    /* Block length. */
+            dev->buffer[5] = (rdisk_sector_size(dev) >> 16) & 0xff;
+            dev->buffer[6] = (rdisk_sector_size(dev) >> 8) & 0xff;
+            dev->buffer[7] = rdisk_sector_size(dev) & 0xff;
             len            = 8;
 
             rdisk_set_buf_len(dev, BufLen, &len);
@@ -3058,42 +3147,24 @@ atapi_out:
             else
                 dev->buffer[pos++] = 8;
 
-            /* Current/Maximum capacity header */
-            if (rdisk_single_medium_drive(dev)) {
-                /* Drives that only take one medium (Zip 100, Jaz 1GB, SyJet, SparQ, Clik!, Bernoulli 90,
-                   ORB, SQ310...) always return that medium's size. */
-                const uint32_t medium_size = rdisk_max_medium_size(dev);
+            /* Current/Maximum capacity header.  A drive that takes several media (Zip 250, Jaz 2GB, the
+               SuperDisk drives...) returns the inserted medium's size, if there is one, otherwise its
+               largest medium; a one-medium drive always returns its medium. */
+            {
+                const int      current     = (dev->drv->fp != NULL) && !rdisk_single_medium_drive(dev);
+                const uint32_t medium_size = current ? dev->drv->medium_size : rdisk_max_medium_size(dev);
+                const uint32_t bps         = current ? rdisk_sector_size(dev) :
+                                                       rdisk_types[rdisk_max_medium_index(dev)].bytes_per_sector;
+
                 dev->buffer[pos++] = (medium_size >> 24) & 0xff;
                 dev->buffer[pos++] = (medium_size >> 16) & 0xff;
                 dev->buffer[pos++] = (medium_size >> 8) & 0xff;
                 dev->buffer[pos++] = medium_size & 0xff;
-                if (dev->drv->fp != NULL)
-                    dev->buffer[pos++] = 2;
-                else
-                    dev->buffer[pos++] = 3;
-            } else {
-                /* ZIP 250 and Jaz 2GB accept lower-capacity media, so if the medium is inserted,
-                   we return the inserted medium's size, otherwise, the respective drive size. */
-
-                if (dev->drv->fp != NULL) {
-                    dev->buffer[pos++] = (dev->drv->medium_size >> 24) & 0xff;
-                    dev->buffer[pos++] = (dev->drv->medium_size >> 16) & 0xff;
-                    dev->buffer[pos++] = (dev->drv->medium_size >> 8) & 0xff;
-                    dev->buffer[pos++] = dev->drv->medium_size & 0xff;
-                    dev->buffer[pos++] = 2; /* Current medium capacity */
-                } else {
-                    const uint32_t medium_size = rdisk_max_medium_size(dev);
-                    dev->buffer[pos++] = (medium_size >> 24) & 0xff;
-                    dev->buffer[pos++] = (medium_size >> 16) & 0xff;
-                    dev->buffer[pos++] = (medium_size >> 8) & 0xff;
-                    dev->buffer[pos++] = medium_size & 0xff;
-                    dev->buffer[pos++] = 3; /* Maximum medium capacity */
-                }
+                dev->buffer[pos++] = (dev->drv->fp != NULL) ? 2 : 3;    /* Current / maximum medium capacity */
+                dev->buffer[pos++] = (bps >> 16) & 0xff;
+                dev->buffer[pos++] = (bps >> 8) & 0xff;
+                dev->buffer[pos++] = bps & 0xff;
             }
-
-            dev->buffer[pos++] = 512 >> 16;
-            dev->buffer[pos++] = 512 >> 8;
-            dev->buffer[pos++] = 512 & 0xff;
 
             if (dev->drv->fp != NULL) {
                 /* Formattable capacity descriptor */
@@ -3102,9 +3173,9 @@ atapi_out:
                 dev->buffer[pos++] = (dev->drv->medium_size >> 8) & 0xff;
                 dev->buffer[pos++] = dev->drv->medium_size & 0xff;
                 dev->buffer[pos++] = 0;
-                dev->buffer[pos++] = 512 >> 16;
-                dev->buffer[pos++] = 512 >> 8;
-                dev->buffer[pos++] = 512 & 0xff;
+                dev->buffer[pos++] = (rdisk_sector_size(dev) >> 16) & 0xff;
+                dev->buffer[pos++] = (rdisk_sector_size(dev) >> 8) & 0xff;
+                dev->buffer[pos++] = rdisk_sector_size(dev) & 0xff;
             }
 
             rdisk_set_buf_len(dev, BufLen, &len);
@@ -3189,10 +3260,10 @@ rdisk_phase_data_out(scsi_common_t *sc)
                     dev->buffer[6]   = (s >> 8) & 0xff;
                     dev->buffer[7]   = s & 0xff;
                 }
-                if (fseek(dev->drv->fp, dev->drv->base + (i << 9),
-                          SEEK_SET) == -1)
+                if (fseeko64(dev->drv->fp, dev->drv->base + ((uint64_t) i * rdisk_sector_size(dev)),
+                             SEEK_SET) == -1)
                     log_fatal(dev->log, "rdisk_phase_data_out(): Error seeking\n");
-                if (fwrite(dev->buffer, 1, 512, dev->drv->fp) != 512)
+                if (fwrite(dev->buffer, 1, rdisk_sector_size(dev), dev->drv->fp) != rdisk_sector_size(dev))
                     log_fatal(dev->log, "rdisk_phase_data_out(): Error writing data\n");
             }
 
@@ -3464,6 +3535,14 @@ rdisk_sparq_identify(const ide_t *ide, const int ide_has_dma)
     ide->buffer[81] = 0x0017;
 }
 
+/* Caleb UHD144: reports itself as "Caleb LS-120", with no firmware revision shown. */
+static void
+rdisk_uhd144_identify(const ide_t *ide)
+{
+    ide_padstr((char *) (ide->buffer + 23), "", 8);                             /* Firmware */
+    ide_padstr((char *) (ide->buffer + 27), "Caleb LS-120", 40);                /* Model */
+}
+
 /*
    Sony HiFD: from Aaru report 118 (a real ATAPI SONY HiFD SFD200, firmware 1264): ATA/ATAPI-4 only,
    minor version not specified.  The report's general configuration says "DRQ within 3 ms"; word 0,
@@ -3544,6 +3623,8 @@ rdisk_identify(const ide_t *ide, const int ide_has_dma)
         rdisk_clik_identify(ide);
     else if (rdisk_drives[rdisk->id].type == RDISK_TYPE_HIFD_200)
         rdisk_hifd_identify(ide);
+    else if (rdisk_drives[rdisk->id].type == RDISK_TYPE_UHD144)
+        rdisk_uhd144_identify(ide);
     else if (rdisk_drives[rdisk->id].type == RDISK_TYPE_ZIP_750)
         rdisk_zip_750_identify(ide, ide_has_dma);
     else
