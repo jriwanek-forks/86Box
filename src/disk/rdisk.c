@@ -15,6 +15,7 @@
  *          Copyright 2018-2026 Miran Grca.
  *          Copyright 2022-2026 Jasmine Iwanek.
  */
+#define ENABLE_RDISK_LOG 1
 #ifdef ENABLE_RDISK_LOG
 #include <stdarg.h>
 #endif
