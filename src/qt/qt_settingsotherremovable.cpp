@@ -130,6 +130,7 @@ SettingsOtherRemovable::rdiskIconForType(uint32_t type) const
         case RDISK_TYPE_JAZ_2GB:
             return jaz_icon;
         case RDISK_TYPE_SYJET_1_5GB:
+        case RDISK_TYPE_SYJET_S:
         case RDISK_TYPE_SPARQ_1GB:
         case RDISK_TYPE_SQ5200C:
         case RDISK_TYPE_SQ3105S:

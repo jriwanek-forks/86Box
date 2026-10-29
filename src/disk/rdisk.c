@@ -83,92 +83,20 @@ const uint8_t rdisk_command_flags[0x100] = {
     [0xbd]          = IMPLEMENTED
 };
 
-/*
-   SuperDisk (LS-120 / LS-240) identity strings.  Pick ONE identity set below.
-
-   Default (the final #else): Matsushita "COSM 04", as a real Matsushita LS-120 COSM 04
-   answers (taken from the original code comment).
-
-   Alternate 1 (#if 0): the Imation branding already listed in rdisk_drive_types[] in rdisk.h.
-   Alternate 2 (#elif 0): a real LS-120 "VER5 00" (firmware F523), from Aaru device report 66
-   (https://aaru.app/report/66; it was reported behind a Shuttle E-USB bridge).
-
-   To use an alternate, change its 0 to 1 (and make sure the ones above it stay 0).
-
-   LS-240 (default and alternate 2): INQUIRY product "LS-120/240    00", revision "K047", from Aaru
-   device report 67 (https://aaru.app/report/67; reported behind an OnSpec USB bridge).  That
-   report has no ATA IDENTIFY data, so the LS-240 ATA model and firmware are derived from the
-   INQUIRY strings and are NOT confirmed.  The Imation alternate's LS-240 strings are simply the
-   rdisk_drive_types[] ones.
- */
-#if 0
-#    define SUPERDISK_VENDOR         "IMATION "
-#    define SUPERDISK_120_PRODUCT    "SUPERDISK 120   "                      /* INQUIRY, 16 chars  */
-#    define SUPERDISK_240_PRODUCT    "SUPERDISK 240   "
-#    define SUPERDISK_120_REV        "04  "                                  /* INQUIRY, 4 chars   */
-#    define SUPERDISK_240_REV        "04  "
-#    define SUPERDISK_120_FW         "04      "                              /* ATA firmware, 8    */
-#    define SUPERDISK_240_FW         "04      "
-#    define SUPERDISK_120_ATA_MODEL  "SUPERDISK 120 ATAPI"                   /* ATA model, 40      */
-#    define SUPERDISK_240_ATA_MODEL  "SUPERDISK  240       ATAPI"
-#elif 0
-#    define SUPERDISK_VENDOR         "MATSHITA"
-#    define SUPERDISK_120_PRODUCT    "LS-120 VER5   00"
-#    define SUPERDISK_240_PRODUCT    "LS-120/240    00"                      /* Report 67 */
-#    define SUPERDISK_120_REV        "F523"
-#    define SUPERDISK_240_REV        "K047"
-#    define SUPERDISK_120_FW         "F523M5A9"
-#    define SUPERDISK_240_FW         "K047    "                              /* Derived */
-#    define SUPERDISK_120_ATA_MODEL  "LS-120 VER5   00 UHD Floppy"          /* Report 66; internal spacing inferred from INQUIRY */
-#    define SUPERDISK_240_ATA_MODEL  "LS-120/240    00"                      /* Derived */
-#else
-#    define SUPERDISK_VENDOR         "MATSHITA"
-#    define SUPERDISK_120_PRODUCT    "LS-120 COSM   04"
-#    define SUPERDISK_240_PRODUCT    "LS-120/240    00"                      /* Report 67 */
-#    define SUPERDISK_120_REV        "0270"
-#    define SUPERDISK_240_REV        "K047"
-#    define SUPERDISK_120_FW         "0270    "
-#    define SUPERDISK_240_FW         "K047    "                              /* Derived */
-#    define SUPERDISK_120_ATA_MODEL  "LS-120 COSM   04"
-#    define SUPERDISK_240_ATA_MODEL  "LS-120/240    00"                      /* Derived */
-#endif
-
 #define IS_ZIP(t) (((t) == RDISK_TYPE_ZIP_100) || ((t) == RDISK_TYPE_ZIP_250) || ((t) == RDISK_TYPE_ZIP_750))
-#define IS_SUPERDISK(t) (((t) == RDISK_TYPE_SUPERDISK_120) || ((t) == RDISK_TYPE_SUPERDISK_240))
+/* Each model of a family has its own drive type (and its own row in rdisk_drive_types[]). */
+#define IS_SUPERDISK_120(t) (((t) == RDISK_TYPE_SUPERDISK_120) || ((t) == RDISK_TYPE_SUPERDISK_120_VER5) || \
+                             ((t) == RDISK_TYPE_SUPERDISK_120_IMATION))
+#define IS_SUPERDISK_240(t) (((t) == RDISK_TYPE_SUPERDISK_240) || ((t) == RDISK_TYPE_SUPERDISK_240_IMATION))
+#define IS_SUPERDISK(t)     (IS_SUPERDISK_120(t) || IS_SUPERDISK_240(t))
+#define IS_SYJET(t)         (((t) == RDISK_TYPE_SYJET_1_5GB) || ((t) == RDISK_TYPE_SYJET_S))
 #define IS_BERNOULLI(t) ((t == RDISK_TYPE_BERNOULLI_90) || (t == RDISK_TYPE_BERNOULLI_150) || (t == RDISK_TYPE_BERNOULLI_230))
-#define IS_SYQUEST(t)   (((t) == RDISK_TYPE_SYJET_1_5GB) || ((t) == RDISK_TYPE_SPARQ_1GB) || \
-                         ((t) == RDISK_TYPE_SQ5200C) || ((t) == RDISK_TYPE_SQ3105S) || ((t) == RDISK_TYPE_EZ230S))
-
-/*
-   Zip 750 firmware revision.  Default: "78.a", from the full INQUIRY dump of a real Zip 750 in
-   ZuluIDE firmware issue 39 (build date 08/27/02, copyright 2002).  Alternate (#if 0): "72.u", from
-   Aaru device report 53, where the date and copyright string were not captured, so the same
-   ones are used with it.  Both were seen on USB drives; the revision of a real ATAPI Zip 750 is unknown.
- */
-#if 0
-#    define ZIP_750_REV    "72.u"
-#else
-#    define ZIP_750_REV    "78.a"
-#endif
 
 /* Drive types that only belong on the SCSI bus (drive_type in rdisk.h: the Floptical and the Bernoulli
    Box II drives) are the older narrow (8-bit) SCSI drives. */
 #define IS_NARROW_SCSI_ONLY(t) ((((t) < KNOWN_RDISK_DRIVE_TYPES) && \
                                  (rdisk_drive_types[(t)].drive_type == RDISK_DRIVE_TYPE_SCSI)) || \
                                 ((t) == RDISK_TYPE_ORB_2_2GB))    /* The ORB2-SE is a narrow SCSI drive too. */
-
-/*
-   SyJet-S (SCSI) firmware revision.  Real SyJet-S drives were seen with 0111 (Aaru report 327), 0095
-   (report 328) and 0117 (report 329); none of the reports include more than the INQUIRY data.
-   Default: 0117, the highest.  To use another, change the 0 of its #if/#elif to 1.
- */
-#if 0
-#    define SYJET_S_REV    "0095"
-#elif 0
-#    define SYJET_S_REV    "0111"
-#else
-#    define SYJET_S_REV    "0117"
-#endif
 
 static uint64_t zip_100_mode_sense_page_flags = (GPMODEP_R_W_ERROR_PAGE | GPMODEP_DISCONNECT_PAGE |
                                                  GPMODEP_IOMEGA_PAGE | GPMODEP_ALL_PAGES);
@@ -1002,6 +930,18 @@ rdisk_single_medium_drive(const rdisk_t *dev)
     return (type != RDISK_TYPE_GENERIC) && (count == 1);
 }
 
+/* The identity a drive reports in INQUIRY: the vendor, model (product) and revision of its row in
+   rdisk_drive_types[].  The generic drive reports the emulator's own name, product and version instead, so
+   it has none. */
+static const rdisk_drive_type_t *
+rdisk_inquiry_identity(const rdisk_t *dev)
+{
+    if ((dev->drv->type == RDISK_TYPE_GENERIC) || (dev->drv->type >= KNOWN_RDISK_DRIVE_TYPES))
+        return NULL;
+
+    return &rdisk_drive_types[dev->drv->type];
+}
+
 /* Media a drive only reads, from the documented compatibility: the Bernoulli 90 and MultiDisk 150
    read the 44 MB cartridge, and the Zip 750 reads the 100 MB Zip disk, but neither writes them. */
 static int
@@ -1294,13 +1234,13 @@ rdisk_mode_sense_load(rdisk_t *dev)
         memcpy(&dev->ms_pages_saved, &bernoulli_90_mode_sense_pages_default, sizeof(mode_sense_pages_t));
     } else if ((dev->drv->type == RDISK_TYPE_BERNOULLI_150) || (dev->drv->type == RDISK_TYPE_BERNOULLI_230)) {
         memcpy(&dev->ms_pages_saved, &bernoulli_150_mode_sense_pages_default, sizeof(mode_sense_pages_t));
-    } else if (dev->drv->type == RDISK_TYPE_SUPERDISK_120) {
+    } else if (IS_SUPERDISK_120(dev->drv->type)) {
         memcpy(&dev->ms_pages_saved, &superdisk_120_mode_sense_pages_default, sizeof(mode_sense_pages_t));
-    } else if (dev->drv->type == RDISK_TYPE_SUPERDISK_240) {
+    } else if (IS_SUPERDISK_240(dev->drv->type)) {
         memcpy(&dev->ms_pages_saved, &superdisk_240_mode_sense_pages_default, sizeof(mode_sense_pages_t));
     } else if (rdisk_find_ms_set(dev->drv->type) != NULL) {
         memcpy(&dev->ms_pages_saved, rdisk_find_ms_set(dev->drv->type)->def, sizeof(mode_sense_pages_t));
-    } else if (dev->drv->type == RDISK_TYPE_SYJET_1_5GB) {
+    } else if (IS_SYJET(dev->drv->type)) {
         if (rdisk_drives[dev->id].bus_type == RDISK_BUS_SCSI)
             memcpy(&dev->ms_pages_saved, &syjet_mode_sense_pages_default_scsi, sizeof(mode_sense_pages_t));
         else
@@ -1364,13 +1304,13 @@ rdisk_mode_sense_page_flags(const rdisk_t *dev)
         return bernoulli_90_mode_sense_page_flags;
     else if ((dev->drv->type == RDISK_TYPE_BERNOULLI_150) || (dev->drv->type == RDISK_TYPE_BERNOULLI_230))
         return bernoulli_150_mode_sense_page_flags;
-    else if (dev->drv->type == RDISK_TYPE_SUPERDISK_120)
+    else if (IS_SUPERDISK_120(dev->drv->type))
         return superdisk_120_mode_sense_page_flags;
-    else if (dev->drv->type == RDISK_TYPE_SUPERDISK_240)
+    else if (IS_SUPERDISK_240(dev->drv->type))
         return superdisk_240_mode_sense_page_flags;
     else if (rdisk_find_ms_set(dev->drv->type) != NULL)
         return rdisk_find_ms_set(dev->drv->type)->flags;
-    else if (dev->drv->type == RDISK_TYPE_SYJET_1_5GB)
+    else if (IS_SYJET(dev->drv->type))
         return syjet_mode_sense_page_flags;
     else if (dev->drv->type == RDISK_TYPE_SPARQ_1GB)
         return sparq_mode_sense_page_flags;
@@ -1399,7 +1339,7 @@ rdisk_mode_sense_pages_changeable(const rdisk_t *dev)
         return &superdisk_mode_sense_pages_changeable;
     else if (rdisk_find_ms_set(dev->drv->type) != NULL)
         return rdisk_find_ms_set(dev->drv->type)->chg;
-    else if (dev->drv->type == RDISK_TYPE_SYJET_1_5GB)
+    else if (IS_SYJET(dev->drv->type))
         return &syjet_mode_sense_pages_changeable;
     else if (dev->drv->type == RDISK_TYPE_SPARQ_1GB)
         return &sparq_mode_sense_pages_changeable;
@@ -1515,7 +1455,7 @@ rdisk_mode_sense_read(const rdisk_t *dev, const uint8_t pgctl,
                 return (uint8_t) rdisk_floppy_media_geometry(dev, page, pos);
             /* An LS-240 drive with LS-120 media inserted reports the LS-120 geometry
                (963 cylinders, 8 heads, 32 sectors per track). */
-            if ((dev->drv->type == RDISK_TYPE_SUPERDISK_240) &&
+            if ((IS_SUPERDISK_240(dev->drv->type)) &&
                 (dev->drv->medium_size == SUPERDISK_SECTORS)) {
                 if (page == 5) {
                     switch (pos) {
@@ -1562,13 +1502,13 @@ rdisk_mode_sense_read(const rdisk_t *dev, const uint8_t pgctl,
                 return bernoulli_90_mode_sense_pages_default.pages[page][pos];
             } else if ((dev->drv->type == RDISK_TYPE_BERNOULLI_150) || (dev->drv->type == RDISK_TYPE_BERNOULLI_230)) {
                 return bernoulli_150_mode_sense_pages_default.pages[page][pos];
-            } else if (dev->drv->type == RDISK_TYPE_SUPERDISK_120) {
+            } else if (IS_SUPERDISK_120(dev->drv->type)) {
                 return superdisk_120_mode_sense_pages_default.pages[page][pos];
-            } else if (dev->drv->type == RDISK_TYPE_SUPERDISK_240) {
+            } else if (IS_SUPERDISK_240(dev->drv->type)) {
                 return superdisk_240_mode_sense_pages_default.pages[page][pos];
             } else if (rdisk_find_ms_set(dev->drv->type) != NULL) {
                 return rdisk_find_ms_set(dev->drv->type)->def->pages[page][pos];
-            } else if (dev->drv->type == RDISK_TYPE_SYJET_1_5GB) {
+            } else if (IS_SYJET(dev->drv->type)) {
                 if (dev->drv->bus_type == RDISK_BUS_SCSI)
                     return syjet_mode_sense_pages_default_scsi.pages[page][pos];
                 else
@@ -2834,68 +2774,15 @@ rdisk_command(scsi_common_t *sc, const uint8_t *cdb)
                         dev->buffer[idx++] = 0x01;
                         dev->buffer[idx++] = 0x00;
                         dev->buffer[idx++] = 68;
-                        /* Vendor */
-                        if (dev->drv->type == RDISK_TYPE_JAZ_1GB || dev->drv->type == RDISK_TYPE_JAZ_2GB)
-                            ide_padstr8(dev->buffer + idx, 8, "iomega  ");
-                        else if (IS_SYQUEST(dev->drv->type))
-                            ide_padstr8(dev->buffer + idx, 8, "SyQuest ");
-                        else if (dev->drv->type == RDISK_TYPE_ORB_2_2GB)
-                            ide_padstr8(dev->buffer + idx, 8, "CWS ORB2");
-                        else if (dev->drv->type == RDISK_TYPE_UHD144)
-                            ide_padstr8(dev->buffer + idx, 8, "Caleb   ");
-                        else if (dev->drv->type == RDISK_TYPE_HIFD_200)
-                            ide_padstr8(dev->buffer + idx, 8, "SONY    ");
-                        else if (dev->drv->type == RDISK_TYPE_FLOPTICAL_20)
-                            ide_padstr8(dev->buffer + idx, 8, "INSITE  ");
-                        else if (IS_SUPERDISK(dev->drv->type))
-                            ide_padstr8(dev->buffer + idx, 8, SUPERDISK_VENDOR);
-                        else if (dev->drv->type >= RDISK_TYPE_ZIP_100)
-                            ide_padstr8(dev->buffer + idx, 8, "IOMEGA  ");
+                        /* Vendor and product: from rdisk_drive_types[]; the generic drive reports the emulator's. */
+                        if (rdisk_inquiry_identity(dev) != NULL)
+                            ide_padstr8(dev->buffer + idx, 8, rdisk_inquiry_identity(dev)->vendor);
                         else
                             ide_padstr8(dev->buffer + 8, 8, EMU_NAME);          /* Vendor */
                         idx += 8;
                         /* Product */
-                        if (dev->drv->type == RDISK_TYPE_ZIP_250)
-                            ide_padstr8(dev->buffer + idx, 40, "ZIP 250         ");
-                        else if (dev->drv->type == RDISK_TYPE_ZIP_100)
-                            ide_padstr8(dev->buffer + idx, 40, "ZIP 100         ");
-                        else if (dev->drv->type == RDISK_TYPE_JAZ_2GB)
-                            ide_padstr8(dev->buffer + idx, 40, "jaz 2GB         ");
-                        else if (dev->drv->type == RDISK_TYPE_JAZ_1GB)
-                            ide_padstr8(dev->buffer + idx, 40, "jaz 1GB         ");
-                        else if (dev->drv->type == RDISK_TYPE_SYJET_1_5GB)
-                            ide_padstr8(dev->buffer + idx, 40,
-                                        (dev->drv->bus_type == RDISK_BUS_SCSI) ? "SyJet-S         " : "SyJet           ");
-                        else if (dev->drv->type == RDISK_TYPE_ORB_2_2GB)
-                            ide_padstr8(dev->buffer + idx, 40, "-SE U ID 0      ");
-                        else if (dev->drv->type == RDISK_TYPE_SQ5200C)
-                            ide_padstr8(dev->buffer + idx, 40, "SQ5200C         ");
-                        else if (dev->drv->type == RDISK_TYPE_SQ3105S)
-                            ide_padstr8(dev->buffer + idx, 40, "SQ3105S         ");
-                        else if (dev->drv->type == RDISK_TYPE_EZ230S)
-                            ide_padstr8(dev->buffer + idx, 40, "EZ230S          ");
-                        else if (dev->drv->type == RDISK_TYPE_UHD144)
-                            ide_padstr8(dev->buffer + idx, 40, "LS-120          ");
-                        else if (dev->drv->type == RDISK_TYPE_SPARQ_1GB)
-                            ide_padstr8(dev->buffer + idx, 40, "SparQ           ");
-                        else if (dev->drv->type == RDISK_TYPE_SUPERDISK_120)
-                            ide_padstr8(dev->buffer + idx, 40, SUPERDISK_120_PRODUCT);
-                        else if (dev->drv->type == RDISK_TYPE_SUPERDISK_240)
-                            ide_padstr8(dev->buffer + idx, 40, SUPERDISK_240_PRODUCT);
-                        else if (dev->drv->type == RDISK_TYPE_ZIP_750)
-                            ide_padstr8(dev->buffer + idx, 40, "ZIP 750         ");
-                        else if (dev->drv->type == RDISK_TYPE_CLIK_40)
-                            ide_padstr8(dev->buffer + idx, 40, "Clik! 40 CZ     ");
-                        else if (dev->drv->type == RDISK_TYPE_HIFD_200)
-                            ide_padstr8(dev->buffer + idx, 40, "HiFD            ");
-                        else if (dev->drv->type == RDISK_TYPE_FLOPTICAL_20)
-                            ide_padstr8(dev->buffer + idx, 40, "I325VM        *F");
-                        else if (dev->drv->type == RDISK_TYPE_BERNOULLI_90)
-                            ide_padstr8(dev->buffer + idx, 40, "BETA90          ");
-                        else if (dev->drv->type == RDISK_TYPE_BERNOULLI_150)
-                            ide_padstr8(dev->buffer + idx, 40, "BETA150         ");
-                        else if (dev->drv->type == RDISK_TYPE_BERNOULLI_230)
-                            ide_padstr8(dev->buffer + idx, 40, "BETA230         ");
+                        if (rdisk_inquiry_identity(dev) != NULL)
+                            ide_padstr8(dev->buffer + idx, 40, rdisk_inquiry_identity(dev)->model);
                         else
                             ide_padstr8(dev->buffer + 16, 40, device_identify);      /* Product */
                         idx += 40;
@@ -2934,121 +2821,28 @@ rdisk_command(scsi_common_t *sc, const uint8_t *cdb)
                 }
                 dev->buffer[7] |= 0x02;
 
-                if (dev->drv->type == RDISK_TYPE_JAZ_2GB || dev->drv->type == RDISK_TYPE_JAZ_1GB) {
-                    ide_padstr8(dev->buffer + 8, 8, "iomega  ");    /* Vendor */
-                } else if (IS_SYQUEST(dev->drv->type)) {
-                    ide_padstr8(dev->buffer + 8, 8, "SyQuest ");    /* Vendor */
-                } else if (dev->drv->type == RDISK_TYPE_ORB_2_2GB) {
-                    ide_padstr8(dev->buffer + 8, 8, "CWS ORB2");    /* Vendor */
-                } else if (dev->drv->type == RDISK_TYPE_UHD144) {
-                    ide_padstr8(dev->buffer + 8, 8, "Caleb   ");    /* Vendor */
-                } else if (dev->drv->type == RDISK_TYPE_HIFD_200) {
-                    ide_padstr8(dev->buffer + 8, 8, "SONY    ");    /* Vendor */
-                } else if (dev->drv->type == RDISK_TYPE_FLOPTICAL_20) {
-                    ide_padstr8(dev->buffer + 8, 8, "INSITE  ");    /* Vendor */
-                } else if (IS_SUPERDISK(dev->drv->type)) {
-                    ide_padstr8(dev->buffer + 8, 8, SUPERDISK_VENDOR);    /* Vendor */
-                } else {
-                    ide_padstr8(dev->buffer + 8, 8, "IOMEGA  ");    /* Vendor */
-                }
+                if (rdisk_inquiry_identity(dev) != NULL) {
+                    /* Vendor, product and revision come from the drive's row in rdisk_drive_types[]. */
+                    ide_padstr8(dev->buffer + 8, 8, rdisk_inquiry_identity(dev)->vendor);       /* Vendor */
+                    ide_padstr8(dev->buffer + 16, 16, rdisk_inquiry_identity(dev)->model);      /* Product */
+                    ide_padstr8(dev->buffer + 32, 4, rdisk_inquiry_identity(dev)->revision);    /* Revision */
 
-                if (dev->drv->type == RDISK_TYPE_ZIP_250) {
-                    /* Product */
-                    ide_padstr8(dev->buffer + 16, 16, "ZIP 250         ");
-                    /* Revision */
-                    ide_padstr8(dev->buffer + 32, 4, "42.S");
-                    /* Date? */
-                    if (max_len >= 44)
-                        ide_padstr8(dev->buffer + 36, 8, "08/08/01");
-                    if (max_len >= 122)
-                        ide_padstr8(dev->buffer + 96, 26, "(c) Copyright IOMEGA 2000 "); /* Copyright string */
-                } else if (dev->drv->type == RDISK_TYPE_ZIP_100) {
-                    /* Product */
-                    ide_padstr8(dev->buffer + 16, 16, "ZIP 100         ");
-                    /* Revision */
-                    ide_padstr8(dev->buffer + 32, 4, "E.08");
-                } else if (dev->drv->type == RDISK_TYPE_JAZ_2GB) {
-                    ide_padstr8(dev->buffer + 16, 16, "jaz 2GB         ");
-                    ide_padstr8(dev->buffer + 32, 4, "E.17");
-                } else if (dev->drv->type == RDISK_TYPE_JAZ_1GB) {
-                    ide_padstr8(dev->buffer + 16, 16, "jaz 1GB         ");
-                    ide_padstr8(dev->buffer + 32, 4, "H.72");
-                } else if (dev->drv->type == RDISK_TYPE_SYJET_1_5GB) {
-                    if (dev->drv->bus_type == RDISK_BUS_SCSI) {
-                        /* Real SCSI SyJet-S (Aaru reports 327, 328, 329). */
-                        ide_padstr8(dev->buffer + 16, 16, "SyJet-S         ");
-                        ide_padstr8(dev->buffer + 32, 4, SYJET_S_REV);
-                    } else {
-                        /* Product */
-                        ide_padstr8(dev->buffer + 16, 16, "SyJet           ");
-                        /* Revision - not confirmed real, see rdisk.h comment. */
-                        ide_padstr8(dev->buffer + 32, 4, "1.06");
+                    /* The Zip 250 and Zip 750 also carry a build date at 36 and a copyright string at 96. */
+                    if (dev->drv->type == RDISK_TYPE_ZIP_250) {
+                        /* Date? */
+                        if (max_len >= 44)
+                            ide_padstr8(dev->buffer + 36, 8, "08/08/01");
+                        if (max_len >= 122)
+                            ide_padstr8(dev->buffer + 96, 26, "(c) Copyright IOMEGA 2000 "); /* Copyright string */
+                    } else if (dev->drv->type == RDISK_TYPE_ZIP_750) {
+                        /* Real USB Zip 750 (ZuluIDE issue 39) */
+                        if (max_len >= 44)
+                            ide_padstr8(dev->buffer + 36, 8, "08/27/02");
+                        if (max_len >= 122)
+                            ide_padstr8(dev->buffer + 96, 26, "(c) Copyright IOMEGA 2002 ");
                     }
-                } else if (dev->drv->type == RDISK_TYPE_SPARQ_1GB) {
-                    /* Product */
-                    ide_padstr8(dev->buffer + 16, 16, "SparQ           ");
-                    /* Revision - not confirmed real, see rdisk.h comment. */
-                    ide_padstr8(dev->buffer + 32, 4, "1.03");
-                } else if (dev->drv->type == RDISK_TYPE_SUPERDISK_120) {
-                    ide_padstr8(dev->buffer + 16, 16, SUPERDISK_120_PRODUCT);
-                    ide_padstr8(dev->buffer + 32, 4, SUPERDISK_120_REV);
-                } else if (dev->drv->type == RDISK_TYPE_SUPERDISK_240) {
-                    ide_padstr8(dev->buffer + 16, 16, SUPERDISK_240_PRODUCT);
-                    ide_padstr8(dev->buffer + 32, 4, SUPERDISK_240_REV);
-                } else if (dev->drv->type == RDISK_TYPE_ZIP_750) {
-                    /* Real USB Zip 750 (ZuluIDE issue 39): IOMEGA / ZIP 750 / 78.a, like the Zip 250
-                       it carries a build date at 36 and a copyright string at 96. */
-                    ide_padstr8(dev->buffer + 16, 16, "ZIP 750         ");
-                    ide_padstr8(dev->buffer + 32, 4, ZIP_750_REV);
-                    if (max_len >= 44)
-                        ide_padstr8(dev->buffer + 36, 8, "08/27/02");
-                    if (max_len >= 122)
-                        ide_padstr8(dev->buffer + 96, 26, "(c) Copyright IOMEGA 2002 ");
-                } else if (dev->drv->type == RDISK_TYPE_CLIK_40) {
-                    /* Aaru report 50: IOMEGA / Clik! 40 CZ / 30cJ */
-                    ide_padstr8(dev->buffer + 16, 16, "Clik! 40 CZ     ");
-                    ide_padstr8(dev->buffer + 32, 4, "30cJ");
-                } else if (dev->drv->type == RDISK_TYPE_HIFD_200) {
-                    /* Aaru report 118: SONY / HiFD / 1264 */
-                    ide_padstr8(dev->buffer + 16, 16, "HiFD            ");
-                    ide_padstr8(dev->buffer + 32, 4, "1264");
-                } else if (dev->drv->type == RDISK_TYPE_FLOPTICAL_20) {
-                    /* Aaru report 258: INSITE / I325VM        *F / 0387 (the spaces are in the raw field) */
-                    ide_padstr8(dev->buffer + 16, 16, "I325VM        *F");
-                    ide_padstr8(dev->buffer + 32, 4, "0387");
-                } else if (dev->drv->type == RDISK_TYPE_BERNOULLI_90) {
-                    /* Aaru report 186: IOMEGA / BETA90 / 1.4 */
-                    ide_padstr8(dev->buffer + 16, 16, "BETA90          ");
-                    ide_padstr8(dev->buffer + 32, 4, "1.4");
-                } else if (dev->drv->type == RDISK_TYPE_BERNOULLI_150) {
-                    /* Aaru report 202: IOMEGA / BETA150 / T.47 */
-                    ide_padstr8(dev->buffer + 16, 16, "BETA150         ");
-                    ide_padstr8(dev->buffer + 32, 4, "T.47");
-                } else if (dev->drv->type == RDISK_TYPE_BERNOULLI_230) {
-                    /* Aaru report 311: IOMEGA / BETA230 / 2.02 */
-                    ide_padstr8(dev->buffer + 16, 16, "BETA230         ");
-                    ide_padstr8(dev->buffer + 32, 4, "2.02");
-                } else if (dev->drv->type == RDISK_TYPE_ORB_2_2GB) {
-                    /* Aaru report 200: "CWS ORB2" / "-SE U ID 0" / D01K */
-                    ide_padstr8(dev->buffer + 16, 16, "-SE U ID 0      ");
-                    ide_padstr8(dev->buffer + 32, 4, "D01K");
-                } else if (dev->drv->type == RDISK_TYPE_SQ5200C) {
-                    /* Aaru report 197: SyQuest / SQ5200C / 3CE4 */
-                    ide_padstr8(dev->buffer + 16, 16, "SQ5200C         ");
-                    ide_padstr8(dev->buffer + 32, 4, "3CE4");
-                } else if (dev->drv->type == RDISK_TYPE_SQ3105S) {
-                    /* Aaru report 196: SyQuest / SQ3105S / 1_21 */
-                    ide_padstr8(dev->buffer + 16, 16, "SQ3105S         ");
-                    ide_padstr8(dev->buffer + 32, 4, "1_21");
-                } else if (dev->drv->type == RDISK_TYPE_EZ230S) {
-                    /* Aaru report 195: SyQuest / EZ230S / 7220 */
-                    ide_padstr8(dev->buffer + 16, 16, "EZ230S          ");
-                    ide_padstr8(dev->buffer + 32, 4, "7220");
-                } else if (dev->drv->type == RDISK_TYPE_UHD144) {
-                    /* "Caleb LS-120", no firmware revision shown (msfn.org thread on the Caleb UHD144). */
-                    ide_padstr8(dev->buffer + 16, 16, "LS-120          ");
-                    ide_padstr8(dev->buffer + 32, 4, "");
                 } else {
+                    /* The generic removable disk. */
                     ide_padstr8(dev->buffer + 8, 8,
                                 EMU_NAME);          /* Vendor */
                     ide_padstr8(dev->buffer + 16, 16,
@@ -3430,13 +3224,37 @@ rdisk_zip_250_identify(const ide_t *ide, const int ide_has_dma)
 static void
 rdisk_superdisk_identify(const ide_t *ide, const int ide_has_dma, const uint32_t type)
 {
-    if (type == RDISK_TYPE_SUPERDISK_240) {
-        ide_padstr((char *) (ide->buffer + 23), SUPERDISK_240_FW, 8);          /* Firmware */
-        ide_padstr((char *) (ide->buffer + 27), SUPERDISK_240_ATA_MODEL, 40);  /* Model */
-    } else {
-        ide_padstr((char *) (ide->buffer + 23), SUPERDISK_120_FW, 8);          /* Firmware */
-        ide_padstr((char *) (ide->buffer + 27), SUPERDISK_120_ATA_MODEL, 40);  /* Model */
+    const char *model;
+    const char *firmware;
+
+    /* ATA model and firmware of each SuperDisk model.  Only the LS-120 VER5 (Aaru report 66) is a real
+       IDENTIFY dump (its internal spacing is inferred from its INQUIRY); the others are derived from the
+       INQUIRY strings or, for the Imation ones, from the original table. */
+    switch (type) {
+        case RDISK_TYPE_SUPERDISK_120_VER5:
+            model    = "LS-120 VER5   00 UHD Floppy";
+            firmware = "F523M5A9";
+            break;
+        case RDISK_TYPE_SUPERDISK_120_IMATION:
+            model    = "SUPERDISK 120 ATAPI";
+            firmware = "04";
+            break;
+        case RDISK_TYPE_SUPERDISK_240_IMATION:
+            model    = "SUPERDISK  240       ATAPI";
+            firmware = "04";
+            break;
+        case RDISK_TYPE_SUPERDISK_240:
+            model    = "LS-120/240    00";
+            firmware = "K047";
+            break;
+        default:
+            model    = "LS-120 COSM   04";
+            firmware = "0270";
+            break;
     }
+
+    ide_padstr((char *) (ide->buffer + 23), firmware, 8);    /* Firmware */
+    ide_padstr((char *) (ide->buffer + 27), model, 40);      /* Model */
 
     if (ide_has_dma) {
         ide->buffer[80] = 0x70;    /* Supported ATA versions : ATA/ATAPI-4 ATA/ATAPI-6 */
@@ -3613,7 +3431,7 @@ rdisk_identify(const ide_t *ide, const int ide_has_dma)
         rdisk_jaz_1gb_identify(ide, ide_has_dma);
     else if (rdisk_drives[rdisk->id].type == RDISK_TYPE_JAZ_2GB)
         rdisk_jaz_2gb_identify(ide, ide_has_dma);
-    else if (rdisk_drives[rdisk->id].type == RDISK_TYPE_SYJET_1_5GB)
+    else if (IS_SYJET(rdisk_drives[rdisk->id].type))
         rdisk_syjet_identify(ide, ide_has_dma);
     else if (rdisk_drives[rdisk->id].type == RDISK_TYPE_SPARQ_1GB)
         rdisk_sparq_identify(ide, ide_has_dma);
