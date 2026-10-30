@@ -150,7 +150,7 @@ static uint64_t bernoulli_150_mode_sense_page_flags = (GPMODEP_R_W_ERROR_PAGE | 
 #define SUPERDISK_MEDIUM_TYPES_PAGE 0x0b    /* Medium Types Supported */
 #define SUPERDISK_RBAC_PAGE         0x1b    /* Removable Block Access Capabilities */
 /* The real LS-120 (Aaru report 66) has page 3, the real LS-240 (report 67) has page 0x1b instead. */
-static uint64_t superdisk_120_mode_sense_page_flags = (GPMODEP_R_W_ERROR_PAGE | GPMODEP_FORMAT_DEVICE_PAGE |
+static uint64_t superdisk_120_mode_sense_page_flags = (GPMODEP_UNIT_ATN_PAGE | GPMODEP_R_W_ERROR_PAGE | GPMODEP_FORMAT_DEVICE_PAGE |
                                                        GPMODEP_FLEXIBLE_DISK_PAGE | GPMODEP_CACHING_PAGE |
                                                        (1ULL << SUPERDISK_MEDIUM_TYPES_PAGE) |
                                                        GPMODEP_ALL_PAGES);
@@ -1534,6 +1534,42 @@ rdisk_mode_sense_read(const rdisk_t *dev, const uint8_t pgctl,
     return 0;
 }
 
+/* The "medium type" byte of the MODE SENSE parameter header (byte 1 of the 6-byte form, byte 2 of the
+   10-byte form).  Real SuperDisk and HiFD drives report the type of the medium that is loaded here, and
+   Matsushita's SuperDisk format utility (MKELSFMT.EXE, through MKEDEVIO.DLL) refuses to see a drive unless
+   this byte is non-zero ("No SuperDisk drive is connected to your computer, or no disk is in the drive").
+   The codes are the "Type" values of the media in Aaru device reports 66 and 67 (LS-120, LS-240) and 118
+   (HiFD).  Empty drive: 0x00 (no medium).  Drives whose real value was not reported (Zip, Jaz, Clik!,
+   Floptical, UHD144...) keep reporting 0x00, as Aaru shows for the Iomega ones. */
+static uint8_t
+rdisk_mode_sense_medium_type(const rdisk_t *dev)
+{
+    if ((dev->drv->fp == NULL) ||
+        !(IS_SUPERDISK(dev->drv->type) || (dev->drv->type == RDISK_TYPE_HIFD_200)))
+        return 0x00;
+
+    switch (dev->drv->medium_type) {
+        case RDISK_MEDIUM_SUPERDISK_120:
+            return 0x31;    /* SuperDisk 120MB (Aaru reports 66, 67) */
+        case RDISK_MEDIUM_SUPERDISK_240:
+            return 0x32;    /* SuperDisk 240MB (Aaru report 67) */
+        case RDISK_MEDIUM_FD_2HD_NEC:
+            return 0x22;    /* NEC 2HD 1.2 MB (Aaru reports 66, 67) */
+        case RDISK_MEDIUM_FD_720K:
+            return 0x11;    /* MFD-2DD 720 KB (Aaru reports 66, 67) */
+        case RDISK_MEDIUM_FD_1440K:
+            return 0x24;    /* MFD-2HD 1.44 MB (Aaru reports 66, 67) */
+        case RDISK_MEDIUM_FD32MB:
+            return 0x28;    /* Imation FD32MB (Aaru report 67) */
+        case RDISK_MEDIUM_HIFD_200:
+            return 0x42;    /* HiFD (Aaru report 118) */
+        case RDISK_MEDIUM_HIFD_150:
+            return 0x40;    /* ESTIMATED: page 0B of report 118 lists 0x40 and 0x42 */
+        default:
+            return 0x00;
+    }
+}
+
 static uint32_t
 rdisk_mode_sense(const rdisk_t *dev, uint8_t *buf, uint32_t pos,
                uint8_t page, const uint8_t block_descriptor_len)
@@ -2658,7 +2694,7 @@ rdisk_command(scsi_common_t *sc, const uint8_t *cdb)
                                                       block_desc);
                     len            = MIN(len, alloc_length);
                     dev->buffer[0] = len - 1;
-                    dev->buffer[1] = 0;
+                    dev->buffer[1] = rdisk_mode_sense_medium_type(dev);
                     if (block_desc)
                         dev->buffer[3] = 8;
                 } else {
@@ -2667,7 +2703,7 @@ rdisk_command(scsi_common_t *sc, const uint8_t *cdb)
                     len            = MIN(len, alloc_length);
                     dev->buffer[0] = (len - 2) >> 8;
                     dev->buffer[1] = (len - 2) & 255;
-                    dev->buffer[2] = 0;
+                    dev->buffer[2] = rdisk_mode_sense_medium_type(dev);
                     if (block_desc) {
                         dev->buffer[6] = 0;
                         dev->buffer[7] = 8;
@@ -3248,8 +3284,12 @@ rdisk_superdisk_identify(const ide_t *ide, const int ide_has_dma, const uint32_t
             firmware = "K047";
             break;
         default:
-            model    = "LS-120 COSM   04";
-            firmware = "0270";
+            model    = "LS-120 COSM   05              UHD Floppy"; /* CSMO? */
+            firmware = "0512C105";
+#if 0
+            model    = "LS-120 COSM   04              UHD Floppy";
+            firmware = "0270M09T";
+#endif
             break;
     }
 

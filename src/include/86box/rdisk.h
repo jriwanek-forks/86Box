@@ -187,47 +187,48 @@ typedef struct rdisk_type_t {
     const char *name;
     uint32_t    sectors;
     uint16_t    bytes_per_sector;
+    uint8_t     medium_type_code;
 } rdisk_type_t;
 
 #define KNOWN_RDISK_TYPES RDISK_MEDIUM_COUNT
 static const rdisk_type_t rdisk_types[KNOWN_RDISK_TYPES] = {
-    { "ZIP 100",       ZIP_SECTORS,           512 },
-    { "ZIP 250",       ZIP_250_SECTORS,       512 },
-    { "Jaz 1 GB",      JAZ_1GB_SECTORS,       512 },
-    { "Jaz 2 GB",      JAZ_2GB_SECTORS,       512 },
-    { "Syjet",         SYJET_SECTORS,         512 },
-    { "Sparq",         SPARQ_SECTORS,         512 },
-    { "LS-120",        SUPERDISK_SECTORS,     512 },
-    { "LS-240",        SUPERDISK_240_SECTORS, 512 },
-    { "Clik!",         CLIK_SECTORS,          512 },
-    { "ZIP 750",       ZIP_750_SECTORS,       512 },
-    { "HiFD",          HIFD_SECTORS,          512 },
-    { "Floptical",     FLOPTICAL_SECTORS,     512 },
-    { "Bernoulli 90",  BERNOULLI_90_SECTORS,  512 },
-    { "Bernoulli 150", BERNOULLI_150_SECTORS, 512 },
-    { "Bernoulli 230", BERNOULLI_230_SECTORS, 512 },
+    { "ZIP 100",       ZIP_SECTORS,           512, 0x00 },
+    { "ZIP 250",       ZIP_250_SECTORS,       512, 0x00 },
+    { "Jaz 1 GB",      JAZ_1GB_SECTORS,       512, 0x00 },
+    { "Jaz 2 GB",      JAZ_2GB_SECTORS,       512, 0x00 },
+    { "Syjet",         SYJET_SECTORS,         512, 0x00 },
+    { "Sparq",         SPARQ_SECTORS,         512, 0x00 },
+    { "LS-120",        SUPERDISK_SECTORS,     512, 0x31 },
+    { "LS-240",        SUPERDISK_240_SECTORS, 512, 0x32 },
+    { "Clik!",         CLIK_SECTORS,          512, 0x00 },
+    { "ZIP 750",       ZIP_750_SECTORS,       512, 0x00 },
+    { "HiFD",          HIFD_SECTORS,          512, 0x42 },
+    { "Floptical",     FLOPTICAL_SECTORS,     512, 0x00 },
+    { "Bernoulli 90",  BERNOULLI_90_SECTORS,  512, 0x00 },
+    { "Bernoulli 150", BERNOULLI_150_SECTORS, 512, 0x00 },
+    { "Bernoulli 230", BERNOULLI_230_SECTORS, 512, 0x00 },
     /* The media up to here are the own media of the first drive types, in drive type order (media index =
        drive type - 1); default_media in rdisk_drive_types[] is what links a drive to its medium. */
-    { "ORB 2.2 GB",    ORB_2_2GB_SECTORS,     512 },
-    { "SQ2000",        SQ2000_SECTORS,        512 },
-    { "SQ310",         SQ310_SECTORS,         512 },
-    { "EZFlyer 230",   EZFLYER_230_SECTORS,   512 },
-    { "UHD144",        UHD144_SECTORS,        512 },
+    { "ORB 2.2 GB",    ORB_2_2GB_SECTORS,     512, 0x00 },
+    { "SQ2000",        SQ2000_SECTORS,        512, 0x00 },
+    { "SQ310",         SQ310_SECTORS,         512, 0x00 },
+    { "EZFlyer 230",   EZFLYER_230_SECTORS,   512, 0x00 },
+    { "UHD144",        UHD144_SECTORS,        512, 0x00 },
     /* Media that are only ever read by other drives. */
-    { "SQ400",         SQ400_SECTORS,         512 },
-    { "SQ800",         SQ800_SECTORS,         512 },
-    { "EZ135",         EZ135_SECTORS,         512 },
-    { "2HD (1.2 MB)",  FD_2HD_NEC_SECTORS,   1024 },
-    { "720 KB",        FD_720K_SECTORS,       512 },
-    { "1.44 MB",       FD_1440K_SECTORS,      512 },
-    { "FD32MB",        FD32MB_SECTORS,        512 },
-    { "HiFD 150",      HIFD_150_SECTORS,      512 },
-    { "Bernoulli 10",  BERNOULLI_10_SECTORS,  512 },
-    { "Bernoulli 20",  BERNOULLI_20_SECTORS,  512 },
-    { "Bernoulli 35",  BERNOULLI_35_SECTORS,  512 },
-    { "Bernoulli 44",  BERNOULLI_44_SECTORS,  512 },
-    { "Bernoulli 65",  BERNOULLI_65_SECTORS,  512 },
-    { "Bernoulli 105", BERNOULLI_105_SECTORS, 512 }
+    { "SQ400",         SQ400_SECTORS,         512, 0x00 },
+    { "SQ800",         SQ800_SECTORS,         512, 0x00 },
+    { "EZ135",         EZ135_SECTORS,         512, 0x00 },
+    { "2HD (1.2 MB)",  FD_2HD_NEC_SECTORS,   1024, 0x22 },
+    { "720 KB",        FD_720K_SECTORS,       512, 0x11 },
+    { "1.44 MB",       FD_1440K_SECTORS,      512, 0x24 },
+    { "FD32MB",        FD32MB_SECTORS,        512, 0x28 },
+    { "HiFD 150",      HIFD_150_SECTORS,      512, 0x40 },
+    { "Bernoulli 10",  BERNOULLI_10_SECTORS,  512, 0x00 },
+    { "Bernoulli 20",  BERNOULLI_20_SECTORS,  512, 0x00 },
+    { "Bernoulli 35",  BERNOULLI_35_SECTORS,  512, 0x00 },
+    { "Bernoulli 44",  BERNOULLI_44_SECTORS,  512, 0x00 },
+    { "Bernoulli 65",  BERNOULLI_65_SECTORS,  512, 0x00 },
+    { "Bernoulli 105", BERNOULLI_105_SECTORS, 512, 0x00 }
 };
 
 enum {
@@ -313,7 +314,7 @@ static const rdisk_drive_type_t rdisk_drive_types[KNOWN_RDISK_DRIVE_TYPES] = {
     /* The SuperDisk drives also read 720 KB, 1.2 MB (NEC 2HD) and 1.44 MB floppies, and the LS-240
        also the 32 MB (FD32MB) format (Aaru reports 66 and 67).  This LS-120 is a Matsushita LS-120 COSM 04,
        as taken from the original code; there are two more LS-120 models and one Imation LS-240 at the end. */
-    { "MATSHITA", "LS-120 COSM   04", "0270", RDISK_MEDIUM_SUPERDISK_120, RDISK_DRIVE_TYPE_ATAPI, { 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    { "MATSHITA", "LS-120 COSM   05", "0270", RDISK_MEDIUM_SUPERDISK_120, RDISK_DRIVE_TYPE_ATAPI, { 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0 } },
     /* Aaru report 67 (behind a USB bridge; its ATA IDENTIFY strings are derived from these). */
     { "MATSHITA", "LS-120/240    00", "K047", RDISK_MEDIUM_SUPERDISK_240, RDISK_DRIVE_TYPE_ATAPI, { 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0 } },
     /* From Aaru device report 50, a real ATAPI Clik! 40 CZ. */
