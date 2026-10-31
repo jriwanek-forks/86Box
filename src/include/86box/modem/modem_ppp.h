@@ -91,6 +91,7 @@ typedef struct ppp_mppe_state_t {
 #define CCP_OPT_BSD        PPP_CCP_METHOD_BSD
 #define CCP_OPT_LZS_DCP    PPP_CCP_METHOD_LZS_DCP
 #define CCP_OPT_DEFLATE    PPP_CCP_METHOD_DEFLATE
+#define CCP_OPT_DEFLATE_DRAFT 24 /* Option number used by the original Deflate draft (pppd: CI_DEFLATE_DRAFT); same 4-byte format as option 26 */
 #define CCP_OPT_V44        PPP_CCP_METHOD_V44
 #define CCP_OPT_NT31RAS    PPP_CCP_METHOD_NT31RAS
 
@@ -354,29 +355,27 @@ struct ppp_mppp_bundle_t;
 #define PPP_CCP_METHOD_NONE           0   /* OUI-based / Proprietary Compression (RFC 1962) */
 #define PPP_CCP_METHOD_PREDICTOR1     1   /* Predictor Type 1 (RFC 1978) */
 #define PPP_CCP_METHOD_PREDICTOR2     2   /* Predictor Type 2 (RFC 1978) */
-#define PPP_CCP_METHOD_PUDDLEJUMPER   3   /* Puddle Jumper (RFC 1962) - Not yet used */
-#define PPP_CCP_METHOD_HPPPC         16   /* Hewlett-Packard Packet-by-Packet Compression (RFC 1962) - Not yet implemented */
+/* CCP option numbers follow the IANA "PPP CCP Configuration Option Types"
+   registry (RFC 1962, RFC 3818). 4-15, 22, 25 and 28-254 are unassigned there.
+   Values marked "Not implemented" have no public algorithm specification, so
+   there is nothing to build a codec from. */
+#define PPP_CCP_METHOD_PUDDLEJUMPER   3   /* Puddle Jumper: registry row only, no specification found - Not implemented */
+#define PPP_CCP_METHOD_HPPPC         16   /* Hewlett-Packard PPC: only an expired 1993 draft, algorithm unspecified - Not implemented */
 #define PPP_CCP_METHOD_LZS           17   /* Stac Electronics LZS (RFC 1974) */
 #define PPP_CCP_METHOD_MPPE          18   /* Microsoft Point-to-Point Encryption / Compression (RFC 2118 / RFC 3078) */
 #define PPP_CCP_METHOD_MPPC          0xFF /* Internal MPPC codec identifier; wire negotiation uses option 18 */
-#define PPP_CCP_METHOD_GANDALF_FZA   19   /* Gandalf FZA Compression (RFC 1962) - Not yet implemented */
-#define PPP_CCP_METHOD_V42BIS        20   /* V.42bis compression, draft assignment (RFC 1962) - Not yet implemented */
+#define PPP_CCP_METHOD_GANDALF_FZA   19   /* Gandalf FZA (RFC 1993): algorithm not in the RFC, needs a reliable link and
+                                             Self-Describing-Pad, licensed - Not implemented */
+#define PPP_CCP_METHOD_V42BIS        20   /* V.42bis: no PPP specification exists to interoperate with - Not implemented */
 #define PPP_CCP_METHOD_BSD           21   /* BSD Compress / LZW (RFC 1977) */
-#define PPP_CCP_METHOD_MZS           22   /* Magnalink Variable Resource Compression / MZS (RFC 1962) - Not yet implemented */
-#define PPP_CCP_METHOD_DCP           23   /* DCP Data Compression Protocol (RFC 1962) */
+#define PPP_CCP_METHOD_DCP           23   /* LZS-DCP (RFC 1967) */
 #define PPP_CCP_METHOD_LZS_DCP       23   /* Alias for PPP_CCP_METHOD_DCP */
-#define PPP_CCP_METHOD_DEC           24   /* Digital Equipment Corporation Data Compression (RFC 1962) - Not yet implemented */
-#define PPP_CCP_METHOD_deflate_draft 25   /* Early Deflate draft designation - Not yet implemented */
+#define PPP_CCP_METHOD_MVRCA         24   /* MVRCA / Magnalink (RFC 1975): algorithm not public - Not implemented.
+                                             The same number was used by the original Deflate draft; see CCP_OPT_DEFLATE_DRAFT */
 #define PPP_CCP_METHOD_DEFLATE       26   /* Deflate Compression (RFC 1979) */
-#define PPP_CCP_METHOD_V44           27   /* ITU-T V.44 Packet Method Compression (RFC 3051) */
-#define PPP_CCP_METHOD_V42BIS_ALT    28   /* V.42bis compression, formal assignment - Not yet implemented */
-#define PPP_CCP_METHOD_LZJH          29   /* Hughes Network Systems LZJH Compression - Not yet implemented */
-// 0x80 (128): Stac LZS alternative framing used across early WAN hardware (e.g., Ascend and Shiva routers) to handle LSB-first bit-ordering differences. (Check this is true)
-#define PPP_CCP_METHOD_LZS_ALT       0x80 /* Stac Electronics LZS alternative bit-order framing (Type 128) - Not yet implemented, check validity */
-// 0x81 (129): Microsoft legacy MPPC/MPPE negotiated via alternate option type field in early Windows dial-up client releases. (Check this is true)
-#define PPP_CCP_METHOD_MPPE_ALT      0x81 /* Microsoft MPPE/MPPC alternative framing (Type 129) - Not yet implemented, check validity */
-#define PPP_CCP_METHOD_LZS_EXTENDED  0x91 /* Stac LZS Extended / Ascend Proprietary (Type 145) */
-#define PPP_CCP_METHOD_NT31RAS      254   /* Microsoft Windows NT 3.1 RAS Proprietary Compression */
+#define PPP_CCP_METHOD_V44           27   /* ITU-T V.44 / LZJH Packet Method Compression (RFC 3051) */
+#define PPP_CCP_METHOD_LZS_EXTENDED  0x91 /* Internal identifier only: Stac LZS (option 17) negotiated with check mode 4 */
+#define PPP_CCP_METHOD_NT31RAS      254   /* Microsoft Windows NT 3.1 RAS proprietary compression; 254 is not an IANA assignment */
 
 #define PPP_RAS_SYN          0x16
 #define PPP_RAS_ETX          0x03

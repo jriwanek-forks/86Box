@@ -122,7 +122,7 @@ ccp_code_name(uint8_t code)
 static const char *
 ccp_option_name(uint8_t type, uint32_t value)
 {
-    if (type >= 28 && type <= 254)
+    if (type >= 28 && type <= 254 && type != CCP_OPT_NT31RAS)
         return "Unassigned CCP option";
 
     switch (type) {
@@ -150,7 +150,8 @@ ccp_option_name(uint8_t type, uint32_t value)
         case PPP_CCP_METHOD_V42BIS: return "V.42bis";
         case CCP_OPT_BSD:        return "BSD-Compress";
         case PPP_CCP_METHOD_DCP: return "LZS-DCP";
-        case PPP_CCP_METHOD_MZS: return "MVRCA (Magnalink)";
+        case PPP_CCP_METHOD_MVRCA: return "MVRCA (Magnalink) / Deflate (draft)";
+        case 22:
         case 25:                 return "Unassigned CCP option";
         case CCP_OPT_DEFLATE:    return "Deflate";
         case CCP_OPT_V44:        return "V.44/LZJH";
@@ -218,7 +219,7 @@ ccp_log_packet(ppp_ctx_t *ctx, const char *direction, const uint8_t *pkt, int to
                      (value & CCP_MPPE_56) ? "yes" : "no",
                      (value & CCP_MPPE_128) ? "yes" : "no",
                      (value & CCP_MPPE_STATELESS) ? "yes" : "no");
-        } else if (type == CCP_OPT_DEFLATE && option_len == 4) {
+        } else if ((type == CCP_OPT_DEFLATE || type == CCP_OPT_DEFLATE_DRAFT) && option_len == 4) {
             snprintf(details, sizeof(details), " window=0x%02X method=0x%02X",
                      pkt[pos + 2], pkt[pos + 3]);
         } else if (type == CCP_OPT_BSD && option_len == 3) {
@@ -718,10 +719,13 @@ ccp_handle_config_request(ppp_ctx_t *ctx, const uint8_t *pkt, int total)
             } else {
                 selected_method = PPP_CCP_METHOD_V44;
             }
-        } else if (pkt[pos] == CCP_OPT_DEFLATE && option_len == 4 && !saw_deflate
+        } else if ((pkt[pos] == CCP_OPT_DEFLATE || pkt[pos] == CCP_OPT_DEFLATE_DRAFT)
+                   && option_len == 4 && !saw_deflate
                    && pkt[pos + 2] == 0x78 && pkt[pos + 3] == 0
                    && selected_method == PPP_CCP_METHOD_NONE && ctx->mppe_min_bits == 0
             && ctx->ppp_compression != 0) {
+            /* The draft option number is accepted as Deflate and echoed back
+               unchanged in the Ack; we still request Deflate as option 26. */
             saw_deflate = true;
             selected_method = PPP_CCP_METHOD_DEFLATE;
         } else if (pkt[pos] == CCP_OPT_BSD && option_len == 3 && !saw_bsd) {
