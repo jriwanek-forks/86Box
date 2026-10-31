@@ -233,10 +233,11 @@ NewFloppyDialog::onCreate()
                 // Fetch the actual global rdisk_types index from the combobox item's user data
                 int typeIndex = ui->comboBoxSize->currentData().toInt();
                 uint32_t sectors = rdisk_types[typeIndex].sectors;
+                uint32_t sector_bytes = rdisk_types[typeIndex].bytes_per_sector;
 
                 std::atomic_bool res;
-                std::thread      t([this, &res, filename, fileType, sectors, &progress] {
-                    res = createRDiskSectorImage(filename, sectors, fileType, progress);
+                std::thread      t([this, &res, filename, fileType, sectors, sector_bytes, &progress] {
+                    res = createRDiskSectorImage(filename, sectors, sector_bytes, fileType, progress);
                 });
                 progress.exec();
                 t.join();
@@ -608,10 +609,9 @@ NewFloppyDialog::createSectorImage(const QString &filename, const disk_size_t &d
 }
 
 bool
-NewFloppyDialog::createRDiskSectorImage(const QString &filename, uint32_t total_sectors, FileType type, QProgressDialog &pbar)
+NewFloppyDialog::createRDiskSectorImage(const QString &filename, uint32_t total_sectors, uint32_t sector_bytes, FileType type, QProgressDialog &pbar)
 {
     uint64_t total_size    = 0;
-    const uint32_t sector_bytes = 512;
     uint16_t base          = 0x1000;
     uint64_t pbar_max      = 0;
 
@@ -642,6 +642,19 @@ NewFloppyDialog::createRDiskSectorImage(const QString &filename, uint32_t total_
 
     QByteArray bytes(1048576, 0);
     auto       empty = bytes.data();
+
+    /* The PC floppy formats a drive such as the LS-120 takes (640 KB, 720 KB, 1.2 MB, NEC 2HD, 1.44 MB, DMF)
+       get the same BPB as a floppy image of that size, from the floppy table.  MKELS120 only accepts a boot
+       sector whose BPB matches its profile for the medium (cluster size, root entries, media descriptor). */
+    const disk_size_t *fd = nullptr;
+    for (int k = 0; k < KNOWN_DISK_SIZES; k++) {
+        const disk_size_t &ds = disk_sizes[k];
+        if ((ds.sides <= 2) && ((uint32_t) (ds.sides * ds.tracks * ds.sectors) == total_sectors) &&
+            ((128u << ds.sector_len) == sector_bytes)) {
+            fd = &ds;
+            break;
+        }
+    }
 
     if (total_sectors == ZIP_SECTORS) {
         /* ZIP 100 */
@@ -768,10 +781,51 @@ NewFloppyDialog::createRDiskSectorImage(const QString &filename, uint32_t total_
 
         /* Root directory = 0x3FE00
         Data = 0x38200 */
+    } else if (fd != nullptr) {
+        /* PC floppy format: boot sector, FAT1 and FAT2 start markers. */
+        const uint16_t bps         = (uint16_t) sector_bytes;
+        const uint16_t res_sectors = 1;
+
+        empty[0x0000] = 0xEB;
+        empty[0x0001] = 0x3C;
+        empty[0x0002] = 0x90;
+        memcpy(&(empty[0x0003]), "86BOX", 5);
+        memset(&(empty[0x0008]), 0, 3);
+
+        *(uint16_t *) &(empty[0x000B]) = bps;
+        empty[0x000D]                  = (uint8_t) fd->spc;
+        *(uint16_t *) &(empty[0x000E]) = res_sectors;
+        empty[0x0010]                  = (uint8_t) fd->num_fats;
+        *(uint16_t *) &(empty[0x0011]) = (uint16_t) fd->root_dir_entries;
+        *(uint16_t *) &(empty[0x0013]) = (uint16_t) total_sectors;
+        empty[0x0015]                  = (uint8_t) fd->media_desc;
+        *(uint16_t *) &(empty[0x0016]) = (uint16_t) fd->spfat;
+        *(uint16_t *) &(empty[0x0018]) = (uint16_t) fd->sectors;
+        *(uint16_t *) &(empty[0x001A]) = (uint16_t) fd->sides;
+        *(uint32_t *) &(empty[0x001C]) = 0;
+        *(uint32_t *) &(empty[0x0020]) = 0;
+
+        empty[0x0024] = 0x00; /* Floppy drive number */
+        empty[0x0026] = 0x29; /* Boot signature, followed by a randomly-generated volume serial number. */
+        empty[0x0027] = random_generate();
+        empty[0x0028] = random_generate();
+        empty[0x0029] = random_generate();
+        empty[0x002A] = random_generate();
+
+        memset(&(empty[0x002B]), 0x20, 11);
+        memcpy(&(empty[0x0036]), "FAT12   ", 8);
+
+        *(uint16_t *) &(empty[0x01FE]) = 0xAA55;
+
+        for (int f = 0; f < fd->num_fats; f++) {
+            const uint32_t fat_offset = (res_sectors + (f * fd->spfat)) * bps;
+            empty[fat_offset]     = (uint8_t) fd->media_desc;
+            empty[fat_offset + 1] = 0xFF;
+            empty[fat_offset + 2] = 0xFF;
+        }
     } else if ((total_sectors == SUPERDISK_SECTORS) || (total_sectors == SUPERDISK_240_SECTORS) ||
-               (total_sectors == FD_720K_SECTORS)   || (total_sectors == FD_1440K_SECTORS)   ||
                (total_sectors == FD32MB_SECTORS)    || (total_sectors == EZ135_SECTORS)) {
-        /* Superfloppy Boot Sector (LBA 0) for LS-120, LS-240, standard floppies, and compatible media */
+        /* Superfloppy Boot Sector (LBA 0) for LS-120, LS-240 and compatible media */
         const uint16_t bpb_bytes_per_sec   = 512;
         const uint8_t  bpb_sec_per_cluster = (total_sectors == FD32MB_SECTORS) ? 4 :
                                              (total_sectors == SUPERDISK_SECTORS) ? 4 :
@@ -779,16 +833,17 @@ NewFloppyDialog::createRDiskSectorImage(const QString &filename, uint32_t total_
                                              (total_sectors == EZ135_SECTORS) ? 32 : 1;
         const uint16_t bpb_res_sectors     = 1;
         const uint8_t  bpb_num_fats        = 2;
-        const uint16_t bpb_root_entries    = (total_sectors == FD_720K_SECTORS || total_sectors == FD_1440K_SECTORS) ? 224 : 512;
-        const uint8_t  bpb_media           = (total_sectors == FD_720K_SECTORS) ? 0xF9 :
-                                             (total_sectors == FD_1440K_SECTORS) ? 0xF0 : 0xF8;
+        const uint16_t bpb_root_entries    = 512;
+        const uint8_t  bpb_media           = 0xF8;
         const uint16_t bpb_fat_size_16     = (total_sectors == SUPERDISK_SECTORS) ? 241 :
                                              (total_sectors == SUPERDISK_240_SECTORS) ? 230 :
                                              (total_sectors == FD32MB_SECTORS) ? 64 : 0;
-        const uint16_t bpb_sec_per_track   = (total_sectors == FD_720K_SECTORS) ? 9 :
-                                             (total_sectors == FD_1440K_SECTORS) ? 18 : 32;
-        const uint16_t bpb_heads           = (total_sectors == FD_720K_SECTORS || total_sectors == FD_1440K_SECTORS) ? 2 :
+        /* The geometry the drive reports in its mode pages (rdisk.c): LS-120 963 x 8 x 32, LS-240 262 x 32 x 56,
+           FD32MB 1024 x 2 x 32, EZ135 512 x 16 x 32. */
+        const uint16_t bpb_sec_per_track   = (total_sectors == SUPERDISK_240_SECTORS) ? 56 : 32;
+        const uint16_t bpb_heads           = (total_sectors == SUPERDISK_SECTORS) ? 8 :
                                              (total_sectors == SUPERDISK_240_SECTORS) ? 32 :
+                                             (total_sectors == FD32MB_SECTORS) ? 2 :
                                              (total_sectors == EZ135_SECTORS) ? 16 : 64;
         const uint32_t bpb_hidden_sec      = 0;
         const uint8_t  bpb_drive_num       = 0x00; // Might be 0x80 on EZ135 or others

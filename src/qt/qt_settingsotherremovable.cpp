@@ -321,7 +321,7 @@ SettingsOtherRemovable::SettingsOtherRemovable(QWidget *parent)
 
     Harddrives::populateRemovableBuses(ui->comboBoxRDiskBus->model());
     if ((ui->comboBoxRDiskBus->model()->rowCount() - 4) > 0)
-        ui->comboBoxRDiskBus->model()->removeRows(4, ui->comboBoxRDiskBus->model()->rowCount() - 3);
+        ui->comboBoxRDiskBus->model()->removeRows(4, ui->comboBoxRDiskBus->model()->rowCount() - 4);
     model = ui->comboBoxRDiskType->model();
     {
         Models::Batch typeRows(model);

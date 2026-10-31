@@ -49,6 +49,12 @@ static scsi_device_t lpt_rdisk_devices[PARALLEL_MAX];
 /*
    Table of all SCSI commands and their flags, needed for the new disc change /
    not ready handler.
+
+   LS-120 note (implementation specification, sections 3 and 7.2): MKELS120's function 42h media-status
+   operation issues a vendor-specific 12-byte CDB with opcode 24h.  Its device-side meaning (and its
+   data phase) has not been established, so it is deliberately NOT implemented here: it fails as an
+   illegal opcode, and the CDB is in the log (see rdisk_command()) for anyone capturing it.  Do not
+   give it a guessed standard SCSI meaning.
  */
 const uint8_t rdisk_command_flags[0x100] = {
     [0x00]          = IMPLEMENTED | CHECK_READY,
@@ -90,6 +96,10 @@ const uint8_t rdisk_command_flags[0x100] = {
 #define IS_SUPERDISK_240(t) (((t) == RDISK_TYPE_SUPERDISK_240) || ((t) == RDISK_TYPE_SUPERDISK_240_IMATION))
 #define IS_SUPERDISK(t)     (IS_SUPERDISK_120(t) || IS_SUPERDISK_240(t))
 #define IS_SYJET(t)         (((t) == RDISK_TYPE_SYJET_1_5GB) || ((t) == RDISK_TYPE_SYJET_S))
+
+/* SENSE KEY: DATA PROTECT.  The LS-120 reports write-protected media with it (MKELS120 maps it, with
+   ASC 27h, to its write-protect result; see rdisk_write_protected()). */
+#define RDISK_SENSE_DATA_PROTECT 0x07
 #define IS_BERNOULLI(t) ((t == RDISK_TYPE_BERNOULLI_90) || (t == RDISK_TYPE_BERNOULLI_150) || (t == RDISK_TYPE_BERNOULLI_230))
 
 /* Drive types that only belong on the SCSI bus (drive_type in rdisk.h: the Floptical and the Bernoulli
@@ -952,6 +962,56 @@ rdisk_medium_is_read_only(const uint32_t type, const uint32_t medium)
             (medium == RDISK_MEDIUM_BERNOULLI_44));
 }
 
+/* The number of blocks the drive reports for a medium.  It is the size of the image, except for the
+   640 KB floppy: the LS-120 presents it as a 720 KB medium of 1440 blocks (see rdisk.h). */
+static uint32_t
+rdisk_medium_blocks(const uint32_t medium)
+{
+    return (medium == RDISK_MEDIUM_FD_640K) ? FD_640K_BLOCKS : rdisk_types[medium].sectors;
+}
+
+/* Is the medium in the drive a 640 KB floppy? */
+static int
+rdisk_is_640k(const rdisk_t *dev)
+{
+    return (dev->drv->fp != NULL) && (dev->drv->medium_type == RDISK_MEDIUM_FD_640K);
+}
+
+/* Where in the image is a block of the drive's block space?
+   A 640 KB floppy has 8 sectors per track on a medium that is addressed with 9, so every 9th device block
+   (LBA % 9 == 8) is absent and the others map to image sector LBA - LBA / 9 (the inverse of MKELS120's
+   device LBA = S + S / 8, LS-120 specification, section 6.2).  Returns 0 for an absent block, which has no
+   offset: it reads as zeroes and writes to it are dropped (MKELS120 never addresses one; this only keeps a
+   transfer that spans one, such as a VERIFY of a whole track, from failing). */
+static int
+rdisk_block_offset(const rdisk_t *dev, const uint32_t lba, uint64_t *offs)
+{
+    uint32_t pos = lba;
+
+    if (rdisk_is_640k(dev)) {
+        if ((lba % 9) == 8)
+            return 0;
+
+        pos = lba - (lba / 9);
+    }
+
+    *offs = dev->drv->base + ((uint64_t) pos * rdisk_sector_size(dev));
+    return 1;
+}
+
+/* Does the transfer the command asks for (sector_pos and sector_len) lie outside the medium?  Every drive
+   checks its start; the LS-120 also checks its end, as the DOS driver's VERIFY(10) of a track range
+   relies on an error for a range that runs past the end (LS-120 specification, tests ERR-03, VER-02). */
+static int
+rdisk_transfer_out_of_range(const rdisk_t *dev)
+{
+    if (dev->sector_pos >= dev->drv->medium_size)
+        return 1;
+
+    return IS_SUPERDISK_120(dev->drv->type) &&
+           (((uint64_t) dev->sector_pos + dev->sector_len) > dev->drv->medium_size);
+}
+
 #ifdef ENABLE_RDISK_LOG
 int rdisk_do_log = ENABLE_RDISK_LOG;
 
@@ -1061,7 +1121,7 @@ rdisk_load(const rdisk_t *dev, const char *fn, const int skip_insert)
             if (ret) {
                 /* The sector count is in the medium's own sector size (bytes_per_sector). */
                 dev->drv->medium_type = (uint32_t) medium;
-                dev->drv->medium_size = rdisk_types[medium].sectors;
+                dev->drv->medium_size = rdisk_medium_blocks((uint32_t) medium);
 
                 if (rdisk_medium_is_read_only(rdisk_drive_type_of(dev), (uint32_t) medium))
                     dev->drv->read_only = 1;
@@ -1396,11 +1456,24 @@ rdisk_floppy_media_geometry(const rdisk_t *dev, const uint8_t page, const uint8_
             rpm  = 300;
             spt  = 18;
             break;
+        case RDISK_MEDIUM_FD_640K:     /* 640 KB: addressed as a 720 KB medium, 9 sectors per track */
         case RDISK_MEDIUM_FD_720K:     /* 720 KB */
             rate = 250;
             cyl  = 80;
             rpm  = 300;
             spt  = 9;
+            break;
+        case RDISK_MEDIUM_FD_1200K:    /* 1.2 MB, 15 sectors per track (ESTIMATED: standard 5.25" HD rates) */
+            rate = 500;
+            cyl  = 80;
+            rpm  = 360;
+            spt  = 15;
+            break;
+        case RDISK_MEDIUM_FD_DMF:      /* DMF, 21 sectors per track (ESTIMATED) */
+            rate = 500;
+            cyl  = 80;
+            rpm  = 300;
+            spt  = 21;
             break;
         case RDISK_MEDIUM_FD_2HD_NEC:  /* 1.2 MB, 1024-byte sectors */
             rate = 500;
@@ -1557,6 +1630,14 @@ rdisk_mode_sense_medium_type(const rdisk_t *dev)
             return 0x22;    /* NEC 2HD 1.2 MB (Aaru reports 66, 67) */
         case RDISK_MEDIUM_FD_720K:
             return 0x11;    /* MFD-2DD 720 KB (Aaru reports 66, 67) */
+        case RDISK_MEDIUM_FD_640K:
+            /* The drive cannot tell a 640 KB floppy from a 720 KB one: MKELS120 sees 11h and turns it into its
+               640 KB profile (12h) when the BPB says 8 sectors per track (LS-120 specification, section 5). */
+            return 0x11;
+        case RDISK_MEDIUM_FD_1200K:
+            return 0x23;    /* MKELS120 profile 23h, from the LS-120 specification (section 5) */
+        case RDISK_MEDIUM_FD_DMF:
+            return 0x26;    /* MKELS120 profile 26h (DMF), from the LS-120 specification (section 5) */
         case RDISK_MEDIUM_FD_1440K:
             return 0x24;    /* MFD-2HD 1.44 MB (Aaru reports 66, 67) */
         case RDISK_MEDIUM_FD32MB:
@@ -1899,7 +1980,10 @@ rdisk_not_ready(rdisk_t *dev)
 static void
 rdisk_write_protected(rdisk_t *dev)
 {
-    rdisk_sense_key = SENSE_UNIT_ATTENTION;
+    /* The LS-120 reports DATA PROTECT / ASC 27h, the only pair that MKELS120 translates to its write-protect
+       result (LS-120 specification, section 8.1, test ERR-02).  The other drives keep the UNIT ATTENTION they
+       always reported. */
+    rdisk_sense_key = IS_SUPERDISK_120(dev->drv->type) ? RDISK_SENSE_DATA_PROTECT : SENSE_UNIT_ATTENTION;
     rdisk_asc       = ASC_WRITE_PROTECTED;
     rdisk_ascq      = 0;
     rdisk_info      = (dev->sector_pos >> 24)        |
@@ -2030,8 +2114,13 @@ rdisk_blocks(rdisk_t *dev, int32_t *len, const int out)
             *len    = dev->requested_blocks * bps;
 
             for (int i = 0; i < dev->requested_blocks; i++) {
-                if (fseeko64(dev->drv->fp, dev->drv->base + ((uint64_t) dev->sector_pos * bps),
-                    SEEK_SET) == -1) {
+                uint64_t offs = 0;
+
+                if (!rdisk_block_offset(dev, dev->sector_pos, &offs)) {
+                    /* A block of the 640 KB medium that does not exist. */
+                    if (!out)
+                        memset(dev->buffer + (i * bps), 0x00, bps);
+                } else if (fseeko64(dev->drv->fp, offs, SEEK_SET) == -1) {
                     if (out)
                         rdisk_write_error(dev);
                     else
@@ -2498,7 +2587,7 @@ rdisk_command(scsi_common_t *sc, const uint8_t *cdb)
                     break;
             }
 
-            if (dev->sector_pos >= dev->drv->medium_size)
+            if (rdisk_transfer_out_of_range(dev))
                 rdisk_lba_out_of_range(dev);
             else if (dev->sector_len) {
                 max_len               = dev->sector_len;
@@ -2541,6 +2630,20 @@ rdisk_command(scsi_common_t *sc, const uint8_t *cdb)
         case GPCMD_VERIFY_6:
         case GPCMD_VERIFY_10:
         case GPCMD_VERIFY_12:
+            if (IS_SUPERDISK_120(dev->drv->type) && (cdb[0] == GPCMD_VERIFY_10)) {
+                /* MKELS120 verifies track ranges (category 08, function 62h) with VERIFY(10) and no data
+                   transfer: Good status for a range inside the medium, ILLEGAL REQUEST / LBA OUT OF RANGE
+                   for one that is not (LS-120 specification, section 6.4, tests VER-01 and VER-02).  An
+                   image file is always readable, so the range is all there is to check. */
+                dev->sector_len = (cdb[7] << 8) | cdb[8];
+                dev->sector_pos = (cdb[2] << 24) | (cdb[3] << 16) | (cdb[4] << 8) | cdb[5];
+
+                if (rdisk_transfer_out_of_range(dev)) {
+                    rdisk_lba_out_of_range(dev);
+                    break;
+                }
+            }
+
             if (!(cdb[1] & 2)) {
                 rdisk_set_phase(dev, SCSI_PHASE_STATUS);
                 rdisk_command_complete(dev);
@@ -2597,8 +2700,13 @@ rdisk_command(scsi_common_t *sc, const uint8_t *cdb)
                     break;
             }
 
-            if (dev->sector_pos >= dev->drv->medium_size)
+            if (rdisk_transfer_out_of_range(dev)) {
                 rdisk_lba_out_of_range(dev);
+                /* The LS-120 stops here.  The other drives have always gone on to the data phase after
+                   reporting the error (and failed it there): their behavior is left as it was. */
+                if (IS_SUPERDISK_120(dev->drv->type))
+                    break;
+            }
             if (dev->sector_len) {
                 max_len               = dev->sector_len;
                 dev->requested_blocks = max_len;
@@ -2695,6 +2803,9 @@ rdisk_command(scsi_common_t *sc, const uint8_t *cdb)
                     len            = MIN(len, alloc_length);
                     dev->buffer[0] = len - 1;
                     dev->buffer[1] = rdisk_mode_sense_medium_type(dev);
+                    /* Device-specific parameter: WP (bit 7) for a write-protected LS-120 medium. */
+                    if (IS_SUPERDISK_120(dev->drv->type) && (dev->drv->fp != NULL) && dev->drv->read_only)
+                        dev->buffer[2] |= 0x80;
                     if (block_desc)
                         dev->buffer[3] = 8;
                 } else {
@@ -2704,6 +2815,8 @@ rdisk_command(scsi_common_t *sc, const uint8_t *cdb)
                     dev->buffer[0] = (len - 2) >> 8;
                     dev->buffer[1] = (len - 2) & 255;
                     dev->buffer[2] = rdisk_mode_sense_medium_type(dev);
+                    if (IS_SUPERDISK_120(dev->drv->type) && (dev->drv->fp != NULL) && dev->drv->read_only)
+                        dev->buffer[3] |= 0x80;
                     if (block_desc) {
                         dev->buffer[6] = 0;
                         dev->buffer[7] = 8;
@@ -3090,8 +3203,11 @@ rdisk_phase_data_out(scsi_common_t *sc)
                     dev->buffer[6]   = (s >> 8) & 0xff;
                     dev->buffer[7]   = s & 0xff;
                 }
-                if (fseeko64(dev->drv->fp, dev->drv->base + ((uint64_t) i * rdisk_sector_size(dev)),
-                             SEEK_SET) == -1)
+                uint64_t offs = 0;
+
+                if (!rdisk_block_offset(dev, i, &offs))
+                    continue;    /* A block of the 640 KB medium that does not exist. */
+                if (fseeko64(dev->drv->fp, offs, SEEK_SET) == -1)
                     log_fatal(dev->log, "rdisk_phase_data_out(): Error seeking\n");
                 if (fwrite(dev->buffer, 1, rdisk_sector_size(dev), dev->drv->fp) != rdisk_sector_size(dev))
                     log_fatal(dev->log, "rdisk_phase_data_out(): Error writing data\n");

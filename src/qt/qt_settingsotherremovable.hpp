@@ -1,12 +1,16 @@
 #ifndef QT_SETTINGSOTHERREMOVABLE_HPP
 #define QT_SETTINGSOTHERREMOVABLE_HPP
 
+#include <cstdint>
+
 #include <QWidget>
 #include <QStandardItemModel>
 
 namespace Ui {
 class SettingsOtherRemovable;
 }
+
+class SettingsCompleter;
 
 class SettingsOtherRemovable : public QWidget {
     Q_OBJECT

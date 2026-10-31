@@ -81,6 +81,19 @@
 #define FD_1440K_SECTORS        (2880)
 #define FD32MB_SECTORS          (65536)      /* Imation FD32MB, medium type 0x28: 1024 cylinders * 2 heads * 32 sectors; 512-byte sectors */
 
+/* PC floppy formats that the LS-120 drives take besides the 720 KB, 1.44 MB and NEC 2HD ones above.  MKELS120
+   recognizes them as medium types 12h (640 KB), 23h (1.2 MB, 15 sectors per track) and 26h (DMF), see the LS-120
+   implementation specification, section 5.
+
+   The 640 KB image has 1280 sectors (8 per track), but the drive presents it as a 720 KB medium of 1440 device
+   blocks (9 per track) of which the last of each track does not exist: MKELS120 addresses it as device block
+   S + S / 8 for logical sector S.  FD_640K_SECTORS is the size of the image, FD_640K_BLOCKS the number of blocks
+   the drive reports (READ CAPACITY, block descriptor). */
+#define FD_640K_SECTORS         (1280)
+#define FD_640K_BLOCKS          (1440)
+#define FD_1200K_SECTORS        (2400)       /* 80 cylinders * 2 heads * 15 sectors, 512-byte sectors */
+#define FD_DMF_SECTORS          (3360)       /* 80 cylinders * 2 heads * 21 sectors, 512-byte sectors */
+
 /* The Caleb UHD144 (1999, ATAPI, reports itself as an "LS-120").  281,856 sectors were observed on real media
    (boot sector, Linux fdisk and MBRWizard; 64 heads x 32 sectors x 137.625 cylinders) in
    https://msfn.org/board/topic/152866-caleb-uhd144-drive-under-win98-and-dos/, whereas Caleb's own
@@ -180,6 +193,10 @@ enum {
     RDISK_MEDIUM_BERNOULLI_44,
     RDISK_MEDIUM_BERNOULLI_65,
     RDISK_MEDIUM_BERNOULLI_105,
+    /* Appended later, read by the LS-120 drives only. */
+    RDISK_MEDIUM_FD_640K,
+    RDISK_MEDIUM_FD_1200K,
+    RDISK_MEDIUM_FD_DMF,
     RDISK_MEDIUM_COUNT
 };
 
@@ -228,7 +245,12 @@ static const rdisk_type_t rdisk_types[KNOWN_RDISK_TYPES] = {
     { "Bernoulli 35",  BERNOULLI_35_SECTORS,  512, 0x00 },
     { "Bernoulli 44",  BERNOULLI_44_SECTORS,  512, 0x00 },
     { "Bernoulli 65",  BERNOULLI_65_SECTORS,  512, 0x00 },
-    { "Bernoulli 105", BERNOULLI_105_SECTORS, 512, 0x00 }
+    { "Bernoulli 105", BERNOULLI_105_SECTORS, 512, 0x00 },
+    /* PC floppy formats read by the LS-120 drives (MKELS120 profiles 12h, 23h and 26h).  The 640 KB one is
+       reported as a 720 KB medium (0x11): MKELS120 derives its 640 KB profile from the BPB's sectors per track. */
+    { "640 KB",        FD_640K_SECTORS,       512, 0x11 },
+    { "1.2 MB (PC)",   FD_1200K_SECTORS,      512, 0x23 },
+    { "DMF (1.68 MB)", FD_DMF_SECTORS,        512, 0x26 }
 };
 
 enum {
@@ -297,70 +319,70 @@ typedef struct rdisk_drive_type_t {
    bridge, take all three.  rdisk.c itself does not refuse a type on a bus: use
    rdisk_drive_type_supports_bus() below to filter. */
 static const rdisk_drive_type_t rdisk_drive_types[KNOWN_RDISK_DRIVE_TYPES] = {
-    { "86BOX", "REMOVABLE DISK", "5.00", RDISK_MEDIUM_ZIP_100, RDISK_DRIVE_TYPE_SCSI_ATAPI_LPT, { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 } },
-    { "IOMEGA", "ZIP 100", "E.08", RDISK_MEDIUM_ZIP_100, RDISK_DRIVE_TYPE_SCSI_ATAPI_LPT, { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
-    { "IOMEGA", "ZIP 250", "42.S", RDISK_MEDIUM_ZIP_250, RDISK_DRIVE_TYPE_SCSI_ATAPI_LPT, { 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    { "86BOX", "REMOVABLE DISK", "5.00", RDISK_MEDIUM_ZIP_100, RDISK_DRIVE_TYPE_SCSI_ATAPI_LPT, { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0 } },
+    { "IOMEGA", "ZIP 100", "E.08", RDISK_MEDIUM_ZIP_100, RDISK_DRIVE_TYPE_SCSI_ATAPI_LPT, { 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    { "IOMEGA", "ZIP 250", "42.S", RDISK_MEDIUM_ZIP_250, RDISK_DRIVE_TYPE_SCSI_ATAPI_LPT, { 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
     /* The Jaz was a SCSI drive; rdisk.c also has ATAPI identify data for it, so both are allowed.  Its INQUIRY
        vendor and product really are lower case (Aaru report 49). */
-    { "iomega", "jaz 1GB", "H.72", RDISK_MEDIUM_JAZ_1GB, RDISK_DRIVE_TYPE_SCSI_ATAPI, { 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
-    { "iomega", "jaz 2GB", "E.17", RDISK_MEDIUM_JAZ_2GB, RDISK_DRIVE_TYPE_SCSI_ATAPI, { 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    { "iomega", "jaz 1GB", "H.72", RDISK_MEDIUM_JAZ_1GB, RDISK_DRIVE_TYPE_SCSI_ATAPI, { 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    { "iomega", "jaz 2GB", "E.17", RDISK_MEDIUM_JAZ_2GB, RDISK_DRIVE_TYPE_SCSI_ATAPI, { 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
     /* The ATAPI SyJet: its identity is not confirmed real (the revision is a placeholder).  The SCSI one is
        the SyJet-S further down. */
-    { "SyQuest", "SyJet", "1.06", RDISK_MEDIUM_SYJET_1_5GB, RDISK_DRIVE_TYPE_ATAPI, { 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    { "SyQuest", "SyJet", "1.06", RDISK_MEDIUM_SYJET_1_5GB, RDISK_DRIVE_TYPE_ATAPI, { 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
     /* The SparQ only ever shipped as an IDE/EIDE (and external parallel-port) drive, hence ATAPI_LPT; rdisk.c
        still has SCSI mode pages for it.  Its INQUIRY revision is a placeholder: the real drive (Aaru report
        175, native ATA, firmware "SA_0043") has no INQUIRY, and rdisk.c reports that firmware in IDENTIFY. */
-    { "SyQuest", "SparQ", "1.03", RDISK_MEDIUM_SPARQ_1GB, RDISK_DRIVE_TYPE_ATAPI_LPT, { 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    { "SyQuest", "SparQ", "1.03", RDISK_MEDIUM_SPARQ_1GB, RDISK_DRIVE_TYPE_ATAPI_LPT, { 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
     /* The SuperDisk drives also read 720 KB, 1.2 MB (NEC 2HD) and 1.44 MB floppies, and the LS-240
        also the 32 MB (FD32MB) format (Aaru reports 66 and 67).  This LS-120 is a Matsushita LS-120 COSM 04,
        as taken from the original code; there are two more LS-120 models and one Imation LS-240 at the end. */
-    { "MATSHITA", "LS-120 COSM   05", "0270", RDISK_MEDIUM_SUPERDISK_120, RDISK_DRIVE_TYPE_ATAPI, { 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    { "MATSHITA", "LS-120 COSM   05", "0270", RDISK_MEDIUM_SUPERDISK_120, RDISK_DRIVE_TYPE_ATAPI, { 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1 } },
     /* Aaru report 67 (behind a USB bridge; its ATA IDENTIFY strings are derived from these). */
-    { "MATSHITA", "LS-120/240    00", "K047", RDISK_MEDIUM_SUPERDISK_240, RDISK_DRIVE_TYPE_ATAPI, { 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0 } },
+    { "MATSHITA", "LS-120/240    00", "K047", RDISK_MEDIUM_SUPERDISK_240, RDISK_DRIVE_TYPE_ATAPI, { 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
     /* From Aaru device report 50, a real ATAPI Clik! 40 CZ. */
-    { "IOMEGA", "Clik! 40 CZ", "30cJ", RDISK_MEDIUM_CLIK_40, RDISK_DRIVE_TYPE_ATAPI, { 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    { "IOMEGA", "Clik! 40 CZ", "30cJ", RDISK_MEDIUM_CLIK_40, RDISK_DRIVE_TYPE_ATAPI, { 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
     /* Compatibility: reads and writes 750 and 250 MB media, reads (read-only) 100 MB media; rdisk.c makes
        the Zip 100 medium read-only in it. */
-    { "IOMEGA", "ZIP 750", ZIP_750_REV, RDISK_MEDIUM_ZIP_750, RDISK_DRIVE_TYPE_ATAPI, { 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    { "IOMEGA", "ZIP 750", ZIP_750_REV, RDISK_MEDIUM_ZIP_750, RDISK_DRIVE_TYPE_ATAPI, { 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
     /* From Aaru device report 118, a real ATAPI Sony HiFD SFD200.  Its page 0B lists medium types 0x40
        (taken to be the 150 MB medium) and 0x42 (the 200 MB one).  Sony documents the HiFD as reading
        1.44 MB floppies, but that report's test did not recognise the floppies it tried (MFD-2DD and
        MFD-2HD), so the 1.44 MB medium is listed on the strength of Sony's documentation only. */
-    { "SONY", "HiFD", "1264", RDISK_MEDIUM_HIFD_200, RDISK_DRIVE_TYPE_ATAPI, { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0 } },
+    { "SONY", "HiFD", "1264", RDISK_MEDIUM_HIFD_200, RDISK_DRIVE_TYPE_ATAPI, { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
     /* From Aaru device report 258, a real SCSI-1 INSITE Floptical (the INQUIRY product field really is
        "I325VM" + 8 spaces + "*F"); the report says it also reads 720 KB and 1.44 MB floppies. */
-    { "INSITE", "I325VM        *F", "0387", RDISK_MEDIUM_FLOPTICAL_20, RDISK_DRIVE_TYPE_SCSI, { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    { "INSITE", "I325VM        *F", "0387", RDISK_MEDIUM_FLOPTICAL_20, RDISK_DRIVE_TYPE_SCSI, { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
     /* From Aaru device reports 186 (BETA90), 202 (BETA150) and 311 (BETA230), all SCSI-only drives.
        Cartridge support follows the documented table (Iomega Bernoulli SCSI Drive Settings and Specs):
        Bernoulli 90: 90 MB read/write, 44 MB read-only; MultiDisk 150: 35, 65, 90, 105 and 150 MB read/write,
        44 MB read-only; Bernoulli 230: 90, 150 and 230 MB read/write.  rdisk.c makes the 44 MB cartridge
        read-only in the 90 and 150.  The 10 and 20 MB cartridges belong to earlier drives that are not
        emulated, and the Bernoulli 44 itself has no report yet. */
-    { "IOMEGA", "BETA90", "1.4", RDISK_MEDIUM_BERNOULLI_90, RDISK_DRIVE_TYPE_SCSI, { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0 } },
-    { "IOMEGA", "BETA150", "T.47", RDISK_MEDIUM_BERNOULLI_150, RDISK_DRIVE_TYPE_SCSI, { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1 } },
-    { "IOMEGA", "BETA230", "2.02", RDISK_MEDIUM_BERNOULLI_230, RDISK_DRIVE_TYPE_SCSI, { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    { "IOMEGA", "BETA90", "1.4", RDISK_MEDIUM_BERNOULLI_90, RDISK_DRIVE_TYPE_SCSI, { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0 } },
+    { "IOMEGA", "BETA150", "T.47", RDISK_MEDIUM_BERNOULLI_150, RDISK_DRIVE_TYPE_SCSI, { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0 } },
+    { "IOMEGA", "BETA230", "2.02", RDISK_MEDIUM_BERNOULLI_230, RDISK_DRIVE_TYPE_SCSI, { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
     /* Aaru device report 200, a real SCSI Castlewood ORB 2.2 GB.  The ORB also shipped as an IDE/ATAPI
        drive, hence SCSI_ATAPI. */
-    { "CWS ORB2", "-SE U ID 0", "D01K", RDISK_MEDIUM_ORB_2_2GB, RDISK_DRIVE_TYPE_SCSI_ATAPI, { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    { "CWS ORB2", "-SE U ID 0", "D01K", RDISK_MEDIUM_ORB_2_2GB, RDISK_DRIVE_TYPE_SCSI_ATAPI, { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
     /* Aaru device report 197, a real SCSI SyQuest SQ5200C, which reads the SQ400, SQ800 and SQ2000. */
-    { "SyQuest", "SQ5200C", "3CE4", RDISK_MEDIUM_SQ2000, RDISK_DRIVE_TYPE_SCSI, { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    { "SyQuest", "SQ5200C", "3CE4", RDISK_MEDIUM_SQ2000, RDISK_DRIVE_TYPE_SCSI, { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
     /* Aaru device report 196, a real SCSI SyQuest SQ3105S (SQ310 cartridge). */
-    { "SyQuest", "SQ3105S", "1_21", RDISK_MEDIUM_SQ310, RDISK_DRIVE_TYPE_SCSI, { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    { "SyQuest", "SQ3105S", "1_21", RDISK_MEDIUM_SQ310, RDISK_DRIVE_TYPE_SCSI, { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
     /* Aaru device report 195, a real SCSI SyQuest EZ230S, which reads EZ135 and EZFlyer 230 media. */
-    { "SyQuest", "EZ230S", "7220", RDISK_MEDIUM_EZFLYER_230, RDISK_DRIVE_TYPE_SCSI, { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    { "SyQuest", "EZ230S", "7220", RDISK_MEDIUM_EZFLYER_230, RDISK_DRIVE_TYPE_SCSI, { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
     /* The Caleb UHD144: an ATAPI drive that identifies itself as "Caleb LS-120" (no firmware revision shown).
        It reads 144 MB UHD144 media and, being a 1.44 MB floppy replacement, 1.44 MB and 720 KB floppies
        (assumed). */
-    { "Caleb", "LS-120", "", RDISK_MEDIUM_UHD144, RDISK_DRIVE_TYPE_ATAPI, { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    { "Caleb", "LS-120", "", RDISK_MEDIUM_UHD144, RDISK_DRIVE_TYPE_ATAPI, { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
     /* The SCSI SyJet-S, seen with firmware 0111, 0095 and 0117 (Aaru reports 327, 328, 329); see SYJET_S_REV
        above. */
-    { "SyQuest", "SyJet-S", SYJET_S_REV, RDISK_MEDIUM_SYJET_1_5GB, RDISK_DRIVE_TYPE_SCSI, { 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    { "SyQuest", "SyJet-S", SYJET_S_REV, RDISK_MEDIUM_SYJET_1_5GB, RDISK_DRIVE_TYPE_SCSI, { 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
     /* A Matsushita LS-120 VER5 00 (firmware F523), from Aaru device report 66 (behind a Shuttle E-USB bridge). */
-    { "MATSHITA", "LS-120 VER5   00", "F523", RDISK_MEDIUM_SUPERDISK_120, RDISK_DRIVE_TYPE_ATAPI, { 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    { "MATSHITA", "LS-120 VER5   00", "F523", RDISK_MEDIUM_SUPERDISK_120, RDISK_DRIVE_TYPE_ATAPI, { 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1 } },
     /* The Imation-branded SuperDisk 120 and 240 from the original table.  These strings are not confirmed
        to be what a real drive's INQUIRY returns. */
-    { "IMATION", "SUPERDISK 120", "04", RDISK_MEDIUM_SUPERDISK_120, RDISK_DRIVE_TYPE_ATAPI, { 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0 } },
-    { "IMATION", "SUPERDISK 240", "04", RDISK_MEDIUM_SUPERDISK_240, RDISK_DRIVE_TYPE_ATAPI, { 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0 } }
+    { "IMATION", "SUPERDISK 120", "04", RDISK_MEDIUM_SUPERDISK_120, RDISK_DRIVE_TYPE_ATAPI, { 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1 } },
+    { "IMATION", "SUPERDISK 240", "04", RDISK_MEDIUM_SUPERDISK_240, RDISK_DRIVE_TYPE_ATAPI, { 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } }
 };
 
 /* Does this drive type belong on this RDISK_BUS_* bus, according to its drive_type? */
