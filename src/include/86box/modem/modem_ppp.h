@@ -474,6 +474,8 @@ typedef struct ppp_ctx_t {
     int             ccp_retries;
     uint8_t         ccp_request[32];
     uint8_t         ccp_request_len;
+    uint16_t        ccp_timeout_ms;
+    int             ccp_timeout_retries;
 
     /* NT31 RAS framing and coherency tickets. */
     bool            ras_tx_flush_pending;
@@ -503,6 +505,8 @@ typedef struct ppp_ctx_t {
     bool            ipcp_ack_received;
     int             ipcp_retries;
     bool            ipcp_req_sent;
+    uint16_t        ipcp_timeout_ms;
+    int             ipcp_timeout_retries;
     uint32_t        ipcp_request_ip;
     bool            ipcp_vj_request;
     uint8_t         ipcp_vj_mode;
@@ -557,6 +561,7 @@ bool       ppp_random_bytes(uint8_t *buffer, uint8_t len);
 void       ppp_ccp_start(ppp_ctx_t *ctx);
 void       ppp_ccp_process(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len);
 void       ppp_ccp_fallback_plaintext(ppp_ctx_t *ctx);
+void       ppp_ccp_timeout(ppp_ctx_t *ctx);
 const char *ppp_ccp_method_name(uint8_t method);
 bool       ppp_ccp_codec_set(ppp_ctx_t *ctx, bool transmit, uint8_t method);
 bool       ppp_ccp_codec_set_window(ppp_ctx_t *ctx, bool transmit, uint8_t method,

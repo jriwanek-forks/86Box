@@ -310,6 +310,7 @@ ccp_send_request(ppp_ctx_t *ctx, uint32_t bits)
     ctx->ccp_request_bits = bits;
     ctx->ccp_request_method = PPP_CCP_METHOD_MPPE;
     ctx->ccp_req_sent = true;
+    ctx->ccp_timeout_ms = 0;
     ccp_log_packet(ctx, "TX", request, sizeof(request));
     ppp_send_frame(ctx, PPP_PROTO_CCP, request, sizeof(request));
 }
@@ -403,6 +404,7 @@ ccp_send_codec_request(ppp_ctx_t *ctx, uint8_t method)
     ctx->ccp_request_bits = 0;
     ctx->ccp_request_method = method;
     ctx->ccp_req_sent = true;
+    ctx->ccp_timeout_ms = 0;
     ctx->ccp_rejected = false;
     ccp_log_packet(ctx, "TX", request, request_len);
     ppp_send_frame(ctx, PPP_PROTO_CCP, request, request_len);
@@ -890,6 +892,8 @@ ppp_ccp_start(ppp_ctx_t *ctx)
     ctx->ccp_rejected = false;
     ctx->ccp_plaintext_fallback = false;
     ctx->ccp_retries = 0;
+    ctx->ccp_timeout_ms = 0;
+    ctx->ccp_timeout_retries = 0;
     ctx->ccp_req_sent = false;
     ctx->ccp_reset_pending = false;
     ctx->ccp_tx_bsd_bits = 0;
@@ -1157,4 +1161,39 @@ ppp_ccp_fallback_plaintext(ppp_ctx_t *ctx)
         ctx->state = PPP_STATE_DEAD;
     }
     ccp_log_state(ctx, "plaintext fallback");
+}
+
+/* Restart timer expiry (RFC 1661 TO+): the peer did not answer our
+   Configure-Request, so send it again with a fresh identifier. */
+void
+ppp_ccp_timeout(ppp_ctx_t *ctx)
+{
+    uint8_t request[sizeof(ctx->ccp_request)];
+    int     len;
+
+    if (!ctx || !ctx->ccp_req_sent || ctx->ccp_request_len < 4
+        || ctx->ccp_request_len > sizeof(request))
+        return;
+
+    if (ctx->ccp_timeout_retries++ >= 10) {
+        if (ctx->mppe_min_bits > 0) {
+            ctx->state = PPP_STATE_DEAD;
+            return;
+        }
+        /* Give up on CCP; tell the peer so it stops compressing toward us. */
+        if (ctx->ccp_ack_sent)
+            ccp_send_response(ctx, PPP_CODE_TERMINATE_REQUEST, ctx->ccp_id++, NULL, 0);
+        ppp_ccp_fallback_plaintext(ctx);
+        ppp_advance_state(ctx);
+        return;
+    }
+
+    len = ctx->ccp_request_len;
+    memcpy(request, ctx->ccp_request, (size_t) len);
+    request[1] = ctx->ccp_id++;
+    memcpy(ctx->ccp_request, request, (size_t) len);
+    ctx->ccp_request_id = request[1];
+    ctx->ccp_timeout_ms = 0;
+    ccp_log_packet(ctx, "TX", request, len);
+    ppp_send_frame(ctx, PPP_PROTO_CCP, request, len);
 }

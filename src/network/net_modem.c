@@ -3648,6 +3648,15 @@ void
 modem_close(void *priv)
 {
     modem_t *modem     = (modem_t *) priv;
+
+    /* Stop callbacks before reset/teardown.  The command-pause timer is
+       periodic and rearms itself; the host-to-serial timer also rearms on
+       every callback.  Leaving either enabled past this point lets it access
+       modem state after the device is freed. */
+    timer_disable(&modem->dtr_timer);
+    timer_disable(&modem->host_to_serial_timer);
+    timer_disable(&modem->cmdpause_timer);
+
     modem->listen_port = 0;
     modem_reset(modem);
     sound_in_remove_handler(modem_voice_capture, modem);

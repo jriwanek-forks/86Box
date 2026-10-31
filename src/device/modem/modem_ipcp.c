@@ -83,6 +83,7 @@ ppp_ipcp_send_config_request(ppp_ctx_t *ctx)
     int     len = 4;
 
     ctx->ipcp_ack_received = false;
+    ctx->ipcp_timeout_ms = 0;
     pkt[0] = PPP_CODE_CONFIGURE_REQUEST;
     ctx->ipcp_request_id = ctx->ipcp_id++;
     ctx->ipcp_request_ip = ctx->our_ip;

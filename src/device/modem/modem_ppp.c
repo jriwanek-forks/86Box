@@ -1682,16 +1682,22 @@ ppp_handle_lcp_identification(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
 
     uint32_t magic = ((uint32_t) pkt[4] << 24) | ((uint32_t) pkt[5] << 16)
                      | ((uint32_t) pkt[6] << 8) | pkt[7];
-    ppp_log(ctx->log, "PPP: LCP Identification magic=0x%08X message=\"",
-            (unsigned) magic);
-    for (int pos = 8; pos < pkt_len; pos++) {
+    char   text[128];
+    size_t used = 0;
+    int    pos;
+
+    for (pos = 8; pos < pkt_len && used + 5 < sizeof(text); pos++) {
         uint8_t character = pkt[pos];
         if (character >= 32 && character <= 126 && character != '"' && character != '\\')
-            ppp_log(ctx->log, "%c", character);
+            text[used++] = (char) character;
         else
-            ppp_log(ctx->log, "\\x%02X", (unsigned) character);
+            used += (size_t) snprintf(text + used, sizeof(text) - used, "\\x%02X",
+                                      (unsigned) character);
     }
-    ppp_log(ctx->log, "\"\n");
+    text[used] = '\0';
+    (void) text;
+    ppp_log(ctx->log, "PPP: LCP Identification magic=0x%08X message=\"%s\"%s\n",
+            (unsigned) magic, text, pos < pkt_len ? "..." : "");
 }
 
 /* Handle LCP Terminate-Request */
@@ -1819,6 +1825,9 @@ ppp_advance_state(ppp_ctx_t *ctx)
                         break;
                     }
                     ctx->state         = PPP_STATE_IPCP_NEGOTIATE;
+                    ppp_ccp_start(ctx);
+                    if (ctx->state == PPP_STATE_DEAD)
+                        break;
                     ppp_ipcp_send_config_request(ctx);
                 }
             }
@@ -1845,6 +1854,8 @@ ppp_advance_state(ppp_ctx_t *ctx)
                 ctx->state = PPP_STATE_IPCP_NEGOTIATE;
                 ctx->auth_timeout_ms = 0;
                 ppp_ccp_start(ctx);
+                if (ctx->state == PPP_STATE_DEAD)
+                    break;
                 ppp_ipcp_send_config_request(ctx);
             }
             break;
@@ -1873,6 +1884,29 @@ ppp_timer_tick(ppp_ctx_t *ctx)
         if (++ctx->auth_timeout_ms >= PPP_AUTH_TIMEOUT_MS) {
             ppp_log(ctx->log, "PPP: Authentication timed out waiting for peer\n");
             ctx->state = PPP_STATE_DEAD;
+        }
+        return;
+    }
+
+    if (ctx->state == PPP_STATE_IPCP_NEGOTIATE) {
+        if (ctx->ipcp_req_sent && !ctx->ipcp_ack_received
+            && ++ctx->ipcp_timeout_ms >= PPP_LCP_TIMEOUT_MS) {
+            ctx->ipcp_timeout_ms = 0;
+            if (ctx->ipcp_timeout_retries++ < PPP_LCP_MAX_RETRIES) {
+                ppp_log(ctx->log, "PPP: IPCP Configure-Request timed out; retrying (%d/%d)\n",
+                        ctx->ipcp_timeout_retries, PPP_LCP_MAX_RETRIES);
+                ppp_ipcp_send_config_request(ctx);
+            } else {
+                ppp_log(ctx->log, "PPP: IPCP negotiation timed out\n");
+                ctx->state = PPP_STATE_DEAD;
+                return;
+            }
+        }
+        if (ctx->state == PPP_STATE_IPCP_NEGOTIATE && ctx->ccp_req_sent
+            && ++ctx->ccp_timeout_ms >= PPP_LCP_TIMEOUT_MS) {
+            ctx->ccp_timeout_ms = 0;
+            ppp_log(ctx->log, "PPP: CCP Configure-Request timed out\n");
+            ppp_ccp_timeout(ctx);
         }
         return;
     }
@@ -2477,6 +2511,10 @@ ppp_start(ppp_ctx_t *ctx)
     ctx->ipcp_ack_received = false;
     ctx->ipcp_req_sent    = false;
     ctx->ipcp_retries     = 0;
+    ctx->ipcp_timeout_ms  = 0;
+    ctx->ipcp_timeout_retries = 0;
+    ctx->ccp_timeout_ms   = 0;
+    ctx->ccp_timeout_retries = 0;
     ctx->ipcp_vj_request  = ctx->ipcp_vj_request && ctx->vj_tx_ctx && ctx->vj_rx_ctx;
     if (ctx->ipcp_vj_mode == 2 && !ctx->ipcp_vj_request) {
         ppp_log(ctx->log, "PPP: Required Van Jacobson compression is unavailable\n");
