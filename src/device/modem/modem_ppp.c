@@ -40,6 +40,10 @@
 #define PPP_LCP_TIMEOUT_MS 3000
 #define PPP_LCP_MAX_RETRIES 10
 #define PPP_AUTH_TIMEOUT_MS 30000
+#define PPP_KEEPALIVE_FAST_MS 10000
+#define PPP_KEEPALIVE_FAST_MAX_MISSED 6
+#define PPP_KEEPALIVE_SLOW_MS 30000
+#define PPP_KEEPALIVE_SLOW_MAX_MISSED 4
 
 struct ppp_mppp_bundle_t {
     char                 group[64];
@@ -607,6 +611,9 @@ ppp_process_ras_frame(ppp_ctx_t *ctx, const uint8_t *frame, int frame_length)
     if (expected_crc != received_crc
         || (((uint16_t) frame[4] << 8) | frame[5]) != PPP_RAS_IP_TYPE)
         return;
+
+    ctx->keepalive_idle_ms = 0;
+    ctx->keepalive_missed  = 0;
 
     uint8_t ticket = frame[6];
     if (ticket & 0x80) {
@@ -1696,6 +1703,7 @@ ppp_handle_lcp_identification(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
     }
     text[used] = '\0';
     (void) text;
+    (void) magic;
     ppp_log(ctx->log, "PPP: LCP Identification magic=0x%08X message=\"%s\"%s\n",
             (unsigned) magic, text, pos < pkt_len ? "..." : "");
 }
@@ -1716,6 +1724,28 @@ ppp_handle_lcp_terminate_request(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len
     ppp_send_frame(ctx, PPP_PROTO_LCP, reply, 4);
 
     ctx->state = PPP_STATE_DEAD;
+}
+
+/* RFC 1661 section 5.6: answer a packet with an unknown Code with Code-Reject. */
+void
+ppp_send_code_reject(ppp_ctx_t *ctx, uint16_t protocol, const uint8_t *pkt, int pkt_len)
+{
+    uint8_t reject[4 + 128];
+    int     copy;
+
+    if (!ctx || !pkt || pkt_len < 4)
+        return;
+
+    copy = pkt_len > 128 ? 128 : pkt_len;
+    reject[0] = PPP_CODE_CODE_REJECT;
+    reject[1] = ctx->lcp_id++;
+    reject[2] = (uint8_t) ((4 + copy) >> 8);
+    reject[3] = (uint8_t) (4 + copy);
+    memcpy(reject + 4, pkt, (size_t) copy);
+    ppp_send_frame(ctx, protocol, reject, 4 + copy);
+    ppp_log(ctx->log, "PPP: Sent Code-Reject for code %u on %s\n",
+            (unsigned) pkt[0], protocol == PPP_PROTO_LCP ? "LCP"
+                             : protocol == PPP_PROTO_IPCP ? "IPCP" : "CCP");
 }
 
 /* Process a complete LCP packet */
@@ -1761,6 +1791,7 @@ ppp_process_lcp(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
         case PPP_CODE_ECHO_REPLY:
         case PPP_CODE_DISCARD_REQUEST:
         case PPP_CODE_TERMINATE_ACK:
+        case PPP_CODE_CODE_REJECT: /* never answer a Code-Reject */
             /* Silently ignore */
             break;
         case PPP_CODE_PROTOCOL_REJECT:
@@ -1785,6 +1816,7 @@ ppp_process_lcp(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
             break;
         default:
             ppp_log(ctx->log, "PPP: Unknown LCP code %d\n", code);
+            ppp_send_code_reject(ctx, PPP_PROTO_LCP, pkt, pkt_len);
             break;
     }
 }
@@ -1877,6 +1909,52 @@ ppp_advance_state(ppp_ctx_t *ctx)
     }
 }
 
+/* LCP Echo-Request keepalive. Only fires on a quiet link: any received frame
+   resets the idle and miss counters, so a busy or answering peer is never
+   probed more than once per interval and an Echo-Reply needs no special case. */
+static void
+ppp_keepalive_tick(ppp_ctx_t *ctx)
+{
+    uint8_t  pkt[8];
+    uint32_t interval_ms;
+    uint8_t  max_missed;
+
+    if (ctx->ppp_keepalive_mode == PPP_KEEPALIVE_DISABLED)
+        return;
+
+    if (ctx->ppp_keepalive_mode == PPP_KEEPALIVE_FAST) {
+        interval_ms = PPP_KEEPALIVE_FAST_MS;
+        max_missed  = PPP_KEEPALIVE_FAST_MAX_MISSED;
+    } else {
+        interval_ms = PPP_KEEPALIVE_SLOW_MS;
+        max_missed  = PPP_KEEPALIVE_SLOW_MAX_MISSED;
+    }
+
+    if (++ctx->keepalive_idle_ms < interval_ms)
+        return;
+    ctx->keepalive_idle_ms = 0;
+
+    if (ctx->keepalive_missed >= max_missed) {
+        ppp_log(ctx->log, "PPP: Peer did not answer %u keepalive probes; closing link\n",
+                (unsigned) ctx->keepalive_missed);
+        ctx->state = PPP_STATE_DEAD;
+        return;
+    }
+
+    ctx->keepalive_missed++;
+    pkt[0] = PPP_CODE_ECHO_REQUEST;
+    pkt[1] = ctx->lcp_id++;
+    pkt[2] = 0;
+    pkt[3] = sizeof(pkt);
+    pkt[4] = (uint8_t) (ctx->our_magic >> 24);
+    pkt[5] = (uint8_t) (ctx->our_magic >> 16);
+    pkt[6] = (uint8_t) (ctx->our_magic >> 8);
+    pkt[7] = (uint8_t) ctx->our_magic;
+    ppp_send_frame(ctx, PPP_PROTO_LCP, pkt, sizeof(pkt));
+    ppp_log(ctx->log, "PPP: Sent LCP Echo-Request keepalive (%u/%u)\n",
+            (unsigned) ctx->keepalive_missed, (unsigned) max_missed);
+}
+
 void
 ppp_timer_tick(ppp_ctx_t *ctx)
 {
@@ -1908,6 +1986,11 @@ ppp_timer_tick(ppp_ctx_t *ctx)
             ppp_log(ctx->log, "PPP: CCP Configure-Request timed out\n");
             ppp_ccp_timeout(ctx);
         }
+        return;
+    }
+
+    if (ctx->state == PPP_STATE_NETWORK) {
+        ppp_keepalive_tick(ctx);
         return;
     }
 
@@ -1960,6 +2043,10 @@ ppp_process_frame(ppp_ctx_t *ctx, const uint8_t *frame, int frame_len, bool reas
 
     if (frame_len < 1)
         return;
+
+    /* Any intact frame proves the peer is alive (see ppp_keepalive_tick). */
+    ctx->keepalive_idle_ms = 0;
+    ctx->keepalive_missed  = 0;
 
     /* Check for Address and Control fields */
     if (frame_len >= 2 && frame[0] == PPP_ADDRESS && frame[1] == PPP_CONTROL) {
@@ -2419,7 +2506,10 @@ ppp_init(void *modem, void *log,
     ctx->state           = PPP_STATE_DEAD;
     ctx->our_mru         = PPP_DEFAULT_MRU;
     ctx->peer_mru        = PPP_DEFAULT_MRU;
-    ctx->our_accm        = 0xFFFFFFFF; /* Send all control chars escaped initially */
+    /* ACCM we request for data the peer sends us. Our receiver accepts escaped and
+       unescaped control characters alike, so ask for none to escape. peer_accm
+       below stays all-ones: until the peer says otherwise we escape everything. */
+    ctx->our_accm        = 0x00000000;
     ctx->peer_accm       = 0xFFFFFFFF;
     ctx->our_magic       = ((uint32_t) magic[0] << 24) | ((uint32_t) magic[1] << 16)
                          | ((uint32_t) magic[2] << 8) | (uint32_t) magic[3];
@@ -2515,6 +2605,8 @@ ppp_start(ppp_ctx_t *ctx)
     ctx->ipcp_timeout_retries = 0;
     ctx->ccp_timeout_ms   = 0;
     ctx->ccp_timeout_retries = 0;
+    ctx->keepalive_idle_ms = 0;
+    ctx->keepalive_missed = 0;
     ctx->ipcp_vj_request  = ctx->ipcp_vj_request && ctx->vj_tx_ctx && ctx->vj_rx_ctx;
     if (ctx->ipcp_vj_mode == 2 && !ctx->ipcp_vj_request) {
         ppp_log(ctx->log, "PPP: Required Van Jacobson compression is unavailable\n");
@@ -2538,4 +2630,49 @@ ppp_start(ppp_ctx_t *ctx)
     ctx->mppe_rx_enabled = false;
 
     ppp_send_lcp_config_request(ctx);
+}
+
+/* Apply the MPPE key-strength policy and specification format.
+
+   Standard (RFC 3078/3079): 40-, 56- and 128-bit keys, and a peer that sets the
+   obsolete D bit in its CCP option is Nak'd to clear it.
+
+   Legacy draft: the pre-RFC MPPE drafts only defined 40- and 128-bit keys (56-bit
+   came with RFC 3078), so 56-bit is removed from what we offer or accept, and
+   a peer's D bit is tolerated instead of Nak'd (see ccp_handle_config_request).
+   If 56-bit was the only permitted strength, the allowed set becomes empty while
+   the minimum stays set, so a connection that requires MPPE fails rather than
+   silently running unencrypted. */
+void
+ppp_mppe_set_policy(ppp_ctx_t *ctx, uint32_t bitmask, uint8_t format)
+{
+    uint32_t allowed;
+    uint8_t  min_bits;
+
+    if (!ctx)
+        return;
+
+    if (bitmask == CCP_MPPE_AUTOMATIC) {
+        allowed  = CCP_MPPE_KEY_BITS;
+        min_bits = 0;
+    } else {
+        allowed  = bitmask;
+        min_bits = ppp_mppe_minimum_strength(bitmask);
+    }
+
+    if (format == PPP_MPPE_FORMAT_LEGACY_DRAFT) {
+        uint32_t legacy = allowed & ~CCP_MPPE_56;
+
+        if (legacy & CCP_MPPE_KEY_BITS) {
+            allowed = legacy;
+            if (min_bits > 0)
+                min_bits = ppp_mppe_minimum_strength(legacy);
+        } else if (allowed & CCP_MPPE_KEY_BITS) {
+            allowed = legacy;
+        }
+    }
+
+    ctx->mppe_format       = format;
+    ctx->mppe_allowed_bits = allowed;
+    ctx->mppe_min_bits     = min_bits;
 }

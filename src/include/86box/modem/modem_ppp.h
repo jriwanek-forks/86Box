@@ -333,6 +333,12 @@ typedef enum {
 } ppp_ipcp_dns_wins_mode_t;
 
 typedef enum {
+    PPP_KEEPALIVE_DISABLED = 0,
+    PPP_KEEPALIVE_FAST = 1, /* Echo-Request every 10 s of silence, drop after 6 misses */
+    PPP_KEEPALIVE_SLOW = 2  /* Echo-Request every 30 s of silence, drop after 4 misses */
+} ppp_keepalive_mode_t;
+
+typedef enum {
     PPP_EAP_STATE_IDLE,
     PPP_EAP_STATE_IDENTITY,
     PPP_EAP_STATE_MD5_CHALLENGE
@@ -445,6 +451,9 @@ typedef struct ppp_ctx_t {
     uint8_t         ppp_compression;
     uint8_t         mppe_key_state_mode;
     uint8_t         mppe_format;
+    uint8_t         ppp_keepalive_mode;
+    uint32_t        keepalive_idle_ms;
+    uint8_t         keepalive_missed;
     ppp_mppe_state_t mppe_tx;
     ppp_mppe_state_t mppe_rx;
 
@@ -548,6 +557,7 @@ ppp_ctx_t *ppp_init(void *modem, void *log,
 void       ppp_close(ppp_ctx_t *ctx);
 void       ppp_start(ppp_ctx_t *ctx);
 void       ppp_multilink_configure(ppp_ctx_t *ctx, const char *group);
+void       ppp_mppe_set_policy(ppp_ctx_t *ctx, uint32_t bitmask, uint8_t format);
 bool       ppp_multilink_is_member(const ppp_ctx_t *ctx);
 bool       ppp_multilink_is_owner(const ppp_ctx_t *ctx);
 void       ppp_timer_tick(ppp_ctx_t *ctx);
@@ -557,6 +567,8 @@ void       ppp_wrap_ip(ppp_ctx_t *ctx, const uint8_t *ip_pkt, int len);
 /* PPP frame sending (used by sub-protocols) */
 void       ppp_send_frame(ppp_ctx_t *ctx, uint16_t protocol, const uint8_t *data, int len);
 void       ppp_advance_state(ppp_ctx_t *ctx);
+void       ppp_send_code_reject(ppp_ctx_t *ctx, uint16_t protocol,
+                                const uint8_t *pkt, int pkt_len);
 bool       ppp_random_bytes(uint8_t *buffer, uint8_t len);
 void       ppp_ccp_start(ppp_ctx_t *ctx);
 void       ppp_ccp_process(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len);

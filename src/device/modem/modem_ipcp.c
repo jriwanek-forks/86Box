@@ -560,8 +560,12 @@ ppp_ipcp_process(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
                 ppp_send_frame(ctx, PPP_PROTO_IPCP, reply, 4);
             }
             break;
+        case PPP_CODE_TERMINATE_ACK:
+        case PPP_CODE_CODE_REJECT:
+            break;
         default:
             ipcp_log(ctx->log, "IPCP: Unknown code %d\n", code);
+            ppp_send_code_reject(ctx, PPP_PROTO_IPCP, pkt, pkt_len);
             break;
     }
 }

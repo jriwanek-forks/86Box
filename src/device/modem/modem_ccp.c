@@ -280,11 +280,16 @@ ccp_update_state(ppp_ctx_t *ctx)
     bool tx_only = ctx->ccp_direction == 1;
     bool rx_only = ctx->ccp_direction == 2;
     bool passive = ctx->ccp_mode == 2;
+    /* Asymmetric preferred: use whichever direction the peer agreed to. When MPPE
+       is required both directions must be protected, so it behaves bidirectionally. */
+    bool asymmetric = ctx->ccp_direction == PPP_CCP_DIRECTION_ASYMMETRIC_PREFERRED
+                   && ctx->mppe_min_bits == 0;
 
     ctx->ccp_open = !ctx->ccp_plaintext_fallback
                  && (tx_only ? ctx->ccp_ack_sent
                      : rx_only ? ctx->ccp_ack_received
                      : passive ? ctx->ccp_ack_sent
+                     : asymmetric ? (ctx->ccp_ack_sent || ctx->ccp_ack_received)
                      : ctx->ccp_ack_sent && ctx->ccp_ack_received);
     ctx->mppe_tx_enabled = ctx->ccp_open && ctx->ccp_peer_mppe
                         && ctx->mppe_keys_ready;
@@ -292,6 +297,23 @@ ccp_update_state(ppp_ctx_t *ctx)
                         && ctx->mppe_keys_ready
                         && (ctx->ccp_request_bits & CCP_MPPE_KEY_BITS) != 0;
     ccp_log_state(ctx, "state");
+}
+
+/* Our own Configure-Request was rejected or went unanswered. In asymmetric mode
+   keep the compression we already agreed to transmit (the peer's request we
+   Acked) and just give up receiving it; otherwise drop CCP altogether. */
+static void
+ccp_request_failed(ppp_ctx_t *ctx)
+{
+    if (ctx->ccp_direction == PPP_CCP_DIRECTION_ASYMMETRIC_PREFERRED
+        && ctx->mppe_min_bits == 0 && ctx->ccp_ack_sent
+        && !ctx->ccp_plaintext_fallback) {
+        ctx->ccp_req_sent = false;
+        ctx->ccp_ack_received = false;
+        ccp_update_state(ctx);
+        return;
+    }
+    ppp_ccp_fallback_plaintext(ctx);
 }
 
 static void
@@ -783,7 +805,8 @@ ccp_handle_config_request(ppp_ctx_t *ctx, const uint8_t *pkt, int total)
                 nak[nak_len++] = 6;
                 ccp_put_u32(nak + nak_len, suggested);
                 nak_len += 4;
-            } else if ((bits & CCP_MPPE_D) != 0
+            } else if (((bits & CCP_MPPE_D) != 0
+                        && ctx->mppe_format != PPP_MPPE_FORMAT_LEGACY_DRAFT)
                        || key_bits != preferred_key || (key_bits & (key_bits - 1)) != 0
                        || state_mismatch) {
                 uint32_t chosen = ctx->mppe_min_bits > 0 ? required_key : preferred_key;
@@ -1059,7 +1082,7 @@ ppp_ccp_process(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
                            && ccp_try_next_codec(ctx)) {
                     break;
                 } else if (ctx->ccp_req_sent && pkt[1] == ctx->ccp_request_id) {
-                    ppp_ccp_fallback_plaintext(ctx);
+                    ccp_request_failed(ctx);
                     ppp_advance_state(ctx);
                 }
             }
@@ -1069,7 +1092,7 @@ ppp_ccp_process(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
             if (ccp_response_matches_request(ctx, pkt, total)) {
                 ctx->ccp_rejected = true;
                 if (!ccp_try_next_codec(ctx)) {
-                    ppp_ccp_fallback_plaintext(ctx);
+                    ccp_request_failed(ctx);
                     ppp_advance_state(ctx);
                 }
             }
@@ -1133,7 +1156,11 @@ ppp_ccp_process(ppp_ctx_t *ctx, const uint8_t *pkt, int pkt_len)
             }
             break;
 
+        case PPP_CODE_CODE_REJECT:
+            break;
+
         default:
+            ppp_send_code_reject(ctx, PPP_PROTO_CCP, pkt, pkt_len);
             break;
     }
 }
@@ -1180,10 +1207,12 @@ ppp_ccp_timeout(ppp_ctx_t *ctx)
             ctx->state = PPP_STATE_DEAD;
             return;
         }
-        /* Give up on CCP; tell the peer so it stops compressing toward us. */
-        if (ctx->ccp_ack_sent)
+        /* Give up. Unless asymmetric mode keeps the transmit side, tell the peer
+           so it stops compressing toward us. */
+        if (ctx->ccp_ack_sent
+            && ctx->ccp_direction != PPP_CCP_DIRECTION_ASYMMETRIC_PREFERRED)
             ccp_send_response(ctx, PPP_CODE_TERMINATE_REQUEST, ctx->ccp_id++, NULL, 0);
-        ppp_ccp_fallback_plaintext(ctx);
+        ccp_request_failed(ctx);
         ppp_advance_state(ctx);
         return;
     }

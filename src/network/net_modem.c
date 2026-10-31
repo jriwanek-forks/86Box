@@ -442,6 +442,7 @@ typedef struct modem_t {
     int              ipcp_vj_header_compression;
     int              ppp_acfc;
     int              ppp_pfc;
+    int              ppp_keepalive;
     char             ppp_multilink_group[64];
     char             username[64];
     char             password[64];
@@ -1754,18 +1755,14 @@ modem_start_local_ip_connection(modem_t *modem)
 
         /* Configure PPP auth from device settings */
         modem->ppp_ctx->auth_type = ppp_auth_type_from_config(modem->ppp_auth_type);
-        if ((uint32_t) modem->mppe_bitmask == CCP_MPPE_AUTOMATIC) {
-            modem->ppp_ctx->mppe_allowed_bits = CCP_MPPE_KEY_BITS;
-            modem->ppp_ctx->mppe_min_bits = 0;
-        } else {
-            modem->ppp_ctx->mppe_allowed_bits = (uint32_t) modem->mppe_bitmask;
-            modem->ppp_ctx->mppe_min_bits = ppp_mppe_minimum_strength((uint32_t) modem->mppe_bitmask);
-        }
+        ppp_mppe_set_policy(modem->ppp_ctx, (uint32_t) modem->mppe_bitmask,
+                            (uint8_t) modem->mppe_format);
         modem->ppp_ctx->ppp_compression = (uint8_t) modem->ppp_compression;
         modem->ppp_ctx->ccp_mode = (uint8_t) modem->ccp_mode;
         modem->ppp_ctx->ccp_direction = (uint8_t) modem->ccp_direction;
         modem->ppp_ctx->mppe_key_state_mode = (uint8_t) modem->mppe_key_state_mode;
         modem->ppp_ctx->mppe_format = (uint8_t) modem->mppe_format;
+        modem->ppp_ctx->ppp_keepalive_mode = (uint8_t) modem->ppp_keepalive;
         modem->ppp_ctx->ppp_acfc_mode = (uint8_t) modem->ppp_acfc;
         modem->ppp_ctx->ppp_pfc_mode = (uint8_t) modem->ppp_pfc;
         modem->ppp_ctx->request_acfc = modem->ppp_acfc != 0;
@@ -3594,6 +3591,7 @@ modem_init(UNUSED(const device_t *info))
     modem->ipcp_vj_header_compression = device_get_config_int("ipcp_vj_header_compression");
     modem->ppp_acfc = device_get_config_int("ppp_acfc");
     modem->ppp_pfc = device_get_config_int("ppp_pfc");
+    modem->ppp_keepalive = device_get_config_int("ppp_keepalive");
     {
         const char *group = device_get_config_string("ppp_multilink_group");
         if (group)
@@ -3649,10 +3647,8 @@ modem_close(void *priv)
 {
     modem_t *modem     = (modem_t *) priv;
 
-    /* Stop callbacks before reset/teardown.  The command-pause timer is
-       periodic and rearms itself; the host-to-serial timer also rearms on
-       every callback.  Leaving either enabled past this point lets it access
-       modem state after the device is freed. */
+    /* cmdpause_timer and host_to_serial_timer rearm themselves; leaving them
+       enabled lets them fire on freed memory after close. */
     timer_disable(&modem->dtr_timer);
     timer_disable(&modem->host_to_serial_timer);
     timer_disable(&modem->cmdpause_timer);
@@ -4055,7 +4051,7 @@ static const device_config_t modem_config[] = {
         .spinner        = { 0 },
         .selection      = {
             { .description = "Standard MS-MPPE (RFC 3078 / Type 18)", .value = PPP_MPPE_FORMAT_STANDARD },
-            { .description = "Legacy Draft MPPE (RFC 2118 Draft)",    .value = PPP_MPPE_FORMAT_LEGACY_DRAFT },
+            { .description = "Legacy Draft MPPE (40/128-bit only, tolerate obsolete D bit)",    .value = PPP_MPPE_FORMAT_LEGACY_DRAFT },
             { .description = ""                                                  }
         },
         .bios           = { { 0 } }
@@ -4105,6 +4101,22 @@ static const device_config_t modem_config[] = {
             { .description = "Offer Primary/Secondary DNS & WINS",                    .value = PPP_IPCP_DNS_WINS_OFFER },
             { .description = "Require Client to accept Primary/Secondary DNS & WINS", .value = PPP_IPCP_DNS_WINS_REQUIRE },
             { .description = ""                                                                  }
+        },
+        .bios           = { { 0 } }
+    },
+    {
+        .name           = "ppp_keepalive",
+        .description    = "PPP LCP Keepalive (Echo-Request)",
+        .type           = CONFIG_SELECTION,
+        .default_string = NULL,
+        .default_int    = PPP_KEEPALIVE_DISABLED,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = {
+            { .description = "Disabled",                        .value = PPP_KEEPALIVE_DISABLED },
+            { .description = "Every 10 s, drop after 6 misses", .value = PPP_KEEPALIVE_FAST },
+            { .description = "Every 30 s, drop after 4 misses", .value = PPP_KEEPALIVE_SLOW },
+            { .description = "" }
         },
         .bios           = { { 0 } }
     },
