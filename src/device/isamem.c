@@ -152,6 +152,7 @@
 /* 22, 23 were ISAMEM_ABOVEBOARDPC/AT_CARD, now in isamem_iab.c */
 #define ISAMEM_RAMPAGEAT_CARD    24
 #define ISAMEM_XTMAX_EMS_CARD    25
+#define ISAMEM_GENUMB_CARD       26
 
 #define RAM_TOPMEM             (640 << 10)  /* end of low memory */
 #define RAM_UMAMEM             (384 << 10)  /* upper memory block */
@@ -171,6 +172,9 @@
 #define EXTRAM_CONVENTIONAL    0
 #define EXTRAM_HIGH            1
 #define EXTRAM_XMS             2
+
+#define UMB_MAX_RANGES         2            /* Generic UMB card: RAM ranges */
+#define UMB_GRAN               (16 << 10)   /* range granularity */
 
 typedef struct emsreg_t {
     int8_t        enabled; /* 1=ENABLED */
@@ -242,6 +246,10 @@ typedef struct memdev_t {
     uint16_t xtmax_win_seg;          /* window segment at last commit   */
     uint8_t  xtmax_count;            /* committed 16 KB windows         */
     uint16_t xtmax_umb_seg;          /* UMB/debug segment, BASE+D/E     */
+
+    /* Generic UMB card: plain RAM decoded in the upper memory area */
+    ext_ram_t     umb_ram[UMB_MAX_RANGES];
+    mem_mapping_t umb_mapping[UMB_MAX_RANGES];
 
     void    *log;
 } memdev_t;
@@ -1676,6 +1684,123 @@ isamem_close(void *priv)
     free(dev);
 }
 
+/*
+ * Generic UMB expansion card.
+ *
+ * Plain RAM decoded in the upper memory area (A0000-FFFFF), with no
+ * registers, as provided by simple UMB boards (and by memory cards with
+ * UMA decode jumpers). DOS uses it through a UMB provider such as
+ * USE!UMBS.SYS ("DEVICE=USE!UMBS.SYS D000-F000"), which only needs the
+ * RAM to be writable; or DOS can be given it directly by a driver that
+ * links it into the MCB chain.
+ *
+ * Up to two ranges, in 16 KB steps. The RAM is not cleared by a soft
+ * reset, like real DRAM, and is not counted as conventional memory.
+ * The ranges must not overlap option ROMs or video memory in use: the
+ * card would answer as well, as real hardware would.
+ */
+static void *
+genumb_init(const device_t *info)
+{
+    memdev_t *dev = (memdev_t *) calloc(1, sizeof(memdev_t));
+    uint32_t  start[UMB_MAX_RANGES];
+    uint32_t  len[UMB_MAX_RANGES];
+    uint32_t  total = 0;
+    uint8_t  *ptr;
+    char      key[16];
+
+    dev->name  = info->name;
+    dev->board = info->local;
+#ifdef ENABLE_ISAMEM_LOG
+    dev->log = log_open("ISAMEM");
+#endif
+
+    if (device_get_config_int("width") == 16)
+        dev->flags |= FLAG_WIDE;
+    if ((!is286) && (dev->flags & FLAG_WIDE)) {
+        isamem_log(dev->log, "not AT+ system, forcing 8-bit mode!\n");
+        dev->flags &= ~FLAG_WIDE;
+    }
+
+    for (int i = 0; i < UMB_MAX_RANGES; i++) {
+        snprintf(key, sizeof(key), "umb%i_start", i + 1);
+        start[i] = ((uint32_t) device_get_config_int(key)) << 10;
+        snprintf(key, sizeof(key), "umb%i_size", i + 1);
+        len[i] = ((uint32_t) device_get_config_int(key)) << 10;
+
+        /* Keep the range inside the UMA and on 16 KB boundaries. */
+        start[i] &= ~(UMB_GRAN - 1);
+        len[i] &= ~(UMB_GRAN - 1);
+        if (start[i] < RAM_TOPMEM)
+            start[i] = RAM_TOPMEM;
+        if (start[i] >= RAM_EXTMEM)
+            len[i] = 0;
+        else if ((start[i] + len[i]) > RAM_EXTMEM)
+            len[i] = RAM_EXTMEM - start[i];
+
+        /* Clip a second range against the first. */
+        for (int j = 0; j < i; j++) {
+            if (!len[i] || !len[j])
+                continue;
+            if ((start[i] < start[j] + len[j]) && (start[j] < start[i] + len[i])) {
+                if (start[i] >= start[j]) {
+                    uint32_t end = start[i] + len[i];
+                    start[i]     = start[j] + len[j];
+                    len[i]       = (end > start[i]) ? (end - start[i]) : 0;
+                } else
+                    len[i] = start[j] - start[i];
+                isamem_log(dev->log, "UMB range %i overlaps range %i, clipped\n", i + 1, j + 1);
+            }
+        }
+        total += len[i];
+    }
+
+    dev->total_size = (uint16_t) (total >> 10);
+    isamem_log(dev->log, "%s (%iKB%s)\n", info->name, dev->total_size,
+               (dev->flags & FLAG_WIDE) ? ", 16BIT" : "");
+
+    if (total == 0)
+        return dev;
+
+    dev->ram = (uint8_t *) calloc(1, total);
+    ptr      = dev->ram;
+
+    for (int i = 0; i < UMB_MAX_RANGES; i++) {
+        if (!len[i])
+            continue;
+
+        isamem_log(dev->log, "UMB RAM at %05X-%05X (%iKB)\n",
+                   start[i], start[i] + len[i] - 1, len[i] >> 10);
+
+        dev->umb_ram[i].ptr  = ptr;
+        dev->umb_ram[i].base = start[i];
+        mem_mapping_add(&dev->umb_mapping[i], start[i], len[i],
+                        ram_readb,
+                        (dev->flags & FLAG_WIDE) ? ram_readw : NULL,
+                        NULL,
+                        ram_writeb,
+                        (dev->flags & FLAG_WIDE) ? ram_writew : NULL,
+                        NULL,
+                        ptr, MEM_MAPPING_EXTERNAL, &dev->umb_ram[i]);
+        ptr += len[i];
+    }
+
+    return dev;
+}
+
+static void
+genumb_close(void *priv)
+{
+    memdev_t *dev = (memdev_t *) priv;
+
+    for (int i = 0; i < UMB_MAX_RANGES; i++)
+        if (dev->umb_ram[i].ptr)
+            mem_mapping_disable(&dev->umb_mapping[i]);
+
+    isamem_close(priv);
+}
+
+
 static const device_config_t ibmxt_32k_config[] = {
   // clang-format off
     {
@@ -1932,6 +2057,76 @@ static const device_t genericxt_device = {
     .speed_changed = NULL,
     .force_redraw  = NULL,
     .config        = genericxt_config
+};
+
+#define GENUMB_RANGE_CONFIG(n, def_start, def_size)              \
+    {                                                            \
+        .name           = "umb" #n "_start",                     \
+        .description    = "Range " #n " start address (KB)",     \
+        .type           = CONFIG_SPINNER,                        \
+        .default_string = NULL,                                  \
+        .default_int    = def_start,                             \
+        .file_filter    = NULL,                                  \
+        .spinner        = {                                      \
+            .min  =  640,                                        \
+            .max  = 1008,                                        \
+            .step =   16                                         \
+        },                                                       \
+        .selection      = { { 0 } },                             \
+        .bios           = { { 0 } }                              \
+    },                                                           \
+    {                                                            \
+        .name           = "umb" #n "_size",                      \
+        .description    = "Range " #n " size (KB, 0 = none)",    \
+        .type           = CONFIG_SPINNER,                        \
+        .default_string = NULL,                                  \
+        .default_int    = def_size,                              \
+        .file_filter    = NULL,                                  \
+        .spinner        = {                                      \
+            .min  =   0,                                         \
+            .max  = 384,                                         \
+            .step =  16                                          \
+        },                                                       \
+        .selection      = { { 0 } },                             \
+        .bios           = { { 0 } }                              \
+    }
+
+static const device_config_t genumb_config[] = {
+  // clang-format off
+    /* Default D0000-EFFFF, the range in the USE!UMBS.SYS example. */
+    GENUMB_RANGE_CONFIG(1, 832, 128),
+    GENUMB_RANGE_CONFIG(2, 800,   0),
+    {
+        .name           = "width",
+        .description    = "Bus Width",
+        .type           = CONFIG_SELECTION,
+        .default_string = NULL,
+        .default_int    = 8,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = {
+            { .description = "8-bit",  .value =  8 },
+            { .description = "16-bit", .value = 16 },
+            { .description = ""                    }
+        },
+        .bios           = { { 0 } }
+    },
+    { .name = "", .description = "", .type = CONFIG_END }
+  // clang-format on
+};
+
+static const device_t genumb_device = {
+    .name          = "Generic UMB Expansion",
+    .internal_name = "genericumb",
+    .flags         = DEVICE_ISA,
+    .local         = ISAMEM_GENUMB_CARD,
+    .init          = genumb_init,
+    .close         = genumb_close,
+    .reset         = NULL,
+    .available     = NULL,
+    .speed_changed = NULL,
+    .force_redraw  = NULL,
+    .config        = genumb_config
 };
 
 static const device_t ibmpcjr_device = {
@@ -3410,6 +3605,8 @@ static const struct {
     { &ibmat_128k_device   },
     { &ibmat_device        },
     { &genericat_device    },
+    // UMB Cards
+    { &genumb_device       },
     // EMS Cards
     { &p5pak_device        },
     { &a6pak_device        },
