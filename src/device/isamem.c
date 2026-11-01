@@ -708,6 +708,23 @@ ems_writew(uint32_t addr, uint16_t val, void *priv)
     *(uint16_t *) (dev->addr + (addr & 0x3fff)) = val;
 }
 
+/*
+ * Address of the 16 KB window controlled by mapping register <vpage>.
+ *
+ * On the Intel-style boards (Above Board gen 1, Everex, BocaRAM, ...) the
+ * register is selected by address bits A15:A14 of the I/O port, and it
+ * drives whichever of the frame's four windows has the same A15:A14. The
+ * frame need not be 64 KB aligned (Everex/Intel default C400h), so the
+ * register for window 0 is not necessarily register 0:
+ *     frame C400:  reg 1 -> C4000, reg 2 -> C8000, reg 3 -> CC000, reg 0 -> D0000
+ * For a 64 KB aligned frame this is the same as frame + vpage * 16 KB.
+ */
+static uint32_t
+ems_window_addr(uint32_t frame, int vpage)
+{
+    return frame + ((uint32_t) ((vpage - (int) (frame >> 14)) & 3) << 14);
+}
+
 static void
 ems_map_page(emsreg_t *dev, uint8_t val, int vpage, int origport)
 {
@@ -720,15 +737,15 @@ ems_map_page(emsreg_t *dev, uint8_t val, int vpage, int origport)
         isamem_log(dev->log, "[%04X:%08X] (e) map port %04X, page %i, starting at %08X: %08X -> %08X\n",
                    CS, cpu_state.pc,
                    origport & (EMS_PGSIZE - 1), vpage, *dev->frame_addr,
-                   *dev->frame_addr + (EMS_PGSIZE * vpage), dev->addr - dev->ram);
-        mem_mapping_set_addr(&dev->mapping, *dev->frame_addr + (EMS_PGSIZE * vpage), EMS_PGSIZE);
+                   ems_window_addr(*dev->frame_addr, vpage), dev->addr - dev->ram);
+        mem_mapping_set_addr(&dev->mapping, ems_window_addr(*dev->frame_addr, vpage), EMS_PGSIZE);
         mem_mapping_set_exec(&dev->mapping, dev->addr);
         mem_mapping_enable(&dev->mapping);
     } else {
         isamem_log(dev->log, "[%04X:%08X] (d) map port %04X, page %i, starting at %08X: %08X -> N/A\n",
                    CS, cpu_state.pc,
                    origport & (EMS_PGSIZE - 1), vpage, *dev->frame_addr,
-                   *dev->frame_addr + (EMS_PGSIZE * vpage));
+                   ems_window_addr(*dev->frame_addr, vpage));
         mem_mapping_disable(&dev->mapping);
     }
 }
@@ -865,6 +882,15 @@ ems_out(uint16_t port, uint8_t val, void *priv)
             *dev->frame_val = (*dev->frame_val & ~(1 << vpage)) | ((val >> 7) << vpage);
             *dev->frame_addr = 0x000c4000 + (*dev->frame_val << 14);
             isamem_log(dev->log, "[%04X:%08X] map port %04X page %i: frame_addr = %08X\n", CS, cpu_state.pc, port, vpage, *dev->frame_addr);
+            /* The board decodes the frame on every access, so windows that
+               are already mapped move with it. */
+            if (dev->owner != NULL) {
+                emsreg_t *set = &dev->owner->ems[(dev - dev->owner->ems) & EMS_MAXPAGE];
+
+                for (int i = 0; i < EMS_MAXPAGE; i++)
+                    if (set[i].enabled && (set[i].page < *set[i].ems_pages))
+                        mem_mapping_set_addr(&set[i].mapping, ems_window_addr(*dev->frame_addr, i), EMS_PGSIZE);
+            }
 #if 0
             /* Destroy the page registers. */
             for (uint8_t i = 0; i < 4; i ++) {
@@ -1501,6 +1527,7 @@ isamem_init(const device_t *info)
                 dev->ems[i | 4].ems_pages  = &dev->ems_pages[1];
                 dev->ems[i | 4].frame_addr = &dev->frame_addr[1];
                 dev->ems[i | 4].log        = dev->log;
+                dev->ems[i | 4].owner      = dev;
 
                 /* Create and initialize a page mapping. */
                 mem_mapping_add(&dev->ems[i | 4].mapping,
