@@ -595,6 +595,21 @@ static const device_config_t iab_at_config[] = {
     IAB_CFG_END
 };
 
+/* TESTAB offers 6 on-board columns on the PS boards (the serial/parallel
+   section takes the rest): PS/PC 6 x 256 KB, PS/AT 6 columns (1.5 MB) plus
+   an 8-column (2 MB) Piggyback. */
+static const device_config_t iab_pspc_config[] = {
+    IAB_CFG_SIZE(1536, 1536),
+    IAB_CFG_SWITCH_BASE,
+    IAB_CFG_END
+};
+
+static const device_config_t iab_psat_config[] = {
+    IAB_CFG_SIZE(1536, 3584),
+    IAB_CFG_SWITCH_BASE,
+    IAB_CFG_END
+};
+
 static const device_config_t iab_286_config[] = {
     IAB_CFG_SIZE(2048, 8192),
     IAB_CFG_EEPROM_BASE,
@@ -673,9 +688,9 @@ static const device_config_t iab_mmc_config[] = {
 /* Internal names iabpc, iabat and iab286 are the ones the earlier isamem.c
    devices used, so existing VM configurations keep their card. */
 IAB_DEVICE(iab_pc_device,    "Intel Above Board/PC",                  "iabpc",    DEVICE_ISA,   IAB_PC,    iab_pc_config);
-IAB_DEVICE(iab_pspc_device,  "Intel Above Board PS/PC",               "iabpspc",  DEVICE_ISA,   IAB_PSPC,  iab_pc_config);
+IAB_DEVICE(iab_pspc_device,  "Intel Above Board PS/PC",               "iabpspc",  DEVICE_ISA,   IAB_PSPC,  iab_pspc_config);
 IAB_DEVICE(iab_at_device,    "Intel Above Board/AT",                  "iabat",    DEVICE_ISA16, IAB_AT,    iab_at_config);
-IAB_DEVICE(iab_psat_device,  "Intel Above Board PS/AT",               "iabpsat",  DEVICE_ISA16, IAB_PSAT,  iab_at_config);
+IAB_DEVICE(iab_psat_device,  "Intel Above Board PS/AT",               "iabpsat",  DEVICE_ISA16, IAB_PSAT,  iab_psat_config);
 IAB_DEVICE(iab_286_device,   "Intel Above Board 286 / PS/286",        "iab286",   DEVICE_ISA,   IAB_286,   iab_286_config);
 IAB_DEVICE(iab_plus_device,  "Intel Above Board Plus / Plus I/O",     "iabplus",  DEVICE_ISA,   IAB_PLUS1, iab_plus_config);
 IAB_DEVICE(iab_plus8_device, "Intel Above Board Plus 8 / Plus 8 I/O", "iabplus8", DEVICE_ISA,   IAB_PLUS8, iab_plus8_config);
