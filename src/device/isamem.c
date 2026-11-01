@@ -1236,6 +1236,14 @@ isamem_init(const device_t *info)
             else
                 dev->rampage_switch_hi[1] = rampage_sw2_readback((uint16_t) dev->start_addr);
             dev->rampage_switch_hi[2] = rampage_sw1_readback((uint16_t) tot);
+            /* "In some cases, the total of existing PC memory and Rampage
+               conventional memory may add up to more than 640K. In this
+               situation, conventional memory stops at 640K and the balance
+               becomes available as expanded memory" (AST switch notes for
+               the RAMpage! and SixPakPremium). The switch readbacks above
+               keep the setting as configured. */
+            if ((dev->start_addr + tot) > 640)
+                tot = (dev->start_addr < 640) ? (640 - dev->start_addr) : 0;
             if (!device_get_config_int("dual_page"))
                 dev->flags &= ~FLAG_RAMPAGE_DUAL;
 //              dev->rampage_switch_hi[1] = 0b11111111;
@@ -2945,6 +2953,117 @@ static const device_t rampagext_device = {
     .config        = rampagext_config
 };
 
+/*
+ * AST SixPakPremium (p/n 202094-001): a multifunction XT card whose memory
+ * section is a RAMpage! (202073-002) - same EEMS registers, same switch
+ * layout: start address SW1-1..4 in 64 KB steps, dual page SW1-7, parity
+ * SW1-8, "memory used for base 640K" SW2-7/8 = 0/256/512/768 KB - so it uses
+ * the RAMpage/XT model. 256 KB-1 MB on board, 2 MB with the Premium-Pak
+ * daughterboard; LIM 3.2, EEMS and LIM 4.0 through AST REMM.SYS. Its serial,
+ * parallel, game and clock functions are separate devices.
+ */
+static const device_config_t a6pakprem_config[] = {
+  // clang-format off
+    {
+        .name           = "base",
+        .description    = "Address",
+        .type           = CONFIG_HEX16,
+        .default_string = NULL,
+        .default_int    = 0x0218,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = {
+            { .description = "208H", .value = 0x0208 },
+            { .description = "218H", .value = 0x0218 },
+            { .description = "258H", .value = 0x0258 },
+            { .description = "268H", .value = 0x0268 },
+            { .description = "2A8H", .value = 0x02A8 },
+            { .description = "2B8H", .value = 0x02B8 },
+            { .description = "2E8H", .value = 0x02E8 },
+            { .description = ""                      }
+        },
+        .bios           = { { 0 } }
+    },
+    {
+        .name           = "size",
+        .description    = "Memory size",
+        .type           = CONFIG_SPINNER,
+        .default_string = NULL,
+        .default_int    = 1024,
+        .file_filter    = NULL,
+        .spinner        = {
+            .min  =  256,
+            .max  = 2048,
+            .step =  256
+        },
+        .selection      = { { 0 } },
+        .bios           = { { 0 } }
+    },
+    {
+        .name           = "start",
+        .description    = "Conventional Memory Starting Address",
+        .type           = CONFIG_SPINNER,
+        .default_string = NULL,
+        .default_int    = 640,
+        .file_filter    = NULL,
+        .spinner        = {
+            .min  =   0,
+            .max  = 640,
+            .step =  64
+        },
+        .selection      = { { 0 } },
+        .bios           = { { 0 } }
+    },
+    {
+        .name           = "length",
+        .description    = "Memory used for Base 640K",
+        .type           = CONFIG_SELECTION,
+        .default_string = NULL,
+        .default_int    = 0,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = {
+            { .description = "0K",          .value =   0 },
+            { .description = "Up to 256K",  .value = 256 },
+            { .description = "Up to 512K",  .value = 512 },
+            { .description = "Up to 768K",  .value = 768 },
+            { .description = ""                          }
+        },
+        .bios           = { { 0 } }
+    },
+    {
+        .name           = "dual_page",
+        .description    = "Dual Page Mode",
+        .type           = CONFIG_SELECTION,
+        .default_string = NULL,
+        .default_int    = 1,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = {
+            { .description = "Disabled", .value = 0 },
+            { .description = "Enabled",  .value = 1 },
+            { .description = ""                     }
+        },
+        .bios           = { { 0 } }
+    },
+    { .name = "", .description = "", .type = CONFIG_END }
+  // clang-format on
+};
+
+static const device_t a6pakprem_device = {
+    .name          = "AST SixPakPremium",
+    .internal_name = "a6pakprem",
+    .flags         = DEVICE_ISA,
+    .local         = ISAMEM_RAMPAGEXT_CARD, /* RAMpage! memory section, see above */
+    .init          = isamem_init,
+    .close         = isamem_close,
+    .reset         = NULL,
+    .available     = NULL,
+    .speed_changed = NULL,
+    .force_redraw  = NULL,
+    .config        = a6pakprem_config
+};
+
 static const device_config_t rampagextv1_config[] = {
   // clang-format off
     {
@@ -3298,6 +3417,7 @@ static const struct {
     { &brat_device         },
     { &rampagext_device    },
     { &rampagextv1_device  },
+    { &a6pakprem_device    },
 #ifdef USE_ISAMEM_RAMPAGE
     { &rampageat_device     },
 #endif /* USE_ISAMEM_RAMPAGE */
