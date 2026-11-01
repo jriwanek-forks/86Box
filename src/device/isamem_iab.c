@@ -22,6 +22,13 @@
  *          Intel SETBOARD, then do a hard reset so the board reloads its
  *          EEPROM. The "default" options below only seed a fresh EEPROM.
  *
+ * TODO:    The serial and parallel ports of the I/O models (Plus I/O,
+ *          Plus 8 I/O, PS/286) and the PS/PC / PS/AT ports are not
+ *          emulated: EEPROM word 14h (capabilities) stays 0, so SETBOARD
+ *          treats every board as port-less. The word 0/14h bit layout
+ *          needed for them is in iab_core.h. Bus and RAM speed bits
+ *          (words 0 and 3Fh) are stored but have no effect.
+ *
  * Authors: Jasmine Iwanek, <jriwanek@gmail.com>
  *
  *          Copyright 2026 Jasmine Iwanek.

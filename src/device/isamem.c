@@ -412,9 +412,22 @@ rampage_is_xt_family(const memdev_t *dev)
                       (dev->board == ISAMEM_RAMPAGEXTV1_CARD));
 }
 
+/*
+ * The XT boards have no writable latch at BASE+8001. REMM5 and REMM6 both
+ * probe for one (REMM5: write 0Fh and the board number and read them back;
+ * REMM6: write 05h) and decode the switches the AT way when they find it.
+ * On a real RAMpage! 202073 the probe fails, so both drivers take their XT
+ * decode of BASE+4001 (REMM5 15F3h, REMM6 2AC5h). Its low nibble must not
+ * match REMM6's IDs (5, 9, Bh, Ch, Dh); 0Fh is used.
+ * The /V=1 board keeps the old writable-latch model: its REMM5 /V=1
+ * switch layout (2-bit start code) is not the 202141's (REMM6 ID 9), so it
+ * is not yet known what REMM6 sees on it [open].
+ */
 static uint8_t
 rampage_eems_status(const memdev_t *dev)
 {
+    if (dev->board == ISAMEM_RAMPAGEXT_CARD)
+        return 0x0f;
     if (rampage_is_xt_family(dev))
         return dev->rampage_board_select;
 
@@ -425,7 +438,7 @@ rampage_eems_status(const memdev_t *dev)
 static uint8_t
 rampage_4259_readback(const memdev_t *dev)
 {
-    if (rampage_is_xt_family(dev) && (dev->rampage_board_select == 0))
+    if ((dev->board == ISAMEM_RAMPAGEXTV1_CARD) && (dev->rampage_board_select == 0))
         return 0xff;
 
     return (uint8_t) ~dev->rampage_switch_hi[1];
@@ -1259,12 +1272,22 @@ isamem_init(const device_t *info)
                 tot                = device_get_config_int("length");
             dev->flags        |= (FLAG_EMS | FLAG_RAMPAGE_DUAL);
             dev->frame_addr[0] = 0xe0000;
-            if (dev->board == ISAMEM_RAMPAGEXTV1_CARD)
+            if (dev->board == ISAMEM_RAMPAGEXTV1_CARD) {
                 dev->rampage_switch_hi[1] = rampage_xt_switch_readback(dev->base_addr[0],
                                                                        (uint16_t) dev->start_addr,
                                                                        (uint16_t) tot);
-            else
-                dev->rampage_switch_hi[1] = rampage_sw2_readback((uint16_t) dev->start_addr);
+            } else {
+                /* 202073: start in bits 7:4, and in bits 3:2 the "banks
+                   available as base memory" switches (SW1-5/6: 0, 256, 512
+                   or 768 KB), which REMM5 (15F3h) and REMM6 (2AC5h) read
+                   as 3 - n. A length between steps rounds up; the fill
+                   still stops at 640 KB. */
+                uint16_t banks = (uint16_t) ((tot + 255) / 256);
+                if (banks > 3)
+                    banks = 3;
+                dev->rampage_switch_hi[1] = (uint8_t) (rampage_sw2_readback((uint16_t) dev->start_addr) |
+                                                       (((3 - banks) & 3) << 2));
+            }
             dev->rampage_switch_hi[2] = rampage_sw1_readback((uint16_t) tot);
             /* "In some cases, the total of existing PC memory and Rampage
                conventional memory may add up to more than 640K. In this
@@ -1543,9 +1566,11 @@ isamem_init(const device_t *info)
 
         /* Set up where EMS begins in local RAM, and how much we have. */
         dev->ems_start[0]     = ptr - dev->ram;
-        if (dev->board == ISAMEM_RAMPAGEAT_CARD) {
-            /* RAMpage AT: EMS page numbers cover the whole board, and the
-               linear (conventional/extended) memory is board pages 0..n-1.
+        if ((dev->board == ISAMEM_RAMPAGEAT_CARD) || (dev->board == ISAMEM_RAMPAGEXT_CARD)) {
+            /* RAMpage AT and RAMpage! 202073: EMS page numbers cover the
+               whole board, and the linear (conventional/extended) memory is
+               board pages 0..n-1. On the 202073 REMM5/REMM6 map the base fill
+               themselves through the EEMS registers, onto those same pages.
                AST EMM 4.10 skips those itself (8001 high nibble), so EMS
                must not start after the linear block or it is lost twice. */
             dev->ems_start[0] = 0;
