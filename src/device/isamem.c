@@ -129,6 +129,7 @@
 #define ISAMEM_JRIDE_CARD        21
 /* 22, 23 were ISAMEM_ABOVEBOARDPC/AT_CARD, now in isamem_iab.c */
 #define ISAMEM_RAMPAGEAT_CARD    24
+#define ISAMEM_XTMAX_EMS_CARD    25
 
 #define RAM_TOPMEM             (640 << 10)  /* end of low memory */
 #define RAM_UMATOP             (960 << 10)  /* end of usable upper memory (generic XT) */
@@ -142,6 +143,7 @@
 #define EMS_MAXSIZE            (2048 << 10) /* max EMS memory size */
 #define EMS_EV159_MAXSIZE      (3072 << 10) /* max EMS memory size for EV-159 cards */
 #define EMS_LOTECH_MAXSIZE     (4096 << 10) /* max EMS memory size for lotech cards */
+#define EMS_XTMAX_MAXSIZE      (32768 << 10) /* max EMS memory size for XTMax cards */
 #define EMS_PGSIZE             (16 << 10)   /* one page is this big */
 #define EMS_MAXPAGE            4            /* number of viewport pages */
 
@@ -210,6 +212,13 @@ typedef struct memdev_t {
     mem_mapping_t high_mapping; /* mapping for high mem */
 
     emsreg_t ems[EMS_MAXPAGE * 2]; /* EMS controller registers */
+
+    /* XTMax memory manager (EMS part only) */
+    uint16_t xtmax_ptr[EMS_MAXPAGE]; /* 16-bit page pointers, BASE+0..7 */
+    uint16_t xtmax_seg;              /* EMS window segment, BASE+A/B   */
+    uint16_t xtmax_win_seg;          /* window segment at last commit   */
+    uint8_t  xtmax_count;            /* committed 16 KB windows         */
+    uint16_t xtmax_umb_seg;          /* UMB/debug segment, BASE+D/E     */
 
     void    *log;
 } memdev_t;
@@ -910,6 +919,124 @@ consecutive_ems_out(uint16_t port, uint8_t val, void *priv)
     }
 }
 
+/*
+ * XTMax (MicroCoreLabs) memory manager, EMS part only.
+ *
+ * Register map, from XTMax.ino (rev 10) and the XTEMM driver:
+ *   BASE+0..7  four 16-bit EMS page pointers, low byte first (the driver
+ *              uses OUT DX,AX to BASE+2n). Read/write. Reset value FFFFh.
+ *              A pointer selects the 16 KB page at pointer << 14; pages
+ *              beyond the installed RAM read FFh and ignore writes, which
+ *              is how FFFFh "disables" a window.
+ *   BASE+A/B   EMS window segment (write only).
+ *   BASE+C     write: number of 16 KB windows, and commit. Accepted only
+ *              if segment >= A000h and segment + n*400h <= F000h.
+ *   BASE+D/E   UMB base segment (write only). XTEMM writes the window
+ *              segment here and reads BASE+F to verify the commit.
+ *   BASE+F     read: region type at the BASE+D/E segment
+ *              (0 unused, 1 RAM, 2 EMS window). Write: UMB commit - the
+ *              UMB feature is not emulated, the write is ignored.
+ * The firmware decodes window n as (segment << 4) | (n << 14), so the
+ * segment should be 64 KB aligned; XTEMM's /P: values are.
+ */
+static void
+xtmax_update_window(memdev_t *dev, int i)
+{
+    emsreg_t      *reg  = &dev->ems[i];
+    const uint32_t page = dev->xtmax_ptr[i];
+
+    if (i >= dev->xtmax_count) {
+        reg->enabled = 0;
+        mem_mapping_disable(&reg->mapping);
+        return;
+    }
+
+    mem_mapping_set_addr(&reg->mapping,
+                         ((uint32_t) dev->xtmax_win_seg << 4) | ((uint32_t) i * EMS_PGSIZE),
+                         EMS_PGSIZE);
+
+    if (page < dev->ems_pages[0]) {
+        reg->enabled = 1;
+        reg->addr    = dev->ram + dev->ems_start[0] + (page * EMS_PGSIZE);
+        mem_mapping_set_exec(&reg->mapping, reg->addr);
+    } else {
+        reg->enabled = 0;
+        reg->addr    = NULL;
+        mem_mapping_disable(&reg->mapping);
+    }
+}
+
+static uint8_t
+xtmax_ems_in(uint16_t port, void *priv)
+{
+    const memdev_t *dev = (memdev_t *) priv;
+    const int       reg = port - dev->base_addr[0];
+    uint8_t         ret = 0xff;
+
+    if (reg < 8)
+        ret = (reg & 1) ? (dev->xtmax_ptr[reg >> 1] >> 8) : (dev->xtmax_ptr[reg >> 1] & 0xff);
+    else if (reg == 15) {
+        /* Region type at the UMB/debug segment, in 2 KB blocks. */
+        const uint32_t blk  = dev->xtmax_umb_seg >> 7;
+        const uint32_t from = dev->xtmax_win_seg >> 7;
+        ret = (dev->xtmax_count && (blk >= from) && (blk < from + dev->xtmax_count * 8)) ? 2 : 0;
+    }
+
+    isamem_log(dev->log, "XTMax: in  %04X = %02X\n", port, ret);
+
+    return ret;
+}
+
+static void
+xtmax_ems_out(uint16_t port, uint8_t val, void *priv)
+{
+    memdev_t *dev = (memdev_t *) priv;
+    const int reg = port - dev->base_addr[0];
+
+    isamem_log(dev->log, "XTMax: out %04X, %02X\n", port, val);
+
+    switch (reg) {
+        case 0: case 1: case 2: case 3:
+        case 4: case 5: case 6: case 7:
+            if (reg & 1)
+                dev->xtmax_ptr[reg >> 1] = (dev->xtmax_ptr[reg >> 1] & 0x00ff) | (val << 8);
+            else
+                dev->xtmax_ptr[reg >> 1] = (dev->xtmax_ptr[reg >> 1] & 0xff00) | val;
+            xtmax_update_window(dev, reg >> 1);
+            break;
+
+        case 10:
+            dev->xtmax_seg = (dev->xtmax_seg & 0xff00) | val;
+            break;
+        case 11:
+            dev->xtmax_seg = (dev->xtmax_seg & 0x00ff) | (val << 8);
+            break;
+
+        case 12:
+            if ((dev->xtmax_seg >= 0xa000) && (((uint32_t) dev->xtmax_seg + ((uint32_t) val << 10)) <= 0xf000)) {
+                if (dev->xtmax_seg & 0x0fff)
+                    isamem_log(dev->log, "XTMax: window segment %04X is not 64K aligned\n", dev->xtmax_seg);
+                dev->xtmax_win_seg = dev->xtmax_seg;
+                dev->xtmax_count   = (val > EMS_MAXPAGE) ? EMS_MAXPAGE : val;
+                dev->frame_addr[0] = (uint32_t) dev->xtmax_win_seg << 4;
+                isamem_log(dev->log, "XTMax: EMS window %05X, %d page(s)\n", dev->frame_addr[0], dev->xtmax_count);
+                for (int i = 0; i < EMS_MAXPAGE; i++)
+                    xtmax_update_window(dev, i);
+            }
+            break;
+
+        case 13:
+            dev->xtmax_umb_seg = (dev->xtmax_umb_seg & 0xff00) | val;
+            break;
+        case 14:
+            dev->xtmax_umb_seg = (dev->xtmax_umb_seg & 0x00ff) | (val << 8);
+            break;
+
+        default: /* BASE+F UMB commit and unused registers */
+            break;
+    }
+}
+
 /* Initialize the device for use. */
 static void *
 isamem_init(const device_t *info)
@@ -1090,6 +1217,18 @@ isamem_init(const device_t *info)
                 dev->flags     |= FLAG_WIDE;
             if (!!device_get_config_int("speed"))
                 dev->flags     |= FLAG_FAST;
+            break;
+
+        case ISAMEM_XTMAX_EMS_CARD: /* XTMax, EMS part only */
+            ems_max = EMS_XTMAX_MAXSIZE;
+            dev->base_addr[0]   = device_get_config_hex16("base");
+            dev->total_size     = device_get_config_int("size");
+            dev->start_addr     = 0;
+            /* The window is placed by the driver (BASE+A..C). */
+            dev->frame_addr[0]  = 0;
+            for (uint8_t i = 0; i < EMS_MAXPAGE; i++)
+                dev->xtmax_ptr[i] = 0xffff;
+            dev->flags         |= (FLAG_EMS | FLAG_CONFIG);
             break;
 
         case ISAMEM_LOTECH_EMS_CARD: /* Lotech EMS */
@@ -1357,7 +1496,8 @@ isamem_init(const device_t *info)
             /* Set up an I/O port handler.  RAMpage is not the same as the
                simple LIM 3.2 register pair: its four viewport ports are
                4000h apart and its odd ports include EEMS control/status. */
-            if (dev->board != ISAMEM_LOTECH_EMS_CARD) {
+            if ((dev->board != ISAMEM_LOTECH_EMS_CARD) &&
+                (dev->board != ISAMEM_XTMAX_EMS_CARD)) {
                 if ((dev->board == ISAMEM_RAMPAGEXT_CARD) ||
                     (dev->board == ISAMEM_RAMPAGEXTV1_CARD) ||
                     (dev->board == ISAMEM_RAMPAGEAT_CARD)) {
@@ -1402,6 +1542,10 @@ isamem_init(const device_t *info)
         if (dev->board == ISAMEM_LOTECH_EMS_CARD)
             io_sethandler(dev->base_addr[0], 4,
                           consecutive_ems_in, NULL, NULL, consecutive_ems_out, NULL, NULL, dev);
+
+        if (dev->board == ISAMEM_XTMAX_EMS_CARD)
+            io_sethandler(dev->base_addr[0], 16,
+                          xtmax_ems_in, NULL, NULL, xtmax_ems_out, NULL, NULL, dev);
     }
 
 #ifdef IAB_5170_HACK
@@ -2993,6 +3137,59 @@ static const device_t mplus2_device = {
     .config        = mplus2_config
 };
 
+static const device_config_t xtmax_ems_config[] = {
+  // clang-format off
+    {
+        .name           = "base",
+        .description    = "Address",
+        .type           = CONFIG_HEX16,
+        .default_string = NULL,
+        .default_int    = 0x0260,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = {
+            /* MMAN_BASE in the firmware; any multiple of 10h if rebuilt */
+            { .description = "240H",           .value = 0x0240 },
+            { .description = "250H",           .value = 0x0250 },
+            { .description = "260H (default)", .value = 0x0260 },
+            { .description = "270H",           .value = 0x0270 },
+            { .description = ""                                }
+        },
+        .bios           = { { 0 } }
+    },
+    {
+        .name           = "size",
+        .description    = "Memory size",
+        .type           = CONFIG_SPINNER,
+        .default_string = NULL,
+        .default_int    = 16384,
+        .file_filter    = NULL,
+        .spinner        = {
+            .min  =   512,
+            .max  = 32768,
+            .step =   512
+        },
+        .selection      = { { 0 } },
+        .bios           = { { 0 } }
+    },
+    { .name = "", .description = "", .type = CONFIG_END }
+  // clang-format on
+};
+
+static const device_t xtmax_ems_device = {
+    .name          = "XTMax (EMS)",
+    .internal_name = "xtmax_ems",
+    .flags         = DEVICE_ISA,
+    .local         = ISAMEM_XTMAX_EMS_CARD,
+    .init          = isamem_init,
+    .close         = isamem_close,
+    .reset         = NULL,
+    .available     = NULL,
+    .speed_changed = NULL,
+    .force_redraw  = NULL,
+    .config        = xtmax_ems_config
+};
+
 static const struct {
     const device_t *dev;
 } boards[] = {
@@ -3027,6 +3224,7 @@ static const struct {
     { &rampageat_device     },
 #endif /* USE_ISAMEM_RAMPAGE */
     { &lotech_ems_device   },
+    { &xtmax_ems_device    },
     { &mplus2_device       },
     // Intel Above Board family (isamem_iab.c)
     { &iab_pc_device       },
