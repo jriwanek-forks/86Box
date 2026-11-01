@@ -1676,6 +1676,330 @@ const device_t rp5c01a_zenith_device = {
     .config        = NULL
 };
 
+/************************************************************************
+ *                                                                      *
+ *        Driver for the OKI MSM6242 RTC (Intel Above Board clock).     *
+ *                                                                      *
+ ************************************************************************/
+/*
+ * Intel's CLOCK.SYS 1.2 (shipped with the Above Board 286/PS/286, Plus
+ * and Plus 8 software) and the public-domain ABCLOCK for the Above Board
+ * PS/PC drive an MSM6242 at a fixed base of 2C0h:
+ *
+ *   2C0-2CB  S1 S10 MI1 MI10 H1 H10 D1 D10 MO1 MO10 Y1 Y10 (one BCD digit
+ *            per port, low nibble)
+ *   2CC      day of the week (0-6)
+ *   2CD      CD: bit 0 HOLD, bit 1 BUSY, bit 2 IRQ FLAG, bit 3 30s ADJ
+ *   2CE      CE: interrupt mask/mode/period (CLOCK.SYS writes 03h)
+ *   2CF      CF: bit 0 REST, bit 1 STOP, bit 2 24h, bit 3 TEST
+ *            (CLOCK.SYS writes 01h then 05h)
+ *
+ * The year register holds years since 1980; CLOCK.SYS prints values
+ * below 20 as 19(80+y) and the rest as 20(y-20). The chip's own leap-
+ * year rule (Y mod 4 == 0) is correct for that base.
+ * The board's IRQ wiring is not known, so no interrupt is raised.
+ */
+#define MSM_S1    0x00
+#define MSM_MI1   0x02
+#define MSM_H1    0x04
+#define MSM_H10   0x05
+#define MSM_D1    0x06
+#define MSM_MO1   0x08
+#define MSM_Y1    0x0a
+#define MSM_W     0x0c
+#define MSM_CD    0x0d
+#define MSM_CE    0x0e
+#define MSM_CF    0x0f
+
+#define MSM_CD_HOLD 0x01
+#define MSM_CD_BUSY 0x02
+#define MSM_CD_IRQF 0x04
+#define MSM_CD_ADJ  0x08
+#define MSM_CF_REST 0x01
+#define MSM_CF_STOP 0x02
+#define MSM_CF_24H  0x04
+
+#define MSM_YEAR_BASE 1980
+
+typedef struct msm6242_t {
+    uint16_t   base;
+    int        pending; /* seconds that elapsed while HOLD was set */
+    int        is_at;
+    pc_timer_t timer;
+    nvr_t      nvr;
+} msm6242_t;
+
+static int
+msm_get2(const uint8_t *r, int a)
+{
+    return (r[a + 1] & 0x0f) * 10 + (r[a] & 0x0f);
+}
+
+static void
+msm_set2(uint8_t *r, int a, int v)
+{
+    r[a]     = (uint8_t) (v % 10);
+    r[a + 1] = (uint8_t) ((v / 10) % 10);
+}
+
+static int
+msm_get_hour(const uint8_t *r)
+{
+    if (r[MSM_CF] & MSM_CF_24H)
+        return msm_get2(r, MSM_H1) % 24;
+
+    /* 12-hour mode: H10 bit 2 is PM, 12 means 0. */
+    int h = ((r[MSM_H10] & 0x03) * 10 + (r[MSM_H1] & 0x0f)) % 12;
+    return h + ((r[MSM_H10] & 0x04) ? 12 : 0);
+}
+
+static void
+msm_set_hour(uint8_t *r, int h)
+{
+    if (r[MSM_CF] & MSM_CF_24H) {
+        msm_set2(r, MSM_H1, h);
+        return;
+    }
+    int h12 = h % 12;
+    if (h12 == 0)
+        h12 = 12;
+    msm_set2(r, MSM_H1, h12);
+    if (h >= 12)
+        r[MSM_H10] |= 0x04;
+}
+
+static void
+msm_time_get(const uint8_t *r, struct tm *tm)
+{
+    memset(tm, 0, sizeof(struct tm));
+    tm->tm_sec  = msm_get2(r, MSM_S1);
+    tm->tm_min  = msm_get2(r, MSM_MI1);
+    tm->tm_hour = msm_get_hour(r);
+    tm->tm_mday = msm_get2(r, MSM_D1);
+    tm->tm_mon  = msm_get2(r, MSM_MO1) - 1;
+    tm->tm_year = msm_get2(r, MSM_Y1) + MSM_YEAR_BASE - 1900;
+    tm->tm_wday = r[MSM_W] & 0x07;
+}
+
+static void
+msm_time_set(uint8_t *r, const struct tm *tm)
+{
+    int y = tm->tm_year + 1900 - MSM_YEAR_BASE;
+
+    if (y < 0)
+        y = 0;
+    msm_set2(r, MSM_S1, tm->tm_sec);
+    msm_set2(r, MSM_MI1, tm->tm_min);
+    msm_set_hour(r, tm->tm_hour);
+    msm_set2(r, MSM_D1, tm->tm_mday);
+    msm_set2(r, MSM_MO1, tm->tm_mon + 1);
+    msm_set2(r, MSM_Y1, y % 100);
+    r[MSM_W] = (uint8_t) (tm->tm_wday % 7);
+}
+
+/* Advance the counters by one second. */
+static void
+msm_bump(uint8_t *r)
+{
+    struct tm tm;
+
+    msm_time_get(r, &tm);
+    if (++tm.tm_sec < 60)
+        goto done;
+    tm.tm_sec = 0;
+    if (++tm.tm_min < 60)
+        goto done;
+    tm.tm_min = 0;
+    if (++tm.tm_hour < 24)
+        goto done;
+    tm.tm_hour = 0;
+    tm.tm_wday = (tm.tm_wday + 1) % 7;
+    {
+        int y    = tm.tm_year + 1900;
+        int days = (tm.tm_mon == 1) ? ((y & 3) ? 28 : 29) : nvr_get_days(tm.tm_mon + 1, y);
+        if (++tm.tm_mday <= days)
+            goto done;
+    }
+    tm.tm_mday = 1;
+    if (++tm.tm_mon < 12)
+        goto done;
+    tm.tm_mon = 0;
+    if (++tm.tm_year + 1900 >= MSM_YEAR_BASE + 100)
+        tm.tm_year = MSM_YEAR_BASE - 1900;
+done:
+    msm_time_set(r, &tm);
+}
+
+static void
+msm6242_timer(void *priv)
+{
+    msm6242_t *dev = (msm6242_t *) priv;
+    uint8_t   *r   = dev->nvr.regs;
+
+    timer_advance_u64(&dev->timer, 1000000ULL * TIMER_USEC);
+
+    if (r[MSM_CF] & (MSM_CF_REST | MSM_CF_STOP))
+        return;
+    if (r[MSM_CD] & MSM_CD_HOLD) {
+        /* The chip carries one pending second over a HOLD. */
+        dev->pending = 1;
+        return;
+    }
+    msm_bump(r);
+    if (!(r[MSM_CE] & 0x01))
+        r[MSM_CD] |= MSM_CD_IRQF;
+}
+
+static uint8_t
+msm6242_read(uint16_t port, void *priv)
+{
+    const msm6242_t *dev = (msm6242_t *) priv;
+    const uint8_t   *r   = dev->nvr.regs;
+    int              reg = port & 0x0f;
+    uint8_t          ret = r[reg] & 0x0f;
+
+    if (reg == MSM_CD)
+        ret &= ~MSM_CD_BUSY; /* registers are always safe to access */
+
+    isartc_log("MSM6242: read(%04x) = %02x\n", port, ret);
+    return ret;
+}
+
+static void
+msm6242_write(uint16_t port, uint8_t val, void *priv)
+{
+    msm6242_t *dev = (msm6242_t *) priv;
+    uint8_t   *r   = dev->nvr.regs;
+    int        reg = port & 0x0f;
+
+    isartc_log("MSM6242: write(%04x, %02x)\n", port, val);
+    val &= 0x0f;
+
+    switch (reg) {
+        case MSM_CD:
+            /* IRQ FLAG can only be cleared; HOLD and 30s ADJ are plain bits. */
+            r[MSM_CD] = (uint8_t) ((val & (MSM_CD_HOLD | MSM_CD_ADJ)) |
+                                   (r[MSM_CD] & val & MSM_CD_IRQF));
+            if (val & MSM_CD_ADJ) {
+                if (msm_get2(r, MSM_S1) >= 30) {
+                    msm_set2(r, MSM_S1, 59);
+                    msm_bump(r);
+                } else
+                    msm_set2(r, MSM_S1, 0);
+                r[MSM_CD] &= ~MSM_CD_ADJ;
+            }
+            if (!(val & MSM_CD_HOLD) && dev->pending) {
+                dev->pending = 0;
+                if (!(r[MSM_CF] & (MSM_CF_REST | MSM_CF_STOP)))
+                    msm_bump(r);
+            }
+            break;
+
+        case MSM_CF:
+            if ((val ^ r[MSM_CF]) & MSM_CF_24H) {
+                /* Switching 12/24h keeps the current hour. */
+                int h = msm_get_hour(r);
+                r[MSM_CF] = val;
+                r[MSM_H10] = 0;
+                msm_set_hour(r, h);
+            } else
+                r[MSM_CF] = val;
+            break;
+
+        default:
+            r[reg] = val;
+            break;
+    }
+    nvr_dosave = 1;
+}
+
+static void
+msm6242_start(nvr_t *nvr)
+{
+    struct tm tm;
+
+    if (time_sync != TIME_SYNC_DISABLED) {
+        nvr_time_get(&tm);
+        msm_time_set(nvr->regs, &tm);
+    }
+}
+
+static void
+msm6242_reset(nvr_t *nvr)
+{
+    struct tm tm;
+
+    memset(nvr->regs, 0x00, sizeof(nvr->regs));
+    nvr->regs[MSM_CF] = MSM_CF_24H;
+    memset(&tm, 0, sizeof(tm));
+    tm.tm_mday = 1;
+    tm.tm_year = MSM_YEAR_BASE - 1900;
+    tm.tm_wday = 2; /* 1 January 1980 was a Tuesday */
+    msm_time_set(nvr->regs, &tm);
+}
+
+static void *
+msm6242_init(const device_t *info)
+{
+    msm6242_t *dev = (msm6242_t *) calloc(1, sizeof(msm6242_t));
+
+    dev->base      = 0x02c0;
+    dev->is_at     = IS_AT(machine);
+    dev->nvr.size  = 16;
+    dev->nvr.irq   = -1;
+    dev->nvr.data  = dev;
+    dev->nvr.fn    = (char *) info->internal_name;
+    dev->nvr.reset = msm6242_reset;
+    dev->nvr.start = msm6242_start;
+    dev->nvr.tick  = NULL;
+
+    /* An AT machine owns the NVR backend; run the chip from our own timer. */
+    if (!dev->is_at)
+        nvr_init(&dev->nvr);
+    else {
+        msm6242_reset(&dev->nvr);
+        msm6242_start(&dev->nvr);
+    }
+
+    io_sethandler(dev->base, 16,
+                  msm6242_read, NULL, NULL, msm6242_write, NULL, NULL, dev);
+
+    timer_add(&dev->timer, msm6242_timer, dev, 0);
+    timer_set_delay_u64(&dev->timer, 1000000ULL * TIMER_USEC);
+
+    return dev;
+}
+
+static void
+msm6242_close(void *priv)
+{
+    msm6242_t *dev = (msm6242_t *) priv;
+
+    timer_disable(&dev->timer);
+    io_removehandler(dev->base, 16,
+                     msm6242_read, NULL, NULL, msm6242_write, NULL, NULL, dev);
+    if (!dev->is_at) {
+        nvr_dosave = 1;
+        nvr_save();
+    }
+
+    free(dev);
+}
+
+static const device_t iabclock_device = {
+    .name          = "Intel Above Board clock (MSM6242)",
+    .internal_name = "iabclock",
+    .flags         = DEVICE_ISA,
+    .local         = 0,
+    .init          = msm6242_init,
+    .close         = msm6242_close,
+    .reset         = NULL,
+    .available     = NULL,
+    .speed_changed = NULL,
+    .force_redraw  = NULL,
+    .config        = NULL
+};
+
 static const struct {
     const device_t *dev;
 } boards[] = {
@@ -1687,6 +2011,7 @@ static const struct {
     { &a6pak_device    },
     { &mplus2_device   },
     { &mm58167_device  },
+    { &iabclock_device },
     { NULL             }
     // clang-format on
 };
