@@ -40,6 +40,7 @@ add_library(dev OBJECT
     mcamem.c
     isamem.c
     isamem_iab.c
+    isamem_everex.c
     isarom.c
     isartc.c
     isapnp.c
