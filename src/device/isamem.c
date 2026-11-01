@@ -193,6 +193,7 @@ typedef struct memdev_t {
      uint8_t  rampage_map[128];
     uint8_t  rampage_map_select;
     uint8_t  rampage_board_select;
+    uint8_t  rampage_mode;         /* BASE+4001 write latch (see rampage_eems_out) */
 
     uint16_t total_size;    /* configured size in KB */
     uint16_t base_addr[2];  /* configured I/O address */
@@ -504,7 +505,19 @@ rampage_eems_out(uint16_t port, uint8_t val, void *priv)
         case 0x4001:
         case 0x8001:
         case 0xc001:
-            if (off == 0x8001) {
+            if (off == 0x4001) {
+                /* BASE+4001 is its own register, not a selector alias. AST
+                   EMM 4.10 (REMM6) writes 01h/00h here around every page
+                   access (or calls INT 67h AX=6101h/6102h instead) and
+                   reports it as "Mode Value Set"; RAMpage EMM 2.08 (REMM5)
+                   writes 0-3 and then rewrites BASE+1. Treating it as an
+                   alias moved the frame away in the middle of REMM6's memory
+                   test. Its function is not known, so it is only latched. */
+                dev->rampage_mode = val;
+                isamem_log(dev->log,
+                           "[%04X:%08X] RAMpage MODE WRITE port=%04X val=%02X\n",
+                           CS, cpu_state.pc, port, val);
+            } else if (off == 0x8001) {
                      /* BASE+8001 stores the low-nibble board latch.  The high
                          nibble reflects installed 128-KB banks. */
                 isamem_log(dev->log,
@@ -1240,7 +1253,8 @@ isamem_init(const device_t *info)
                 tot                = device_get_config_int("length");
             dev->frame_addr[0]  = device_get_config_hex20("frame");
             dev->flags         |= FLAG_EMS;
-            if (!!device_get_config_int("width"))
+            /* "width" holds 8 or 16, so test the value, not just non-zero. */
+            if (device_get_config_int("width") == 16)
                 dev->flags     |= FLAG_WIDE;
             if (!!device_get_config_int("speed"))
                 dev->flags     |= FLAG_FAST;
