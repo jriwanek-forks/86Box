@@ -193,6 +193,7 @@ typedef struct memdev_t {
     uint8_t  rampage_map_select;
     uint8_t  rampage_board_select;
     uint8_t  rampage_mode;         /* BASE+4001 write latch (see rampage_eems_out) */
+    uint16_t rampage_linear_kb;    /* RAMpage AT SW1-1..4: linear (non-EMS) memory */
 
     uint16_t total_size;    /* configured size in KB */
     uint16_t base_addr[2];  /* configured I/O address */
@@ -280,8 +281,12 @@ rampage_update_mappings(memdev_t *dev)
      * Bit 7 is the frame-enable bit.  Do not leave a second hard-coded
      * frame alias installed: the hardware has one movable 64-KB frame.
      */
+    /* The RAMpage AT has no frame switch either (AST RAMpage AT switch
+       table); AST EMM 4.10 programs its frame through the selector exactly
+       as on the XT boards, so it shares this path. */
     if ((dev->board == ISAMEM_RAMPAGEXT_CARD) ||
-        (dev->board == ISAMEM_RAMPAGEXTV1_CARD)) {
+        (dev->board == ISAMEM_RAMPAGEXTV1_CARD) ||
+        (dev->board == ISAMEM_RAMPAGEAT_CARD)) {
         const uint32_t frame = ((uint32_t) first) * EMS_PGSIZE;
         const int frame_enabled = !!(dev->rampage_map_select & 0x80);
 
@@ -351,15 +356,22 @@ rampage_update_mappings(memdev_t *dev)
 /* BASE+8001 is an AST board-identification/status port.  The driver uses it
    as a small board-number latch: it writes 0Fh and expects that value back,
    then writes the board index and expects the low nibble to echo it. */
+/*
+ * RAMpage AT BASE+8001 high nibble: switches SW1-1..4, the amount of board
+ * memory dedicated to linear (conventional + extended) memory, read with
+ * ON = 0: (n + 1) * 128 KB, 0 = 128 KB ... F = 2048 KB (AST RAMpage AT
+ * switch table; AST EMM 4.10 computes ((hi + 1) * 8) pages at 2B3Eh). With
+ * no linear memory the start switches are all OFF and this is ignored.
+ */
 static uint8_t
 rampage_board_nibble(const memdev_t *dev)
 {
-    const uint16_t banks = dev->total_size / 128U;
+    const uint16_t units = dev->rampage_linear_kb / 128U;
 
-    if (banks == 0)
-        return 0;
+    if (units == 0)
+        return 0x0f;
 
-    return (uint8_t) ((banks - 1U) & 0x0fU);
+    return (uint8_t) ((units - 1U) & 0x0fU);
 }
 
 static uint8_t
@@ -418,13 +430,26 @@ rampage_xt_base_readback(uint16_t base)
     }
 }
 
+/*
+ * RAMpage AT switch block 2 as seen at BASE+4001 (stored inverted, see
+ * rampage_4259_readback): SW2-1..7 = start address of the board's linear
+ * memory in 128 KB units, SW2-1 the MSB, in bits 7:1; SW2-8 = parity check
+ * in bit 0; switch ON reads 0. All seven start switches OFF (code 7Fh)
+ * means all board memory is EMS. AST EMM 4.10 takes the code from bits 7:1
+ * (2B4Bh: shr al,1) - the earlier layout in bits 6:0 made it read half the
+ * start address and report "Memory size is overallocated".
+ */
 static uint8_t
-rampage_at_sw2_readback(uint16_t start_kb)
+rampage_at_sw2_readback(uint16_t start_kb, uint16_t linear_kb)
 {
-    if (start_kb >= 15360)
-        return 0x00;
+    uint8_t rd;
 
-    return (uint8_t) ((((start_kb / 128U) ^ 0x7fU) & 0x7fU) | 0x80U);
+    if ((linear_kb == 0) || (start_kb >= 15360))
+        rd = 0xfe; /* all EMS, parity on */
+    else
+        rd = (uint8_t) (((start_kb / 128U) & 0x7fU) << 1);
+
+    return (uint8_t) ~rd;
 }
 
 static uint8_t
@@ -1237,7 +1262,8 @@ isamem_init(const device_t *info)
                 tot                = device_get_config_int("length");
             dev->flags        |= (FLAG_EMS | FLAG_WIDE | FLAG_RAMPAGE_DUAL);
             dev->frame_addr[0] = device_get_config_hex20("frame");
-            dev->rampage_switch_hi[1] = rampage_at_sw2_readback((uint16_t) dev->start_addr);
+            dev->rampage_linear_kb    = (uint16_t) tot;
+            dev->rampage_switch_hi[1] = rampage_at_sw2_readback((uint16_t) dev->start_addr, (uint16_t) tot);
             if (!device_get_config_int("dual_page"))
                 dev->flags &= ~FLAG_RAMPAGE_DUAL;
             break;
@@ -1462,7 +1488,15 @@ isamem_init(const device_t *info)
 
         /* Set up where EMS begins in local RAM, and how much we have. */
         dev->ems_start[0]     = ptr - dev->ram;
-        if ((dev->board == ISAMEM_EV159_CARD) && (t > (2 << 20))) {
+        if (dev->board == ISAMEM_RAMPAGEAT_CARD) {
+            /* RAMpage AT: EMS page numbers cover the whole board, and the
+               linear (conventional/extended) memory is board pages 0..n-1.
+               AST EMM 4.10 skips those itself (8001 high nibble), so EMS
+               must not start after the linear block or it is lost twice. */
+            dev->ems_start[0] = 0;
+            dev->ems_size[0]  = dev->total_size;
+            dev->ems_pages[0] = (uint16_t) (((uint32_t) dev->total_size << 10) / EMS_PGSIZE);
+        } else if ((dev->board == ISAMEM_EV159_CARD) && (t > (2 << 20))) {
             dev->ems_size[0]  = 2 << 10;
             dev->ems_pages[0] = (2 << 20) / EMS_PGSIZE;
         } else {
