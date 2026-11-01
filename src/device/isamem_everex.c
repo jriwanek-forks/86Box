@@ -295,6 +295,11 @@ ev178_in(uint16_t port, void *priv)
             uint16_t v = dev->map[dev->index & 0x3f];
 
             ret = odd ? (v >> 8) : (v & 0xff);
+            /* Bit 6 also steps the index after a high-byte read: EMML's
+               page-map restore (4E01h) reads the windows it keeps and
+               writes 0 to the rest in one auto-increment pass. */
+            if (odd && (dev->index & 0x40))
+                dev->index = (uint8_t) ((dev->index & 0xc0) | ((dev->index + 1) & 0x3f));
             break;
         }
         case 2:
@@ -337,7 +342,7 @@ ev178_out(uint16_t port, uint8_t val, void *priv)
             else
                 dev->map[w] = (uint16_t) ((dev->map[w] & 0xff00) | val);
             ev178_update(dev, w);
-            /* Bit 6: auto-increment after the high byte. */
+            /* Bit 6: auto-increment after the high byte (read or write). */
             if (odd && (dev->index & 0x40))
                 dev->index = (uint8_t) ((dev->index & 0xc0) | ((dev->index + 1) & 0x3f));
             break;

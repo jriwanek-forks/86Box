@@ -192,7 +192,37 @@ static uint8_t *iab_window_ptr(iab_core_t *c, uint32_t seg)
     return NULL;
 }
 
-/* ---- EEPROM image ---- */
+/* ---- EEPROM image ----
+ *
+ * Word map (Intel spec 2.7.2; SETBOARD 1.60 behaviour from the EEPROM
+ * brute-force runs, spec 2.7.5). What the model acts on:
+ *   w1  bits 12..10 I/O base, 15..14 conventional fill, 9..5 / 4..0
+ *       extended start / end (512 KB units, end inclusive)
+ *   w3  bits 14..13 / 12..11 extended start / end fine bits (128 KB),
+ *       used when w6 bit 0 = 0, Plus rev 2 and later only
+ *   w3F bits 15..8 = AAh: programmed (else the board answers at 268h)
+ * Stored but with no effect in the model (timing only on real boards):
+ *   w0  bits 2..0 bus timing (SETBOARD: 000 16-bit, 101 8-bit)
+ *   w3F bits 3..1 bus speed (0 8-bit "any", 1 10 MHz, 2 12 MHz,
+ *       3 >12 MHz, 7 6-8 MHz), bits 7..4 (kept as found by SETBOARD
+ *       1.60, 0 when it programs a blank board; the 1987 286 SETBOARD
+ *       writes 1111), bit 0 RAM speed (automatic setup 1, manual
+ *       setup 0; forced 0 on the Plus 8 / MMC)
+ *   w1  bit 13 (always cleared by SETBOARD), w3 bit 15 (board supplies
+ *       conventional memory; EMM reads only w1)
+ *   w2  scratch, w1Ah-23h factory data (never read by any Intel tool)
+ *
+ * TODO: serial/parallel ports of the I/O models (Plus I/O, Plus 8 I/O,
+ *       PS/286) are not emulated. They would need:
+ *         w14h capability: bit 0 parallel, bit 1 or 3 main serial,
+ *              bit 2, 5 or 6 second serial (not offered on the Plus 8
+ *              when a main serial bit is set)
+ *         w0   bits 5..4 parallel (01 378h, 10 278h), bit 6 serial A
+ *              enable, 8..7 address (11 3F8h, 01 2F8h, 10 3E8h, 00 2E8h),
+ *              10..9 IRQ (00 2, 11 3, 10 4, 01 5), bit 11 serial B
+ *              enable, 13..12 / 15..14 its address / IRQ
+ *       w14h is left 0 so SETBOARD treats every board as port-less.
+ */
 static void iab_eep_default(iab_core_t *c)
 {
     char sn[12];
@@ -232,7 +262,7 @@ static void iab_eep_default(iab_core_t *c)
     for (int i = 0; i < 11; i++)
         c->eep[8 + i] = (uint16_t) ((uint8_t) sn[i] | ((uint8_t) ~sn[i] << 8));
     c->eep[0x13] = iab_serial_crc((const uint8_t *) sn, 11);
-    c->eep[0x14] = 0x0000;                         /* no serial/parallel fitted */
+    c->eep[0x14] = 0x0000;                         /* no serial/parallel fitted (see TODO above) */
     if (c->type == IAB_286)
         c->eep[0x3f] = c->at_mode ? 0xAAFF : 0xAA01;
     else if (c->type == IAB_PLUS8 || c->type == IAB_MMC)
@@ -285,7 +315,9 @@ static void iab_core_reset(iab_core_t *c)
     if (c->at_mode) {
         uint32_t sf = (w1 >> 5) & 0x1f, ef = w1 & 0x1f;
         if (sf && ef) {
-            int fine = iab_is_plus(c) && !(c->eep[6] & 1);
+            /* the 128 KB fine bits exist from the Plus rev 2 (SETBOARD
+               codes 9/A) on; rev 1 is 512 KB granular whatever w6 says */
+            int fine = (c->type >= IAB_PLUS2) && !(c->eep[6] & 1);
             uint32_t s = sf * 512, e;
             if (fine) {
                 s += ((c->eep[3] >> 13) & 3) * 128;
