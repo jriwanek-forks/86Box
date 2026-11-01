@@ -45,6 +45,28 @@
  *          Copyright 2018      Fred N. van Kempen.
  *          Copyright 2022-2026 Jasmine Iwanek.
  *
+ *          Licensing:
+ *
+ *          The portions of this file written by Fred N. van Kempen for
+ *          VARCem remain under the BSD 3-clause licence below, and its
+ *          notice must be retained in all copies.
+ *
+ *          The portions Copyright 2022-2026 Jasmine Iwanek are free
+ *          software: you can redistribute them and/or modify them under
+ *          the terms of the GNU General Public License as published by
+ *          the Free Software Foundation, either version 2 of the
+ *          License, or (at your option) any later version. They are
+ *          distributed in the hope that they will be useful, but WITHOUT
+ *          ANY WARRANTY; without even the implied warranty of
+ *          MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ *          GNU General Public License for more details.
+ *
+ *          The file as a whole may therefore be redistributed and/or
+ *          modified under the GNU General Public License, version 2 or
+ *          later, provided the BSD notice below is kept.
+ *
+ *          BSD 3-clause licence (VARCem portions):
+ *
  *          Redistribution and  use  in source  and binary forms, with
  *          or  without modification, are permitted  provided that the
  *          following conditions are met:
