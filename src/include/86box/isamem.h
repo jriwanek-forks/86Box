@@ -72,6 +72,9 @@ extern const device_t iab_mmc_device;
 /* Everex EV-158A and EV-178, isamem_everex.c */
 extern const device_t ev158a_device;
 extern const device_t ev178_device;
+
+/* AST SixPak 286 (isamem_sixpak286.c) */
+extern const device_t sixpak286_device;
 #endif
 
 #ifdef __cplusplus

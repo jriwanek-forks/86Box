@@ -43,6 +43,7 @@ add_library(dev OBJECT
     isamem.c
     isamem_iab.c
     isamem_everex.c
+    isamem_sixpak286.c
     isarom.c
     isartc.c
     isapnp.c
