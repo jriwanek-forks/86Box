@@ -78,7 +78,8 @@
 #define ENABLE_ISAMEM_LOG 1
 #define ISAMEM_DEBUG      1
 
-/* Port 0x62 hack to allow the IAB PC driver to work on an AT class system */
+/* Port 0x61/0x62 hack to allow the RAMpage XT drivers to work on an AT class
+   system (isamem_iab.c has its own switch for the IAB PC driver) */
 //#define IAB_5170_HACK     1
 
 #ifdef ENABLE_ISAMEM_LOG
@@ -117,7 +118,7 @@
 #define ISAMEM_EV159_CARD      10 /* Ram 3000 Deluxe*/
 #define ISAMEM_RAMPAGEXT_CARD    11
 #define ISAMEM_RAMPAGEXTV1_CARD  12
-#define ISAMEM_ABOVEBOARD286_CARD 13
+/* 13 was ISAMEM_ABOVEBOARD286_CARD, now in isamem_iab.c */
 #define ISAMEM_BRXT_CARD         14
 #define ISAMEM_BRAT_CARD         15
 #define ISAMEM_EV165A_CARD       16 /* Everex Maxi Magic EMS */
@@ -126,8 +127,7 @@
 #define ISAMEM_IBMPCJR_CARD      19
 #define ISAMEM_GENPCJR_CARD      20
 #define ISAMEM_JRIDE_CARD        21
-#define ISAMEM_ABOVEBOARDPC_CARD 22
-#define ISAMEM_ABOVEBOARDAT_CARD 23
+/* 22, 23 were ISAMEM_ABOVEBOARDPC/AT_CARD, now in isamem_iab.c */
 #define ISAMEM_RAMPAGEAT_CARD    24
 
 #define RAM_TOPMEM             (640 << 10)  /* end of low memory */
@@ -1028,29 +1028,6 @@ isamem_init(const device_t *info)
             dev->frame_addr[0] = 0xe0000;
             break;
 
-        case ISAMEM_ABOVEBOARDPC_CARD: /* Intel Above Board PC */
-            dev->base_addr[0]  = device_get_config_hex16("base");
-            dev->total_size    = device_get_config_int("size");
-            dev->start_addr    = device_get_config_int("start");
-            if ((dev->start_addr >= 256) && (dev->start_addr < 640))
-                tot                = device_get_config_int("length");
-            if (!!device_get_config_int("ems"))
-                dev->flags    |= FLAG_EMS;
-            dev->frame_addr[0] = 0xe0000;
-            break;
-
-        case ISAMEM_ABOVEBOARDAT_CARD: /* Intel Above Board/AT */
-            dev->base_addr[0]  = device_get_config_hex16("base");
-            dev->total_size    = device_get_config_int("size");
-            dev->start_addr    = device_get_config_int("start");
-            if ((dev->start_addr >= 512) && (dev->start_addr < 640))
-                tot                = device_get_config_int("length");
-            if (!!device_get_config_int("ems"))
-                dev->flags    |= FLAG_EMS;
-            dev->flags        |= FLAG_WIDE;
-            dev->frame_addr[0] = 0xd0000;
-            break;
-
         case ISAMEM_RAMPAGEXT_CARD:   /* AST RAMpage/XT */
         case ISAMEM_RAMPAGEXTV1_CARD: /* AST RAMpage/XT (/V=1 family) */
             dev->base_addr[0]  = device_get_config_hex16("base");
@@ -1100,7 +1077,6 @@ isamem_init(const device_t *info)
                 dev->flags &= ~FLAG_RAMPAGE_DUAL;
             break;
 
-        case ISAMEM_ABOVEBOARD286_CARD: /* Intel AboveBoard 286 */
         case ISAMEM_BRAT_CARD:       /* BocaRAM/AT */
             dev->base_addr[0]   = device_get_config_hex16("base");
             dev->total_size     = device_get_config_int("size");
@@ -1429,9 +1405,6 @@ isamem_init(const device_t *info)
     }
 
 #ifdef IAB_5170_HACK
-    if (dev->board == ISAMEM_ABOVEBOARDPC_CARD)
-        io_sethandler(0x0062, 1, ems_diag_in, NULL, NULL, NULL, NULL, NULL, dev);
-
     if ((dev->board == ISAMEM_RAMPAGEXT_CARD) ||
         (dev->board == ISAMEM_RAMPAGEXTV1_CARD) ||
         (dev->board == ISAMEM_RAMPAGEAT_CARD)) {
@@ -1451,9 +1424,6 @@ isamem_close(void *priv)
     memdev_t *dev = (memdev_t *) priv;
 
 #ifdef IAB_5170_HACK
-    if (dev->board == ISAMEM_ABOVEBOARDPC_CARD)
-        io_removehandler(0x0062, 1, ems_diag_in, NULL, NULL, NULL, NULL, NULL, dev);
-
     if ((dev->board == ISAMEM_RAMPAGEXT_CARD) ||
         (dev->board == ISAMEM_RAMPAGEXTV1_CARD) ||
         (dev->board == ISAMEM_RAMPAGEAT_CARD)) {
@@ -2975,310 +2945,6 @@ static const device_t rampageat_device = {
     .config        = rampageat_config
 };
 
-static const device_config_t iabpc_config[] = {
-  // clang-format off
-    {
-        .name           = "size",
-        .description    = "Memory size",
-        .type           = CONFIG_SPINNER,
-        .default_string = NULL,
-        .default_int    = 256,
-        .file_filter    = NULL,
-        .spinner        = {
-            .min  =    0,
-            .max  = 2048,
-            .step =   64
-        },
-        .selection      = { { 0 } },
-        .bios           = { { 0 } }
-    },
-    {
-        .name           = "start",
-        .description    = "Start Address",
-        .type           = CONFIG_SPINNER,
-        .default_string = NULL,
-        .default_int    = 256,
-        .file_filter    = NULL,
-        .spinner        = {
-            .min  = 256,
-            .max  = 640,
-            .step =  64
-        },
-        .selection      = { { 0 } },
-        .bios           = { { 0 } }
-    },
-    {
-        .name = "length",
-        .description = "Contiguous Size",
-        .type = CONFIG_SPINNER,
-        .default_string = NULL,
-        .default_int    = 0,
-        .file_filter    = NULL,
-        .spinner        = {
-            .min  =   0,
-            .max  = 384,
-            .step = 64
-        },
-        .selection      = { { 0 } },
-        .bios           = { { 0 } }
-    },
-    {
-        .name           = "ems",
-        .description    = "EMS mode",
-        .type           = CONFIG_SELECTION,
-        .default_string = NULL,
-        .default_int    = 0,
-        .file_filter    = NULL,
-        .spinner        = { 0 },
-        .selection      = {
-            { .description = "Disabled", .value = 0 },
-            { .description = "Enabled",  .value = 1 },
-            { .description = ""                     }
-        },
-        .bios           = { { 0 } }
-    },
-    {
-        .name           = "base",
-        .description    = "Address",
-        .type           = CONFIG_HEX16,
-        .default_string = NULL,
-        .default_int    = 0x0258,
-        .file_filter    = NULL,
-        .spinner        = { 0 },
-        .selection      = {
-            { .description = "208H", .value = 0x0208 },
-            { .description = "218H", .value = 0x0218 },
-            { .description = "258H", .value = 0x0258 },
-            { .description = "268H", .value = 0x0268 },
-            { .description = "2A8H", .value = 0x02A8 },
-            { .description = "2B8H", .value = 0x02B8 },
-            { .description = "2E8H", .value = 0x02E8 },
-            { .description = ""                      }
-        },
-        .bios           = { { 0 } }
-    },
-    { .name = "", .description = "", .type = CONFIG_END }
-  // clang-format on
-};
-
-static const device_t iabpc_device = {
-    .name          = "Intel Above Board/PC",
-    .internal_name = "iabpc",
-    .flags         = DEVICE_ISA,
-    .local         = ISAMEM_ABOVEBOARDPC_CARD,
-    .init          = isamem_init,
-    .close         = isamem_close,
-    .reset         = NULL,
-    .available     = NULL,
-    .speed_changed = NULL,
-    .force_redraw  = NULL,
-    .config        = iabpc_config
-};
-
-static const device_config_t iabat_config[] = {
-  // clang-format off
-    {
-        .name           = "size",
-        .description    = "Memory size",
-        .type           = CONFIG_SPINNER,
-        .default_string = NULL,
-        .default_int    = 256,
-        .file_filter    = NULL,
-        .spinner        = {
-            .min  =    0,
-            .max  = 2048,
-            .step =  128
-        },
-        .selection      = { { 0 } },
-        .bios           = { { 0 } }
-    },
-    {
-        .name           = "start",
-        .description    = "Start Address",
-        .type           = CONFIG_SPINNER,
-        .default_string = NULL,
-        .default_int    = 512,
-        .file_filter    = NULL,
-        .spinner        = {
-            .min  = 512,
-            .max  = 640,
-            .step = 128
-        },
-        .selection      = { { 0 } },
-        .bios           = { { 0 } }
-    },
-    {
-        .name = "length",
-        .description = "Contiguous Size",
-        .type = CONFIG_SPINNER,
-        .default_string = NULL,
-        .default_int    = 0,
-        .file_filter    = NULL,
-        .spinner        = {
-            .min  =   0,
-            .max  = 2048,
-            .step =  128
-        },
-        .selection      = { { 0 } },
-        .bios           = { { 0 } }
-    },
-    {
-        .name           = "ems",
-        .description    = "EMS mode",
-        .type           = CONFIG_SELECTION,
-        .default_string = NULL,
-        .default_int    = 0,
-        .file_filter    = NULL,
-        .spinner        = { 0 },
-        .selection      = {
-            { .description = "Disabled", .value = 0 },
-            { .description = "Enabled",  .value = 1 },
-            { .description = ""                     }
-        },
-        .bios           = { { 0 } }
-    },
-    {
-        .name           = "base",
-        .description    = "Address",
-        .type           = CONFIG_HEX16,
-        .default_string = NULL,
-        .default_int    = 0x0258,
-        .file_filter    = NULL,
-        .spinner        = { 0 },
-        .selection      = {
-            { .description = "208H", .value = 0x0208 },
-            { .description = "218H", .value = 0x0218 },
-            { .description = "258H", .value = 0x0258 },
-            { .description = "268H", .value = 0x0268 },
-            { .description = "2A8H", .value = 0x02A8 },
-            { .description = "2B8H", .value = 0x02B8 },
-            { .description = "2E8H", .value = 0x02E8 },
-            { .description = ""                      }
-        },
-        .bios           = { { 0 } }
-    },
-    { .name = "", .description = "", .type = CONFIG_END }
-  // clang-format on
-};
-
-static const device_t iabat_device = {
-    .name          = "Intel Above Board/AT",
-    .internal_name = "iabat",
-    .flags         = DEVICE_ISA16,
-    .local         = ISAMEM_ABOVEBOARDAT_CARD,
-    .init          = isamem_init,
-    .close         = isamem_close,
-    .reset         = NULL,
-    .available     = NULL,
-    .speed_changed = NULL,
-    .force_redraw  = NULL,
-    .config        = iabat_config
-};
-
-#ifdef USE_ISAMEM_IAB
-static const device_config_t iab286_config[] = {
-  // clang-format off
-    {
-        .name           = "base",
-        .description    = "Address",
-        .type           = CONFIG_HEX16,
-        .default_string = NULL,
-        .default_int    = 0x0258,
-        .file_filter    = NULL,
-        .spinner        = { 0 },
-        .selection      = {
-            { .description = "208H", .value = 0x0208 },
-            { .description = "218H", .value = 0x0218 },
-            { .description = "258H", .value = 0x0258 },
-            { .description = "268H", .value = 0x0268 },
-            { .description = "2A8H", .value = 0x02A8 },
-            { .description = "2B8H", .value = 0x02B8 },
-            { .description = "2E8H", .value = 0x02E8 },
-            { .description = ""                      }
-        },
-        .bios           = { { 0 } }
-    },
-    {
-        .name           = "frame",
-        .description    = "Frame Address",
-        .type           = CONFIG_HEX20,
-        .default_string = NULL,
-        .default_int    = 0,
-        .file_filter    = NULL,
-        .spinner        = { 0 },
-        .selection      = {
-            { .description = "Disabled", .value = 0x00000 },
-            { .description = "C000H",    .value = 0xC0000 },
-            { .description = "D000H",    .value = 0xD0000 },
-            { .description = "E000H",    .value = 0xE0000 },
-            { .description = ""                           }
-        },
-        .bios           = { { 0 } }
-    },
-    {
-        .name           = "width",
-        .description    = "I/O Width",
-        .type           = CONFIG_SELECTION,
-        .default_string = NULL,
-        .default_int    = 8,
-        .file_filter    = NULL,
-        .spinner        = { 0 },
-        .selection      = {
-            { .description = "8-bit",  .value =  8 },
-            { .description = "16-bit", .value = 16 },
-            { .description = ""                    }
-        },
-        .bios           = { { 0 } }
-    },
-    {
-        .name           = "speed",
-        .description    = "Transfer Speed",
-        .type           = CONFIG_SELECTION,
-        .default_string = NULL,
-        .default_int    = 0,
-        .file_filter    = NULL,
-        .spinner        = { 0 },
-        .selection      = {
-            { .description = "Standard",   .value = 0 },
-            { .description = "High-Speed", .value = 1 },
-            { .description = ""                       }
-        },
-        .bios           = { { 0 } }
-    },
-    {
-        .name           = "size",
-        .description    = "Memory size",
-        .type           = CONFIG_SPINNER,
-        .default_string = NULL,
-        .default_int    = 128,
-        .file_filter    = NULL,
-        .spinner        = {
-            .min  =    0,
-            .max  = 8192,
-            .step =  128
-        },
-        .selection      = { { 0 } },
-        .bios           = { { 0 } }
-    },
-    { .name = "", .description = "", .type = CONFIG_END }
-  // clang-format on
-};
-
-static const device_t iab286_device = {
-    .name          = "Intel Above Board 286",
-    .internal_name = "iab286",
-    .flags         = DEVICE_ISA,
-    .local         = ISAMEM_ABOVEBOARD286_CARD,
-    .init          = isamem_init,
-    .close         = isamem_close,
-    .reset         = NULL,
-    .available     = NULL,
-    .speed_changed = NULL,
-    .force_redraw  = NULL,
-    .config        = iab286_config
-};
-#endif /* USE_ISAMEM_IAB */
-
 static const device_config_t mplus2_config[] = {
   // clang-format off
     {
@@ -3360,13 +3026,17 @@ static const struct {
 #ifdef USE_ISAMEM_RAMPAGE
     { &rampageat_device     },
 #endif /* USE_ISAMEM_RAMPAGE */
-#ifdef USE_ISAMEM_IAB
-    { &iab286_device       },
-#endif /* USE_ISAMEM_IAB */
     { &lotech_ems_device   },
     { &mplus2_device       },
-    { &iabpc_device        },
-    { &iabat_device        },
+    // Intel Above Board family (isamem_iab.c)
+    { &iab_pc_device       },
+    { &iab_pspc_device     },
+    { &iab_at_device       },
+    { &iab_psat_device     },
+    { &iab_286_device      },
+    { &iab_plus_device     },
+    { &iab_plus8_device    },
+    { &iab_mmc_device      },
     { NULL                 }
     // clang-format on
 };
