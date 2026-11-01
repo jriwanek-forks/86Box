@@ -2937,6 +2937,8 @@ static const device_config_t brat_config[] = {
         },
         .bios           = { { 0 } }
     },
+    /* BREMM/BRATEMM map at most 128 pages (2 MB) per board: on a larger
+       board, give the rest to extended memory (start/length below). */
     {
         .name           = "size",
         .description    = "Memory size",
