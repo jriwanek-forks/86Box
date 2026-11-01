@@ -920,9 +920,10 @@ consecutive_ems_out(uint16_t port, uint8_t val, void *priv)
     dev->ems[vpage].enabled = 1;
     dev->ems[vpage].page    = val;
 
-    /* Make sure we can do that.. */
+    /* Make sure we can do that.. FFh is the Lo-tech "window disabled" value
+       (LTEMM DIS_EMS), even on a 4 MB board where page 255 would exist. */
     if (dev->flags & FLAG_CONFIG) {
-        if (dev->ems[vpage].page < dev->ems_pages[0]) {
+        if ((val != 0xff) && (dev->ems[vpage].page < dev->ems_pages[0])) {
             /* Pre-calculate the page address in EMS RAM. */
             dev->ems[vpage].addr = dev->ram + dev->ems_start[0] + (val * EMS_PGSIZE);
         } else {
@@ -3226,6 +3227,8 @@ static const struct {
     { &ems5150_device      },
     { &ev159_device        },
     { &ev165a_device       },
+    { &ev158a_device       },
+    { &ev178_device        },
     { &brxt_device         },
     { &brat_device         },
     { &rampagext_device    },
