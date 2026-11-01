@@ -103,6 +103,7 @@ typedef struct rtcdev_t {
 #define FLAG_YEAR80  0x01 /* YEAR byte is base-80 */
 #define FLAG_YEARBCD 0x02 /* YEAR byte is in BCD */
 #define FLAG_PS2     0x04 /* IBM PS/2 Model 30-8086 I/O mapping */
+#define FLAG_AST     0x08 /* AST ASTCLOCK RAM layout, see mm67_time_set */
 
     int8_t   irq; /* configured IRQ channel */
     int8_t   base_addrsz;
@@ -359,6 +360,20 @@ mm67_time_set(nvr_t *nvr, struct tm *tm)
     const rtcdev_t *dev  = (rtcdev_t *) nvr->data;
     uint8_t        *regs = nvr->regs;
     int             year;
+
+    /*
+     * AST (SixPakPlus, MegaPlus II) keep the date in the chip RAM as
+     * ASTCLOCK.COM (SuperPak 4.2-6.11) expects it:
+     *   RAM 9  (2C9h): month at the last ASTCLOCK run, binary - a lower
+     *                  current month means the year rolled over
+     *   RAM 10 (2CAh): years since 1980, binary (the dev->year register)
+     *   RAM 11 (2CBh): DEh = clock initialised; without it ASTCLOCK resets
+     *                  the counters and starts again at 01/01/1980
+     */
+    if (dev->flags & FLAG_AST) {
+        regs[MM67_AL_HUNTEN] = (uint8_t) (tm->tm_mon + 1);
+        regs[MM67_AL_MIN]    = 0xde;
+    }
 
     /* NVR is in BCD data mode. */
     regs[MM67_SEC]  = RTC_BCD(tm->tm_sec);
@@ -882,9 +897,21 @@ isartc_init(const device_t *info)
             dev->year        = MM67_AL_HUNTEN; /* year, NON STANDARD */
             break;
 
-        case ISARTC_P5PAK:  /* Paradise Systems 5PAK */
         case ISARTC_A6PAK:  /* AST SixPakPlus */
         case ISARTC_MPLUS2: /* AST MegaPlus II */
+            dev->flags |= FLAG_YEAR80 | FLAG_AST;
+            dev->base_addr   = 0x02c0;
+            dev->base_addrsz = 32;
+            dev->irq         = (int8_t) device_get_config_int("irq");
+            dev->f_rd        = mm67_read;
+            dev->f_wr        = mm67_write;
+            dev->nvr.reset   = mm67_reset;
+            dev->nvr.start   = mm67_start;
+            dev->nvr.tick    = NULL;
+            dev->year        = MM67_AL_SEC; /* ASTCLOCK: years since 1980, binary */
+            break;
+
+        case ISARTC_P5PAK:  /* Paradise Systems 5PAK */
             dev->flags |= FLAG_YEAR80;
             dev->base_addr   = 0x02c0;
             dev->base_addrsz = 32;
