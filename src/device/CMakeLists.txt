@@ -41,6 +41,7 @@ add_library(dev OBJECT
     ibm_xma.c
     mcamem.c
     isamem.c
+    isamem_iab.c
     isarom.c
     isartc.c
     isapnp.c

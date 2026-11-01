@@ -58,6 +58,18 @@ extern int             isamem_get_from_internal_name(const char *str);
 extern const device_t *isamem_get_device(int t);
 extern int             isamem_has_config(int board);
 
+#ifdef EMU_DEVICE_H
+/* Intel Above Board family, isamem_iab.c */
+extern const device_t iab_pc_device;
+extern const device_t iab_pspc_device;
+extern const device_t iab_at_device;
+extern const device_t iab_psat_device;
+extern const device_t iab_286_device;
+extern const device_t iab_plus_device;
+extern const device_t iab_plus8_device;
+extern const device_t iab_mmc_device;
+#endif
+
 #ifdef __cplusplus
 }
 #endif
