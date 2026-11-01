@@ -3620,6 +3620,7 @@ static const struct {
     { &rampagext_device    },
     { &rampagextv1_device  },
     { &a6pakprem_device    },
+    { &sixpak286_device    },
 #ifdef USE_ISAMEM_RAMPAGE
     { &rampageat_device     },
 #endif /* USE_ISAMEM_RAMPAGE */
