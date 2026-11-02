@@ -20,10 +20,16 @@
  *            chunk 3 clear is a Blackhawk, otherwise the high nibble of the
  *            low byte of chunk 2 tells the Xterminator (clear) from the
  *            DualControl (set).
- *          - No Gravis documentation or drivers were available. The packet
- *            formats follow the Linux grip driver, and the bit rates are
- *            estimates that sit inside its timeouts of 200us per clock on
- *            the GamePad Pro and 64us per edge on the others.
+ *          - The GamePad Pro format was checked against the direct reader in
+ *            Gravis' grip.vxd. That reader wants the same frame twice in a
+ *            row, and gives up after 128 reads with no clock edge. Its button
+ *            names and the README's note that Start overrides Select are also
+ *            followed here.
+ *          - The other models follow the Linux grip driver only; the packets
+ *            were not found in the Gravis software looked at so far.
+ *          - The bit rates are estimates inside those timeouts, and Linux's
+ *            limits of 200us per clock on the GamePad Pro and 64us per edge
+ *            on the others.
  *
  *          Copyright 2021-2025 Jasmine Iwanek.
  */
@@ -104,6 +110,10 @@ grip_gpp_data(const joystick_state_t *state)
     for (int i = 0; i < 10; i++)
         if (state->button[i])
             data |= 1U << button_bits[i];
+
+    /* The two can't be down at once: Start overrides Select. */
+    if (data & (1U << 1))
+        data &= ~1U;
 
     if (state->axis[0] < -8192)
         data |= 1U << 16;
@@ -388,7 +398,7 @@ const joystick_t joystick_gravis_gamepad_pro = {
     .pov_count     = 0,
     .max_joysticks = 2,
     .axis_names    = { "D-pad X", "D-pad Y" },
-    .button_names  = { "Start", "Select", "R2", "Blue", "L2", "Yellow", "Red", "Green", "L1", "R1" },
+    .button_names  = { "Select", "Start", "R2", "Blue", "L2", "Green", "Yellow", "Red", "L1", "R1" },
     .pov_names     = { NULL }
 };
 
