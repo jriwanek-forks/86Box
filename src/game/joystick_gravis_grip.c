@@ -8,12 +8,32 @@
  *
  *          Gravis GrIP gameport protocol emulation.
  *
+ * Notes:   - Like the Creative pads these free-run: GrIP devices transmit
+ *            continuously and nothing is ever written to the port.
+ *          - The GamePad Pro clocks 24 bits on line 0, with data on line 1
+ *            valid at each falling edge.
+ *          - The other models send four 20-bit chunks, MSB first, clocked on
+ *            both edges of line 0. A chunk is a 2-bit number, 14 bits of
+ *            payload and a 4-bit check, and ends with two transitions of the
+ *            data line while the clock is low.
+ *          - Drivers identify the model from idle chunk data: low bits of
+ *            chunk 3 clear is a Blackhawk, otherwise the high nibble of the
+ *            low byte of chunk 2 tells the Xterminator (clear) from the
+ *            DualControl (set).
+ *          - No Gravis documentation or drivers were available. The packet
+ *            formats follow the Linux grip driver, and the bit rates are
+ *            estimates that sit inside its timeouts of 200us per clock on
+ *            the GamePad Pro and 64us per edge on the others.
+ *
  *          Copyright 2021-2025 Jasmine Iwanek.
  */
+#include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <wchar.h>
 #include <86box/86box.h>
 #include <86box/device.h>
+#include <86box/timer.h>
 #include <86box/gameport.h>
 #include <86box/plat_unused.h>
 
@@ -25,9 +45,18 @@
 #define GRIP_GPP_LENGTH 24
 #define GRIP_XT_CHUNK_LENGTH 20
 #define GRIP_XT_CHUNKS 4
+#define GRIP_XT_DELIMITER_LENGTH 2
+
+/* Time per edge. These are estimates, see the notes above. */
+#define GRIP_GPP_EDGE_USEC 40
+#define GRIP_XT_EDGE_USEC  20
+
+#define GRIP_GPP_FRAME_EDGES (GRIP_GPP_LENGTH * 2)
+#define GRIP_XT_FRAME_EDGES  ((GRIP_XT_CHUNK_LENGTH + GRIP_XT_DELIMITER_LENGTH) * GRIP_XT_CHUNKS)
 
 typedef struct grip_data {
     int      mode;
+    uint64_t last_tsc;
     uint32_t frame[MAX_JOYSTICKS][GRIP_XT_CHUNKS];
     uint8_t  lines[MAX_JOYSTICKS];
     uint8_t  bit_pos[MAX_JOYSTICKS];
@@ -51,14 +80,16 @@ grip_hat_bits(int angle, unsigned offset)
         return 0;
 
     angle %= 360;
-    if (angle >= 45 && angle < 135)
+
+    /* Each direction covers 135 degrees, so that diagonals set two bits. */
+    if ((angle > 22) && (angle < 158))
         bits |= 2;
-    else if (angle >= 225 && angle < 315)
+    else if ((angle > 202) && (angle < 338))
         bits |= 1;
 
-    if (angle >= 135 && angle < 225)
+    if ((angle > 112) && (angle < 248))
         bits |= 4;
-    else if (angle < 45 || angle >= 315)
+    else if ((angle < 68) || (angle > 292))
         bits |= 8;
 
     return bits << offset;
@@ -97,7 +128,9 @@ grip_build_payload(const joystick_state_t *state, int mode, int chunk)
     switch (chunk) {
         case 0:
             axis_x = grip_axis6(state->axis[0]);
-            axis_y = 63 - grip_axis6(state->axis[1]);
+            axis_y = grip_axis6(state->axis[1]);
+            if (mode != GRIP_MODE_DC)
+                axis_y = 63 - axis_y;
             data = (uint16_t) ((axis_x << 2) | (axis_y << 8));
             break;
 
@@ -124,7 +157,8 @@ grip_build_payload(const joystick_state_t *state, int mode, int chunk)
             int button_count = mode == GRIP_MODE_BD ? 5 : mode == GRIP_MODE_XT ? 11 : 9;
             int first_bit = mode == GRIP_MODE_BD ? 4 : 3;
 
-            if (mode == GRIP_MODE_XT)
+            /* Anything but a Blackhawk identifies itself here. */
+            if (mode != GRIP_MODE_BD)
                 data |= 1;
             for (int i = 0; i < button_count; i++)
                 if (state->button[i])
@@ -174,9 +208,8 @@ grip_init_mode(int mode)
     grip_data *grip = calloc(1, sizeof(*grip));
 
     if (grip) {
-        grip->mode = mode;
-        for (int i = 0; i < MAX_JOYSTICKS; i++)
-            grip->lines[i] = mode == GRIP_MODE_GPP ? 3 : 0;
+        grip->mode     = mode;
+        grip->last_tsc = tsc;
     }
 
     return grip;
@@ -212,54 +245,109 @@ grip_close(void *priv)
     free(priv);
 }
 
+static void
+grip_restart(grip_data *grip, int slot)
+{
+    grip->lines[slot]     = (grip->mode == GRIP_MODE_GPP) ? 3 : 0;
+    grip->bit_pos[slot]   = 0;
+    grip->chunk[slot]     = 0;
+    grip->delimiter[slot] = 0;
+
+    grip_prepare_frame(grip, slot);
+}
+
+static void
+grip_edge(grip_data *grip, int slot)
+{
+    if (grip->mode == GRIP_MODE_GPP) {
+        uint8_t clock = !(grip->lines[slot] & 1);
+        uint8_t bit   = (uint8_t) ((grip->frame[slot][0] >> grip->bit_pos[slot]) & 1);
+
+        if (!clock && (++grip->bit_pos[slot] == GRIP_GPP_LENGTH)) {
+            grip->bit_pos[slot] = 0;
+            grip_prepare_frame(grip, slot);
+        }
+
+        grip->lines[slot] = (uint8_t) ((bit << 1) | clock);
+    } else if (grip->delimiter[slot]) {
+        grip->lines[slot] ^= 2;
+
+        if (++grip->delimiter[slot] > GRIP_XT_DELIMITER_LENGTH) {
+            grip->delimiter[slot] = 0;
+            grip->bit_pos[slot]   = 0;
+
+            if (++grip->chunk[slot] == GRIP_XT_CHUNKS) {
+                grip->chunk[slot] = 0;
+                grip_prepare_frame(grip, slot);
+            }
+        }
+    } else {
+        uint8_t clock = !(grip->lines[slot] & 1);
+        uint8_t bit   = (uint8_t) ((grip->frame[slot][grip->chunk[slot]] >>
+                                  (GRIP_XT_CHUNK_LENGTH - 1 - grip->bit_pos[slot])) & 1);
+
+        grip->lines[slot] = (uint8_t) ((bit << 1) | clock);
+
+        if (++grip->bit_pos[slot] == GRIP_XT_CHUNK_LENGTH)
+            grip->delimiter[slot] = 1;
+    }
+}
+
+/* Bring the free-running transmitters up to the current time. Working this out
+   on read rather than from a timer avoids a constant event for an idle device. */
+static void
+grip_clock(grip_data *grip)
+{
+    int      gpp         = (grip->mode == GRIP_MODE_GPP);
+    int      frame_edges = gpp ? GRIP_GPP_FRAME_EDGES : GRIP_XT_FRAME_EDGES;
+    uint64_t period      = (TIMER_USEC * (gpp ? GRIP_GPP_EDGE_USEC : GRIP_XT_EDGE_USEC)) >> 32;
+    uint64_t edges;
+
+    if (!period)
+        period = 1;
+
+    edges = (tsc - grip->last_tsc) / period;
+    grip->last_tsc += edges * period;
+
+    for (int slot = 0; slot < joystick_gravis_gamepad_pro.max_joysticks; slot++) {
+        uint64_t left = edges;
+
+        if (!JOYSTICK_PRESENT(0, slot)) {
+            grip->started[slot] = 0;
+            continue;
+        }
+
+        if (!grip->started[slot]) {
+            grip_restart(grip, slot);
+            grip->started[slot] = 1;
+            left                = 0;
+        } else if (left >= (uint64_t) frame_edges) {
+            /* Nobody was listening; only the current frame can be seen. */
+            left %= frame_edges;
+            grip_restart(grip, slot);
+        }
+
+        while (left--)
+            grip_edge(grip, slot);
+    }
+}
+
 static uint8_t
 grip_read(void *priv)
 {
-    grip_data *grip = priv;
-    uint8_t ret = 0xf0;
-    int connected = 0;
+    grip_data *grip      = priv;
+    uint8_t    ret       = 0xf0;
+    int        connected = 0;
+
+    grip_clock(grip);
 
     for (int slot = 0; slot < joystick_gravis_gamepad_pro.max_joysticks; slot++) {
-        uint8_t shift = (uint8_t) (4 + slot * 2);
+        uint8_t shift = (uint8_t) (4 + (slot * 2));
 
-        if (!JOYSTICK_PRESENT(0, slot))
+        if (!grip->started[slot])
             continue;
 
         connected = 1;
-        if (!grip->started[slot]) {
-            grip_prepare_frame(grip, slot);
-            grip->started[slot] = 1;
-        } else if (grip->mode == GRIP_MODE_GPP) {
-            uint8_t clock = grip->lines[slot] & 1;
-            uint8_t bit = (uint8_t) ((grip->frame[slot][0] >> grip->bit_pos[slot]) & 1);
-
-            clock = !clock;
-            grip->lines[slot] = (uint8_t) ((grip->lines[slot] & 2) | clock);
-            if (!clock && ++grip->bit_pos[slot] == GRIP_GPP_LENGTH) {
-                grip->bit_pos[slot] = 0;
-                grip_prepare_frame(grip, slot);
-            }
-            grip->lines[slot] = (uint8_t) ((grip->lines[slot] & 1) | (bit << 1));
-        } else if (grip->delimiter[slot]) {
-            grip->lines[slot] ^= 2;
-            if (++grip->delimiter[slot] == 3) {
-                grip->delimiter[slot] = 0;
-                grip->bit_pos[slot] = 0;
-                if (++grip->chunk[slot] == GRIP_XT_CHUNKS) {
-                    grip->chunk[slot] = 0;
-                    grip_prepare_frame(grip, slot);
-                }
-            }
-        } else {
-            uint8_t clock = grip->lines[slot] & 1;
-            uint8_t bit = (uint8_t) ((grip->frame[slot][grip->chunk[slot]] >>
-                                      (GRIP_XT_CHUNK_LENGTH - 1 - grip->bit_pos[slot])) & 1);
-
-            clock = !clock;
-            grip->lines[slot] = (uint8_t) ((bit << 1) | clock);
-            if (++grip->bit_pos[slot] == GRIP_XT_CHUNK_LENGTH)
-                grip->delimiter[slot] = 1;
-        }
 
         if (!(grip->lines[slot] & 1))
             ret &= (uint8_t) ~(1U << shift);
