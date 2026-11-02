@@ -1173,6 +1173,8 @@ fdc_write(uint16_t addr, uint8_t val, void *priv)
                     if (fdc->power_down || ((val & 0x80) && !(fdc->dsr & 0x80)))
                         fdc_soft_reset(fdc);
                 }
+                if (fdc->flags & FDC_FLAG_DSR_RATE)
+                    fdc->rate = val & 0x03;
                 fdc->dsr = val;
                 return;
             case 5: /*Command register*/
@@ -2943,7 +2945,11 @@ fdc_set_base(fdc_t *fdc, int base)
         io_sethandler(0x0080, 0x0001, fdc_read, NULL, NULL, fdc_write, NULL, NULL, fdc);
     } else {
         if ((fdc->flags & FDC_FLAG_AT) || (fdc->flags & FDC_FLAG_AMSTRAD)) {
-            io_sethandler(base + (super_io ? 2 : 0), super_io ? 0x0004 : 0x0006, fdc_read, NULL, NULL, fdc_write, NULL, NULL, fdc);
+            if (super_io && (fdc->flags & FDC_FLAG_NO_TDR)) {
+                io_sethandler(base + 2, 0x0001, fdc_read, NULL, NULL, fdc_write, NULL, NULL, fdc);
+                io_sethandler(base + 4, 0x0002, fdc_read, NULL, NULL, fdc_write, NULL, NULL, fdc);
+            } else
+                io_sethandler(base + (super_io ? 2 : 0), super_io ? 0x0004 : 0x0006, fdc_read, NULL, NULL, fdc_write, NULL, NULL, fdc);
             io_sethandler(base + 7, 0x0001, fdc_read, NULL, NULL, fdc_write, NULL, NULL, fdc);
         } else {
             if (fdc->flags & FDC_FLAG_PCJR)
@@ -2990,7 +2996,11 @@ fdc_remove(fdc_t *fdc)
         io_removehandler(0x0080, 0x0001, fdc_read, NULL, NULL, fdc_write, NULL, NULL, fdc);
     } else {
         if ((fdc->flags & FDC_FLAG_AT) || (fdc->flags & FDC_FLAG_AMSTRAD)) {
-            io_removehandler(fdc->base_address + (super_io ? 2 : 0), super_io ? 0x0004 : 0x0006, fdc_read, NULL, NULL, fdc_write, NULL, NULL, fdc);
+            if (super_io && (fdc->flags & FDC_FLAG_NO_TDR)) {
+                io_removehandler(fdc->base_address + 2, 0x0001, fdc_read, NULL, NULL, fdc_write, NULL, NULL, fdc);
+                io_removehandler(fdc->base_address + 4, 0x0002, fdc_read, NULL, NULL, fdc_write, NULL, NULL, fdc);
+            } else
+                io_removehandler(fdc->base_address + (super_io ? 2 : 0), super_io ? 0x0004 : 0x0006, fdc_read, NULL, NULL, fdc_write, NULL, NULL, fdc);
             io_removehandler(fdc->base_address + 7, 0x0001, fdc_read, NULL, NULL, fdc_write, NULL, NULL, fdc);
         } else {
             if (fdc->flags & FDC_FLAG_PCJR)

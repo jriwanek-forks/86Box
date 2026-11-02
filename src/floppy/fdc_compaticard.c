@@ -10,7 +10,7 @@
  *
  * Authors: Jasmine Iwanek, <jasmine@iwanek.co.uk>
  *
- *          Copyright 2022-2025 Jasmine Iwanek.
+ *          Copyright 2022-2026 Jasmine Iwanek.
  */
 #include <stdarg.h>
 #include <stdint.h>
@@ -48,6 +48,8 @@
 #define CCIV_BIOS_ADDR_E8000H   0x04 /* 110 */
 #define CCIV_BIOS_ADDR_EE000H   0x00 /* 111 */
 
+// SW1 - Bit 3 (Reserved) - The BIOS adds a delay to the end of its init if this reads 0
+
 // SW1 - Bits 4 and 5 (DMA Channel Selection)
 #define CCIV_DMA_2_IRQ_FIXED 0x30 /* 00 - Special case for DMA 2, fixed IRQ 6 */
 #define CCIV_DMA_1           0x10 /* 01 - DMA Channel 1 */
@@ -69,6 +71,13 @@
 #define CCIV_DRIVE_TYPE_2880KB     0x00 /* 11 - 2.88MB */
 
 #define CR_2_MASK 0x2f /* 00101111b - Mask for Control Register 2 */
+
+// Base + 0 (Write) - Bit 2 selects what base + 3 reads as, see compaticardiv_in()
+#define CCIV_CTRL_ID_ENABLE 0x04
+
+// Base + 3 (Read) - Only bits 0 and 7 are checked by the BIOS
+#define CCIV_ID_DISABLED 0xff
+#define CCIV_ID_ENABLED  0x00
 
 typedef struct compaticard_s {
     rom_t   bios_rom;
@@ -101,7 +110,23 @@ typedef struct compaticard_s {
     // Bit 6-7: Drive Position 3 Type (0x00, 0x40, 0x80, 0xC0)
     uint8_t regs[2];
 
-    uint16_t base_io_addr;
+    /*
+     * Compaticard IV Control Register, write only, at base + 0. These are the
+     * only uses of it in the 1.05 BIOS, which has no way of reading it back:
+     *
+     * 7-4 - Always written as 0
+     * 3-2 - 0 at power on, 01b while idle as a secondary controller,
+     *       11b while idle as the primary one, 10b while in use
+     * 1-0 - Two drive density outputs, driven from the current data rate and
+     *       the drive type: 11b for 250/300 Kbps. For 500/1000 Kbps, 00b, or
+     *       on a 2.88MB drive 01b/10b, or on a 600/720 RPM 1.2MB drive 11b.
+     *       8 inch drives use 11b from cylinder 44 on, and 00b below it.
+     *
+     * The FDC stays decoded whatever is written here: the BIOS writes 0 to it
+     * when it resets the FDC before its first access to a drive, and carries
+     * on using the FDC straight after that.
+     */
+    uint8_t control;
 } compaticard_t;
 
 #define ENABLE_COMPATICARD_LOG 1
@@ -155,48 +180,54 @@ compaticardiv_out(uint16_t port, uint8_t val, void *priv)
 
     compaticard_log("Write CompatiCard IV %04X %02X\n", port, val);
 
-    port &= 0x07;
-
-    // CompatiCard IV has two registers (SW1 and SW2) accessible via I/O ports
-    // The base address + 0 is SW1 (regs[0])
-    // The base address + 1 is SW2 (regs[1])
-#if 0
-    if (port < 2) {
-        dev->regs[port] = val;
-    }
-#else
-    if (port == 0x0000) {
-       fdc_remove(dev->fdc);
-
-       if (val != 0x00)
-           fdc_set_base(dev->fdc, dev->base_io_addr);
-    }
-#endif
+    if ((port & 0x07) == 0x00)
+        dev->control = val;
 }
 
 static uint8_t
 compaticardiv_in(uint16_t port, void *priv)
 {
     compaticard_t *dev  = (compaticard_t *) priv;
-    uint8_t        ret  = 0x00;
+    uint8_t        ret  = 0xff;
 
     port &= 0x07;
 
-    // Read from SW1 (regs[0]) or SW2 (regs[1]) based on port
-    if (port < 2) {
-        ret = dev->regs[port];
+    switch (port) {
+        // SW1 (regs[0]) and SW2 (regs[1]), the BIOS decodes both of these directly
+        case 0x00:
+        case 0x01:
+            ret = dev->regs[port];
+            break;
+
+        /*
+         * The BIOS detects the card with this: base + 3 has to have at least
+         * one of bits 0 and 7 set after writing 0 to base + 0, and something
+         * in those two bits has to change after writing 4 to it. Otherwise
+         * it reports an I/O address conflict. The other bits, and exactly
+         * which of those two change on the real card, are not known.
+         *
+         * Anything else decoding this port reads as a conflict on real
+         * hardware, and does the same here as port reads get ANDed together.
+         */
+        case 0x03:
+            ret = (dev->control & CCIV_CTRL_ID_ENABLE) ? CCIV_ID_ENABLED : CCIV_ID_DISABLED;
+            break;
+
+        default:
+            break;
     }
 
     compaticard_log("[%04X:%08X] Read CompatiCard IV %04X %02X\n", CS, cpu_state.pc, port, ret);
 
-    // The manual states that reading from the CompatiCard IV returns the INVERTED value of the switches.
-    // "The CompatiCard IV returns the inverted value of the switches." (Implied from common FDC practices and troubleshooting)
-    // However, the previous code returned ~ret, which might be for a specific register.
-    // For SW1 (regs[0]), the bits are direct. For SW2 (regs[1]), it's also direct.
-    // Let's assume the inversion is for a specific status register, not the switch registers themselves,
-    // as the PDF describes direct bit meanings for SW1 and SW2.
-    // If issues arise with switch readings, this might need to be revisited.
     return ret;
+}
+
+static void
+compaticardiv_reset(void *priv)
+{
+    compaticard_t *dev = (compaticard_t *) priv;
+
+    dev->control = 0x00;
 }
 
 static void
@@ -276,8 +307,6 @@ compaticardiv_init(const device_t *info)
     uint8_t  bios_bits = 0x00;
     uint8_t  dma_bits  = 0x00;
 
-    dev->base_io_addr = base_addr; // Store the base I/O address
-
     dev->regs[0] = 0x00;
     compaticard_log("dev->regs[0] initial set was: %X\n", dev->regs[0]);
     dev->regs[1] = 0x00;
@@ -304,7 +333,7 @@ compaticardiv_init(const device_t *info)
 
     // Set BIOS Address bits (SW1-1, 2, 3)
     if (bios_addr != 0) {
-        rom_init(&dev->bios_rom, ROM_COMPATICARD_IV, bios_addr, 0x2000, 0x1ffff, 0, MEM_MAPPING_EXTERNAL);
+        rom_init(&dev->bios_rom, ROM_COMPATICARD_IV, bios_addr, 0x2000, 0x1fff, 0, MEM_MAPPING_EXTERNAL);
         switch (bios_addr) {
             case 0xcc000:
                 bios_bits = CCIV_BIOS_ADDR_CC000H;
@@ -358,14 +387,17 @@ compaticardiv_init(const device_t *info)
             dma_bits = CCIV_DMA_3;
             break;
 
+        // The BIOS skips its IRQ probe with this setting, and assumes IRQ 6
         case 0x10:
             dma_bits = CCIV_DMA_2_IRQ_FIXED;
+            dma      = 2;
             irq      = 6;
             break;
 
         default:
             // Should not happen with current config selection
             dma_bits = CCIV_DMA_2; // Default to DMA 2 if invalid
+            dma      = 2;
             break;
     }
 
@@ -373,16 +405,12 @@ compaticardiv_init(const device_t *info)
     compaticard_log("dev->regs[0] after setting dma_bits was: %X\n", dev->regs[0]);
 
     // Set 1.2MB Spindle Speed bit (SW1-6)
-    if (spindle_speed == CCIV_SPINDLE_DUAL_SPEED) {
-        dev->regs[0] |= CCIV_SPINDLE_DUAL_SPEED;
-        compaticard_log("dev->regs[0] after setting spindle_speed was: %X\n", dev->regs[0]);
-    }
+    dev->regs[0] |= spindle_speed;
+    compaticard_log("dev->regs[0] after setting spindle_speed was: %X\n", dev->regs[0]);
 
     // Set Auto Boot bit (SW1-7)
-    if (autoboot_enabled) {
-        dev->regs[0] |= CCIV_AUTOBOOT_ENABLED;
-        compaticard_log("dev->regs[0] after setting autoboot_enabled was: %X\n", dev->regs[0]);
-    }
+    dev->regs[0] |= (autoboot_enabled ? CCIV_AUTOBOOT_ENABLED : CCIV_AUTOBOOT_DISABLED);
+    compaticard_log("dev->regs[0] after setting autoboot_enabled was: %X\n", dev->regs[0]);
 
     // Bit 3 is SW1-4, Reserved, therefore, never pulled down.
     dev->regs[0] |= 0x08;
@@ -394,17 +422,28 @@ compaticardiv_init(const device_t *info)
     dev->regs[1] |= ((drive_type_3 & 0x03) << 6); // Bits 6-7 for Drive 3
     compaticard_log("dev->regs[1] after setting drive types was: %X\n", dev->regs[1]);
 
+    /*
+     * Base + 3 belongs to the card, not the FDC, and the BIOS only ever sets
+     * the data rate through the DSR at base + 4, it never touches the CCR.
+     */
     fdc_remove(dev->fdc);
+    fdc_set_flags(dev->fdc, FDC_FLAG_NO_TDR | FDC_FLAG_DSR_RATE);
+    fdc_set_base(dev->fdc, base_addr);
 
     fdc_set_irq(dev->fdc, irq);
     fdc_set_dma_ch(dev->fdc, dma);
 
     // Register I/O handlers for CompatiCard IV
-    // SW1 is at base_addr
-    // SW2 is at base_addr + 1
+    // Base + 0 reads SW1 and writes the Control Register
+    // Base + 1 reads SW2
     io_sethandler(base_addr, 0x0002,
                   compaticardiv_in, NULL, NULL,
                   compaticardiv_out, NULL, NULL,
+                  dev);
+    // Base + 3 is read only
+    io_sethandler(base_addr + 3, 0x0001,
+                  compaticardiv_in, NULL, NULL,
+                  NULL, NULL, NULL,
                   dev);
 
     return dev;
@@ -700,7 +739,7 @@ const device_t fdc_compaticard_iv_device = {
     .local         = DEVICE_COMPATICARD_IV,
     .init          = compaticardiv_init,
     .close         = compaticard_close,
-    .reset         = NULL,
+    .reset         = compaticardiv_reset,
     .available     = compaticard_iv_available,
     .speed_changed = NULL,
     .force_redraw  = NULL,
