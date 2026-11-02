@@ -934,3 +934,61 @@ const joystick_t joystick_tm_formula_t1t2wa = {
     .button_names  = { "Shifter Up", "Shifter Down", "Top Console Switch", "Bottom Console Switch" },
     .pov_names     = { NULL }
 };
+
+/* USB pads never answer on a game port. These fill in the interface for a
+   joystick with usb_device set. */
+void *
+joystick_usb_init(void)
+{
+    return NULL;
+}
+
+void
+joystick_usb_close(UNUSED(void *priv))
+{
+    //
+}
+
+uint8_t
+joystick_usb_read(UNUSED(void *priv))
+{
+    return 0xff;
+}
+
+void
+joystick_usb_write(UNUSED(void *priv))
+{
+    //
+}
+
+int
+joystick_usb_read_axis(UNUSED(void *priv), UNUSED(int axis))
+{
+    return AXIS_NOT_PRESENT;
+}
+
+void
+joystick_usb_a0_over(UNUSED(void *priv))
+{
+    //
+}
+
+const joystick_t joystick_usb_gamepad = {
+    .name          = "USB gamepad (2-axis, 10-button)",
+    .internal_name = "usb_gamepad",
+    .init          = joystick_usb_init,
+    .close         = joystick_usb_close,
+    .read          = joystick_usb_read,
+    .write         = joystick_usb_write,
+    .read_axis     = joystick_usb_read_axis,
+    .a0_over       = joystick_usb_a0_over,
+    .axis_count    = 2,
+    .button_count  = 10,
+    .pov_count     = 0,
+    .max_joysticks = 2,
+    .axis_names    = { "X axis", "Y axis" },
+    .button_names  = { "Button 1", "Button 2", "Button 3", "Button 4", "Button 5",
+                       "Button 6", "Button 7", "Button 8", "Button 9", "Button 10" },
+    .pov_names     = { NULL },
+    .usb_device    = { &gamepad_usb_device, &gamepad_usb_2_device }
+};

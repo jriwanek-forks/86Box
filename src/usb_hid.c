@@ -1306,14 +1306,21 @@ const device_t tablet_usb_device = {
     .config        = NULL
 };
 
-/* The Creative GamePad Cobra 2 USB (CTM1060): a plain HID game pad that
-   Windows drives with hidusb.sys, where Creative's INFs only name it. The
-   IDs come from those INFs, and the controls and the name Windows gives it
-   ("3 axis, 12 button gamepad") from the user's guide. No pad was available
-   to dump, so the speed, the descriptors and the button order are this
-   driver's choice, not the real pad's. The buttons are in the order the
-   gameport Cobra's driver reports them. */
-static const uint8_t hid_pad_report_desc[] = {
+/* USB game pads. Each model is a plain HID device with no driver of its own,
+   so a report is the two D-pad axes, an optional throttle, then buttons.
+
+   The Creative GamePad Cobra 2 USB (CTM1060) is one that Windows drives with
+   hidusb.sys, where Creative's INFs only name it. The IDs come from those
+   INFs, and the controls and the name Windows gives it ("3 axis, 12 button
+   gamepad") from the user's guide. No pad was available to dump, so the
+   speed, the descriptors and the button order are this driver's choice, not
+   the real pad's. The buttons are in the order the gameport Cobra's driver
+   reports them.
+
+   The generic pad is not a copy of any one product, but the usual low-speed
+   class-compliant pad of its time: a digital D-pad on X and Y, and 10 buttons
+   as on a two-shoulder, six-face, Start and Select layout. */
+static const uint8_t hid_cobra2_report_desc[] = {
     0x05, 0x01,       /* Usage Page (Generic Desktop) */
     0x09, 0x05,       /* Usage (Game Pad) */
     0xa1, 0x01,       /* Collection (Application) */
@@ -1343,9 +1350,38 @@ static const uint8_t hid_pad_report_desc[] = {
     0xc0              /* End Collection */
 };
 
-#define HID_PAD_REPORT 5
+static const uint8_t hid_gamepad_report_desc[] = {
+    0x05, 0x01,       /* Usage Page (Generic Desktop) */
+    0x09, 0x05,       /* Usage (Game Pad) */
+    0xa1, 0x01,       /* Collection (Application) */
+    0x09, 0x01,       /*   Usage (Pointer) */
+    0xa1, 0x00,       /*   Collection (Physical) */
+    0x09, 0x30,       /*     Usage (X) */
+    0x09, 0x31,       /*     Usage (Y) */
+    0x15, 0x00,       /*     Logical Minimum (0) */
+    0x26, 0xff, 0x00, /*     Logical Maximum (255) */
+    0x75, 0x08,       /*     Report Size (8) */
+    0x95, 0x02,       /*     Report Count (2) */
+    0x81, 0x02,       /*     Input (Data, Variable, Absolute) */
+    0xc0,             /*   End Collection */
+    0x05, 0x09,       /*   Usage Page (Button) */
+    0x19, 0x01,       /*   Usage Minimum (1) */
+    0x29, 0x0a,       /*   Usage Maximum (10) */
+    0x25, 0x01,       /*   Logical Maximum (1) */
+    0x75, 0x01,       /*   Report Size (1) */
+    0x95, 0x0a,       /*   Report Count (10) */
+    0x81, 0x02,       /*   Input (Data, Variable, Absolute) */
+    0x75, 0x06,       /*   Report Size (6) */
+    0x95, 0x01,       /*   Report Count (1) */
+    0x81, 0x01,       /*   Input (Constant) */
+    0xc0              /* End Collection */
+};
 
-static const uint8_t hid_pad_dev_desc[18] = {
+#define HID_COBRA2_REPORT  5
+#define HID_GAMEPAD_REPORT 4
+#define HID_PAD_REPORT_MAX 5
+
+static const uint8_t hid_cobra2_dev_desc[18] = {
     18, 0x01,   /* bLength, DEVICE */
     0x10, 0x01, /* bcdUSB 1.10 */
     0x00, 0x00, 0x00,
@@ -1357,33 +1393,94 @@ static const uint8_t hid_pad_dev_desc[18] = {
     1           /* bNumConfigurations */
 };
 
-#define HID_PAD_CFG_LEN (9 + 9 + 9 + 7)
-
-static const uint8_t hid_pad_cfg_desc[HID_PAD_CFG_LEN] = {
-    /* Configuration */
-    9, 0x02, HID_PAD_CFG_LEN, 0x00, 1, 1, 0,
-    0x80, /* bus powered, no remote wakeup */
-    50,   /* 100 mA, in 2 mA units */
-    /* Interface 0: HID, no subclass, no protocol (HID 1.11 s4.2-4.3, p. 8-9 / PDF 18-19) */
-    9, 0x04, 0, 0, 1, 0x03, 0x00, 0x00, 0,
-    /* HID descriptor, between interface and endpoint (HID 1.11 s7.1, p. 48 / PDF 58) */
-    9, 0x21, 0x11, 0x01, 0, 1, 0x22, sizeof(hid_pad_report_desc), 0x00,
-    /* Endpoint 1 IN, interrupt, 5 bytes, 10 ms: the shortest period a
-       low-speed endpoint may ask for (USB 1.1 s5.7.4, p. 45 / PDF 61) */
-    7, 0x05, 0x81, 0x03, HID_PAD_REPORT, 0x00, 10
+static const uint8_t hid_gamepad_dev_desc[18] = {
+    18, 0x01,   /* bLength, DEVICE */
+    0x10, 0x01, /* bcdUSB 1.10 */
+    0x00, 0x00, 0x00,
+    8,          /* bMaxPacketSize0: the only size allowed at low speed (USB 1.1 s5.5.3, p. 37 / PDF 53) */
+    0x00, 0x00, /* idVendor */
+    0x07, 0x00, /* idProduct */
+    0x00, 0x01, /* bcdDevice */
+    1, 2, 0,    /* iManufacturer, iProduct, iSerialNumber */
+    1           /* bNumConfigurations */
 };
 
-static const char *const hid_pad_strings[] = {
+#define HID_PAD_CFG_LEN (9 + 9 + 9 + 7)
+
+/* Configuration, interface 0 (HID, no subclass, no protocol; HID 1.11 s4.2-4.3,
+   p. 8-9 / PDF 18-19), the HID descriptor between interface and endpoint (HID
+   1.11 s7.1, p. 48 / PDF 58), and endpoint 1 IN, interrupt, 10 ms: the shortest
+   period a low-speed endpoint may ask for (USB 1.1 s5.7.4, p. 45 / PDF 61). */
+#define HID_PAD_CFG_DESC(report_desc_len, report_len)    \
+    {                                                    \
+        9, 0x02, HID_PAD_CFG_LEN, 0x00, 1, 1, 0,         \
+        0x80, /* bus powered, no remote wakeup */        \
+        50,   /* 100 mA, in 2 mA units */                \
+        9, 0x04, 0, 0, 1, 0x03, 0x00, 0x00, 0,           \
+        9, 0x21, 0x11, 0x01, 0, 1, 0x22, report_desc_len, 0x00, \
+        7, 0x05, 0x81, 0x03, report_len, 0x00, 10        \
+    }
+
+static const uint8_t hid_cobra2_cfg_desc[HID_PAD_CFG_LEN] =
+    HID_PAD_CFG_DESC(sizeof(hid_cobra2_report_desc), HID_COBRA2_REPORT);
+
+static const uint8_t hid_gamepad_cfg_desc[HID_PAD_CFG_LEN] =
+    HID_PAD_CFG_DESC(sizeof(hid_gamepad_report_desc), HID_GAMEPAD_REPORT);
+
+static const char *const hid_cobra2_strings[] = {
     "Creative Labs",
     "Creative USB Game Pad II"
 };
 
+static const char *const hid_gamepad_strings[] = {
+    "86Box",
+    "USB Gamepad"
+};
+
+typedef struct hid_pad_model_t {
+    const uint8_t     *dev_desc;
+    const uint8_t     *cfg_desc;
+    const uint8_t     *report_desc;
+    int                report_desc_len;
+    const char *const *strings;
+    int                throttle;
+    int                buttons;
+    int                report_len;
+} hid_pad_model_t;
+
+static const hid_pad_model_t hid_pad_models[] = {
+    {
+        .dev_desc        = hid_cobra2_dev_desc,
+        .cfg_desc        = hid_cobra2_cfg_desc,
+        .report_desc     = hid_cobra2_report_desc,
+        .report_desc_len = sizeof(hid_cobra2_report_desc),
+        .strings         = hid_cobra2_strings,
+        .throttle        = 1,
+        .buttons         = 12,
+        .report_len      = HID_COBRA2_REPORT
+    },
+    {
+        .dev_desc        = hid_gamepad_dev_desc,
+        .cfg_desc        = hid_gamepad_cfg_desc,
+        .report_desc     = hid_gamepad_report_desc,
+        .report_desc_len = sizeof(hid_gamepad_report_desc),
+        .strings         = hid_gamepad_strings,
+        .throttle        = 0,
+        .buttons         = 10,
+        .report_len      = HID_GAMEPAD_REPORT
+    }
+};
+
+/* device_t.local: the model in the high byte, the pad in the low byte. */
+#define HID_PAD_LOCAL(model, pad) (((model) << 8) | (pad))
+
 typedef struct hid_pad_t {
-    usb_dev_t  usb;
-    int        slot; /* which pad in joystick_state */
-    hid_idle_t idle;
-    uint8_t    sent[HID_PAD_REPORT];
-    uint8_t    sent_valid;
+    usb_dev_t              usb;
+    const hid_pad_model_t *model;
+    int                    slot; /* which pad in joystick_state */
+    hid_idle_t             idle;
+    uint8_t                sent[HID_PAD_REPORT_MAX];
+    uint8_t                sent_valid;
 } hid_pad_t;
 
 /* The D-pad is three positions on a whole axis. */
@@ -1396,22 +1493,31 @@ hid_pad_dpad(int value)
     return (value > 16384) ? 0xff : 0x80;
 }
 
-static void
+static int
 hid_pad_report(const hid_pad_t *dev, uint8_t *rep)
 {
-    const joystick_state_t *state    = &joystick_state[0][dev->slot];
-    int                     throttle = (state->axis[2] + 32768) >> 8;
-    uint16_t                buttons  = 0;
+    const hid_pad_model_t  *model   = dev->model;
+    const joystick_state_t *state   = &joystick_state[0][dev->slot];
+    uint16_t                buttons = 0;
+    int                     len     = 0;
 
-    for (int i = 0; i < 12; i++)
+    rep[len++] = hid_pad_dpad(state->axis[0]);
+    rep[len++] = hid_pad_dpad(state->axis[1]);
+
+    if (model->throttle) {
+        int throttle = (state->axis[2] + 32768) >> 8;
+
+        rep[len++] = (throttle < 0) ? 0 : ((throttle > 255) ? 255 : throttle);
+    }
+
+    for (int i = 0; i < model->buttons; i++)
         if (state->button[i])
             buttons |= 1 << i;
 
-    rep[0] = hid_pad_dpad(state->axis[0]);
-    rep[1] = hid_pad_dpad(state->axis[1]);
-    rep[2] = (throttle < 0) ? 0 : ((throttle > 255) ? 255 : throttle);
-    rep[3] = buttons & 0xff;
-    rep[4] = buttons >> 8;
+    rep[len++] = buttons & 0xff;
+    rep[len++] = buttons >> 8;
+
+    return len;
 }
 
 static int
@@ -1434,11 +1540,11 @@ hid_pad_control(usb_dev_t *usb, const uint8_t *setup, uint8_t *data)
             return USB_DATA_STALL;
         switch (wvalue >> 8) {
             case 0x21:
-                memcpy(data, &hid_pad_cfg_desc[18], 9);
+                memcpy(data, &dev->model->cfg_desc[18], 9);
                 return 9;
             case 0x22:
-                memcpy(data, hid_pad_report_desc, sizeof(hid_pad_report_desc));
-                return sizeof(hid_pad_report_desc);
+                memcpy(data, dev->model->report_desc, dev->model->report_desc_len);
+                return dev->model->report_desc_len;
             default:
                 return USB_DATA_STALL;
         }
@@ -1454,8 +1560,7 @@ hid_pad_control(usb_dev_t *usb, const uint8_t *setup, uint8_t *data)
                    (HID 1.11 s7.2.1, p. 51 / PDF 61). */
                 if (wvalue != 0x0100)
                     return USB_DATA_STALL;
-                hid_pad_report(dev, data);
-                return HID_PAD_REPORT;
+                return hid_pad_report(dev, data);
             case HID_GET_IDLE:
                 /* The device uses no report IDs, so a nonzero ID names no
                    report (HID 1.11 s7.2.3, p. 52 / PDF 62). */
@@ -1493,16 +1598,15 @@ static int
 hid_pad_data_in(usb_dev_t *usb, UNUSED(int ep), uint8_t *buf, UNUSED(int maxlen))
 {
     hid_pad_t *dev = (hid_pad_t *) usb->priv;
-    uint8_t    rep[HID_PAD_REPORT];
+    uint8_t    rep[HID_PAD_REPORT_MAX];
+    int        len = hid_pad_report(dev, rep);
 
-    hid_pad_report(dev, rep);
-
-    if (!dev->sent_valid || memcmp(rep, dev->sent, HID_PAD_REPORT) || hid_idle_due(&dev->idle)) {
-        memcpy(dev->sent, rep, HID_PAD_REPORT);
+    if (!dev->sent_valid || memcmp(rep, dev->sent, len) || hid_idle_due(&dev->idle)) {
+        memcpy(dev->sent, rep, len);
         dev->sent_valid = 1;
-        memcpy(buf, rep, HID_PAD_REPORT);
+        memcpy(buf, rep, len);
         hid_idle_reported(&dev->idle);
-        return HID_PAD_REPORT;
+        return len;
     }
 
     return USB_DATA_NAK;
@@ -1541,13 +1645,14 @@ hid_pad_init(const device_t *info)
 {
     hid_pad_t *dev = (hid_pad_t *) calloc(1, sizeof(hid_pad_t));
 
-    dev->slot          = info->local;
+    dev->model         = &hid_pad_models[info->local >> 8];
+    dev->slot          = info->local & 0xff;
     dev->usb.name      = info->name;
     dev->usb.low_speed = 1;
-    dev->usb.dev_desc  = hid_pad_dev_desc;
-    dev->usb.cfg_desc  = hid_pad_cfg_desc;
+    dev->usb.dev_desc  = dev->model->dev_desc;
+    dev->usb.cfg_desc  = dev->model->cfg_desc;
     dev->usb.cfg_len   = HID_PAD_CFG_LEN;
-    dev->usb.strings   = hid_pad_strings;
+    dev->usb.strings   = dev->model->strings;
     dev->usb.n_strings = 2;
     dev->usb.ops       = &hid_pad_ops;
     dev->usb.priv      = dev;
@@ -1572,7 +1677,7 @@ const device_t gamepad_cobra2_usb_device = {
     .name          = "Creative USB Game Pad II",
     .internal_name = "usb_gamepad",
     .flags         = DEVICE_USB,
-    .local         = 0,
+    .local         = HID_PAD_LOCAL(0, 0),
     .init          = hid_pad_init,
     .close         = hid_pad_close,
     .reset         = NULL,
@@ -1586,7 +1691,37 @@ const device_t gamepad_cobra2_usb_2_device = {
     .name          = "Creative USB Game Pad II (second pad)",
     .internal_name = "usb_gamepad_2",
     .flags         = DEVICE_USB,
-    .local         = 1,
+    .local         = HID_PAD_LOCAL(0, 1),
+    .init          = hid_pad_init,
+    .close         = hid_pad_close,
+    .reset         = NULL,
+    .available     = NULL,
+    .speed_changed = NULL,
+    .force_redraw  = NULL,
+    .config        = NULL
+};
+
+/* Only one joystick type is in use at a time, so these share the Cobra 2's
+   hot-plug slots. */
+const device_t gamepad_usb_device = {
+    .name          = "USB Gamepad",
+    .internal_name = "usb_gamepad",
+    .flags         = DEVICE_USB,
+    .local         = HID_PAD_LOCAL(1, 0),
+    .init          = hid_pad_init,
+    .close         = hid_pad_close,
+    .reset         = NULL,
+    .available     = NULL,
+    .speed_changed = NULL,
+    .force_redraw  = NULL,
+    .config        = NULL
+};
+
+const device_t gamepad_usb_2_device = {
+    .name          = "USB Gamepad (second pad)",
+    .internal_name = "usb_gamepad_2",
+    .flags         = DEVICE_USB,
+    .local         = HID_PAD_LOCAL(1, 1),
     .init          = hid_pad_init,
     .close         = hid_pad_close,
     .reset         = NULL,

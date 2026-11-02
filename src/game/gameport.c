@@ -108,6 +108,7 @@ static const struct {
     { &joystick_3button_gamepad                    },
     { &joystick_4button_gamepad                    },
     { &joystick_6button_gamepad                    },
+    { &joystick_usb_gamepad                        },
     { &joystick_gravis_gamepad                     },
     { &joystick_2button_flight_yoke                },
     { &joystick_3button_flight_yoke                },

@@ -173,6 +173,14 @@ extern const char *joystick_get_button_name(int js, int id);
 extern const char *joystick_get_pov_name(int js, int id);
 extern const device_t *joystick_get_usb_device(int js);
 
+/* The game port side of a USB pad, which is nothing. */
+extern void   *joystick_usb_init(void);
+extern void    joystick_usb_close(void *priv);
+extern uint8_t joystick_usb_read(void *priv);
+extern void    joystick_usb_write(void *priv);
+extern int     joystick_usb_read_axis(void *priv, int axis);
+extern void    joystick_usb_a0_over(void *priv);
+
 extern void  gameport_update_joystick_type(uint8_t gp);
 extern void  gameport_remap(void *priv, uint16_t address);
 extern void  gameport_set_decode(void *priv, int read_enabled, int write_enabled);
@@ -204,6 +212,7 @@ extern const joystick_t joystick_2button_gamepad;
 extern const joystick_t joystick_3button_gamepad;
 extern const joystick_t joystick_4button_gamepad;
 extern const joystick_t joystick_6button_gamepad;
+extern const joystick_t joystick_usb_gamepad;
 
 extern const joystick_t joystick_gravis_gamepad;
 
@@ -243,6 +252,8 @@ extern const joystick_t joystick_creative_cobra2_usb;
 
 extern const device_t gamepad_cobra2_usb_device;
 extern const device_t gamepad_cobra2_usb_2_device;
+extern const device_t gamepad_usb_device;
+extern const device_t gamepad_usb_2_device;
 
 extern const joystick_t joystick_gravis_gamepad_pro;
 extern const joystick_t joystick_gravis_blackhawk_digital;
