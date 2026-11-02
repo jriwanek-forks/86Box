@@ -243,24 +243,6 @@ cobra_a0_over(UNUSED(void *priv))
 {
 }
 
-/* The Cobra 2 is a USB device, so nothing is ever seen on a game port. */
-static void *
-cobra_usb_init(void)
-{
-    return NULL;
-}
-
-static void
-cobra_usb_close(UNUSED(void *priv))
-{
-}
-
-static uint8_t
-cobra_usb_read(UNUSED(void *priv))
-{
-    return 0xff;
-}
-
 const joystick_t joystick_creative_gamepad = {
     .name          = "Creative Labs GamePad-I",
     .internal_name = "creative_gamepad",
@@ -300,12 +282,12 @@ const joystick_t joystick_creative_cobra = {
 const joystick_t joystick_creative_cobra2_usb = {
     .name          = "Creative Labs GamePad Cobra 2 USB",
     .internal_name = "creative_cobra2_usb",
-    .init          = cobra_usb_init,
-    .close         = cobra_usb_close,
-    .read          = cobra_usb_read,
-    .write         = cobra_write,
-    .read_axis     = cobra_read_axis,
-    .a0_over       = cobra_a0_over,
+    .init          = joystick_usb_init,
+    .close         = joystick_usb_close,
+    .read          = joystick_usb_read,
+    .write         = joystick_usb_write,
+    .read_axis     = joystick_usb_read_axis,
+    .a0_over       = joystick_usb_a0_over,
     .axis_count    = 3,
     .button_count  = 12,
     .pov_count     = 0,
