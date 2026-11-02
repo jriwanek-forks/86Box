@@ -7,7 +7,8 @@
  *          This file is part of the 86Box distribution.
  *
  *          Creative Labs GamePad-I and Blaster GamePad Cobra (GamePad-II)
- *          digital gameport protocol emulation.
+ *          digital gameport protocol emulation, and the joystick side of
+ *          the Cobra 2 USB, whose USB device is in usb_hid.c.
  *
  * Notes:   - The pad free-runs: it transmits for as long as it is powered and
  *            nothing is ever written to the port. Creative's BGAMEPAD.VXD and
@@ -242,6 +243,24 @@ cobra_a0_over(UNUSED(void *priv))
 {
 }
 
+/* The Cobra 2 is a USB device, so nothing is ever seen on a game port. */
+static void *
+cobra_usb_init(void)
+{
+    return NULL;
+}
+
+static void
+cobra_usb_close(UNUSED(void *priv))
+{
+}
+
+static uint8_t
+cobra_usb_read(UNUSED(void *priv))
+{
+    return 0xff;
+}
+
 const joystick_t joystick_creative_gamepad = {
     .name          = "Creative Labs GamePad-I",
     .internal_name = "creative_gamepad",
@@ -276,4 +295,23 @@ const joystick_t joystick_creative_cobra = {
     .axis_names    = { "D-pad X", "D-pad Y" },
     .button_names  = { "Start", "Select", "TL", "TR", "X", "Y", "Z", "A", "B", "C", "TL2", "TR2" },
     .pov_names     = { NULL }
+};
+
+const joystick_t joystick_creative_cobra2_usb = {
+    .name          = "Creative Labs GamePad Cobra 2 USB",
+    .internal_name = "creative_cobra2_usb",
+    .init          = cobra_usb_init,
+    .close         = cobra_usb_close,
+    .read          = cobra_usb_read,
+    .write         = cobra_write,
+    .read_axis     = cobra_read_axis,
+    .a0_over       = cobra_a0_over,
+    .axis_count    = 3,
+    .button_count  = 12,
+    .pov_count     = 0,
+    .max_joysticks = 2,
+    .axis_names    = { "D-pad X", "D-pad Y", "Throttle" },
+    .button_names  = { "A", "B", "C", "X", "Y", "Z", "L1", "R1", "Start", "Select", "L2", "R2" },
+    .pov_names     = { NULL },
+    .usb_device    = { &gamepad_cobra2_usb_device, &gamepad_cobra2_usb_2_device }
 };

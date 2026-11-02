@@ -270,10 +270,14 @@ SettingsInput::onCurrentMachineChanged(int machineId)
     selectedRow               = 0;
     Models::Batch joystickRows(joystickModel);
     while (joyName) {
-        int row = joystickRows.add(tr(joyName).toUtf8().data(), i);
-        scJoystick0->addDevice(nullptr, tr(joyName));
-        if (i == curJoystickType)
-            selectedRow = row - removeRows;
+        const device_t *usbDevice = joystick_get_usb_device(i);
+
+        if ((usbDevice == nullptr) || device_is_valid(usbDevice, machineId)) {
+            int row = joystickRows.add(tr(joyName).toUtf8().data(), i);
+            scJoystick0->addDevice(nullptr, tr(joyName));
+            if (i == curJoystickType)
+                selectedRow = row - removeRows;
+        }
 
         ++i;
         joyName = joystick_get_name(i);
