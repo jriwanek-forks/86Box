@@ -67,6 +67,7 @@
 #define FDC_FLAG_TANDY2K             0x4000000  /* Tandy 2000, no DOR latch on board */
 #define FDC_FLAG_COMPAQ              0x8000000  /* Compaq 386, drive type sense at 3F1 */
 #define FDC_FLAG_IGNORE_DENSEL_FORCE 0x10000000 /* FDC ignores DENSEL on HD media */
+#define FDC_FLAG_DSR_RATE            0x20000000 /* Data rate is selected through the DSR */
 #define FDC_FLAG_HOSTED              0x40000000 /* Behind another device: no I/O ports,
                                                    DMA and interrupt through its host */
 #define FDC_FLAG_PNP                 0x80000000 /* FDC is PnP */
