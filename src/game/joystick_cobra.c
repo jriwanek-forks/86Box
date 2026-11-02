@@ -6,67 +6,191 @@
  *
  *          This file is part of the 86Box distribution.
  *
- *          Creative Labs Blaster GamePad Cobra gameport protocol emulation.
+ *          Creative Labs GamePad-I and Blaster GamePad Cobra (GamePad-II)
+ *          digital gameport protocol emulation.
+ *
+ * Notes:   - The pad free-runs: it transmits for as long as it is powered and
+ *            nothing is ever written to the port. Creative's BGAMEPAD.VXD and
+ *            BGAMETST.EXE only ever read 201h in digital mode.
+ *          - Each bit is a transition on exactly one of the pad's two button
+ *            lines: 0 toggles the lower line, 1 toggles the upper line.
+ *          - A frame is six 0 bits, which is the sync, followed by groups of
+ *            a 1 marker and five data bits. The markers keep any other run of
+ *            0 bits below six.
+ *          - The drivers tell the models apart by counting groups:
+ *              3   GamePad-I (10 buttons)
+ *              5   GamePad-II (Cobra, 12 buttons and three spare bits)
+ *              8   GamePad-II with a GamePad-I chained to it
+ *              10  GamePad-II with a GamePad-II chained to it
+ *          - Only a GamePad-II can host a chain, as the flag lives in its
+ *            fifth group. Slots 0/1 are the two pads of a Y cable and slots
+ *            2/3 are chained behind them, matching the driver's device IDs.
+ *          - The bit rate is not documented anywhere. Linux gives up after
+ *            45us without a bit and the Creative drivers tolerate far more,
+ *            so COBRA_BIT_USEC is an estimate within that limit.
  *
  *          Copyright 2021-2025 Jasmine Iwanek.
  */
+#include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
+#include <wchar.h>
 #include <86box/86box.h>
 #include <86box/device.h>
+#include <86box/timer.h>
 #include <86box/gameport.h>
 #include <86box/plat_unused.h>
 
-#define COBRA_LENGTH 36
-#define COBRA_SYNC_MASK  0x04104107fULL
-#define COBRA_SYNC_VALUE 0x041041040ULL
+#define COBRA_BIT_USEC    20
+
+#define COBRA_PAIRS       2
+#define COBRA_SYNC_BITS   6
+#define COBRA_GROUP_DATA  5
+#define COBRA_GROUPS_I    3
+#define COBRA_GROUPS_II   5
+#define COBRA_MAX_BITS    (COBRA_SYNC_BITS + (2 * COBRA_GROUPS_II * (COBRA_GROUP_DATA + 1)))
+
+/* Bit 0 of the data is an extension flag, which is clear on every known pad. */
+#define COBRA_DATA_UP     (1U << 1)
+#define COBRA_DATA_DOWN   (1U << 2)
+#define COBRA_DATA_LEFT   (1U << 3)
+#define COBRA_DATA_RIGHT  (1U << 4)
+#define COBRA_DATA_BUTTON 5
+#define COBRA_DATA_CHAIN  (1U << 20)
+
+typedef struct cobra_pair_t {
+    uint8_t bits[COBRA_MAX_BITS];
+    uint8_t length;
+    uint8_t pos;
+    uint8_t lines;
+} cobra_pair_t;
 
 typedef struct cobra_data {
-    uint64_t packet[MAX_JOYSTICKS];
-    uint8_t  lines[MAX_JOYSTICKS];
-    uint8_t  bit_pos[MAX_JOYSTICKS];
-    uint8_t  started[MAX_JOYSTICKS];
+    cobra_pair_t pair[COBRA_PAIRS];
+    uint64_t     last_tsc;
+    int          groups;
+    int          buttons;
 } cobra_data;
 
-static uint64_t
-cobra_encode_packet(const joystick_state_t *state)
+static uint32_t
+cobra_pad_data(const cobra_data *cobra, int slot)
 {
-    uint32_t data = 0;
-    uint64_t packet = 0;
+    const joystick_state_t *state = &joystick_state[0][slot];
+    uint32_t                data  = 0;
 
     if (state->axis[0] < -16384)
-        data |= 1U << 3;
+        data |= COBRA_DATA_LEFT;
     else if (state->axis[0] > 16384)
-        data |= 1U << 4;
+        data |= COBRA_DATA_RIGHT;
 
     if (state->axis[1] < -16384)
-        data |= 1U << 1;
+        data |= COBRA_DATA_UP;
     else if (state->axis[1] > 16384)
-        data |= 1U << 2;
+        data |= COBRA_DATA_DOWN;
 
-    for (int button = 0; button < 12; button++)
+    for (int button = 0; button < cobra->buttons; button++)
         if (state->button[button])
-            data |= 1U << (button + 5);
+            data |= 1U << (button + COBRA_DATA_BUTTON);
 
-    packet |= (uint64_t) (data & 0x000001f) << 7;
-    packet |= (uint64_t) ((data >> 5) & 0x000001f) << 13;
-    packet |= (uint64_t) ((data >> 10) & 0x000001f) << 19;
-    packet |= (uint64_t) ((data >> 15) & 0x000001f) << 25;
-    packet |= (uint64_t) ((data >> 20) & 0x000001f) << 31;
+    return data;
+}
 
-    return (packet & ~COBRA_SYNC_MASK) | COBRA_SYNC_VALUE;
+static void
+cobra_append_pad(cobra_pair_t *pair, uint32_t data, int groups)
+{
+    for (int group = 0; group < groups; group++) {
+        pair->bits[pair->length++] = 1;
+        for (int bit = 0; bit < COBRA_GROUP_DATA; bit++)
+            pair->bits[pair->length++] = (data >> ((group * COBRA_GROUP_DATA) + bit)) & 1;
+    }
+}
+
+static void
+cobra_build_frame(cobra_data *cobra, int index)
+{
+    cobra_pair_t *pair = &cobra->pair[index];
+
+    pair->pos = 0;
+
+    if (!JOYSTICK_PRESENT(0, index)) {
+        pair->length = 0;
+        pair->lines  = 3;
+        return;
+    }
+
+    memset(pair->bits, 0, COBRA_SYNC_BITS);
+    pair->length = COBRA_SYNC_BITS;
+
+    if ((cobra->groups == COBRA_GROUPS_II) && JOYSTICK_PRESENT(0, index + COBRA_PAIRS)) {
+        cobra_append_pad(pair, cobra_pad_data(cobra, index) | COBRA_DATA_CHAIN, cobra->groups);
+        cobra_append_pad(pair, cobra_pad_data(cobra, index + COBRA_PAIRS), cobra->groups);
+    } else
+        cobra_append_pad(pair, cobra_pad_data(cobra, index), cobra->groups);
+}
+
+/* Bring the free-running transmitters up to the current time. Working this out
+   on read rather than from a timer avoids a 50kHz event for an idle pad. */
+static void
+cobra_clock(cobra_data *cobra)
+{
+    uint64_t period = (TIMER_USEC * COBRA_BIT_USEC) >> 32;
+    uint64_t bits;
+
+    if (!period)
+        period = 1;
+
+    bits = (tsc - cobra->last_tsc) / period;
+    cobra->last_tsc += bits * period;
+
+    for (int index = 0; index < COBRA_PAIRS; index++) {
+        cobra_pair_t *pair = &cobra->pair[index];
+        uint64_t      left = bits;
+
+        if (!pair->length)
+            cobra_build_frame(cobra, index);
+        else if (left >= pair->length) {
+            /* Nobody was listening; only the current frame can be seen. */
+            left %= pair->length;
+            cobra_build_frame(cobra, index);
+        }
+
+        while (left-- && pair->length) {
+            pair->lines ^= pair->bits[pair->pos] ? 2 : 1;
+
+            if (++pair->pos == pair->length)
+                cobra_build_frame(cobra, index);
+        }
+    }
 }
 
 static void *
-cobra_init(void)
+cobra_init_model(int groups, int buttons)
 {
     cobra_data *cobra = calloc(1, sizeof(*cobra));
 
-    if (cobra)
-        for (int i = 0; i < MAX_JOYSTICKS; i++)
-            cobra->lines[i] = 3;
+    if (cobra) {
+        cobra->groups   = groups;
+        cobra->buttons  = buttons;
+        cobra->last_tsc = tsc;
+
+        for (int i = 0; i < COBRA_PAIRS; i++)
+            cobra->pair[i].lines = 3;
+    }
 
     return cobra;
+}
+
+static void *
+cobra_init_gamepad(void)
+{
+    return cobra_init_model(COBRA_GROUPS_I, 10);
+}
+
+static void *
+cobra_init_cobra(void)
+{
+    return cobra_init_model(COBRA_GROUPS_II, 12);
 }
 
 static void
@@ -78,34 +202,24 @@ cobra_close(void *priv)
 static uint8_t
 cobra_read(void *priv)
 {
-    cobra_data *cobra = priv;
-    uint8_t ret = 0xf0;
-    int connected = 0;
+    cobra_data *cobra     = priv;
+    uint8_t     ret       = 0xf0;
+    int         connected = 0;
 
-    for (int i = 0; i < joystick_creative_cobra.max_joysticks; i++) {
-        uint8_t shift = (uint8_t) (4 + i * 2);
+    cobra_clock(cobra);
 
-        if (!JOYSTICK_PRESENT(0, i))
+    for (int index = 0; index < COBRA_PAIRS; index++) {
+        const cobra_pair_t *pair  = &cobra->pair[index];
+        uint8_t             shift = (uint8_t) (4 + (index * 2));
+
+        if (!pair->length)
             continue;
 
         connected = 1;
-        if (!cobra->started[i]) {
-            cobra->packet[i] = cobra_encode_packet(&joystick_state[0][i]);
-            cobra->started[i] = 1;
-        } else {
-            uint8_t bit = (uint8_t) ((cobra->packet[i] >> cobra->bit_pos[i]) & 1);
 
-            /* Cobra encodes each bit as a transition on exactly one of its lines. */
-            cobra->lines[i] ^= bit ? 2 : 1;
-            if (++cobra->bit_pos[i] == COBRA_LENGTH) {
-                cobra->bit_pos[i] = 0;
-                cobra->packet[i] = cobra_encode_packet(&joystick_state[0][i]);
-            }
-        }
-
-        if (!(cobra->lines[i] & 1))
+        if (!(pair->lines & 1))
             ret &= (uint8_t) ~(1U << shift);
-        if (!(cobra->lines[i] & 2))
+        if (!(pair->lines & 2))
             ret &= (uint8_t) ~(1U << (shift + 1));
     }
 
@@ -128,10 +242,28 @@ cobra_a0_over(UNUSED(void *priv))
 {
 }
 
+const joystick_t joystick_creative_gamepad = {
+    .name          = "Creative Labs GamePad-I",
+    .internal_name = "creative_gamepad",
+    .init          = cobra_init_gamepad,
+    .close         = cobra_close,
+    .read          = cobra_read,
+    .write         = cobra_write,
+    .read_axis     = cobra_read_axis,
+    .a0_over       = cobra_a0_over,
+    .axis_count    = 2,
+    .button_count  = 10,
+    .pov_count     = 0,
+    .max_joysticks = 2,
+    .axis_names    = { "D-pad X", "D-pad Y" },
+    .button_names  = { "Start", "Select", "TL", "TR", "X", "Y", "Z", "A", "B", "C" },
+    .pov_names     = { NULL }
+};
+
 const joystick_t joystick_creative_cobra = {
     .name          = "Creative Labs Blaster GamePad Cobra",
     .internal_name = "creative_cobra",
-    .init          = cobra_init,
+    .init          = cobra_init_cobra,
     .close         = cobra_close,
     .read          = cobra_read,
     .write         = cobra_write,
@@ -140,7 +272,7 @@ const joystick_t joystick_creative_cobra = {
     .axis_count    = 2,
     .button_count  = 12,
     .pov_count     = 0,
-    .max_joysticks = 2,
+    .max_joysticks = 4,
     .axis_names    = { "D-pad X", "D-pad Y" },
     .button_names  = { "Start", "Select", "TL", "TR", "X", "Y", "Z", "A", "B", "C", "TL2", "TR2" },
     .pov_names     = { NULL }
