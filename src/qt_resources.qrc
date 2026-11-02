@@ -63,6 +63,8 @@
         <file>qt/icons/rewind.ico</file>
         <file>qt/icons/sound.ico</file>
         <file>qt/icons/storage_controllers.ico</file>
+        <file>qt/icons/usb_gamepad.ico</file>
+        <file alias="qt/icons/usb_gamepad_2.ico">qt/icons/usb_gamepad.ico</file>
         <file>qt/icons/usb_hub_4port.ico</file>
         <file>qt/icons/usb_keyboard.ico</file>
         <file>qt/icons/usb_mouse.ico</file>

@@ -137,6 +137,7 @@ static const struct {
     { &joystick_tm_formula_t1t2wa                  },
     { &joystick_creative_gamepad                   },
     { &joystick_creative_cobra                     },
+    { &joystick_creative_cobra2_usb                },
     { &joystick_gravis_gamepad_pro                 },
     { &joystick_gravis_blackhawk_digital           },
     { &joystick_gravis_xterminator_digital         },
@@ -265,6 +266,12 @@ joystick_get_pov_name(int js, int id)
     return joysticks[js].joystick->pov_names[id];
 }
 
+const device_t *
+joystick_get_usb_device(int js)
+{
+    return joysticks[js].joystick->usb_device[0];
+}
+
 static void
 gameport_time(joystick_instance_t *joystick, int nr, int axis)
 {
@@ -348,8 +355,15 @@ timer_over(void *priv)
 void
 gameport_update_joystick_type(uint8_t gp)
 {
-    /* Add a standalone game port if a joystick is enabled but no other game ports exist. */
-    if (standalone_gameport_type)
+    const joystick_t *intf = joysticks[joystick_type[gp]].joystick;
+
+    /* Add a standalone game port if a joystick is enabled but no other game ports exist.
+       A USB pad needs no port, only a device for each pad that is mapped. */
+    if (intf->usb_device[0] != NULL) {
+        for (int js = 0; js < intf->max_joysticks; js++)
+            if (JOYSTICK_PRESENT(gp, js))
+                device_add(intf->usb_device[js]);
+    } else if (standalone_gameport_type)
         gameport_add(standalone_gameport_type);
 
     /* Reset the joystick interface. */

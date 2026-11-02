@@ -75,12 +75,13 @@ extern int             usb_card_has_bus(int mch);
 extern void            usb_card_reset(void);
 
 /* Hot plug. Each USB device kind the machine can have (hub, mouse, tablet,
-   keyboard, speaker, mass storage) has one slot. The user plugs and
+   keyboard, speaker, mass storage) has one slot, and game pads one each as
+   a real second pad goes in its own port. The user plugs and
    unplugs a device from the GUI thread with usb_slot_want(); the change is
    made on the emulation thread by usb_hotplug_process(), which runs
    between CPU slices, so no controller or device state is ever touched
    from the GUI. What the user wants is kept in the config. */
-#define USB_SLOTS 6
+#define USB_SLOTS 8
 
 extern const char     *usb_slot_internal_name(int slot);
 /* The device that holds the slot, NULL when the machine has none. */

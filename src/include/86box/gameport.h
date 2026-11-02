@@ -72,6 +72,9 @@ typedef struct joystick_t {
     const char *axis_names[MAX_JOY_AXES];
     const char *button_names[MAX_JOY_BUTTONS];
     const char *pov_names[MAX_JOY_POVS];
+
+    /* A USB pad: the device for each pad, added instead of using a game port. */
+    const device_t *usb_device[MAX_JOYSTICKS];
 } joystick_t;
 
 typedef struct plat_joystick_state_t {
@@ -168,6 +171,7 @@ extern int         joystick_get_pov_count(int js);
 extern const char *joystick_get_axis_name(int js, int id);
 extern const char *joystick_get_button_name(int js, int id);
 extern const char *joystick_get_pov_name(int js, int id);
+extern const device_t *joystick_get_usb_device(int js);
 
 extern void  gameport_update_joystick_type(uint8_t gp);
 extern void  gameport_remap(void *priv, uint16_t address);
@@ -235,6 +239,10 @@ extern const joystick_t joystick_ch_virtual_pilot_pro_ch_pedals_pro;
 
 extern const joystick_t joystick_creative_gamepad;
 extern const joystick_t joystick_creative_cobra;
+extern const joystick_t joystick_creative_cobra2_usb;
+
+extern const device_t gamepad_cobra2_usb_device;
+extern const device_t gamepad_cobra2_usb_2_device;
 
 extern const joystick_t joystick_gravis_gamepad_pro;
 extern const joystick_t joystick_gravis_blackhawk_digital;

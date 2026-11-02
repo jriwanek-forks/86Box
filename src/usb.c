@@ -2065,7 +2065,8 @@ typedef struct usb_slot_t {
 } usb_slot_t;
 
 static const char *const usb_slot_names[USB_SLOTS] = {
-    "usb_hub_4port", "usb_mouse", "usb_tablet", "usb_keyboard", "usb_speaker", "usb_msd"
+    "usb_hub_4port", "usb_mouse", "usb_tablet", "usb_keyboard", "usb_speaker", "usb_msd",
+    "usb_gamepad", "usb_gamepad_2"
 };
 
 static usb_slot_t usb_slots[USB_SLOTS];
