@@ -23,4 +23,5 @@ add_library(game OBJECT
     joystick_gravis_grip.c
     joystick_sw_pad.c
     joystick_tm_fcs.c
+    joystick_usb.c
 )

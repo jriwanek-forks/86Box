@@ -1306,168 +1306,310 @@ const device_t tablet_usb_device = {
     .config        = NULL
 };
 
-/* USB game pads. Each model is a plain HID device with no driver of its own,
-   so a report is the two D-pad axes, an optional throttle, then buttons.
+/* USB game pads. Each model is a plain HID device, built at init from one row
+   of the table below, so its descriptors and reports always agree. A report is
+   the axes in table order, an optional hat, the buttons, then padding to a
+   byte.
 
-   The Creative GamePad Cobra 2 USB (CTM1060) is one that Windows drives with
-   hidusb.sys, where Creative's INFs only name it. The IDs come from those
-   INFs, and the controls and the name Windows gives it ("3 axis, 12 button
-   gamepad") from the user's guide. No pad was available to dump, so the
-   speed, the descriptors and the button order are this driver's choice, not
-   the real pad's. The buttons are in the order the gameport Cobra's driver
-   reports them.
+   The Cobra 2 and the Windows 98 SE entries use their real names and IDs, from
+   Creative's and Microsoft's INFs, but no real device was available to dump.
+   Their descriptors, speed and report layouts are this driver's choice. The
+   SideWinder controls come from Linux's sidewinder driver and Microsoft's INF
+   data, and the others are estimates from reviews, or from similar products
+   where nothing could be found.
 
-   The generic pad is not a copy of any one product, but the usual low-speed
-   class-compliant pad of its time: a digital D-pad on X and Y, and 10 buttons
-   as on a two-shoulder, six-face, Start and Select layout. */
-static const uint8_t hid_cobra2_report_desc[] = {
-    0x05, 0x01,       /* Usage Page (Generic Desktop) */
-    0x09, 0x05,       /* Usage (Game Pad) */
-    0xa1, 0x01,       /* Collection (Application) */
-    0x09, 0x01,       /*   Usage (Pointer) */
-    0xa1, 0x00,       /*   Collection (Physical) */
-    0x09, 0x30,       /*     Usage (X) */
-    0x09, 0x31,       /*     Usage (Y) */
-    0x15, 0x00,       /*     Logical Minimum (0) */
-    0x26, 0xff, 0x00, /*     Logical Maximum (255) */
-    0x75, 0x08,       /*     Report Size (8) */
-    0x95, 0x02,       /*     Report Count (2) */
-    0x81, 0x02,       /*     Input (Data, Variable, Absolute) */
-    0xc0,             /*   End Collection */
-    0x09, 0x36,       /*   Usage (Slider) */
-    0x95, 0x01,       /*   Report Count (1) */
-    0x81, 0x02,       /*   Input (Data, Variable, Absolute) */
-    0x05, 0x09,       /*   Usage Page (Button) */
-    0x19, 0x01,       /*   Usage Minimum (1) */
-    0x29, 0x0c,       /*   Usage Maximum (12) */
-    0x25, 0x01,       /*   Logical Maximum (1) */
-    0x75, 0x01,       /*   Report Size (1) */
-    0x95, 0x0c,       /*   Report Count (12) */
-    0x81, 0x02,       /*   Input (Data, Variable, Absolute) */
-    0x75, 0x04,       /*   Report Size (4) */
-    0x95, 0x01,       /*   Report Count (1) */
-    0x81, 0x01,       /*   Input (Constant) */
-    0xc0              /* End Collection */
+   The two 86Box pads copy no product: one is the usual low-speed class pad of
+   its time, the other has the controls of a twin-stick pad like the Xbox 360
+   controller. That controller is a vendor-class device with its own driver,
+   and this is a HID class pad. Its report does not fit in a low-speed packet,
+   so it is full speed. */
+#define HID_USAGE_POINTER  0x01
+#define HID_USAGE_JOYSTICK 0x04
+#define HID_USAGE_GAME_PAD 0x05
+#define HID_USAGE_X        0x30
+#define HID_USAGE_Y        0x31
+#define HID_USAGE_Z        0x32
+#define HID_USAGE_RX       0x33
+#define HID_USAGE_RY       0x34
+#define HID_USAGE_RZ       0x35
+#define HID_USAGE_SLIDER   0x36
+#define HID_USAGE_HAT      0x39
+
+#define HID_PAD_MAX_AXES   6
+#define HID_PAD_REPORT_MAX 16
+#define HID_PAD_DESC_MAX   192
+#define HID_PAD_CFG_LEN    (9 + 9 + 9 + 7)
+
+enum {
+    HID_AXIS_ANALOG,  /* unsigned */
+    HID_AXIS_DIGITAL, /* unsigned, three positions */
+    HID_AXIS_SIGNED   /* 16 bits, signed */
 };
 
-static const uint8_t hid_gamepad_report_desc[] = {
-    0x05, 0x01,       /* Usage Page (Generic Desktop) */
-    0x09, 0x05,       /* Usage (Game Pad) */
-    0xa1, 0x01,       /* Collection (Application) */
-    0x09, 0x01,       /*   Usage (Pointer) */
-    0xa1, 0x00,       /*   Collection (Physical) */
-    0x09, 0x30,       /*     Usage (X) */
-    0x09, 0x31,       /*     Usage (Y) */
-    0x15, 0x00,       /*     Logical Minimum (0) */
-    0x26, 0xff, 0x00, /*     Logical Maximum (255) */
-    0x75, 0x08,       /*     Report Size (8) */
-    0x95, 0x02,       /*     Report Count (2) */
-    0x81, 0x02,       /*     Input (Data, Variable, Absolute) */
-    0xc0,             /*   End Collection */
-    0x05, 0x09,       /*   Usage Page (Button) */
-    0x19, 0x01,       /*   Usage Minimum (1) */
-    0x29, 0x0a,       /*   Usage Maximum (10) */
-    0x25, 0x01,       /*   Logical Maximum (1) */
-    0x75, 0x01,       /*   Report Size (1) */
-    0x95, 0x0a,       /*   Report Count (10) */
-    0x81, 0x02,       /*   Input (Data, Variable, Absolute) */
-    0x75, 0x06,       /*   Report Size (6) */
-    0x95, 0x01,       /*   Report Count (1) */
-    0x81, 0x01,       /*   Input (Constant) */
-    0xc0              /* End Collection */
-};
-
-#define HID_COBRA2_REPORT  5
-#define HID_GAMEPAD_REPORT 4
-#define HID_PAD_REPORT_MAX 5
-
-static const uint8_t hid_cobra2_dev_desc[18] = {
-    18, 0x01,   /* bLength, DEVICE */
-    0x10, 0x01, /* bcdUSB 1.10 */
-    0x00, 0x00, 0x00,
-    8,          /* bMaxPacketSize0: the only size allowed at low speed (USB 1.1 s5.5.3, p. 37 / PDF 53) */
-    0x1e, 0x04, /* idVendor: Creative */
-    0x03, 0x10, /* idProduct */
-    0x00, 0x01, /* bcdDevice */
-    1, 2, 0,    /* iManufacturer, iProduct, iSerialNumber */
-    1           /* bNumConfigurations */
-};
-
-static const uint8_t hid_gamepad_dev_desc[18] = {
-    18, 0x01,   /* bLength, DEVICE */
-    0x10, 0x01, /* bcdUSB 1.10 */
-    0x00, 0x00, 0x00,
-    8,          /* bMaxPacketSize0: the only size allowed at low speed (USB 1.1 s5.5.3, p. 37 / PDF 53) */
-    0x00, 0x00, /* idVendor */
-    0x07, 0x00, /* idProduct */
-    0x00, 0x01, /* bcdDevice */
-    1, 2, 0,    /* iManufacturer, iProduct, iSerialNumber */
-    1           /* bNumConfigurations */
-};
-
-#define HID_PAD_CFG_LEN (9 + 9 + 9 + 7)
-
-/* Configuration, interface 0 (HID, no subclass, no protocol; HID 1.11 s4.2-4.3,
-   p. 8-9 / PDF 18-19), the HID descriptor between interface and endpoint (HID
-   1.11 s7.1, p. 48 / PDF 58), and endpoint 1 IN, interrupt, 10 ms: the shortest
-   period a low-speed endpoint may ask for (USB 1.1 s5.7.4, p. 45 / PDF 61). */
-#define HID_PAD_CFG_DESC(report_desc_len, report_len)    \
-    {                                                    \
-        9, 0x02, HID_PAD_CFG_LEN, 0x00, 1, 1, 0,         \
-        0x80, /* bus powered, no remote wakeup */        \
-        50,   /* 100 mA, in 2 mA units */                \
-        9, 0x04, 0, 0, 1, 0x03, 0x00, 0x00, 0,           \
-        9, 0x21, 0x11, 0x01, 0, 1, 0x22, report_desc_len, 0x00, \
-        7, 0x05, 0x81, 0x03, report_len, 0x00, 10        \
-    }
-
-static const uint8_t hid_cobra2_cfg_desc[HID_PAD_CFG_LEN] =
-    HID_PAD_CFG_DESC(sizeof(hid_cobra2_report_desc), HID_COBRA2_REPORT);
-
-static const uint8_t hid_gamepad_cfg_desc[HID_PAD_CFG_LEN] =
-    HID_PAD_CFG_DESC(sizeof(hid_gamepad_report_desc), HID_GAMEPAD_REPORT);
-
-static const char *const hid_cobra2_strings[] = {
-    "Creative Labs",
-    "Creative USB Game Pad II"
-};
-
-static const char *const hid_gamepad_strings[] = {
-    "86Box",
-    "USB Gamepad"
-};
+typedef struct hid_pad_axis_t {
+    uint8_t usage;
+    uint8_t bits;
+    uint8_t kind;
+} hid_pad_axis_t;
 
 typedef struct hid_pad_model_t {
-    const uint8_t     *dev_desc;
-    const uint8_t     *cfg_desc;
-    const uint8_t     *report_desc;
-    int                report_desc_len;
-    const char *const *strings;
-    int                throttle;
-    int                buttons;
-    int                report_len;
+    uint16_t       vid;
+    uint16_t       pid;
+    const char    *manufacturer;
+    const char    *product;
+    uint8_t        usage;
+    uint8_t        low_speed;
+    uint8_t        interval;     /* ms; a low-speed report must fit in 8 bytes */
+    uint8_t        pointer_axes; /* the first axes, in a Physical collection */
+    uint8_t        num_axes;
+    hid_pad_axis_t axes[HID_PAD_MAX_AXES];
+    uint8_t        hat;          /* 0, or 4 or 8 directions */
+    uint8_t        buttons;
 } hid_pad_model_t;
 
+enum {
+    HID_PAD_COBRA2,
+    HID_PAD_GAMEPAD,
+    HID_PAD_6AXIS,
+    HID_PAD_SIDEWINDER_PAD,
+    HID_PAD_SIDEWINDER_PRECISION_PRO,
+    HID_PAD_SIDEWINDER_FREESTYLE_PRO,
+    HID_PAD_TM_RAGE3D,
+    HID_PAD_TM_TOP_GUN,
+    HID_PAD_TM_TOP_GUN_REV2,
+    HID_PAD_NEC_PK_GP201,
+    HID_PAD_NEC_PK_GP301,
+    HID_PAD_LOGITECH_WINGMAN_EXTREME,
+    HID_PAD_LOGITECH_WINGMAN_EXTREME_THROTTLE,
+    HID_PAD_GENIUS_JOYSTICK,
+    HID_PAD_GENIUS_GAMEPAD,
+    HID_PAD_GUILLEMOT_JET_LEADER,
+};
+
 static const hid_pad_model_t hid_pad_models[] = {
-    {
-        .dev_desc        = hid_cobra2_dev_desc,
-        .cfg_desc        = hid_cobra2_cfg_desc,
-        .report_desc     = hid_cobra2_report_desc,
-        .report_desc_len = sizeof(hid_cobra2_report_desc),
-        .strings         = hid_cobra2_strings,
-        .throttle        = 1,
-        .buttons         = 12,
-        .report_len      = HID_COBRA2_REPORT
+    [HID_PAD_COBRA2] = {
+        .vid          = 0x041e,
+        .pid          = 0x1003,
+        .manufacturer = "Creative Labs",
+        .product      = "Creative USB Game Pad II",
+        .usage        = HID_USAGE_GAME_PAD,
+        .low_speed    = 1,
+        .interval     = 10,
+        .pointer_axes = 2,
+        .num_axes     = 3,
+        .axes         = { { HID_USAGE_X, 8, HID_AXIS_DIGITAL }, { HID_USAGE_Y, 8, HID_AXIS_DIGITAL }, { HID_USAGE_SLIDER, 8, HID_AXIS_ANALOG } },
+        .hat          = 0,
+        .buttons      = 12
     },
-    {
-        .dev_desc        = hid_gamepad_dev_desc,
-        .cfg_desc        = hid_gamepad_cfg_desc,
-        .report_desc     = hid_gamepad_report_desc,
-        .report_desc_len = sizeof(hid_gamepad_report_desc),
-        .strings         = hid_gamepad_strings,
-        .throttle        = 0,
-        .buttons         = 10,
-        .report_len      = HID_GAMEPAD_REPORT
+    [HID_PAD_GAMEPAD] = {
+        .vid          = 0x0000,
+        .pid          = 0x0007,
+        .manufacturer = "86Box",
+        .product      = "USB Gamepad",
+        .usage        = HID_USAGE_GAME_PAD,
+        .low_speed    = 1,
+        .interval     = 10,
+        .pointer_axes = 2,
+        .num_axes     = 2,
+        .axes         = { { HID_USAGE_X, 8, HID_AXIS_DIGITAL }, { HID_USAGE_Y, 8, HID_AXIS_DIGITAL } },
+        .hat          = 0,
+        .buttons      = 10
+    },
+    [HID_PAD_6AXIS] = {
+        .vid          = 0x0000,
+        .pid          = 0x0008,
+        .manufacturer = "86Box",
+        .product      = "USB Gamepad (6-axis)",
+        .usage        = HID_USAGE_GAME_PAD,
+        .low_speed    = 0,
+        .interval     = 4,
+        .pointer_axes = 4,
+        .num_axes     = 6,
+        .axes         = { { HID_USAGE_X, 16, HID_AXIS_SIGNED }, { HID_USAGE_Y, 16, HID_AXIS_SIGNED }, { HID_USAGE_RX, 16, HID_AXIS_SIGNED }, { HID_USAGE_RY, 16, HID_AXIS_SIGNED }, { HID_USAGE_Z, 8, HID_AXIS_ANALOG }, { HID_USAGE_RZ, 8, HID_AXIS_ANALOG } },
+        .hat          = 8,
+        .buttons      = 11
+    },
+    [HID_PAD_SIDEWINDER_PAD] = {
+        .vid          = 0x045e,
+        .pid          = 0x0007,
+        .manufacturer = "Microsoft",
+        .product      = "SideWinder Game Pad USB version 1.0",
+        .usage        = HID_USAGE_GAME_PAD,
+        .low_speed    = 1,
+        .interval     = 10,
+        .pointer_axes = 2,
+        .num_axes     = 2,
+        .axes         = { { HID_USAGE_X, 8, HID_AXIS_DIGITAL }, { HID_USAGE_Y, 8, HID_AXIS_DIGITAL } },
+        .hat          = 0,
+        .buttons      = 10
+    },
+    [HID_PAD_SIDEWINDER_PRECISION_PRO] = {
+        .vid          = 0x045e,
+        .pid          = 0x0008,
+        .manufacturer = "Microsoft",
+        .product      = "Microsoft SideWinder Precision Pro (USB)",
+        .usage        = HID_USAGE_JOYSTICK,
+        .low_speed    = 1,
+        .interval     = 10,
+        .pointer_axes = 2,
+        .num_axes     = 4,
+        .axes         = { { HID_USAGE_X, 10, HID_AXIS_ANALOG }, { HID_USAGE_Y, 10, HID_AXIS_ANALOG }, { HID_USAGE_RZ, 6, HID_AXIS_ANALOG }, { HID_USAGE_SLIDER, 7, HID_AXIS_ANALOG } },
+        .hat          = 8,
+        .buttons      = 9
+    },
+    [HID_PAD_SIDEWINDER_FREESTYLE_PRO] = {
+        .vid          = 0x045e,
+        .pid          = 0x000e,
+        .manufacturer = "Microsoft",
+        .product      = "Microsoft SideWinder Freestyle Pro (USB)",
+        .usage        = HID_USAGE_GAME_PAD,
+        .low_speed    = 1,
+        .interval     = 10,
+        .pointer_axes = 2,
+        .num_axes     = 3,
+        .axes         = { { HID_USAGE_X, 10, HID_AXIS_ANALOG }, { HID_USAGE_Y, 10, HID_AXIS_ANALOG }, { HID_USAGE_SLIDER, 6, HID_AXIS_ANALOG } },
+        .hat          = 8,
+        .buttons      = 10
+    },
+    [HID_PAD_TM_RAGE3D] = {
+        .vid          = 0x044f,
+        .pid          = 0xa003,
+        .manufacturer = "ThrustMaster",
+        .product      = "ThrustMaster Rage 3D USB Game Pad",
+        .usage        = HID_USAGE_GAME_PAD,
+        .low_speed    = 1,
+        .interval     = 10,
+        .pointer_axes = 2,
+        .num_axes     = 2,
+        .axes         = { { HID_USAGE_X, 8, HID_AXIS_ANALOG }, { HID_USAGE_Y, 8, HID_AXIS_ANALOG } },
+        .hat          = 0,
+        .buttons      = 8
+    },
+    [HID_PAD_TM_TOP_GUN] = {
+        .vid          = 0x044f,
+        .pid          = 0xa0a0,
+        .manufacturer = "ThrustMaster",
+        .product      = "ThrustMaster Top Gun USB Joystick",
+        .usage        = HID_USAGE_JOYSTICK,
+        .low_speed    = 1,
+        .interval     = 10,
+        .pointer_axes = 2,
+        .num_axes     = 2,
+        .axes         = { { HID_USAGE_X, 8, HID_AXIS_ANALOG }, { HID_USAGE_Y, 8, HID_AXIS_ANALOG } },
+        .hat          = 4,
+        .buttons      = 4
+    },
+    [HID_PAD_TM_TOP_GUN_REV2] = {
+        .vid          = 0x044f,
+        .pid          = 0xa0a1,
+        .manufacturer = "ThrustMaster",
+        .product      = "ThrustMaster Top Gun USB Joystick (rev2)",
+        .usage        = HID_USAGE_JOYSTICK,
+        .low_speed    = 1,
+        .interval     = 10,
+        .pointer_axes = 2,
+        .num_axes     = 2,
+        .axes         = { { HID_USAGE_X, 8, HID_AXIS_ANALOG }, { HID_USAGE_Y, 8, HID_AXIS_ANALOG } },
+        .hat          = 4,
+        .buttons      = 4
+    },
+    [HID_PAD_NEC_PK_GP201] = {
+        .vid          = 0x044f,
+        .pid          = 0xa201,
+        .manufacturer = "NEC",
+        .product      = "NEC PK-GP201 PlayStick",
+        .usage        = HID_USAGE_JOYSTICK,
+        .low_speed    = 1,
+        .interval     = 10,
+        .pointer_axes = 2,
+        .num_axes     = 2,
+        .axes         = { { HID_USAGE_X, 8, HID_AXIS_ANALOG }, { HID_USAGE_Y, 8, HID_AXIS_ANALOG } },
+        .hat          = 4,
+        .buttons      = 4
+    },
+    [HID_PAD_NEC_PK_GP301] = {
+        .vid          = 0x044f,
+        .pid          = 0xa01b,
+        .manufacturer = "NEC",
+        .product      = "NEC PK-GP301 Driving Wheel",
+        .usage        = HID_USAGE_JOYSTICK,
+        .low_speed    = 1,
+        .interval     = 10,
+        .pointer_axes = 1,
+        .num_axes     = 3,
+        .axes         = { { HID_USAGE_X, 8, HID_AXIS_ANALOG }, { HID_USAGE_Y, 8, HID_AXIS_ANALOG }, { HID_USAGE_Z, 8, HID_AXIS_ANALOG } },
+        .hat          = 0,
+        .buttons      = 4
+    },
+    [HID_PAD_LOGITECH_WINGMAN_EXTREME] = {
+        .vid          = 0x046d,
+        .pid          = 0x0200,
+        .manufacturer = "Logitech",
+        .product      = "Logitech USB WingMan Extreme Joystick",
+        .usage        = HID_USAGE_JOYSTICK,
+        .low_speed    = 1,
+        .interval     = 10,
+        .pointer_axes = 2,
+        .num_axes     = 2,
+        .axes         = { { HID_USAGE_X, 8, HID_AXIS_ANALOG }, { HID_USAGE_Y, 8, HID_AXIS_ANALOG } },
+        .hat          = 8,
+        .buttons      = 6
+    },
+    [HID_PAD_LOGITECH_WINGMAN_EXTREME_THROTTLE] = {
+        .vid          = 0x046d,
+        .pid          = 0xc201,
+        .manufacturer = "Logitech",
+        .product      = "Logitech USB WingMan Extreme Joystick with Throttle",
+        .usage        = HID_USAGE_JOYSTICK,
+        .low_speed    = 1,
+        .interval     = 10,
+        .pointer_axes = 2,
+        .num_axes     = 4,
+        .axes         = { { HID_USAGE_X, 8, HID_AXIS_ANALOG }, { HID_USAGE_Y, 8, HID_AXIS_ANALOG }, { HID_USAGE_RZ, 8, HID_AXIS_ANALOG }, { HID_USAGE_SLIDER, 8, HID_AXIS_ANALOG } },
+        .hat          = 8,
+        .buttons      = 7
+    },
+    [HID_PAD_GENIUS_JOYSTICK] = {
+        .vid          = 0x0458,
+        .pid          = 0x1001,
+        .manufacturer = "Genius",
+        .product      = "Genius USB Joystick",
+        .usage        = HID_USAGE_JOYSTICK,
+        .low_speed    = 1,
+        .interval     = 10,
+        .pointer_axes = 2,
+        .num_axes     = 3,
+        .axes         = { { HID_USAGE_X, 8, HID_AXIS_ANALOG }, { HID_USAGE_Y, 8, HID_AXIS_ANALOG }, { HID_USAGE_SLIDER, 8, HID_AXIS_ANALOG } },
+        .hat          = 8,
+        .buttons      = 6
+    },
+    [HID_PAD_GENIUS_GAMEPAD] = {
+        .vid          = 0x0458,
+        .pid          = 0x1002,
+        .manufacturer = "Genius",
+        .product      = "Genius USB Game Pad",
+        .usage        = HID_USAGE_GAME_PAD,
+        .low_speed    = 1,
+        .interval     = 10,
+        .pointer_axes = 2,
+        .num_axes     = 2,
+        .axes         = { { HID_USAGE_X, 8, HID_AXIS_DIGITAL }, { HID_USAGE_Y, 8, HID_AXIS_DIGITAL } },
+        .hat          = 0,
+        .buttons      = 8
+    },
+    [HID_PAD_GUILLEMOT_JET_LEADER] = {
+        .vid          = 0x06f8,
+        .pid          = 0x0002,
+        .manufacturer = "Guillemot",
+        .product      = "Guillemot Jet Leader USB Joystick",
+        .usage        = HID_USAGE_JOYSTICK,
+        .low_speed    = 1,
+        .interval     = 10,
+        .pointer_axes = 2,
+        .num_axes     = 4,
+        .axes         = { { HID_USAGE_X, 8, HID_AXIS_ANALOG }, { HID_USAGE_Y, 8, HID_AXIS_ANALOG }, { HID_USAGE_RZ, 8, HID_AXIS_ANALOG }, { HID_USAGE_SLIDER, 8, HID_AXIS_ANALOG } },
+        .hat          = 8,
+        .buttons      = 6
     }
 };
 
@@ -1478,46 +1620,281 @@ typedef struct hid_pad_t {
     usb_dev_t              usb;
     const hid_pad_model_t *model;
     int                    slot; /* which pad in joystick_state */
+    int                    report_len;
+    int                    report_desc_len;
+    const char            *strings[2];
+    uint8_t                dev_desc[18];
+    uint8_t                cfg_desc[HID_PAD_CFG_LEN];
+    uint8_t                report_desc[HID_PAD_DESC_MAX];
     hid_idle_t             idle;
     uint8_t                sent[HID_PAD_REPORT_MAX];
     uint8_t                sent_valid;
 } hid_pad_t;
 
-/* The D-pad is three positions on a whole axis. */
-static uint8_t
-hid_pad_dpad(int value)
+static int
+hid_pad_report_bits(const hid_pad_model_t *model)
+{
+    int bits = model->buttons + (model->hat ? 4 : 0);
+
+    for (int i = 0; i < model->num_axes; i++)
+        bits += model->axes[i].bits;
+
+    return bits;
+}
+
+/* Logical range, Report Size, Report Count 1, and an Input item. */
+static int
+hid_pad_desc_field(uint8_t *d, const hid_pad_axis_t *axis)
+{
+    int len = 0;
+
+    if (axis->kind == HID_AXIS_SIGNED) {
+        d[len++] = 0x16; /* Logical Minimum (-32768) */
+        d[len++] = 0x00;
+        d[len++] = 0x80;
+        d[len++] = 0x26; /* Logical Maximum (32767) */
+        d[len++] = 0xff;
+        d[len++] = 0x7f;
+    } else {
+        int max = (1 << axis->bits) - 1;
+
+        d[len++] = 0x15; /* Logical Minimum (0) */
+        d[len++] = 0x00;
+        d[len++] = 0x26; /* Logical Maximum */
+        d[len++] = max & 0xff;
+        d[len++] = max >> 8;
+    }
+
+    d[len++] = 0x75; /* Report Size */
+    d[len++] = axis->bits;
+    d[len++] = 0x95; /* Report Count (1) */
+    d[len++] = 0x01;
+    d[len++] = 0x81; /* Input (Data, Variable, Absolute) */
+    d[len++] = 0x02;
+
+    return len;
+}
+
+static int
+hid_pad_build_report_desc(const hid_pad_model_t *model, uint8_t *d)
+{
+    int len     = 0;
+    int padding = -hid_pad_report_bits(model) & 7;
+
+    d[len++] = 0x05; /* Usage Page (Generic Desktop) */
+    d[len++] = 0x01;
+    d[len++] = 0x09; /* Usage */
+    d[len++] = model->usage;
+    d[len++] = 0xa1; /* Collection (Application) */
+    d[len++] = 0x01;
+
+    for (int i = 0; i < model->num_axes; i++) {
+        if (i == 0) {
+            d[len++] = 0x09; /* Usage (Pointer) */
+            d[len++] = HID_USAGE_POINTER;
+            d[len++] = 0xa1; /* Collection (Physical) */
+            d[len++] = 0x00;
+        }
+
+        d[len++] = 0x09; /* Usage */
+        d[len++] = model->axes[i].usage;
+        len += hid_pad_desc_field(&d[len], &model->axes[i]);
+
+        if (i == (model->pointer_axes - 1))
+            d[len++] = 0xc0; /* End Collection */
+    }
+
+    if (model->hat) {
+        int degrees = 360 - (360 / model->hat);
+
+        d[len++] = 0x09; /* Usage (Hat Switch) */
+        d[len++] = HID_USAGE_HAT;
+        d[len++] = 0x15; /* Logical Minimum (0) */
+        d[len++] = 0x00;
+        d[len++] = 0x25; /* Logical Maximum */
+        d[len++] = model->hat - 1;
+        d[len++] = 0x35; /* Physical Minimum (0) */
+        d[len++] = 0x00;
+        d[len++] = 0x46; /* Physical Maximum */
+        d[len++] = degrees & 0xff;
+        d[len++] = degrees >> 8;
+        d[len++] = 0x65; /* Unit (Degrees) */
+        d[len++] = 0x14;
+        d[len++] = 0x75; /* Report Size (4) */
+        d[len++] = 0x04;
+        d[len++] = 0x95; /* Report Count (1) */
+        d[len++] = 0x01;
+        d[len++] = 0x81; /* Input (Data, Variable, Absolute, Null State) */
+        d[len++] = 0x42;
+        d[len++] = 0x45; /* Physical Maximum (0) */
+        d[len++] = 0x00;
+        d[len++] = 0x65; /* Unit (None) */
+        d[len++] = 0x00;
+    }
+
+    d[len++] = 0x05; /* Usage Page (Button) */
+    d[len++] = 0x09;
+    d[len++] = 0x19; /* Usage Minimum (1) */
+    d[len++] = 0x01;
+    d[len++] = 0x29; /* Usage Maximum */
+    d[len++] = model->buttons;
+    d[len++] = 0x15; /* Logical Minimum (0) */
+    d[len++] = 0x00;
+    d[len++] = 0x25; /* Logical Maximum (1) */
+    d[len++] = 0x01;
+    d[len++] = 0x75; /* Report Size (1) */
+    d[len++] = 0x01;
+    d[len++] = 0x95; /* Report Count */
+    d[len++] = model->buttons;
+    d[len++] = 0x81; /* Input (Data, Variable, Absolute) */
+    d[len++] = 0x02;
+
+    if (padding) {
+        d[len++] = 0x75; /* Report Size */
+        d[len++] = padding;
+        d[len++] = 0x95; /* Report Count (1) */
+        d[len++] = 0x01;
+        d[len++] = 0x81; /* Input (Constant) */
+        d[len++] = 0x01;
+    }
+
+    d[len++] = 0xc0; /* End Collection */
+
+    return len;
+}
+
+static void
+hid_pad_build_descs(hid_pad_t *dev)
+{
+    const hid_pad_model_t *model = dev->model;
+
+    static const uint8_t dev_template[18] = {
+        18, 0x01,   /* bLength, DEVICE */
+        0x10, 0x01, /* bcdUSB 1.10 */
+        0x00, 0x00, 0x00,
+        0,          /* bMaxPacketSize0 */
+        0x00, 0x00, /* idVendor */
+        0x00, 0x00, /* idProduct */
+        0x00, 0x01, /* bcdDevice */
+        1, 2, 0,    /* iManufacturer, iProduct, iSerialNumber */
+        1           /* bNumConfigurations */
+    };
+    static const uint8_t cfg_template[HID_PAD_CFG_LEN] = {
+        /* Configuration */
+        9, 0x02, HID_PAD_CFG_LEN, 0x00, 1, 1, 0,
+        0x80, /* bus powered, no remote wakeup */
+        50,   /* 100 mA, in 2 mA units */
+        /* Interface 0: HID, no subclass, no protocol (HID 1.11 s4.2-4.3, p. 8-9 / PDF 18-19) */
+        9, 0x04, 0, 0, 1, 0x03, 0x00, 0x00, 0,
+        /* HID descriptor, between interface and endpoint (HID 1.11 s7.1, p. 48 / PDF 58) */
+        9, 0x21, 0x11, 0x01, 0, 1, 0x22, 0x00, 0x00,
+        /* Endpoint 1 IN, interrupt. 10 ms is the shortest period a low-speed
+           endpoint may ask for (USB 1.1 s5.7.4, p. 45 / PDF 61). */
+        7, 0x05, 0x81, 0x03, 0x00, 0x00, 0
+    };
+
+    dev->report_len      = (hid_pad_report_bits(model) + 7) / 8;
+    dev->report_desc_len = hid_pad_build_report_desc(model, dev->report_desc);
+
+    memcpy(dev->dev_desc, dev_template, sizeof(dev_template));
+    /* 8 is the only size allowed at low speed (USB 1.1 s5.5.3, p. 37 / PDF 53). */
+    dev->dev_desc[7]  = model->low_speed ? 8 : 64;
+    dev->dev_desc[8]  = model->vid & 0xff;
+    dev->dev_desc[9]  = model->vid >> 8;
+    dev->dev_desc[10] = model->pid & 0xff;
+    dev->dev_desc[11] = model->pid >> 8;
+
+    memcpy(dev->cfg_desc, cfg_template, sizeof(cfg_template));
+    dev->cfg_desc[25] = dev->report_desc_len;
+    dev->cfg_desc[31] = dev->report_len;
+    dev->cfg_desc[33] = model->interval;
+
+    dev->strings[0] = model->manufacturer;
+    dev->strings[1] = model->product;
+}
+
+/* An axis as an unsigned field of the given width. */
+static int
+hid_pad_axis_unsigned(int value, int bits)
+{
+    int ret = (value + 32768) >> (16 - bits);
+    int max = (1 << bits) - 1;
+
+    return (ret < 0) ? 0 : ((ret > max) ? max : ret);
+}
+
+/* A digital axis has only its ends and a centre. */
+static int
+hid_pad_axis_digital(int value, int bits)
 {
     if (value < -16384)
-        return 0x00;
+        return 0;
 
-    return (value > 16384) ? 0xff : 0x80;
+    return (value > 16384) ? ((1 << bits) - 1) : (1 << (bits - 1));
+}
+
+/* Host axes are not always in range, so this keeps a stick in its field. */
+static int
+hid_pad_axis_signed(int value)
+{
+    return ((value < -32768) ? -32768 : ((value > 32767) ? 32767 : value)) & 0xffff;
+}
+
+/* The hat counts in steps from up, and out of range is released. */
+static int
+hid_pad_hat(int angle, int directions)
+{
+    int step = 360 / directions;
+
+    if (angle < 0)
+        return 8;
+
+    return ((angle + (step / 2)) % 360) / step;
+}
+
+static void
+hid_pad_put_bits(uint8_t *rep, int *pos, int value, int bits)
+{
+    for (int i = 0; i < bits; i++, (*pos)++)
+        if (value & (1 << i))
+            rep[*pos >> 3] |= 1 << (*pos & 7);
 }
 
 static int
 hid_pad_report(const hid_pad_t *dev, uint8_t *rep)
 {
-    const hid_pad_model_t  *model   = dev->model;
-    const joystick_state_t *state   = &joystick_state[0][dev->slot];
-    uint16_t                buttons = 0;
-    int                     len     = 0;
+    const hid_pad_model_t  *model = dev->model;
+    const joystick_state_t *state = &joystick_state[0][dev->slot];
+    int                     pos   = 0;
 
-    rep[len++] = hid_pad_dpad(state->axis[0]);
-    rep[len++] = hid_pad_dpad(state->axis[1]);
+    memset(rep, 0x00, dev->report_len);
 
-    if (model->throttle) {
-        int throttle = (state->axis[2] + 32768) >> 8;
+    for (int i = 0; i < model->num_axes; i++) {
+        const hid_pad_axis_t *axis  = &model->axes[i];
+        int                   value = state->axis[i];
 
-        rep[len++] = (throttle < 0) ? 0 : ((throttle > 255) ? 255 : throttle);
+        switch (axis->kind) {
+            case HID_AXIS_DIGITAL:
+                value = hid_pad_axis_digital(value, axis->bits);
+                break;
+            case HID_AXIS_SIGNED:
+                value = hid_pad_axis_signed(value);
+                break;
+            default:
+                value = hid_pad_axis_unsigned(value, axis->bits);
+                break;
+        }
+
+        hid_pad_put_bits(rep, &pos, value, axis->bits);
     }
 
+    if (model->hat)
+        hid_pad_put_bits(rep, &pos, hid_pad_hat(state->pov[0], model->hat), 4);
+
     for (int i = 0; i < model->buttons; i++)
-        if (state->button[i])
-            buttons |= 1 << i;
+        hid_pad_put_bits(rep, &pos, !!state->button[i], 1);
 
-    rep[len++] = buttons & 0xff;
-    rep[len++] = buttons >> 8;
-
-    return len;
+    return dev->report_len;
 }
 
 static int
@@ -1540,11 +1917,11 @@ hid_pad_control(usb_dev_t *usb, const uint8_t *setup, uint8_t *data)
             return USB_DATA_STALL;
         switch (wvalue >> 8) {
             case 0x21:
-                memcpy(data, &dev->model->cfg_desc[18], 9);
+                memcpy(data, &dev->cfg_desc[18], 9);
                 return 9;
             case 0x22:
-                memcpy(data, dev->model->report_desc, dev->model->report_desc_len);
-                return dev->model->report_desc_len;
+                memcpy(data, dev->report_desc, dev->report_desc_len);
+                return dev->report_desc_len;
             default:
                 return USB_DATA_STALL;
         }
@@ -1645,14 +2022,16 @@ hid_pad_init(const device_t *info)
 {
     hid_pad_t *dev = (hid_pad_t *) calloc(1, sizeof(hid_pad_t));
 
-    dev->model         = &hid_pad_models[info->local >> 8];
-    dev->slot          = info->local & 0xff;
+    dev->model = &hid_pad_models[info->local >> 8];
+    dev->slot  = info->local & 0xff;
+    hid_pad_build_descs(dev);
+
     dev->usb.name      = info->name;
-    dev->usb.low_speed = 1;
-    dev->usb.dev_desc  = dev->model->dev_desc;
-    dev->usb.cfg_desc  = dev->model->cfg_desc;
+    dev->usb.low_speed = dev->model->low_speed;
+    dev->usb.dev_desc  = dev->dev_desc;
+    dev->usb.cfg_desc  = dev->cfg_desc;
     dev->usb.cfg_len   = HID_PAD_CFG_LEN;
-    dev->usb.strings   = dev->model->strings;
+    dev->usb.strings   = dev->strings;
     dev->usb.n_strings = 2;
     dev->usb.ops       = &hid_pad_ops;
     dev->usb.priv      = dev;
@@ -1673,60 +2052,49 @@ hid_pad_close(void *priv)
     free(dev);
 }
 
-const device_t gamepad_cobra2_usb_device = {
-    .name          = "Creative USB Game Pad II",
-    .internal_name = "usb_gamepad",
-    .flags         = DEVICE_USB,
-    .local         = HID_PAD_LOCAL(0, 0),
-    .init          = hid_pad_init,
-    .close         = hid_pad_close,
-    .reset         = NULL,
-    .available     = NULL,
-    .speed_changed = NULL,
-    .force_redraw  = NULL,
-    .config        = NULL
-};
+/* Each pad has two devices, so that a second pad gets its own hot-plug slot.
+   Only one joystick type is in use at a time, so all models share the slots. */
+#define HID_PAD_DEVICES(var, model, pad_name)                  \
+    const device_t var##_device = {                            \
+        .name          = pad_name,                             \
+        .internal_name = "usb_gamepad",                        \
+        .flags         = DEVICE_USB,                           \
+        .local         = HID_PAD_LOCAL(model, 0),              \
+        .init          = hid_pad_init,                         \
+        .close         = hid_pad_close,                        \
+        .reset         = NULL,                                 \
+        .available     = NULL,                                 \
+        .speed_changed = NULL,                                 \
+        .force_redraw  = NULL,                                 \
+        .config        = NULL                                  \
+    };                                                         \
+    const device_t var##_2_device = {                          \
+        .name          = pad_name " (second pad)",             \
+        .internal_name = "usb_gamepad_2",                      \
+        .flags         = DEVICE_USB,                           \
+        .local         = HID_PAD_LOCAL(model, 1),              \
+        .init          = hid_pad_init,                         \
+        .close         = hid_pad_close,                        \
+        .reset         = NULL,                                 \
+        .available     = NULL,                                 \
+        .speed_changed = NULL,                                 \
+        .force_redraw  = NULL,                                 \
+        .config        = NULL                                  \
+    }
 
-const device_t gamepad_cobra2_usb_2_device = {
-    .name          = "Creative USB Game Pad II (second pad)",
-    .internal_name = "usb_gamepad_2",
-    .flags         = DEVICE_USB,
-    .local         = HID_PAD_LOCAL(0, 1),
-    .init          = hid_pad_init,
-    .close         = hid_pad_close,
-    .reset         = NULL,
-    .available     = NULL,
-    .speed_changed = NULL,
-    .force_redraw  = NULL,
-    .config        = NULL
-};
-
-/* Only one joystick type is in use at a time, so these share the Cobra 2's
-   hot-plug slots. */
-const device_t gamepad_usb_device = {
-    .name          = "USB Gamepad",
-    .internal_name = "usb_gamepad",
-    .flags         = DEVICE_USB,
-    .local         = HID_PAD_LOCAL(1, 0),
-    .init          = hid_pad_init,
-    .close         = hid_pad_close,
-    .reset         = NULL,
-    .available     = NULL,
-    .speed_changed = NULL,
-    .force_redraw  = NULL,
-    .config        = NULL
-};
-
-const device_t gamepad_usb_2_device = {
-    .name          = "USB Gamepad (second pad)",
-    .internal_name = "usb_gamepad_2",
-    .flags         = DEVICE_USB,
-    .local         = HID_PAD_LOCAL(1, 1),
-    .init          = hid_pad_init,
-    .close         = hid_pad_close,
-    .reset         = NULL,
-    .available     = NULL,
-    .speed_changed = NULL,
-    .force_redraw  = NULL,
-    .config        = NULL
-};
+HID_PAD_DEVICES(gamepad_cobra2_usb, HID_PAD_COBRA2, "Creative USB Game Pad II");
+HID_PAD_DEVICES(gamepad_usb, HID_PAD_GAMEPAD, "USB Gamepad");
+HID_PAD_DEVICES(gamepad_usb_6axis, HID_PAD_6AXIS, "USB Gamepad (6-axis)");
+HID_PAD_DEVICES(gamepad_sidewinder_pad, HID_PAD_SIDEWINDER_PAD, "SideWinder Game Pad USB version 1.0");
+HID_PAD_DEVICES(gamepad_sidewinder_precision_pro, HID_PAD_SIDEWINDER_PRECISION_PRO, "Microsoft SideWinder Precision Pro (USB)");
+HID_PAD_DEVICES(gamepad_sidewinder_freestyle_pro, HID_PAD_SIDEWINDER_FREESTYLE_PRO, "Microsoft SideWinder Freestyle Pro (USB)");
+HID_PAD_DEVICES(gamepad_tm_rage3d, HID_PAD_TM_RAGE3D, "ThrustMaster Rage 3D USB Game Pad");
+HID_PAD_DEVICES(gamepad_tm_top_gun, HID_PAD_TM_TOP_GUN, "ThrustMaster Top Gun USB Joystick");
+HID_PAD_DEVICES(gamepad_tm_top_gun_rev2, HID_PAD_TM_TOP_GUN_REV2, "ThrustMaster Top Gun USB Joystick (rev2)");
+HID_PAD_DEVICES(gamepad_nec_pk_gp201, HID_PAD_NEC_PK_GP201, "NEC PK-GP201 PlayStick");
+HID_PAD_DEVICES(gamepad_nec_pk_gp301, HID_PAD_NEC_PK_GP301, "NEC PK-GP301 Driving Wheel");
+HID_PAD_DEVICES(gamepad_logitech_wingman_extreme, HID_PAD_LOGITECH_WINGMAN_EXTREME, "Logitech USB WingMan Extreme Joystick");
+HID_PAD_DEVICES(gamepad_logitech_wingman_extreme_throttle, HID_PAD_LOGITECH_WINGMAN_EXTREME_THROTTLE, "Logitech USB WingMan Extreme Joystick with Throttle");
+HID_PAD_DEVICES(gamepad_genius_joystick, HID_PAD_GENIUS_JOYSTICK, "Genius USB Joystick");
+HID_PAD_DEVICES(gamepad_genius_gamepad, HID_PAD_GENIUS_GAMEPAD, "Genius USB Game Pad");
+HID_PAD_DEVICES(gamepad_guillemot_jet_leader, HID_PAD_GUILLEMOT_JET_LEADER, "Guillemot Jet Leader USB Joystick");
