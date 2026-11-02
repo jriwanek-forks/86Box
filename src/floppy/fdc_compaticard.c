@@ -12,13 +12,15 @@
  *
  *          Copyright 2022-2026 Jasmine Iwanek.
  */
+#define ENABLE_COMPATICARD_LOG 1
+#ifdef ENABLE_COMPATICARD_LOG
 #include <stdarg.h>
+#endif
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <wchar.h>
-#define HAVE_STDARG_H
 #include <86box/86box.h>
 #include <86box/device.h>
 #include "cpu.h"
@@ -30,6 +32,9 @@
 #include <86box/fdd.h>
 #include <86box/fdc.h>
 #include <86box/fdc_ext.h>
+#ifdef ENABLE_COMPATICARD_LOG
+#include <86box/log.h>
+#endif
 #include <86box/plat_unused.h>
 
 #define DEVICE_COMPATICARD_I  0
@@ -70,7 +75,8 @@
 #define CCIV_DRIVE_TYPE_1440KB     0x02 /* 10 - 1.44MB */
 #define CCIV_DRIVE_TYPE_2880KB     0x00 /* 11 - 2.88MB */
 
-#define CR_2_MASK 0x2f /* 00101111b - Mask for Control Register 2 */
+#define CR_2_MASK      0x2f /* 00101111b - Mask for Control Register 2 */
+#define CR_2_RATE_MASK 0x0f /* 00001111b - Data Transfer Rate Select */
 
 // Base + 0 (Write) - Bit 2 selects what base + 3 reads as, see compaticardiv_in()
 #define CCIV_CTRL_ID_ENABLE 0x04
@@ -86,9 +92,12 @@ typedef struct compaticard_s {
      * cr_2 (Control Register 2) - CompatiCard I/II specific
      * 7 - Reserved - Set to 0
      * 6 - Reserved - Set to 0
-     * 5 - Programmable Pin 2 Logic I sets Pin 2 low (TODO)
+     * 5 - Programmable Pin 2 Logic I sets Pin 2 low (not emulated, no effect on
+     *     the drives 86Box has). CCDRIVER sets it for 250/300 Kbps, and on 8 inch
+     *     drives from cylinder 44 on.
      * 4 - Reserved - Set to 0
-     * 3-0 - Data Transfer Rate Select (TODO)
+     * 3-0 - Data Transfer Rate Select. These are the only values CCDRIVER uses,
+     *       as 0x20, 0x21 and 0x0f, or 0x00 when it hands a primary controller back:
      *       0000---250 Kbps
      *       0001-300 Kbps
      *       1111-500 Kbps
@@ -117,9 +126,10 @@ typedef struct compaticard_s {
      * 7-4 - Always written as 0
      * 3-2 - 0 at power on, 01b while idle as a secondary controller,
      *       11b while idle as the primary one, 10b while in use
-     * 1-0 - Two drive density outputs, driven from the current data rate and
-     *       the drive type: 11b for 250/300 Kbps. For 500/1000 Kbps, 00b, or
-     *       on a 2.88MB drive 01b/10b, or on a 600/720 RPM 1.2MB drive 11b.
+     * 1-0 - Two drive density outputs, like Pin 2 on the CompatiCard I/II, driven
+     *       from the current data rate and the drive type: 11b for 250/300 Kbps.
+     *       For 500/1000 Kbps, 00b, or on a 2.88MB drive 01b/10b, or on a 600/720 RPM
+     *       1.2MB drive 11b.
      *       8 inch drives use 11b from cylinder 44 on, and 00b below it.
      *
      * The FDC stays decoded whatever is written here: the BIOS writes 0 to it
@@ -127,39 +137,55 @@ typedef struct compaticard_s {
      * on using the FDC straight after that.
      */
     uint8_t control;
+
+#ifdef ENABLE_COMPATICARD_LOG
+    void *log;
+#endif
 } compaticard_t;
 
-#define ENABLE_COMPATICARD_LOG 1
 #ifdef ENABLE_COMPATICARD_LOG
 int compaticard_do_log = ENABLE_COMPATICARD_LOG;
 
 static void
-compaticard_log(const char *fmt, ...)
+compaticard_log(void *priv, const char *fmt, ...)
 {
     va_list ap;
 
     if (compaticard_do_log) {
         va_start(ap, fmt);
-        pclog_ex(fmt, ap);
+        log_out(priv, fmt, ap);
         va_end(ap);
     }
 }
 #else
-#    define compaticard_log(fmt, ...)
+#    define compaticard_log(priv, fmt, ...)
 #endif
 
 static void
 compaticard_out(UNUSED(uint16_t port), uint8_t val, void *priv)
 {
-#if 0
     compaticard_t *dev = (compaticard_t *) priv;
-#endif
 
-    compaticard_log("Write CompatiCard I/II %04X %02X\n", port, val);
+    compaticard_log(dev->log, "[%04X:%08X] Write %04X %02X\n", CS, cpu_state.pc, port, val);
 
-#if 0
     dev->cr_2 = (val & CR_2_MASK);
-#endif
+
+    switch (val & CR_2_RATE_MASK) {
+        case 0x00:
+            dev->fdc->rate = 2; // 250 Kbps
+            break;
+
+        case 0x01:
+            dev->fdc->rate = 1; // 300 Kbps
+            break;
+
+        case 0x0f:
+            dev->fdc->rate = 0; // 500 Kbps
+            break;
+
+        default:
+            break;
+    }
 }
 
 static uint8_t
@@ -168,7 +194,7 @@ compaticard_in(UNUSED(uint16_t port), void *priv)
     compaticard_t *dev  = (compaticard_t *) priv;
     uint8_t        ret  = (dev->cr_2 & CR_2_MASK);
 
-    compaticard_log("[%04X:%08X] Read CompatiCard I/II %04X %02X\n", CS, cpu_state.pc, port, ret);
+    compaticard_log(dev->log, "[%04X:%08X] Read %04X %02X\n", CS, cpu_state.pc, port, ret);
 
     return ret;
 }
@@ -178,7 +204,7 @@ compaticardiv_out(uint16_t port, uint8_t val, void *priv)
 {
     compaticard_t *dev = (compaticard_t *) priv;
 
-    compaticard_log("Write CompatiCard IV %04X %02X\n", port, val);
+    compaticard_log(dev->log, "[%04X:%08X] Write %04X %02X\n", CS, cpu_state.pc, port, val);
 
     if ((port & 0x07) == 0x00)
         dev->control = val;
@@ -190,13 +216,11 @@ compaticardiv_in(uint16_t port, void *priv)
     compaticard_t *dev  = (compaticard_t *) priv;
     uint8_t        ret  = 0xff;
 
-    port &= 0x07;
-
-    switch (port) {
+    switch (port & 0x07) {
         // SW1 (regs[0]) and SW2 (regs[1]), the BIOS decodes both of these directly
         case 0x00:
         case 0x01:
-            ret = dev->regs[port];
+            ret = dev->regs[port & 0x07];
             break;
 
         /*
@@ -217,16 +241,17 @@ compaticardiv_in(uint16_t port, void *priv)
             break;
     }
 
-    compaticard_log("[%04X:%08X] Read CompatiCard IV %04X %02X\n", CS, cpu_state.pc, port, ret);
+    compaticard_log(dev->log, "[%04X:%08X] Read %04X %02X\n", CS, cpu_state.pc, port, ret);
 
     return ret;
 }
 
 static void
-compaticardiv_reset(void *priv)
+compaticard_reset(void *priv)
 {
     compaticard_t *dev = (compaticard_t *) priv;
 
+    dev->cr_2    = 0x00;
     dev->control = 0x00;
 }
 
@@ -234,6 +259,11 @@ static void
 compaticard_close(void *priv)
 {
     compaticard_t *dev = (compaticard_t *) priv;
+
+#ifdef ENABLE_COMPATICARD_LOG
+    if (dev->log)
+        log_close(dev->log);
+#endif
 
     free(dev);
 }
@@ -246,6 +276,10 @@ compaticard_init(const device_t *info)
     uint8_t        irq              = 6;
     uint8_t        dma              = 2;
     uint16_t       cr2_addr         = 0x0000; // Control Register 2
+
+#ifdef ENABLE_COMPATICARD_LOG
+    dev->log = log_open((info->local == DEVICE_COMPATICARD_II) ? "CompatiCard II" : "CompatiCard I");
+#endif
 
     // CompatiCard II has configurable IRQ and DMA
     if (info->local == DEVICE_COMPATICARD_II) {
@@ -307,10 +341,14 @@ compaticardiv_init(const device_t *info)
     uint8_t  bios_bits = 0x00;
     uint8_t  dma_bits  = 0x00;
 
+#ifdef ENABLE_COMPATICARD_LOG
+    dev->log = log_open("CompatiCard IV");
+#endif
+
     dev->regs[0] = 0x00;
-    compaticard_log("dev->regs[0] initial set was: %X\n", dev->regs[0]);
+    compaticard_log(dev->log, "dev->regs[0] initial set was: %X\n", dev->regs[0]);
     dev->regs[1] = 0x00;
-    compaticard_log("dev->regs[1] initial set was: %X\n", dev->regs[1]);
+    compaticard_log(dev->log, "dev->regs[1] initial set was: %X\n", dev->regs[1]);
 
     switch (base_addr) {
         case FDC_SECONDARY_ADDR:
@@ -371,7 +409,7 @@ compaticardiv_init(const device_t *info)
         bios_bits = CCIV_BIOS_ADDR_DISABLED;
 
     dev->regs[0] |= bios_bits;
-    compaticard_log("dev->regs[0] after setting bios_bits was: %X\n", dev->regs[0]);
+    compaticard_log(dev->log, "dev->regs[0] after setting bios_bits was: %X\n", dev->regs[0]);
 
     // Set DMA Channel bits (SW1-4, 5)
     switch (dma) {
@@ -402,15 +440,15 @@ compaticardiv_init(const device_t *info)
     }
 
     dev->regs[0] |= dma_bits;
-    compaticard_log("dev->regs[0] after setting dma_bits was: %X\n", dev->regs[0]);
+    compaticard_log(dev->log, "dev->regs[0] after setting dma_bits was: %X\n", dev->regs[0]);
 
     // Set 1.2MB Spindle Speed bit (SW1-6)
     dev->regs[0] |= spindle_speed;
-    compaticard_log("dev->regs[0] after setting spindle_speed was: %X\n", dev->regs[0]);
+    compaticard_log(dev->log, "dev->regs[0] after setting spindle_speed was: %X\n", dev->regs[0]);
 
     // Set Auto Boot bit (SW1-7)
     dev->regs[0] |= (autoboot_enabled ? CCIV_AUTOBOOT_ENABLED : CCIV_AUTOBOOT_DISABLED);
-    compaticard_log("dev->regs[0] after setting autoboot_enabled was: %X\n", dev->regs[0]);
+    compaticard_log(dev->log, "dev->regs[0] after setting autoboot_enabled was: %X\n", dev->regs[0]);
 
     // Bit 3 is SW1-4, Reserved, therefore, never pulled down.
     dev->regs[0] |= 0x08;
@@ -420,7 +458,7 @@ compaticardiv_init(const device_t *info)
     dev->regs[1] |= ((drive_type_1 & 0x03) << 2); // Bits 2-3 for Drive 1
     dev->regs[1] |= ((drive_type_2 & 0x03) << 4); // Bits 4-5 for Drive 2
     dev->regs[1] |= ((drive_type_3 & 0x03) << 6); // Bits 6-7 for Drive 3
-    compaticard_log("dev->regs[1] after setting drive types was: %X\n", dev->regs[1]);
+    compaticard_log(dev->log, "dev->regs[1] after setting drive types was: %X\n", dev->regs[1]);
 
     /*
      * Base + 3 belongs to the card, not the FDC, and the BIOS only ever sets
@@ -711,7 +749,7 @@ const device_t fdc_compaticard_i_device = {
     .local         = DEVICE_COMPATICARD_I,
     .init          = compaticard_init,
     .close         = compaticard_close,
-    .reset         = NULL,
+    .reset         = compaticard_reset,
     .available     = NULL,
     .speed_changed = NULL,
     .force_redraw  = NULL,
@@ -725,7 +763,7 @@ const device_t fdc_compaticard_ii_device = {
     .local         = DEVICE_COMPATICARD_II,
     .init          = compaticard_init,
     .close         = compaticard_close,
-    .reset         = NULL,
+    .reset         = compaticard_reset,
     .available     = NULL,
     .speed_changed = NULL,
     .force_redraw  = NULL,
@@ -739,7 +777,7 @@ const device_t fdc_compaticard_iv_device = {
     .local         = DEVICE_COMPATICARD_IV,
     .init          = compaticardiv_init,
     .close         = compaticard_close,
-    .reset         = compaticardiv_reset,
+    .reset         = compaticard_reset,
     .available     = compaticard_iv_available,
     .speed_changed = NULL,
     .force_redraw  = NULL,
