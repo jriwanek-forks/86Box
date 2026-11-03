@@ -1312,17 +1312,20 @@ const device_t tablet_usb_device = {
    byte.
 
    The Cobra 2 and the Windows 98 SE entries use their real names and IDs, from
-   Creative's and Microsoft's INFs, but no real device was available to dump.
-   Their descriptors, speed and report layouts are this driver's choice. The
-   SideWinder controls come from Linux's sidewinder driver and Microsoft's INF
-   data, and the others are estimates from reviews, or from similar products
+   Creative's and Microsoft's INFs, but no real device was available to dump,
+   so the bit order of a report and the speed are this driver's choice. The
+   SideWinder collections, usages, report ID and field widths come from
+   Windows XP's gckernel.sys and DirectInput maps, and the Game Pad, which they
+   leave out, follows its successor. The later Logitech models take their
+   controls from those maps and Linux's adi driver, and their field widths are
+   estimates. The others are estimates from reviews, or from similar products
    where nothing could be found.
 
-   The two 86Box pads copy no product: one is the usual low-speed class pad of
-   its time, the other has the controls of a twin-stick pad like the Xbox 360
-   controller. That controller is a vendor-class device with its own driver,
-   and this is a HID class pad. Its report does not fit in a low-speed packet,
-   so it is full speed. */
+   The 86Box pads copy no product. Most are the usual low-speed class devices
+   of their time, named for their axes and buttons. The 6-axis pad has the
+   controls of a twin-stick pad like the Xbox 360 controller. That controller is
+   a vendor-class device with its own driver, and this is a HID class pad. Its
+   report does not fit in a low-speed packet, so it is full speed. */
 #define HID_USAGE_POINTER  0x01
 #define HID_USAGE_JOYSTICK 0x04
 #define HID_USAGE_GAME_PAD 0x05
@@ -1335,36 +1338,39 @@ const device_t tablet_usb_device = {
 #define HID_USAGE_SLIDER   0x36
 #define HID_USAGE_HAT      0x39
 
-#define HID_PAD_MAX_AXES   6
+#define HID_PAD_MAX_FIELDS 8
 #define HID_PAD_REPORT_MAX 16
 #define HID_PAD_DESC_MAX   192
 #define HID_PAD_CFG_LEN    (9 + 9 + 9 + 7)
 
 enum {
-    HID_AXIS_ANALOG,  /* unsigned */
-    HID_AXIS_DIGITAL, /* unsigned, three positions */
-    HID_AXIS_SIGNED   /* 16 bits, signed */
+    HID_FIELD_ANALOG,         /* unsigned */
+    HID_FIELD_SIGNED,
+    HID_FIELD_DIGITAL,        /* unsigned, three positions */
+    HID_FIELD_DIGITAL_SIGNED, /* signed, three positions */
+    HID_FIELD_HAT,            /* bits holds the directions, 4 or 8 */
+    HID_FIELD_BUTTONS         /* bits holds the number of buttons */
 };
 
-typedef struct hid_pad_axis_t {
+typedef struct hid_pad_field_t {
+    uint8_t kind;
     uint8_t usage;
     uint8_t bits;
-    uint8_t kind;
-} hid_pad_axis_t;
+    uint8_t pointer; /* in the Physical collection */
+} hid_pad_field_t;
 
+/* A low-speed model's report, with its ID, must fit in 8 bytes. */
 typedef struct hid_pad_model_t {
-    uint16_t       vid;
-    uint16_t       pid;
-    const char    *manufacturer;
-    const char    *product;
-    uint8_t        usage;
-    uint8_t        low_speed;
-    uint8_t        interval;     /* ms; a low-speed report must fit in 8 bytes */
-    uint8_t        pointer_axes; /* the first axes, in a Physical collection */
-    uint8_t        num_axes;
-    hid_pad_axis_t axes[HID_PAD_MAX_AXES];
-    uint8_t        hat;          /* 0, or 4 or 8 directions */
-    uint8_t        buttons;
+    uint16_t        vid;
+    uint16_t        pid;
+    const char     *manufacturer;
+    const char     *product;
+    uint8_t         usage;
+    uint8_t         low_speed;
+    uint8_t         interval;
+    uint8_t         report_id; /* 0 for none */
+    uint8_t         num_fields;
+    hid_pad_field_t fields[HID_PAD_MAX_FIELDS];
 } hid_pad_model_t;
 
 enum {
@@ -1384,6 +1390,16 @@ enum {
     HID_PAD_GENIUS_JOYSTICK,
     HID_PAD_GENIUS_GAMEPAD,
     HID_PAD_GUILLEMOT_JET_LEADER,
+    HID_PAD_LOGITECH_WINGMAN_FORMULA_YELLOW,
+    HID_PAD_LOGITECH_WINGMAN_EXTREME_DIGITAL_3D,
+    HID_PAD_LOGITECH_WINGMAN_GAMEPAD_EXTREME,
+    HID_PAD_LOGITECH_WINGMAN_GAMEPAD,
+    HID_PAD_USB_2AXIS_8BUTTON,
+    HID_PAD_USB_3AXIS_8BUTTON,
+    HID_PAD_USB_4AXIS_8BUTTON,
+    HID_PAD_USB_JOYSTICK_2AXIS_8BUTTON,
+    HID_PAD_USB_JOYSTICK_3AXIS_8BUTTON,
+    HID_PAD_USB_JOYSTICK_4AXIS_8BUTTON,
 };
 
 static const hid_pad_model_t hid_pad_models[] = {
@@ -1395,11 +1411,14 @@ static const hid_pad_model_t hid_pad_models[] = {
         .usage        = HID_USAGE_GAME_PAD,
         .low_speed    = 1,
         .interval     = 10,
-        .pointer_axes = 2,
-        .num_axes     = 3,
-        .axes         = { { HID_USAGE_X, 8, HID_AXIS_DIGITAL }, { HID_USAGE_Y, 8, HID_AXIS_DIGITAL }, { HID_USAGE_SLIDER, 8, HID_AXIS_ANALOG } },
-        .hat          = 0,
-        .buttons      = 12
+        .report_id    = 0,
+        .num_fields   = 4,
+        .fields       = {
+            { HID_FIELD_DIGITAL, HID_USAGE_X, 8, 1 },
+            { HID_FIELD_DIGITAL, HID_USAGE_Y, 8, 1 },
+            { HID_FIELD_ANALOG, HID_USAGE_SLIDER, 8, 0 },
+            { HID_FIELD_BUTTONS, 0, 12, 0 }
+        }
     },
     [HID_PAD_GAMEPAD] = {
         .vid          = 0x0000,
@@ -1409,11 +1428,13 @@ static const hid_pad_model_t hid_pad_models[] = {
         .usage        = HID_USAGE_GAME_PAD,
         .low_speed    = 1,
         .interval     = 10,
-        .pointer_axes = 2,
-        .num_axes     = 2,
-        .axes         = { { HID_USAGE_X, 8, HID_AXIS_DIGITAL }, { HID_USAGE_Y, 8, HID_AXIS_DIGITAL } },
-        .hat          = 0,
-        .buttons      = 10
+        .report_id    = 0,
+        .num_fields   = 3,
+        .fields       = {
+            { HID_FIELD_DIGITAL, HID_USAGE_X, 8, 1 },
+            { HID_FIELD_DIGITAL, HID_USAGE_Y, 8, 1 },
+            { HID_FIELD_BUTTONS, 0, 10, 0 }
+        }
     },
     [HID_PAD_6AXIS] = {
         .vid          = 0x0000,
@@ -1423,11 +1444,18 @@ static const hid_pad_model_t hid_pad_models[] = {
         .usage        = HID_USAGE_GAME_PAD,
         .low_speed    = 0,
         .interval     = 4,
-        .pointer_axes = 4,
-        .num_axes     = 6,
-        .axes         = { { HID_USAGE_X, 16, HID_AXIS_SIGNED }, { HID_USAGE_Y, 16, HID_AXIS_SIGNED }, { HID_USAGE_RX, 16, HID_AXIS_SIGNED }, { HID_USAGE_RY, 16, HID_AXIS_SIGNED }, { HID_USAGE_Z, 8, HID_AXIS_ANALOG }, { HID_USAGE_RZ, 8, HID_AXIS_ANALOG } },
-        .hat          = 8,
-        .buttons      = 11
+        .report_id    = 0,
+        .num_fields   = 8,
+        .fields       = {
+            { HID_FIELD_SIGNED, HID_USAGE_X, 16, 1 },
+            { HID_FIELD_SIGNED, HID_USAGE_Y, 16, 1 },
+            { HID_FIELD_SIGNED, HID_USAGE_RX, 16, 1 },
+            { HID_FIELD_SIGNED, HID_USAGE_RY, 16, 1 },
+            { HID_FIELD_ANALOG, HID_USAGE_Z, 8, 0 },
+            { HID_FIELD_ANALOG, HID_USAGE_RZ, 8, 0 },
+            { HID_FIELD_HAT, 0, 8, 0 },
+            { HID_FIELD_BUTTONS, 0, 11, 0 }
+        }
     },
     [HID_PAD_SIDEWINDER_PAD] = {
         .vid          = 0x045e,
@@ -1437,11 +1465,13 @@ static const hid_pad_model_t hid_pad_models[] = {
         .usage        = HID_USAGE_GAME_PAD,
         .low_speed    = 1,
         .interval     = 10,
-        .pointer_axes = 2,
-        .num_axes     = 2,
-        .axes         = { { HID_USAGE_X, 8, HID_AXIS_DIGITAL }, { HID_USAGE_Y, 8, HID_AXIS_DIGITAL } },
-        .hat          = 0,
-        .buttons      = 10
+        .report_id    = 1,
+        .num_fields   = 3,
+        .fields       = {
+            { HID_FIELD_DIGITAL_SIGNED, HID_USAGE_X, 8, 1 },
+            { HID_FIELD_DIGITAL_SIGNED, HID_USAGE_Y, 8, 1 },
+            { HID_FIELD_BUTTONS, 0, 10, 0 }
+        }
     },
     [HID_PAD_SIDEWINDER_PRECISION_PRO] = {
         .vid          = 0x045e,
@@ -1451,25 +1481,36 @@ static const hid_pad_model_t hid_pad_models[] = {
         .usage        = HID_USAGE_JOYSTICK,
         .low_speed    = 1,
         .interval     = 10,
-        .pointer_axes = 2,
-        .num_axes     = 4,
-        .axes         = { { HID_USAGE_X, 10, HID_AXIS_ANALOG }, { HID_USAGE_Y, 10, HID_AXIS_ANALOG }, { HID_USAGE_RZ, 6, HID_AXIS_ANALOG }, { HID_USAGE_SLIDER, 7, HID_AXIS_ANALOG } },
-        .hat          = 8,
-        .buttons      = 9
+        .report_id    = 1,
+        .num_fields   = 7,
+        .fields       = {
+            { HID_FIELD_SIGNED, HID_USAGE_X, 10, 1 },
+            { HID_FIELD_SIGNED, HID_USAGE_Y, 10, 1 },
+            { HID_FIELD_SIGNED, HID_USAGE_RZ, 6, 1 },
+            { HID_FIELD_HAT, 0, 8, 1 },
+            { HID_FIELD_BUTTONS, 0, 4, 1 },
+            { HID_FIELD_BUTTONS, 0, 5, 0 },
+            { HID_FIELD_SIGNED, HID_USAGE_SLIDER, 7, 0 }
+        }
     },
     [HID_PAD_SIDEWINDER_FREESTYLE_PRO] = {
         .vid          = 0x045e,
         .pid          = 0x000e,
         .manufacturer = "Microsoft",
         .product      = "Microsoft SideWinder Freestyle Pro (USB)",
-        .usage        = HID_USAGE_GAME_PAD,
+        .usage        = HID_USAGE_JOYSTICK,
         .low_speed    = 1,
         .interval     = 10,
-        .pointer_axes = 2,
-        .num_axes     = 3,
-        .axes         = { { HID_USAGE_X, 10, HID_AXIS_ANALOG }, { HID_USAGE_Y, 10, HID_AXIS_ANALOG }, { HID_USAGE_SLIDER, 6, HID_AXIS_ANALOG } },
-        .hat          = 8,
-        .buttons      = 10
+        .report_id    = 1,
+        .num_fields   = 6,
+        .fields       = {
+            { HID_FIELD_SIGNED, HID_USAGE_X, 10, 1 },
+            { HID_FIELD_SIGNED, HID_USAGE_Y, 10, 1 },
+            { HID_FIELD_HAT, 0, 8, 1 },
+            { HID_FIELD_BUTTONS, 0, 4, 1 },
+            { HID_FIELD_BUTTONS, 0, 6, 0 },
+            { HID_FIELD_SIGNED, HID_USAGE_SLIDER, 6, 0 }
+        }
     },
     [HID_PAD_TM_RAGE3D] = {
         .vid          = 0x044f,
@@ -1479,11 +1520,13 @@ static const hid_pad_model_t hid_pad_models[] = {
         .usage        = HID_USAGE_GAME_PAD,
         .low_speed    = 1,
         .interval     = 10,
-        .pointer_axes = 2,
-        .num_axes     = 2,
-        .axes         = { { HID_USAGE_X, 8, HID_AXIS_ANALOG }, { HID_USAGE_Y, 8, HID_AXIS_ANALOG } },
-        .hat          = 0,
-        .buttons      = 8
+        .report_id    = 0,
+        .num_fields   = 3,
+        .fields       = {
+            { HID_FIELD_ANALOG, HID_USAGE_X, 8, 1 },
+            { HID_FIELD_ANALOG, HID_USAGE_Y, 8, 1 },
+            { HID_FIELD_BUTTONS, 0, 8, 0 }
+        }
     },
     [HID_PAD_TM_TOP_GUN] = {
         .vid          = 0x044f,
@@ -1493,11 +1536,14 @@ static const hid_pad_model_t hid_pad_models[] = {
         .usage        = HID_USAGE_JOYSTICK,
         .low_speed    = 1,
         .interval     = 10,
-        .pointer_axes = 2,
-        .num_axes     = 2,
-        .axes         = { { HID_USAGE_X, 8, HID_AXIS_ANALOG }, { HID_USAGE_Y, 8, HID_AXIS_ANALOG } },
-        .hat          = 4,
-        .buttons      = 4
+        .report_id    = 0,
+        .num_fields   = 4,
+        .fields       = {
+            { HID_FIELD_ANALOG, HID_USAGE_X, 8, 1 },
+            { HID_FIELD_ANALOG, HID_USAGE_Y, 8, 1 },
+            { HID_FIELD_HAT, 0, 4, 0 },
+            { HID_FIELD_BUTTONS, 0, 4, 0 }
+        }
     },
     [HID_PAD_TM_TOP_GUN_REV2] = {
         .vid          = 0x044f,
@@ -1507,11 +1553,14 @@ static const hid_pad_model_t hid_pad_models[] = {
         .usage        = HID_USAGE_JOYSTICK,
         .low_speed    = 1,
         .interval     = 10,
-        .pointer_axes = 2,
-        .num_axes     = 2,
-        .axes         = { { HID_USAGE_X, 8, HID_AXIS_ANALOG }, { HID_USAGE_Y, 8, HID_AXIS_ANALOG } },
-        .hat          = 4,
-        .buttons      = 4
+        .report_id    = 0,
+        .num_fields   = 4,
+        .fields       = {
+            { HID_FIELD_ANALOG, HID_USAGE_X, 8, 1 },
+            { HID_FIELD_ANALOG, HID_USAGE_Y, 8, 1 },
+            { HID_FIELD_HAT, 0, 4, 0 },
+            { HID_FIELD_BUTTONS, 0, 4, 0 }
+        }
     },
     [HID_PAD_NEC_PK_GP201] = {
         .vid          = 0x044f,
@@ -1521,11 +1570,14 @@ static const hid_pad_model_t hid_pad_models[] = {
         .usage        = HID_USAGE_JOYSTICK,
         .low_speed    = 1,
         .interval     = 10,
-        .pointer_axes = 2,
-        .num_axes     = 2,
-        .axes         = { { HID_USAGE_X, 8, HID_AXIS_ANALOG }, { HID_USAGE_Y, 8, HID_AXIS_ANALOG } },
-        .hat          = 4,
-        .buttons      = 4
+        .report_id    = 0,
+        .num_fields   = 4,
+        .fields       = {
+            { HID_FIELD_ANALOG, HID_USAGE_X, 8, 1 },
+            { HID_FIELD_ANALOG, HID_USAGE_Y, 8, 1 },
+            { HID_FIELD_HAT, 0, 4, 0 },
+            { HID_FIELD_BUTTONS, 0, 4, 0 }
+        }
     },
     [HID_PAD_NEC_PK_GP301] = {
         .vid          = 0x044f,
@@ -1535,11 +1587,14 @@ static const hid_pad_model_t hid_pad_models[] = {
         .usage        = HID_USAGE_JOYSTICK,
         .low_speed    = 1,
         .interval     = 10,
-        .pointer_axes = 1,
-        .num_axes     = 3,
-        .axes         = { { HID_USAGE_X, 8, HID_AXIS_ANALOG }, { HID_USAGE_Y, 8, HID_AXIS_ANALOG }, { HID_USAGE_Z, 8, HID_AXIS_ANALOG } },
-        .hat          = 0,
-        .buttons      = 4
+        .report_id    = 0,
+        .num_fields   = 4,
+        .fields       = {
+            { HID_FIELD_ANALOG, HID_USAGE_X, 8, 1 },
+            { HID_FIELD_ANALOG, HID_USAGE_Y, 8, 0 },
+            { HID_FIELD_ANALOG, HID_USAGE_Z, 8, 0 },
+            { HID_FIELD_BUTTONS, 0, 4, 0 }
+        }
     },
     [HID_PAD_LOGITECH_WINGMAN_EXTREME] = {
         .vid          = 0x046d,
@@ -1549,11 +1604,14 @@ static const hid_pad_model_t hid_pad_models[] = {
         .usage        = HID_USAGE_JOYSTICK,
         .low_speed    = 1,
         .interval     = 10,
-        .pointer_axes = 2,
-        .num_axes     = 2,
-        .axes         = { { HID_USAGE_X, 8, HID_AXIS_ANALOG }, { HID_USAGE_Y, 8, HID_AXIS_ANALOG } },
-        .hat          = 8,
-        .buttons      = 6
+        .report_id    = 0,
+        .num_fields   = 4,
+        .fields       = {
+            { HID_FIELD_ANALOG, HID_USAGE_X, 8, 1 },
+            { HID_FIELD_ANALOG, HID_USAGE_Y, 8, 1 },
+            { HID_FIELD_HAT, 0, 8, 0 },
+            { HID_FIELD_BUTTONS, 0, 6, 0 }
+        }
     },
     [HID_PAD_LOGITECH_WINGMAN_EXTREME_THROTTLE] = {
         .vid          = 0x046d,
@@ -1563,11 +1621,16 @@ static const hid_pad_model_t hid_pad_models[] = {
         .usage        = HID_USAGE_JOYSTICK,
         .low_speed    = 1,
         .interval     = 10,
-        .pointer_axes = 2,
-        .num_axes     = 4,
-        .axes         = { { HID_USAGE_X, 8, HID_AXIS_ANALOG }, { HID_USAGE_Y, 8, HID_AXIS_ANALOG }, { HID_USAGE_RZ, 8, HID_AXIS_ANALOG }, { HID_USAGE_SLIDER, 8, HID_AXIS_ANALOG } },
-        .hat          = 8,
-        .buttons      = 7
+        .report_id    = 0,
+        .num_fields   = 6,
+        .fields       = {
+            { HID_FIELD_ANALOG, HID_USAGE_X, 8, 1 },
+            { HID_FIELD_ANALOG, HID_USAGE_Y, 8, 1 },
+            { HID_FIELD_ANALOG, HID_USAGE_RZ, 8, 1 },
+            { HID_FIELD_ANALOG, HID_USAGE_SLIDER, 8, 1 },
+            { HID_FIELD_HAT, 0, 8, 0 },
+            { HID_FIELD_BUTTONS, 0, 7, 0 }
+        }
     },
     [HID_PAD_GENIUS_JOYSTICK] = {
         .vid          = 0x0458,
@@ -1577,11 +1640,15 @@ static const hid_pad_model_t hid_pad_models[] = {
         .usage        = HID_USAGE_JOYSTICK,
         .low_speed    = 1,
         .interval     = 10,
-        .pointer_axes = 2,
-        .num_axes     = 3,
-        .axes         = { { HID_USAGE_X, 8, HID_AXIS_ANALOG }, { HID_USAGE_Y, 8, HID_AXIS_ANALOG }, { HID_USAGE_SLIDER, 8, HID_AXIS_ANALOG } },
-        .hat          = 8,
-        .buttons      = 6
+        .report_id    = 0,
+        .num_fields   = 5,
+        .fields       = {
+            { HID_FIELD_ANALOG, HID_USAGE_X, 8, 1 },
+            { HID_FIELD_ANALOG, HID_USAGE_Y, 8, 1 },
+            { HID_FIELD_ANALOG, HID_USAGE_SLIDER, 8, 0 },
+            { HID_FIELD_HAT, 0, 8, 0 },
+            { HID_FIELD_BUTTONS, 0, 6, 0 }
+        }
     },
     [HID_PAD_GENIUS_GAMEPAD] = {
         .vid          = 0x0458,
@@ -1591,11 +1658,13 @@ static const hid_pad_model_t hid_pad_models[] = {
         .usage        = HID_USAGE_GAME_PAD,
         .low_speed    = 1,
         .interval     = 10,
-        .pointer_axes = 2,
-        .num_axes     = 2,
-        .axes         = { { HID_USAGE_X, 8, HID_AXIS_DIGITAL }, { HID_USAGE_Y, 8, HID_AXIS_DIGITAL } },
-        .hat          = 0,
-        .buttons      = 8
+        .report_id    = 0,
+        .num_fields   = 3,
+        .fields       = {
+            { HID_FIELD_DIGITAL, HID_USAGE_X, 8, 1 },
+            { HID_FIELD_DIGITAL, HID_USAGE_Y, 8, 1 },
+            { HID_FIELD_BUTTONS, 0, 8, 0 }
+        }
     },
     [HID_PAD_GUILLEMOT_JET_LEADER] = {
         .vid          = 0x06f8,
@@ -1605,11 +1674,186 @@ static const hid_pad_model_t hid_pad_models[] = {
         .usage        = HID_USAGE_JOYSTICK,
         .low_speed    = 1,
         .interval     = 10,
-        .pointer_axes = 2,
-        .num_axes     = 4,
-        .axes         = { { HID_USAGE_X, 8, HID_AXIS_ANALOG }, { HID_USAGE_Y, 8, HID_AXIS_ANALOG }, { HID_USAGE_RZ, 8, HID_AXIS_ANALOG }, { HID_USAGE_SLIDER, 8, HID_AXIS_ANALOG } },
-        .hat          = 8,
-        .buttons      = 6
+        .report_id    = 0,
+        .num_fields   = 6,
+        .fields       = {
+            { HID_FIELD_ANALOG, HID_USAGE_X, 8, 1 },
+            { HID_FIELD_ANALOG, HID_USAGE_Y, 8, 1 },
+            { HID_FIELD_ANALOG, HID_USAGE_RZ, 8, 1 },
+            { HID_FIELD_ANALOG, HID_USAGE_SLIDER, 8, 1 },
+            { HID_FIELD_HAT, 0, 8, 0 },
+            { HID_FIELD_BUTTONS, 0, 6, 0 }
+        }
+    },
+    [HID_PAD_LOGITECH_WINGMAN_FORMULA_YELLOW] = {
+        .vid          = 0x046d,
+        .pid          = 0xc202,
+        .manufacturer = "Logitech",
+        .product      = "Logitech WingMan Formula (Yellow)(USB)",
+        .usage        = HID_USAGE_JOYSTICK,
+        .low_speed    = 1,
+        .interval     = 10,
+        .report_id    = 0,
+        .num_fields   = 3,
+        .fields       = {
+            { HID_FIELD_ANALOG, HID_USAGE_X, 8, 1 },
+            { HID_FIELD_ANALOG, HID_USAGE_Y, 8, 0 },
+            { HID_FIELD_BUTTONS, 0, 6, 0 }
+        }
+    },
+    [HID_PAD_LOGITECH_WINGMAN_EXTREME_DIGITAL_3D] = {
+        .vid          = 0x046d,
+        .pid          = 0xc207,
+        .manufacturer = "Logitech",
+        .product      = "Logitech WingMan Extreme Digital 3D (USB)",
+        .usage        = HID_USAGE_JOYSTICK,
+        .low_speed    = 1,
+        .interval     = 10,
+        .report_id    = 0,
+        .num_fields   = 6,
+        .fields       = {
+            { HID_FIELD_ANALOG, HID_USAGE_X, 8, 1 },
+            { HID_FIELD_ANALOG, HID_USAGE_Y, 8, 1 },
+            { HID_FIELD_ANALOG, HID_USAGE_RZ, 8, 1 },
+            { HID_FIELD_ANALOG, HID_USAGE_SLIDER, 8, 1 },
+            { HID_FIELD_HAT, 0, 8, 0 },
+            { HID_FIELD_BUTTONS, 0, 7, 0 }
+        }
+    },
+    [HID_PAD_LOGITECH_WINGMAN_GAMEPAD_EXTREME] = {
+        .vid          = 0x046d,
+        .pid          = 0xc208,
+        .manufacturer = "Logitech",
+        .product      = "Logitech WingMan Gamepad Extreme (USB)",
+        .usage        = HID_USAGE_GAME_PAD,
+        .low_speed    = 1,
+        .interval     = 10,
+        .report_id    = 0,
+        .num_fields   = 4,
+        .fields       = {
+            { HID_FIELD_ANALOG, HID_USAGE_X, 8, 1 },
+            { HID_FIELD_ANALOG, HID_USAGE_Y, 8, 1 },
+            { HID_FIELD_HAT, 0, 8, 0 },
+            { HID_FIELD_BUTTONS, 0, 11, 0 }
+        }
+    },
+    [HID_PAD_LOGITECH_WINGMAN_GAMEPAD] = {
+        .vid          = 0x046d,
+        .pid          = 0xc209,
+        .manufacturer = "Logitech",
+        .product      = "Logitech WingMan Gamepad (USB)",
+        .usage        = HID_USAGE_GAME_PAD,
+        .low_speed    = 1,
+        .interval     = 10,
+        .report_id    = 0,
+        .num_fields   = 3,
+        .fields       = {
+            { HID_FIELD_DIGITAL, HID_USAGE_X, 8, 1 },
+            { HID_FIELD_DIGITAL, HID_USAGE_Y, 8, 1 },
+            { HID_FIELD_BUTTONS, 0, 11, 0 }
+        }
+    },
+    [HID_PAD_USB_2AXIS_8BUTTON] = {
+        .vid          = 0x0000,
+        .pid          = 0x0009,
+        .manufacturer = "86Box",
+        .product      = "USB gamepad (2-axis, 8-button)",
+        .usage        = HID_USAGE_GAME_PAD,
+        .low_speed    = 1,
+        .interval     = 10,
+        .report_id    = 0,
+        .num_fields   = 3,
+        .fields       = {
+            { HID_FIELD_DIGITAL, HID_USAGE_X, 8, 1 },
+            { HID_FIELD_DIGITAL, HID_USAGE_Y, 8, 1 },
+            { HID_FIELD_BUTTONS, 0, 8, 0 }
+        }
+    },
+    [HID_PAD_USB_3AXIS_8BUTTON] = {
+        .vid          = 0x0000,
+        .pid          = 0x000a,
+        .manufacturer = "86Box",
+        .product      = "USB gamepad (3-axis, 8-button)",
+        .usage        = HID_USAGE_GAME_PAD,
+        .low_speed    = 1,
+        .interval     = 10,
+        .report_id    = 0,
+        .num_fields   = 4,
+        .fields       = {
+            { HID_FIELD_DIGITAL, HID_USAGE_X, 8, 1 },
+            { HID_FIELD_DIGITAL, HID_USAGE_Y, 8, 1 },
+            { HID_FIELD_ANALOG, HID_USAGE_SLIDER, 8, 0 },
+            { HID_FIELD_BUTTONS, 0, 8, 0 }
+        }
+    },
+    [HID_PAD_USB_4AXIS_8BUTTON] = {
+        .vid          = 0x0000,
+        .pid          = 0x000b,
+        .manufacturer = "86Box",
+        .product      = "USB gamepad (4-axis, 8-button)",
+        .usage        = HID_USAGE_GAME_PAD,
+        .low_speed    = 1,
+        .interval     = 10,
+        .report_id    = 0,
+        .num_fields   = 5,
+        .fields       = {
+            { HID_FIELD_ANALOG, HID_USAGE_X, 8, 1 },
+            { HID_FIELD_ANALOG, HID_USAGE_Y, 8, 1 },
+            { HID_FIELD_ANALOG, HID_USAGE_Z, 8, 0 },
+            { HID_FIELD_ANALOG, HID_USAGE_RZ, 8, 0 },
+            { HID_FIELD_BUTTONS, 0, 8, 0 }
+        }
+    },
+    [HID_PAD_USB_JOYSTICK_2AXIS_8BUTTON] = {
+        .vid          = 0x0000,
+        .pid          = 0x000c,
+        .manufacturer = "86Box",
+        .product      = "USB joystick (2-axis, 8-button)",
+        .usage        = HID_USAGE_JOYSTICK,
+        .low_speed    = 1,
+        .interval     = 10,
+        .report_id    = 0,
+        .num_fields   = 3,
+        .fields       = {
+            { HID_FIELD_ANALOG, HID_USAGE_X, 8, 1 },
+            { HID_FIELD_ANALOG, HID_USAGE_Y, 8, 1 },
+            { HID_FIELD_BUTTONS, 0, 8, 0 }
+        }
+    },
+    [HID_PAD_USB_JOYSTICK_3AXIS_8BUTTON] = {
+        .vid          = 0x0000,
+        .pid          = 0x000d,
+        .manufacturer = "86Box",
+        .product      = "USB joystick (3-axis, 8-button)",
+        .usage        = HID_USAGE_JOYSTICK,
+        .low_speed    = 1,
+        .interval     = 10,
+        .report_id    = 0,
+        .num_fields   = 4,
+        .fields       = {
+            { HID_FIELD_ANALOG, HID_USAGE_X, 8, 1 },
+            { HID_FIELD_ANALOG, HID_USAGE_Y, 8, 1 },
+            { HID_FIELD_ANALOG, HID_USAGE_SLIDER, 8, 0 },
+            { HID_FIELD_BUTTONS, 0, 8, 0 }
+        }
+    },
+    [HID_PAD_USB_JOYSTICK_4AXIS_8BUTTON] = {
+        .vid          = 0x0000,
+        .pid          = 0x000e,
+        .manufacturer = "86Box",
+        .product      = "USB joystick (4-axis, 8-button)",
+        .usage        = HID_USAGE_JOYSTICK,
+        .low_speed    = 1,
+        .interval     = 10,
+        .report_id    = 0,
+        .num_fields   = 5,
+        .fields       = {
+            { HID_FIELD_ANALOG, HID_USAGE_X, 8, 1 },
+            { HID_FIELD_ANALOG, HID_USAGE_Y, 8, 1 },
+            { HID_FIELD_ANALOG, HID_USAGE_RZ, 8, 1 },
+            { HID_FIELD_ANALOG, HID_USAGE_SLIDER, 8, 0 },
+            { HID_FIELD_BUTTONS, 0, 8, 0 }
+        }
     }
 };
 
@@ -1632,41 +1876,39 @@ typedef struct hid_pad_t {
 } hid_pad_t;
 
 static int
+hid_pad_field_bits(const hid_pad_field_t *field)
+{
+    return (field->kind == HID_FIELD_HAT) ? 4 : field->bits;
+}
+
+static int
 hid_pad_report_bits(const hid_pad_model_t *model)
 {
-    int bits = model->buttons + (model->hat ? 4 : 0);
+    int bits = 0;
 
-    for (int i = 0; i < model->num_axes; i++)
-        bits += model->axes[i].bits;
+    for (int i = 0; i < model->num_fields; i++)
+        bits += hid_pad_field_bits(&model->fields[i]);
 
     return bits;
 }
 
 /* Logical range, Report Size, Report Count 1, and an Input item. */
 static int
-hid_pad_desc_field(uint8_t *d, const hid_pad_axis_t *axis)
+hid_pad_desc_axis(uint8_t *d, const hid_pad_field_t *field)
 {
-    int len = 0;
+    int len    = 0;
+    int is_sgn = (field->kind == HID_FIELD_SIGNED) || (field->kind == HID_FIELD_DIGITAL_SIGNED);
+    int min    = is_sgn ? -(1 << (field->bits - 1)) : 0;
+    int max    = is_sgn ? ((1 << (field->bits - 1)) - 1) : ((1 << field->bits) - 1);
 
-    if (axis->kind == HID_AXIS_SIGNED) {
-        d[len++] = 0x16; /* Logical Minimum (-32768) */
-        d[len++] = 0x00;
-        d[len++] = 0x80;
-        d[len++] = 0x26; /* Logical Maximum (32767) */
-        d[len++] = 0xff;
-        d[len++] = 0x7f;
-    } else {
-        int max = (1 << axis->bits) - 1;
-
-        d[len++] = 0x15; /* Logical Minimum (0) */
-        d[len++] = 0x00;
-        d[len++] = 0x26; /* Logical Maximum */
-        d[len++] = max & 0xff;
-        d[len++] = max >> 8;
-    }
-
+    d[len++] = 0x16; /* Logical Minimum */
+    d[len++] = min & 0xff;
+    d[len++] = (min >> 8) & 0xff;
+    d[len++] = 0x26; /* Logical Maximum */
+    d[len++] = max & 0xff;
+    d[len++] = (max >> 8) & 0xff;
     d[len++] = 0x75; /* Report Size */
-    d[len++] = axis->bits;
+    d[len++] = field->bits;
     d[len++] = 0x95; /* Report Count (1) */
     d[len++] = 0x01;
     d[len++] = 0x81; /* Input (Data, Variable, Absolute) */
@@ -1676,10 +1918,73 @@ hid_pad_desc_field(uint8_t *d, const hid_pad_axis_t *axis)
 }
 
 static int
+hid_pad_desc_hat(uint8_t *d, const hid_pad_field_t *field)
+{
+    int len     = 0;
+    int degrees = 360 - (360 / field->bits);
+
+    d[len++] = 0x09; /* Usage (Hat Switch) */
+    d[len++] = HID_USAGE_HAT;
+    d[len++] = 0x15; /* Logical Minimum (0) */
+    d[len++] = 0x00;
+    d[len++] = 0x25; /* Logical Maximum */
+    d[len++] = field->bits - 1;
+    d[len++] = 0x35; /* Physical Minimum (0) */
+    d[len++] = 0x00;
+    d[len++] = 0x46; /* Physical Maximum */
+    d[len++] = degrees & 0xff;
+    d[len++] = degrees >> 8;
+    d[len++] = 0x65; /* Unit (Degrees) */
+    d[len++] = 0x14;
+    d[len++] = 0x75; /* Report Size (4) */
+    d[len++] = 0x04;
+    d[len++] = 0x95; /* Report Count (1) */
+    d[len++] = 0x01;
+    d[len++] = 0x81; /* Input (Data, Variable, Absolute, Null State) */
+    d[len++] = 0x42;
+    d[len++] = 0x45; /* Physical Maximum (0) */
+    d[len++] = 0x00;
+    d[len++] = 0x65; /* Unit (None) */
+    d[len++] = 0x00;
+
+    return len;
+}
+
+/* The buttons of a model number on from each other across their fields. */
+static int
+hid_pad_desc_buttons(uint8_t *d, const hid_pad_field_t *field, int first)
+{
+    int len = 0;
+
+    d[len++] = 0x05; /* Usage Page (Button) */
+    d[len++] = 0x09;
+    d[len++] = 0x19; /* Usage Minimum */
+    d[len++] = first;
+    d[len++] = 0x29; /* Usage Maximum */
+    d[len++] = first + field->bits - 1;
+    d[len++] = 0x15; /* Logical Minimum (0) */
+    d[len++] = 0x00;
+    d[len++] = 0x25; /* Logical Maximum (1) */
+    d[len++] = 0x01;
+    d[len++] = 0x75; /* Report Size (1) */
+    d[len++] = 0x01;
+    d[len++] = 0x95; /* Report Count */
+    d[len++] = field->bits;
+    d[len++] = 0x81; /* Input (Data, Variable, Absolute) */
+    d[len++] = 0x02;
+    d[len++] = 0x05; /* Usage Page (Generic Desktop) */
+    d[len++] = 0x01;
+
+    return len;
+}
+
+static int
 hid_pad_build_report_desc(const hid_pad_model_t *model, uint8_t *d)
 {
     int len     = 0;
     int padding = -hid_pad_report_bits(model) & 7;
+    int button  = 1;
+    int pointer = 0;
 
     d[len++] = 0x05; /* Usage Page (Generic Desktop) */
     d[len++] = 0x01;
@@ -1688,66 +1993,44 @@ hid_pad_build_report_desc(const hid_pad_model_t *model, uint8_t *d)
     d[len++] = 0xa1; /* Collection (Application) */
     d[len++] = 0x01;
 
-    for (int i = 0; i < model->num_axes; i++) {
-        if (i == 0) {
-            d[len++] = 0x09; /* Usage (Pointer) */
-            d[len++] = HID_USAGE_POINTER;
-            d[len++] = 0xa1; /* Collection (Physical) */
-            d[len++] = 0x00;
+    if (model->report_id) {
+        d[len++] = 0x85; /* Report ID */
+        d[len++] = model->report_id;
+    }
+
+    for (int i = 0; i < model->num_fields; i++) {
+        const hid_pad_field_t *field = &model->fields[i];
+
+        if (field->pointer != pointer) {
+            if (field->pointer) {
+                d[len++] = 0x09; /* Usage (Pointer) */
+                d[len++] = HID_USAGE_POINTER;
+                d[len++] = 0xa1; /* Collection (Physical) */
+                d[len++] = 0x00;
+            } else
+                d[len++] = 0xc0; /* End Collection */
+
+            pointer = field->pointer;
         }
 
-        d[len++] = 0x09; /* Usage */
-        d[len++] = model->axes[i].usage;
-        len += hid_pad_desc_field(&d[len], &model->axes[i]);
-
-        if (i == (model->pointer_axes - 1))
-            d[len++] = 0xc0; /* End Collection */
+        switch (field->kind) {
+            case HID_FIELD_HAT:
+                len += hid_pad_desc_hat(&d[len], field);
+                break;
+            case HID_FIELD_BUTTONS:
+                len += hid_pad_desc_buttons(&d[len], field, button);
+                button += field->bits;
+                break;
+            default:
+                d[len++] = 0x09; /* Usage */
+                d[len++] = field->usage;
+                len += hid_pad_desc_axis(&d[len], field);
+                break;
+        }
     }
 
-    if (model->hat) {
-        int degrees = 360 - (360 / model->hat);
-
-        d[len++] = 0x09; /* Usage (Hat Switch) */
-        d[len++] = HID_USAGE_HAT;
-        d[len++] = 0x15; /* Logical Minimum (0) */
-        d[len++] = 0x00;
-        d[len++] = 0x25; /* Logical Maximum */
-        d[len++] = model->hat - 1;
-        d[len++] = 0x35; /* Physical Minimum (0) */
-        d[len++] = 0x00;
-        d[len++] = 0x46; /* Physical Maximum */
-        d[len++] = degrees & 0xff;
-        d[len++] = degrees >> 8;
-        d[len++] = 0x65; /* Unit (Degrees) */
-        d[len++] = 0x14;
-        d[len++] = 0x75; /* Report Size (4) */
-        d[len++] = 0x04;
-        d[len++] = 0x95; /* Report Count (1) */
-        d[len++] = 0x01;
-        d[len++] = 0x81; /* Input (Data, Variable, Absolute, Null State) */
-        d[len++] = 0x42;
-        d[len++] = 0x45; /* Physical Maximum (0) */
-        d[len++] = 0x00;
-        d[len++] = 0x65; /* Unit (None) */
-        d[len++] = 0x00;
-    }
-
-    d[len++] = 0x05; /* Usage Page (Button) */
-    d[len++] = 0x09;
-    d[len++] = 0x19; /* Usage Minimum (1) */
-    d[len++] = 0x01;
-    d[len++] = 0x29; /* Usage Maximum */
-    d[len++] = model->buttons;
-    d[len++] = 0x15; /* Logical Minimum (0) */
-    d[len++] = 0x00;
-    d[len++] = 0x25; /* Logical Maximum (1) */
-    d[len++] = 0x01;
-    d[len++] = 0x75; /* Report Size (1) */
-    d[len++] = 0x01;
-    d[len++] = 0x95; /* Report Count */
-    d[len++] = model->buttons;
-    d[len++] = 0x81; /* Input (Data, Variable, Absolute) */
-    d[len++] = 0x02;
+    if (pointer)
+        d[len++] = 0xc0; /* End Collection */
 
     if (padding) {
         d[len++] = 0x75; /* Report Size */
@@ -1793,7 +2076,7 @@ hid_pad_build_descs(hid_pad_t *dev)
         7, 0x05, 0x81, 0x03, 0x00, 0x00, 0
     };
 
-    dev->report_len      = (hid_pad_report_bits(model) + 7) / 8;
+    dev->report_len      = ((hid_pad_report_bits(model) + 7) / 8) + !!model->report_id;
     dev->report_desc_len = hid_pad_build_report_desc(model, dev->report_desc);
 
     memcpy(dev->dev_desc, dev_template, sizeof(dev_template));
@@ -1823,21 +2106,24 @@ hid_pad_axis_unsigned(int value, int bits)
     return (ret < 0) ? 0 : ((ret > max) ? max : ret);
 }
 
-/* A digital axis has only its ends and a centre. */
-static int
-hid_pad_axis_digital(int value, int bits)
-{
-    if (value < -16384)
-        return 0;
-
-    return (value > 16384) ? ((1 << bits) - 1) : (1 << (bits - 1));
-}
-
 /* Host axes are not always in range, so this keeps a stick in its field. */
 static int
-hid_pad_axis_signed(int value)
+hid_pad_axis_signed(int value, int bits)
 {
-    return ((value < -32768) ? -32768 : ((value > 32767) ? 32767 : value)) & 0xffff;
+    int ret = value >> (16 - bits);
+    int max = (1 << (bits - 1)) - 1;
+
+    return (ret < (-max - 1)) ? (-max - 1) : ((ret > max) ? max : ret);
+}
+
+/* A digital axis has only its ends and a centre. */
+static int
+hid_pad_axis_digital(int value, int low, int centre, int high)
+{
+    if (value < -16384)
+        return low;
+
+    return (value > 16384) ? high : centre;
 }
 
 /* The hat counts in steps from up, and out of range is released. */
@@ -1863,36 +2149,44 @@ hid_pad_put_bits(uint8_t *rep, int *pos, int value, int bits)
 static int
 hid_pad_report(const hid_pad_t *dev, uint8_t *rep)
 {
-    const hid_pad_model_t  *model = dev->model;
-    const joystick_state_t *state = &joystick_state[0][dev->slot];
-    int                     pos   = 0;
+    const hid_pad_model_t  *model  = dev->model;
+    const joystick_state_t *state  = &joystick_state[0][dev->slot];
+    int                     pos    = 0;
+    int                     axis   = 0;
+    int                     button = 0;
 
     memset(rep, 0x00, dev->report_len);
 
-    for (int i = 0; i < model->num_axes; i++) {
-        const hid_pad_axis_t *axis  = &model->axes[i];
-        int                   value = state->axis[i];
+    if (model->report_id)
+        hid_pad_put_bits(rep, &pos, model->report_id, 8);
 
-        switch (axis->kind) {
-            case HID_AXIS_DIGITAL:
-                value = hid_pad_axis_digital(value, axis->bits);
+    for (int i = 0; i < model->num_fields; i++) {
+        const hid_pad_field_t *field = &model->fields[i];
+        int                    bits  = field->bits;
+        int                    half  = 1 << (bits - 1);
+
+        switch (field->kind) {
+            case HID_FIELD_HAT:
+                hid_pad_put_bits(rep, &pos, hid_pad_hat(state->pov[0], field->bits), 4);
                 break;
-            case HID_AXIS_SIGNED:
-                value = hid_pad_axis_signed(value);
+            case HID_FIELD_BUTTONS:
+                for (int j = 0; j < field->bits; j++)
+                    hid_pad_put_bits(rep, &pos, !!state->button[button++], 1);
+                break;
+            case HID_FIELD_SIGNED:
+                hid_pad_put_bits(rep, &pos, hid_pad_axis_signed(state->axis[axis++], bits), bits);
+                break;
+            case HID_FIELD_DIGITAL:
+                hid_pad_put_bits(rep, &pos, hid_pad_axis_digital(state->axis[axis++], 0, half, (half * 2) - 1), bits);
+                break;
+            case HID_FIELD_DIGITAL_SIGNED:
+                hid_pad_put_bits(rep, &pos, hid_pad_axis_digital(state->axis[axis++], -half, 0, half - 1), bits);
                 break;
             default:
-                value = hid_pad_axis_unsigned(value, axis->bits);
+                hid_pad_put_bits(rep, &pos, hid_pad_axis_unsigned(state->axis[axis++], bits), bits);
                 break;
         }
-
-        hid_pad_put_bits(rep, &pos, value, axis->bits);
     }
-
-    if (model->hat)
-        hid_pad_put_bits(rep, &pos, hid_pad_hat(state->pov[0], model->hat), 4);
-
-    for (int i = 0; i < model->buttons; i++)
-        hid_pad_put_bits(rep, &pos, !!state->button[i], 1);
 
     return dev->report_len;
 }
@@ -1932,16 +2226,15 @@ hid_pad_control(usb_dev_t *usb, const uint8_t *setup, uint8_t *data)
     if (setup[0] == 0xa1) {
         switch (setup[1]) {
             case HID_GET_REPORT:
-                /* wValue is report type (high) and report ID (low). The
-                   only report is Input with no report ID: type 1, ID 0
-                   (HID 1.11 s7.2.1, p. 51 / PDF 61). */
-                if (wvalue != 0x0100)
+                /* wValue is report type (high) and report ID (low), and the
+                   only report is Input, type 1 (HID 1.11 s7.2.1, p. 51 / PDF 61). */
+                if (wvalue != (0x0100 | dev->model->report_id))
                     return USB_DATA_STALL;
                 return hid_pad_report(dev, data);
             case HID_GET_IDLE:
-                /* The device uses no report IDs, so a nonzero ID names no
-                   report (HID 1.11 s7.2.3, p. 52 / PDF 62). */
-                if ((wvalue & 0xff) != 0)
+                /* ID 0 is every report, and there is only the one
+                   (HID 1.11 s7.2.3, p. 52 / PDF 62). */
+                if (((wvalue & 0xff) != 0) && ((wvalue & 0xff) != dev->model->report_id))
                     return USB_DATA_STALL;
                 data[0] = dev->idle.rate;
                 return 1;
@@ -1953,9 +2246,9 @@ hid_pad_control(usb_dev_t *usb, const uint8_t *setup, uint8_t *data)
     if (setup[0] == 0x21) {
         switch (setup[1]) {
             case HID_SET_IDLE:
-                /* No report IDs, so a nonzero ID names no report; the high
-                   byte is the duration (HID 1.11 s7.2.4, p. 52-53 / PDF 62-63). */
-                if ((wvalue & 0xff) != 0)
+                /* As for GET_IDLE; the high byte is the duration
+                   (HID 1.11 s7.2.4, p. 52-53 / PDF 62-63). */
+                if (((wvalue & 0xff) != 0) && ((wvalue & 0xff) != dev->model->report_id))
                     return USB_DATA_STALL;
                 hid_idle_set(&dev->idle, wvalue >> 8);
                 return 0;
@@ -2098,3 +2391,13 @@ HID_PAD_DEVICES(gamepad_logitech_wingman_extreme_throttle, HID_PAD_LOGITECH_WING
 HID_PAD_DEVICES(gamepad_genius_joystick, HID_PAD_GENIUS_JOYSTICK, "Genius USB Joystick");
 HID_PAD_DEVICES(gamepad_genius_gamepad, HID_PAD_GENIUS_GAMEPAD, "Genius USB Game Pad");
 HID_PAD_DEVICES(gamepad_guillemot_jet_leader, HID_PAD_GUILLEMOT_JET_LEADER, "Guillemot Jet Leader USB Joystick");
+HID_PAD_DEVICES(gamepad_logitech_wingman_formula_yellow, HID_PAD_LOGITECH_WINGMAN_FORMULA_YELLOW, "Logitech WingMan Formula (Yellow)(USB)");
+HID_PAD_DEVICES(gamepad_logitech_wingman_extreme_digital_3d, HID_PAD_LOGITECH_WINGMAN_EXTREME_DIGITAL_3D, "Logitech WingMan Extreme Digital 3D (USB)");
+HID_PAD_DEVICES(gamepad_logitech_wingman_gamepad_extreme, HID_PAD_LOGITECH_WINGMAN_GAMEPAD_EXTREME, "Logitech WingMan Gamepad Extreme (USB)");
+HID_PAD_DEVICES(gamepad_logitech_wingman_gamepad, HID_PAD_LOGITECH_WINGMAN_GAMEPAD, "Logitech WingMan Gamepad (USB)");
+HID_PAD_DEVICES(gamepad_usb_2axis_8button, HID_PAD_USB_2AXIS_8BUTTON, "USB gamepad (2-axis, 8-button)");
+HID_PAD_DEVICES(gamepad_usb_3axis_8button, HID_PAD_USB_3AXIS_8BUTTON, "USB gamepad (3-axis, 8-button)");
+HID_PAD_DEVICES(gamepad_usb_4axis_8button, HID_PAD_USB_4AXIS_8BUTTON, "USB gamepad (4-axis, 8-button)");
+HID_PAD_DEVICES(gamepad_usb_joystick_2axis_8button, HID_PAD_USB_JOYSTICK_2AXIS_8BUTTON, "USB joystick (2-axis, 8-button)");
+HID_PAD_DEVICES(gamepad_usb_joystick_3axis_8button, HID_PAD_USB_JOYSTICK_3AXIS_8BUTTON, "USB joystick (3-axis, 8-button)");
+HID_PAD_DEVICES(gamepad_usb_joystick_4axis_8button, HID_PAD_USB_JOYSTICK_4AXIS_8BUTTON, "USB joystick (4-axis, 8-button)");
