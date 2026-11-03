@@ -27,8 +27,10 @@
  *          modern boards even have multiple 'copies' of those registers,
  *          which can be switched very fast, to allow for multitasking.
  *
- * TODO:    The EV-159 is supposed to support 16b EMS transfers, but the
- *          EMM.sys driver for it doesn't seem to want to do that..
+ * NOTE:    EV-159 16-bit transfers are a board switch (SW3-1, "EMS Fast
+ *          Mode" in Everex's EV159.EXE 1.02); the EMM driver does nothing
+ *          for them. Fast mode only affects EMS: the board's base and
+ *          extended memory are always 16-bit on an AT.
  *
  *          EV-125 (It supports backfill)
  *              https://theretroweb.com/expansioncard/documentation/50250.pdf
@@ -161,6 +163,21 @@
 #define EV159_BASE_MEM         (128 << 10)  /* size of EV-159 base memory in cs8220 mode*/
 #define EV159_EXT_1536         (1536 << 10) /* start of EV-159 high memory in cs8220 mode*/
 #define EV159_EXT_1024         (1024 << 10) /* start of EV-159 high memory in backfill mode*/
+/*
+ * EV-159 switches, from EV159.EXE 1.02 (Everex's setup program, which
+ * draws them): SW1-1..4 / SW1-6..9 = middle hex digit of the first /
+ * second EMS port (2x8h, Off = 1), SW1-5 On = no EMS (seen once: 3 MB
+ * extended, 0 EMS), SW1-10 On = no
+ * second port (EMS <= 2 MB); SW2-1..3 = board memory, 512 KB units - 1;
+ * SW2-4..8 = base + extended memory supplied, 128 KB units; SW3-2..8 =
+ * start of that memory, 128 KB units (below 640 KB it backfills up to
+ * 640 KB and carries on at 1 MB); SW3-1 = EMS fast (16-bit) mode;
+ * W1 = DRAM speed, W2 = parity. The board's EMS pages are the rest of
+ * its memory, numbered from 0 (EV159.EXE always gives "258,00").
+ * EV159.EXE never sets the start to 640 KB; the "CS8220 mode" below
+ * (128 KB at 512-640 KB, the rest from 1.5 MB) is kept from the original
+ * model and is not confirmed by it.
+ */
 
 #define EMS_MAXSIZE            (2048 << 10) /* max EMS memory size */
 #define EMS_EV159_MAXSIZE      (3072 << 10) /* max EMS memory size for EV-159 cards */
@@ -1401,6 +1418,11 @@ isamem_init(const device_t *info)
         dev->flags &= ~FLAG_WIDE;
     }
 
+    /* The EV-159's "width" option is its EMS fast mode (SW3-1); its
+       base/extended memory is 16-bit on an AT whatever that says. */
+    const int conv_wide = (dev->flags & FLAG_WIDE) ||
+                          (is286 && (dev->board == ISAMEM_EV159_CARD));
+
     /* Allocate and initialize our RAM. */
     k        = dev->total_size << 10;
     dev->ram = (uint8_t *) calloc(1, k);
@@ -1448,10 +1470,10 @@ isamem_init(const device_t *info)
             /* Create, initialize and enable the low-memory mapping. */
             mem_mapping_add(&dev->low_mapping, addr, t,
                             ram_readb,
-                            (dev->flags & FLAG_WIDE) ? ram_readw : NULL,
+                            conv_wide ? ram_readw : NULL,
                             NULL,
                             ram_writeb,
-                            (dev->flags & FLAG_WIDE) ? ram_writew : NULL,
+                            conv_wide ? ram_writew : NULL,
                             NULL,
                             ptr, MEM_MAPPING_EXTERNAL, &dev->ext_ram[EXTRAM_CONVENTIONAL]);
 
@@ -2613,15 +2635,15 @@ static const device_config_t ev159_config[] = {
     },
     {
         .name           = "width",
-        .description    = "I/O Width",
+        .description    = "EMS Fast Mode (16-bit EMS)",
         .type           = CONFIG_SELECTION,
         .default_string = NULL,
         .default_int    = 0,
         .file_filter    = NULL,
         .spinner        = { 0 },
         .selection      = {
-            { .description = "8-bit",  .value = 0 },
-            { .description = "16-bit", .value = 1 },
+            { .description = "Off (8-bit)", .value = 0 },
+            { .description = "On (16-bit)", .value = 1 },
             { .description = ""                   }
         },
         .bios           = { { 0 } }
