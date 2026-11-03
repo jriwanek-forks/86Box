@@ -85,7 +85,7 @@ video_cards[] = {
     { .device = &herculesplus_device,                           .flags = VIDEO_FLAG_TYPE_MDA       },
     { .device = &incolor_device,                                .flags = VIDEO_FLAG_TYPE_MDA       },
     { .device = &cga_device,                                    .flags = VIDEO_FLAG_TYPE_CGA       },
-    { .device = &ega_device,                                    .flags = VIDEO_FLAG_TYPE_NONE      },
+    { .device = &ega_device,                                    .flags = VIDEO_FLAG_TYPE_EGA       },
     { .device = &mda_device,                                    .flags = VIDEO_FLAG_TYPE_MDA       },
     { .device = &pgc_device,                                    .flags = VIDEO_FLAG_TYPE_NONE      },
     { .device = &vga_device,                                    .flags = VIDEO_FLAG_TYPE_NONE      },
@@ -668,8 +668,17 @@ video_card_is_secondary(int m, int primary_card, int secondary_card)
     int primary_flags   = video_get_primary_flags(m, primary_card);
     int secondary_flags = video_card_get_flags(secondary_card);
 
+    /* The IBM EGA's configuration switches let it sit beside either of the IBM's
+       original adapters, as the primary or as the secondary display: with an MDA
+       it drives a colour monitor, with a CGA a monochrome one. */
     if (primary_flags == VIDEO_FLAG_TYPE_MDA)
-        return (secondary_flags == VIDEO_FLAG_TYPE_CGA);
+        return (secondary_flags == VIDEO_FLAG_TYPE_CGA) || (secondary_flags == VIDEO_FLAG_TYPE_EGA);
+
+    if ((primary_flags == VIDEO_FLAG_TYPE_CGA) && (secondary_flags == VIDEO_FLAG_TYPE_EGA))
+        return 1;
+
+    if ((primary_flags == VIDEO_FLAG_TYPE_EGA) && (secondary_flags == VIDEO_FLAG_TYPE_CGA))
+        return 1;
 
     return (secondary_flags == VIDEO_FLAG_TYPE_SEC) ||
            ((secondary_flags == VIDEO_FLAG_TYPE_MDA) && (primary_flags != secondary_flags));

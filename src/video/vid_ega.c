@@ -15,12 +15,14 @@
  *          Copyright 2008-2019 Sarah Walker.
  *          Copyright 2016-2019 Miran Grca.
  */
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
 #include <stdlib.h>
 #include <wchar.h>
+#define HAVE_STDARG_H
 #include <86box/86box.h>
 #include "cpu.h"
 #include <86box/io.h>
@@ -30,6 +32,7 @@
 #include <86box/mem.h>
 #include <86box/rom.h>
 #include <86box/device.h>
+#include <86box/machine.h>
 #include <86box/video.h>
 #include <86box/vid_ati_eeprom.h>
 #include <86box/vid_ega.h>
@@ -56,6 +59,24 @@ static int             ega_type           = EGA_TYPE_IBM;
 int egaswitchread;
 int egaswitches     = 9;
 int update_overscan = 0;
+
+#ifdef ENABLE_EGA_LOG
+int ega_do_log = ENABLE_EGA_LOG;
+
+static void
+ega_log(const char *fmt, ...)
+{
+    va_list ap;
+
+    if (ega_do_log) {
+        va_start(ap, fmt);
+        pclog_ex(fmt, ap);
+        va_end(ap);
+    }
+}
+#else
+#    define ega_log(fmt, ...)
+#endif
 
 uint8_t ega_in(uint16_t addr, void *priv);
 
@@ -156,7 +177,7 @@ ega_out(uint16_t addr, uint8_t val, void *priv)
             if (ega->alt_addr == 1)
                 base_addr = 0x02a0;
 #endif
-            if (ega->priv_parent == NULL) {
+            if ((ega->priv_parent == NULL) && !ega->mono_io_disabled) {
                 io_removehandler(base_addr, 0x0020, ega_in, NULL, NULL, ega_out, NULL, NULL, ega);
                 if (!(val & 1))
                     io_sethandler(base_addr, 0x0020, ega_in, NULL, NULL, ega_out, NULL, NULL, ega);
@@ -552,8 +573,8 @@ ega_in(uint16_t addr, void *priv)
     return ret;
 }
 
-void
-ega_recalctimings(ega_t *ega)
+static void
+ega_recalctimings_common(ega_t *ega)
 {
     int clksel;
     int color;
@@ -747,6 +768,19 @@ ega_recalctimings(ega_t *ega)
     ega_recalc_remap_func(ega);
 }
 
+/* The overscan and size globals resolve through monitor_index_global, and this
+   is reached from port writes made while it points at the primary display, so
+   bind it to the monitor this card actually drives. */
+void
+ega_recalctimings(ega_t *ega)
+{
+    const int prev_monitor_index = monitor_index_global;
+
+    monitor_index_global = ega->monitor_index;
+    ega_recalctimings_common(ega);
+    monitor_index_global = prev_monitor_index;
+}
+
 /* This is needed for the Compaq EGA so that it can pass the 3DA
    palette mux part of the self-test. */
 void
@@ -843,10 +877,9 @@ ega_dot_poll(void *priv)
     }
 }
 
-void
-ega_poll(void *priv)
+static void
+ega_poll_common(ega_t *ega)
 {
-    ega_t   *ega = (ega_t *) priv;
     int      old_ma;
     int      wx = 640;
     int      wy = 350;
@@ -890,7 +923,7 @@ ega_poll(void *priv)
                 ega->lastline = ega->displine;
         }
 
-        video_lightpen_check_trigger_strobe(8, ega->displine, 0, ega->firstline, (1. / (ega->dot_clock / (cpuclock * (double) (1ULL << 32)))) * ((ega->seqregs[1] & 1) ? 8.0 : 9.0), 0);
+        video_lightpen_check_trigger_strobe(8, ega->displine, 0, ega->firstline, (1. / (ega->dot_clock / (cpuclock * (double) (1ULL << 32)))) * ((ega->seqregs[1] & 1) ? 8.0 : 9.0), ega->monitor_index);
         ega->displine++;
         if (ega->interlace)
             ega->displine++;
@@ -1061,6 +1094,19 @@ ega_poll(void *priv)
 }
 
 void
+ega_poll(void *priv)
+{
+    ega_t    *ega                = (ega_t *) priv;
+    const int prev_monitor_index = monitor_index_global;
+
+    /* This instance may be the secondary display; every blit and size macro
+       used while rendering resolves through monitor_index_global. */
+    monitor_index_global = ega->monitor_index;
+    ega_poll_common(ega);
+    monitor_index_global = prev_monitor_index;
+}
+
+void
 ega_doblit(int wx, int wy, ega_t *ega)
 {
     int       unscaled_overscan_y = ega->vres ? overscan_y >> 1 : overscan_y;
@@ -1218,7 +1264,7 @@ ega_write(uint32_t addr, uint8_t val, void *priv)
     uint8_t vald;
     int     writemask2 = ega->writemask;
 
-    cycles -= video_timing_write_b;
+    cycles -= monitors[ega->monitor_index].mon_video_timing_write_b;
 
     if (ega->chain2_write)
         writemask2 &= 0x5 << (addr & 1);
@@ -1419,7 +1465,7 @@ ega_read(uint32_t addr, void *priv)
     uint8_t temp4;
     int     readplane = ega->readplane;
 
-    cycles -= video_timing_read_b;
+    cycles -= monitors[ega->monitor_index].mon_video_timing_read_b;
 
     if (ega->chain2_read)
         readplane = (readplane & 2) | (addr & 1);
@@ -1463,6 +1509,8 @@ ega_init(ega_t *ega, int monitor_type, int is_mono)
     /* For the memory viewer; here, as machines with the card built in map
        the same handlers. */
     mem_debug_add(ega_read, ega_write, ega_debug_ptr);
+
+    ega->monitor_index = monitor_index_global;
 
     ega->vram     = calloc(1, 0x40000);
     ega->vrammask = 0x3ffff;
@@ -1616,6 +1664,64 @@ ega_set_type(void *priv, uint32_t local)
     }
 }
 
+/* Class of the adapter sharing the machine with this EGA, if it is one of the
+   two the IBM EGA's switches know about, VIDEO_FLAG_TYPE_NONE otherwise. */
+static int
+ega_other_adapter(int monitor_index)
+{
+    int flags;
+
+    if (monitor_index != 0)
+        return video_get_primary_flags(machine, gfxcard[0]);
+
+    for (uint8_t i = 1; i < GFXCARD_MAX; i++) {
+        if ((gfxcard[i] == VID_NONE) || (gfxcard[i] == VID_INTERNAL) || (gfxcard[i] == VID_EXTERNAL))
+            continue;
+
+        flags = video_card_get_flags(gfxcard[i]);
+        if ((flags == VIDEO_FLAG_TYPE_MDA) || (flags == VIDEO_FLAG_TYPE_CGA))
+            return flags;
+    }
+
+    return VIDEO_FLAG_TYPE_NONE;
+}
+
+/* Works out the configuration switch setting the IBM EGA would have to be given
+   for the monitor attached to it and the adapter, if any, sharing the machine
+   (see the switch table above ega_ibm_config[]). */
+static int
+ega_auto_switches(int monitor_sw, int other, int is_secondary)
+{
+    const int mono = EGA_SW_IS_MONO(monitor_sw);
+
+    if (other == VIDEO_FLAG_TYPE_MDA) {
+        /* Two monochrome adapters cannot coexist. */
+        if (mono) {
+            ega_log("EGA: an MDA is installed, so the EGA must drive a colour monitor; "
+                    "assuming an 80x25 colour display\n");
+            monitor_sw = EGA_SW_CD80;
+        }
+
+        /* EGA primary with an MDA uses the same settings as the EGA alone; with the
+           MDA primary, the colour settings move down to 0-3. */
+        return is_secondary ? (monitor_sw - EGA_SW_CD40) : monitor_sw;
+    }
+
+    if (other == VIDEO_FLAG_TYPE_CGA) {
+        /* Two colour adapters cannot coexist. */
+        if (!mono) {
+            ega_log("EGA: a CGA is installed, so the EGA must drive a monochrome monitor; "
+                    "assuming a monochrome display\n");
+        }
+
+        /* The CGA is assumed to come up in 80x25; the 40x25 variants are available
+           through the explicit switch settings. */
+        return is_secondary ? EGA_SW_CGA80_PRI_MONO : EGA_SW_MONO;
+    }
+
+    return monitor_sw;
+}
+
 static void *
 ega_standalone_init(const device_t *info)
 {
@@ -1678,12 +1784,38 @@ ega_standalone_init(const device_t *info)
     }
 
     monitor_type = ega->chipset ? 0x09 : device_get_config_int("monitor_type");
-    ega_init(ega, monitor_type, (monitor_type & 0x0F) == 0x0B);
+
+    /* Only the IBM EGA has the switches to share the machine with an MDA or a CGA. */
+    int other = VIDEO_FLAG_TYPE_NONE;
+    if (info->local == EGA_IBM) {
+        int switches = device_get_config_int("switches");
+
+        other = ega_other_adapter(monitor_index_global);
+
+        if (switches == EGA_SW_AUTO)
+            switches = ega_auto_switches(monitor_type & 0x0f, other, monitor_index_global != 0);
+
+        ega_log("EGA: monitor %i, other adapter class %i, switches %X\n",
+                monitor_index_global, other, switches);
+
+        monitor_type = (monitor_type & 0xf0) | (switches & 0x0f);
+    }
+
+    ega_init(ega, monitor_type, EGA_SW_IS_MONO(monitor_type & 0x0f));
 
     ega->vram_limit = device_get_config_int("memory") * 1024;
     ega->vrammask   = ega->vram_limit - 1;
 
-    mem_mapping_add(&ega->mapping, 0xa0000, 0x20000, ega_read, NULL, NULL, ega_write, NULL, NULL, NULL, MEM_MAPPING_EXTERNAL, ega);
+    /* With an MDA in the machine, the 3Bx ports and the B0000 window are its own:
+       start the EGA out decoding colour addresses only and in its 64 KB window, so
+       that it does not answer the MDA's port and memory accesses before its BIOS
+       has set it up. */
+    ega->mono_io_disabled = (other == VIDEO_FLAG_TYPE_MDA);
+    if (ega->mono_io_disabled)
+        ega->miscout |= 0x01;
+
+    mem_mapping_add(&ega->mapping, 0xa0000, ega->mono_io_disabled ? 0x10000 : 0x20000,
+                    ega_read, NULL, NULL, ega_write, NULL, NULL, NULL, MEM_MAPPING_EXTERNAL, ega);
     if (ega_type == EGA_TYPE_COMPAQ)
         mem_mapping_disable(&ega->mapping);
     uint16_t addr = 0x03a0;
@@ -1694,7 +1826,10 @@ ega_standalone_init(const device_t *info)
             ega->alt_addr = 1;
     }
 #endif
-    io_sethandler(addr, 0x0040, ega_in, NULL, NULL, ega_out, NULL, NULL, ega);
+    if (ega->mono_io_disabled)
+        io_sethandler(addr + 0x0020, 0x0020, ega_in, NULL, NULL, ega_out, NULL, NULL, ega);
+    else
+        io_sethandler(addr, 0x0040, ega_in, NULL, NULL, ega_out, NULL, NULL, ega);
 
     if (ega->chipset) {
         io_sethandler(0x01ce, 0x0002, ega_in, NULL, NULL, ega_out, NULL, NULL, ega);
@@ -1765,15 +1900,30 @@ ega_speed_changed(void *priv)
     ega_recalctimings(ega);
 }
 
-/* SW1 SW2 SW3 SW4
-   OFF OFF  ON OFF  Monochrome                      (5151) 1011 0x0B
-    ON OFF OFF  ON  Color 40x25                     (5153) 0110 0x06
-   OFF OFF OFF  ON  Color 80x25                     (5153) 0111 0x07
-    ON  ON  ON OFF  Enhanced Color - Normal Mode    (5154) 1000 0x08
-   OFF  ON  ON OFF  Enhanced Color - Enhanced Mode  (5154) 1001 0x09
+/* IBM EGA configuration switches (from the IBM EGA installation instructions):
+
+   SW1 SW2 SW3 SW4  EGA monitor                       Other adapter           Value
+   --- EGA alone, or EGA primary with an MDA (or a CGA for 0x0B) ---------------------
+    ON OFF OFF  ON  Color 40x25                (5153) MDA, secondary   0110 0x06
+   OFF OFF OFF  ON  Color 80x25                (5153) MDA, secondary   0111 0x07
+    ON  ON  ON OFF  Enhanced Color - Normal    (5154) MDA, secondary   1000 0x08
+   OFF  ON  ON OFF  Enhanced Color - Enhanced  (5154) MDA, secondary   1001 0x09
+   OFF OFF  ON OFF  Monochrome                 (5151) CGA 80x25, sec.  1011 0x0B
+    ON OFF  ON OFF  Monochrome                 (5151) CGA 40x25, sec.  1010 0x0A
+   --- EGA secondary ------------------------------------------------------------------
+    ON  ON  ON  ON  Color 40x25                (5153) MDA, primary     0000 0x00
+   OFF  ON  ON  ON  Color 80x25                (5153) MDA, primary     0001 0x01
+    ON OFF  ON  ON  Enhanced Color - Normal    (5154) MDA, primary     0010 0x02
+   OFF OFF  ON  ON  Enhanced Color - Enhanced  (5154) MDA, primary     0011 0x03
+    ON  ON OFF  ON  Monochrome                 (5151) CGA 40x25, pri.  0100 0x04
+   OFF  ON OFF  ON  Monochrome                 (5151) CGA 80x25, pri.  0101 0x05
 
    0 = Switch closed (ON);
-   1 = Switch open   (OFF). */
+   1 = Switch open   (OFF).
+
+   The "Monitor type" option holds the 0x06-0x0B (EGA alone) value plus the mono
+   tint; with "Configuration switches" left on automatic, it is translated to the
+   right row above from the slot the card is in and the adapter beside it. */
 static const device_config_t ega_ibm_config[] = {
   // clang-format off
     {
@@ -1810,6 +1960,32 @@ static const device_config_t ega_ibm_config[] = {
             { .description = "Enhanced Color - Normal Mode (5154/ECD)",   .value = 0x08                        },
             { .description = "Enhanced Color - Enhanced Mode (5154/ECD)", .value = 0x09                        },
             { .description = ""                                                                                }
+        },
+        .bios           = { { 0 } }
+    },
+    {
+        .name           = "switches",
+        .description    = "Configuration switches",
+        .type           = CONFIG_SELECTION,
+        .default_string = NULL,
+        .default_int    = EGA_SW_AUTO,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = {
+            { .description = "Automatic (from monitor and other adapter)",                              .value = EGA_SW_AUTO           },
+            { .description = "SW1-4 On On On On: Secondary to MDA, Color 40x25 (5153)",                 .value = EGA_SW_MDA_PRI_CD40   },
+            { .description = "SW1-4 Off On On On: Secondary to MDA, Color 80x25 (5153)",                .value = EGA_SW_MDA_PRI_CD80   },
+            { .description = "SW1-4 On Off On On: Secondary to MDA, Enhanced Color - Normal (5154)",    .value = EGA_SW_MDA_PRI_ECD_N  },
+            { .description = "SW1-4 Off Off On On: Secondary to MDA, Enhanced Color - Enhanced (5154)", .value = EGA_SW_MDA_PRI_ECD_E  },
+            { .description = "SW1-4 On On Off On: Secondary to CGA 40x25, Monochrome (5151)",           .value = EGA_SW_CGA40_PRI_MONO },
+            { .description = "SW1-4 Off On Off On: Secondary to CGA 80x25, Monochrome (5151)",          .value = EGA_SW_CGA80_PRI_MONO },
+            { .description = "SW1-4 On Off Off On: Primary, Color 40x25 (5153)",                        .value = EGA_SW_CD40           },
+            { .description = "SW1-4 Off Off Off On: Primary, Color 80x25 (5153)",                       .value = EGA_SW_CD80           },
+            { .description = "SW1-4 On On On Off: Primary, Enhanced Color - Normal (5154)",             .value = EGA_SW_ECD_NORMAL     },
+            { .description = "SW1-4 Off On On Off: Primary, Enhanced Color - Enhanced (5154)",          .value = EGA_SW_ECD_ENHANCED   },
+            { .description = "SW1-4 On Off On Off: Primary, Monochrome (5151), CGA 40x25 secondary",    .value = EGA_SW_MONO_CGA40     },
+            { .description = "SW1-4 Off Off On Off: Primary, Monochrome (5151)",                        .value = EGA_SW_MONO           },
+            { .description = ""                                                                                        }
         },
         .bios           = { { 0 } }
     },

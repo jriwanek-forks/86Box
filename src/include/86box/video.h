@@ -86,6 +86,9 @@ typedef enum video_font_format_e
 #define VIDEO_FLAG_TYPE_8514    5
 #define VIDEO_FLAG_TYPE_NONE    6
 #define VIDEO_FLAG_TYPE_SPECIAL 7
+/* Card-table class only: an EGA that can share the machine with an MDA or a CGA,
+   either as the primary display or as the secondary one. */
+#define VIDEO_FLAG_TYPE_EGA     8
 
 #define FONT_IBM_MDA_437_PATH        "roms/video/mda/mda.rom"
 #define FONT_IBM_MDA_437_NORDIC_PATH "roms/video/mda/4733197.bin"

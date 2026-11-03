@@ -147,6 +147,12 @@ typedef struct ega_t {
     void *     priv_parent;
 
     uint8_t    alt_addr; /* 0 for 0x3XX range, 1 for 0x2XX range */
+
+    /* Set when an MDA (or Hercules) shares the machine: the 3Bx ports and the
+       B0000 window belong to it, so the EGA must never decode them. */
+    uint8_t    mono_io_disabled;
+
+    int        monitor_index; /* Monitor this card renders to. */
 } ega_t;
 #endif
 
@@ -169,6 +175,26 @@ extern int update_overscan;
 #define DISPLAY_GREEN        3
 #define DISPLAY_AMBER        4
 #define DISPLAY_WHITE        5
+
+/* IBM EGA configuration switch values, SW1 in bit 0 and SW4 in bit 3, with a set
+   bit meaning the switch is OFF (open). This is the value the BIOS reads back
+   through bit 4 of Input Status 0 (3C2h). */
+#define EGA_SW_MDA_PRI_CD40   0x00 /* MDA primary,  EGA secondary on 5153 40x25   */
+#define EGA_SW_MDA_PRI_CD80   0x01 /* MDA primary,  EGA secondary on 5153 80x25   */
+#define EGA_SW_MDA_PRI_ECD_N  0x02 /* MDA primary,  EGA secondary on 5154 normal  */
+#define EGA_SW_MDA_PRI_ECD_E  0x03 /* MDA primary,  EGA secondary on 5154 enhanced*/
+#define EGA_SW_CGA40_PRI_MONO 0x04 /* CGA 40x25 primary, EGA secondary on 5151    */
+#define EGA_SW_CGA80_PRI_MONO 0x05 /* CGA 80x25 primary, EGA secondary on 5151    */
+#define EGA_SW_CD40           0x06 /* EGA primary on 5153 40x25 (MDA optional)    */
+#define EGA_SW_CD80           0x07 /* EGA primary on 5153 80x25 (MDA optional)    */
+#define EGA_SW_ECD_NORMAL     0x08 /* EGA primary on 5154 normal (MDA optional)   */
+#define EGA_SW_ECD_ENHANCED   0x09 /* EGA primary on 5154 enhanced (MDA optional) */
+#define EGA_SW_MONO_CGA40     0x0a /* EGA primary on 5151, CGA secondary 40x25    */
+#define EGA_SW_MONO           0x0b /* EGA primary on 5151 (CGA 80x25 optional)    */
+#define EGA_SW_AUTO           0x10 /* Not a switch setting: derive from the setup */
+
+#define EGA_SW_IS_MONO(sw)    (((sw) == EGA_SW_CGA40_PRI_MONO) || ((sw) == EGA_SW_CGA80_PRI_MONO) || \
+                               ((sw) == EGA_SW_MONO_CGA40) || ((sw) == EGA_SW_MONO))
 
 #if defined(EMU_MEM_H) && defined(EMU_ROM_H)
 extern void ega_init(ega_t *ega, int monitor_type, int is_mono);
