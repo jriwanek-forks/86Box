@@ -35,6 +35,7 @@
 #include <86box/rom.h>
 #include <86box/device.h>
 #include <86box/machine.h>
+#include <86box/mouse.h>
 #include <86box/video.h>
 #include <86box/vid_ati_eeprom.h>
 #include <86box/vid_cga.h>
@@ -53,15 +54,9 @@ void ega_doblit(int wx, int wy, ega_t *ega);
 
 static video_timings_t timing_ega = { .type = VIDEO_ISA, .write_b = 8, .write_w = 16, .write_l = 32, .read_b = 8, .read_w = 16, .read_l = 32 };
 static uint8_t         ega_rotate[8][256];
-static int             active             = 0;
-uint32_t               pallook16[256];
-uint32_t               pallook64[256];
-static int             ega_type           = EGA_TYPE_IBM;
 
 /* 3C2 controls default mode on EGA. On VGA, it determines monitor type (mono or colour):
     7=CGA mode (200 lines), 9=EGA mode (350 lines), 8=EGA mode (200 lines). */
-int egaswitchread;
-int egaswitches     = 9;
 int update_overscan = 0;
 
 #ifdef ENABLE_EGA_LOG
@@ -90,9 +85,9 @@ ega_out(uint16_t addr, uint8_t val, void *priv)
     ega_t  *ega = (ega_t *) priv;
     uint8_t o;
     uint8_t old;
-    int     type     = ega_type;
+    int     type     = ega->type;
     int     atype    = ega->actual_type;
-    uint8_t gdcmask  = (ega_type == EGA_SUPEREGA) ? 0xff : 0x0f;
+    uint8_t gdcmask  = (ega->type == EGA_SUPEREGA) ? 0xff : 0x0f;
     uint8_t crtcmask = (atype == EGA_SUPEREGA) ? 0xff : 0x1f;
 
     if (((((addr & 0xfff0) == 0x3d0) || ((addr & 0xfff0) == 0x2d0)) || (((addr & 0xfff0) == 0x3b0) || ((addr & 0xfff0) == 0x2b0))) && !(ega->miscout & 1))
@@ -157,7 +152,7 @@ ega_out(uint16_t addr, uint8_t val, void *priv)
                     if (o != val)
                         ega_recalctimings(ega);
                 } else if (ega->attraddr == 0x11) {
-                    ega->overscan_color = ega->vres ? pallook16[val & 0x0f] : pallook64[val & 0x3f];
+                    ega->overscan_color = ega->vres ? ega->pallook16[val & 0x0f] : ega->pallook64[val & 0x3f];
                     if (o != val)
                         ega_recalctimings(ega);
                 } else if (ega->attraddr == 0x12)
@@ -168,13 +163,13 @@ ega_out(uint16_t addr, uint8_t val, void *priv)
         case 0x2c2:
         case 0x3c2:
             o                   = ega->miscout;
-            egaswitchread       = (val & 0xc) >> 2;
+            ega->switchread       = (val & 0xc) >> 2;
             ega->vres           = !(val & 0x80);
-            ega->pallook        = ega->vres ? pallook16 : pallook64;
+            ega->pallook        = ega->vres ? ega->pallook16 : ega->pallook64;
             ega->vidclock       = val & 4;
             ega->miscout        = val;
-            ega->overscan_color = ega->vres ? pallook16[ega->attrregs[0x11] & 0x0f] :
-                                              pallook64[ega->attrregs[0x11] & 0x3f];
+            ega->overscan_color = ega->vres ? ega->pallook16[ega->attrregs[0x11] & 0x0f] :
+                                              ega->pallook64[ega->attrregs[0x11] & 0x3f];
 
             uint16_t base_addr = 0x03a0;
 #ifdef EGA_ALT_ADDR_SUPPORT
@@ -317,6 +312,20 @@ ega_out(uint16_t addr, uint8_t val, void *priv)
             /* Feature Control: bits 0-1 drive the FC0/FC1 feature connector pins. */
             ega->feat_ctrl = val & 0x03;
             break;
+        case 0x2db:
+        case 0x3db:
+            /* Clear Light Pen Latch (3BBh/3DBh). */
+            if (type != EGA_TYPE_OTHER)
+                ega->lp_strobe = 0;
+            break;
+        case 0x2dc:
+        case 0x3dc:
+            /* Set Light Pen Latch (3BCh/3DCh): latches the current CRTC address. */
+            if ((type != EGA_TYPE_OTHER) && !ega->lp_strobe) {
+                ega->lp_strobe = 1;
+                ega->light_pen = (ega->memaddr >> 2) & 0xffff;
+            }
+            break;
         case 0x2d1:
         case 0x3d1:
         case 0x2d5:
@@ -365,7 +374,7 @@ ega_in(uint16_t addr, void *priv)
 {
     ega_t  *ega      = (ega_t *) priv;
     uint8_t ret      = 0xff;
-    int     type     = ega_type;
+    int     type     = ega->type;
     int     atype    = ega->actual_type;
     uint8_t gdcmask  = (atype == EGA_SUPEREGA) ? 0xff : 0x0f;
     uint8_t crtcmask = (atype == EGA_SUPEREGA) ? 0xff : 0x1f;
@@ -408,7 +417,7 @@ ega_in(uint16_t addr, void *priv)
             break;
         case 0x2c2:
         case 0x3c2:
-            ret = (egaswitches & (8 >> egaswitchread)) ? 0x10 : 0x00;
+            ret = (ega->switches & (8 >> ega->switchread)) ? 0x10 : 0x00;
             /* Bits 5-6: FEAT0/FEAT1 inputs from the feature connector. */
             ret |= (ega->feat_in & 0x03) << 5;
             break;
@@ -561,6 +570,13 @@ ega_in(uint16_t addr, void *priv)
                 ega->status ^= 0x30; /* Fools IBM EGA video BIOS self-test. */
                 ret = ega->status;
             }
+            /* Bit 1: light pen latch set; bit 2: light pen switch open (1 with no
+               pen, or while its button is not pressed). */
+            if (type != EGA_TYPE_OTHER) {
+                ret &= ~0x06;
+                ret |= ega->lp_strobe ? 0x02 : 0x00;
+                ret |= (!cga_lightpen_enabled || !tablet_get_buttons_ex()) ? 0x04 : 0x00;
+            }
             break;
         case 0x7c6:
             ret = 0xfd; /* EGA mode supported. */
@@ -650,7 +666,7 @@ ega_recalctimings_common(ega_t *ega)
         }
 
         crtcconst *= mdiv;
-    } else if (ega_type == EGA_TYPE_COMPAQ) {
+    } else if (ega->type == EGA_TYPE_COMPAQ) {
         color = (ega->miscout & 1);
         clksel = ((ega->miscout & 0xc) >> 2);
 
@@ -789,14 +805,14 @@ ega_recalctimings_common(ega_t *ega)
     if (ega->dispofftime < TIMER_USEC)
         ega->dispofftime = TIMER_USEC;
 
-    if (ega_type == EGA_TYPE_COMPAQ) {
+    if (ega->type == EGA_TYPE_COMPAQ) {
         ega->dot_time  = (uint64_t) (int64_t) (ega->dot_clock);
         if (ega->dot_time < TIMER_USEC)
             ega->dot_time = TIMER_USEC;
         timer_disable(&ega->dot_timer);
         timer_set_delay_u64(&ega->dot_timer, ega->dot_time);
         ega->cca = 0;
-        active   = 1;
+        ega->dot_active   = 1;
         ega->dot = 0;
     }
 
@@ -882,7 +898,7 @@ ega_dot_poll(void *priv)
     if ((chr & ~0x1F) == 0xC0 && attrlinechars)
         dat |= (dat >> 1) & 1;
 
-    if (!active)
+    if (!ega->dot_active)
         dat = 0x200;
 
     if (drawcursor) {
@@ -905,10 +921,10 @@ ega_dot_poll(void *priv)
 
         cclock++;
 
-        if (active && (cclock == _dispofftime))
-            active = 0;
-        else if (!active && (cclock == _dispontime))
-            active = 1;
+        if (ega->dot_active && (cclock == _dispofftime))
+            ega->dot_active = 0;
+        else if (!ega->dot_active && (cclock == _dispontime))
+            ega->dot_active = 1;
     }
 }
 
@@ -1244,6 +1260,87 @@ ega_feature_needs_processing(const ega_t *ega)
     return ega->drivers_off || EGA_FEATURE_IS_COMPOSITE(ega->feature_card);
 }
 
+/* Light pen: where the pen points, in buffer32 coordinates, for this card's
+   monitor. Uses the same input device and conventions as the CGA light pen, and
+   the same image placement as ega_doblit(). */
+static int
+ega_lightpen_pos(const ega_t *ega, int *bx, int *by)
+{
+    double abs_x;
+    double abs_y;
+    int    unscaled_oy;
+    int    x_start;
+    int    y_start;
+    int    w;
+    int    h;
+
+    if (!cga_lightpen_enabled || (ega->type == EGA_TYPE_OTHER) ||
+        (mouse_tablet_in_proximity <= 0) || ((mouse_tablet_in_proximity - 1) != ega->monitor_index))
+        return 0;
+
+    mouse_get_abs_coords(&abs_x, &abs_y);
+
+    unscaled_oy = ega->vres ? (overscan_y >> 1) : overscan_y;
+    x_start     = enable_overscan ? 0 : (overscan_x >> 1);
+    y_start     = enable_overscan ? 0 : (unscaled_oy >> 1);
+    if (ega->vres)
+        y_start <<= 1;
+
+    w = xsize + (enable_overscan ? overscan_x : 0);
+    h = ysize + (enable_overscan ? (ega->vres ? (unscaled_oy << 1) : unscaled_oy) : 0);
+    if ((w <= 1) || (h <= 1))
+        return 0;
+
+    *bx = x_start + (int) (abs_x * (w - 1));
+    *by = y_start + (int) (abs_y * (h - 1));
+    return 1;
+}
+
+/* Called for every rendered buffer line: if the pen is on it, remember the CRTC
+   address under the pen. The latch itself is set at the end of the frame, once
+   the picture can be checked for enough light (see ega_lightpen_frame()). */
+static void
+ega_lightpen_line(ega_t *ega, int line, uint32_t line_ma)
+{
+    int bx;
+    int by;
+    int cw;
+    int col;
+
+    if (ega->lp_found || !ega_lightpen_pos(ega, &bx, &by) || (by != line))
+        return;
+
+    if (!(ega->gdcreg[6] & 1))
+        cw = (ega->seqregs[1] & 1) ? 8 : 9;
+    else
+        cw = 8;
+    if (ega->seqregs[1] & 8)
+        cw <<= 1;
+
+    col = (bx - ega->x_add) / cw;
+    if ((bx < ega->x_add) || (col >= (ega->crtc[1] + 1)))
+        return;
+
+    ega->lp_found    = 1;
+    ega->lp_found_x  = bx;
+    ega->lp_found_y  = by;
+    ega->lp_found_ma = ((line_ma >> 2) + col) & 0xffff;
+}
+
+/* End of frame: the pen fires if the picture under it is bright enough, setting
+   the latch flip-flop and loading R10/R11, unless the latch is already set. */
+static void
+ega_lightpen_frame(ega_t *ega)
+{
+    if (ega->lp_found && !ega->lp_strobe && (buffer32 != NULL) &&
+        (cga_sample_luma(buffer32, ega->lp_found_x, ega->lp_found_y) >= cga_luma_threshold)) {
+        ega->lp_strobe = 1;
+        ega->light_pen = ega->lp_found_ma;
+    }
+
+    ega->lp_found = 0;
+}
+
 static void
 ega_poll_common(ega_t *ega)
 {
@@ -1301,6 +1398,9 @@ ega_poll_common(ega_t *ega)
                     ega_feature_process_line(ega, ega->displine + ega->y_add,
                                              ega->drivers_off ? (xsize + overscan_x) :
                                                                 (overscan_x + ega->hdisp + ega->scrollcache), 0);
+
+                if (cga_lightpen_enabled)
+                    ega_lightpen_line(ega, ega->displine + ega->y_add, old_ma);
 
                 if (y != ega->vres) {
                     ega->memaddr = old_ma;
@@ -1435,6 +1535,9 @@ ega_poll_common(ega_t *ega)
                     wy >>= 1;
                 ega_doblit(wx, wy, ega);
             }
+
+            if (cga_lightpen_enabled || ega->lp_found)
+                ega_lightpen_frame(ega);
 
             frames++;
 
@@ -1851,7 +1954,7 @@ ega_debug_ptr(uint32_t addr, UNUSED(int write), void *priv)
     addr = ega_remap_cpu_addr(addr, ega) << 2;
     if (addr >= ega->vram_limit)
         return NULL;
-    if ((ega_type == EGA_TYPE_COMPAQ) && (ega->gdcreg[4] & 0x04))
+    if ((ega->type == EGA_TYPE_COMPAQ) && (ega->gdcreg[4] & 0x04))
         return NULL;
 
     return &ega->vram[addr | readplane];
@@ -1899,7 +2002,7 @@ ega_read(uint32_t addr, void *priv)
         return ~(temp | temp2 | temp3 | temp4);
     }
 
-    if ((ega_type == EGA_TYPE_COMPAQ) && (ega->gdcreg[4] & 0x04))
+    if ((ega->type == EGA_TYPE_COMPAQ) && (ega->gdcreg[4] & 0x04))
         return 0xff;
 
     return ega->vram[addr | readplane];
@@ -1928,19 +2031,19 @@ ega_init(ega_t *ega, int monitor_type, int is_mono)
     if (is_mono) {
         for (uint16_t c = 0; c < 256; c++) {
             if (((c >> 3) & 3) == 0)
-                pallook64[c] = pallook16[c] = makecol32(0, 0, 0);
+                ega->pallook64[c] = ega->pallook16[c] = makecol32(0, 0, 0);
             else
                 switch (monitor_type >> 4) {
                     case DISPLAY_GREEN:
                         switch ((c >> 3) & 3) {
                             case 1:
-                                pallook64[c] = pallook16[c] = makecol32(0x08, 0xc7, 0x2c);
+                                ega->pallook64[c] = ega->pallook16[c] = makecol32(0x08, 0xc7, 0x2c);
                                 break;
                             case 2:
-                                pallook64[c] = pallook16[c] = makecol32(0x04, 0x8a, 0x20);
+                                ega->pallook64[c] = ega->pallook16[c] = makecol32(0x04, 0x8a, 0x20);
                                 break;
                             case 3:
-                                pallook64[c] = pallook16[c] = makecol32(0x34, 0xff, 0x5d);
+                                ega->pallook64[c] = ega->pallook16[c] = makecol32(0x34, 0xff, 0x5d);
                                 break;
 
                             default:
@@ -1950,13 +2053,13 @@ ega_init(ega_t *ega, int monitor_type, int is_mono)
                     case DISPLAY_AMBER:
                         switch ((c >> 3) & 3) {
                             case 1:
-                                pallook64[c] = pallook16[c] = makecol32(0xef, 0x79, 0x00);
+                                ega->pallook64[c] = ega->pallook16[c] = makecol32(0xef, 0x79, 0x00);
                                 break;
                             case 2:
-                                pallook64[c] = pallook16[c] = makecol32(0xb2, 0x4d, 0x00);
+                                ega->pallook64[c] = ega->pallook16[c] = makecol32(0xb2, 0x4d, 0x00);
                                 break;
                             case 3:
-                                pallook64[c] = pallook16[c] = makecol32(0xff, 0xe3, 0x34);
+                                ega->pallook64[c] = ega->pallook16[c] = makecol32(0xff, 0xe3, 0x34);
                                 break;
 
                             default:
@@ -1967,13 +2070,13 @@ ega_init(ega_t *ega, int monitor_type, int is_mono)
                     default:
                         switch ((c >> 3) & 3) {
                             case 1:
-                                pallook64[c] = pallook16[c] = makecol32(0xaf, 0xb3, 0xb0);
+                                ega->pallook64[c] = ega->pallook16[c] = makecol32(0xaf, 0xb3, 0xb0);
                                 break;
                             case 2:
-                                pallook64[c] = pallook16[c] = makecol32(0x7a, 0x81, 0x83);
+                                ega->pallook64[c] = ega->pallook16[c] = makecol32(0x7a, 0x81, 0x83);
                                 break;
                             case 3:
-                                pallook64[c] = pallook16[c] = makecol32(0xff, 0xfd, 0xed);
+                                ega->pallook64[c] = ega->pallook16[c] = makecol32(0xff, 0xfd, 0xed);
                                 break;
 
                             default:
@@ -1984,16 +2087,16 @@ ega_init(ega_t *ega, int monitor_type, int is_mono)
         }
     } else {
         for (uint16_t c = 0; c < 256; c++) {
-            pallook64[c] = makecol32(((c >> 2) & 1) * 0xaa, ((c >> 1) & 1) * 0xaa, (c & 1) * 0xaa);
-            pallook64[c] += makecol32(((c >> 5) & 1) * 0x55, ((c >> 4) & 1) * 0x55, ((c >> 3) & 1) * 0x55);
-            pallook16[c] = makecol32(((c >> 2) & 1) * 0xaa, ((c >> 1) & 1) * 0xaa, (c & 1) * 0xaa);
-            pallook16[c] += makecol32(((c >> 4) & 1) * 0x55, ((c >> 4) & 1) * 0x55, ((c >> 4) & 1) * 0x55);
+            ega->pallook64[c] = makecol32(((c >> 2) & 1) * 0xaa, ((c >> 1) & 1) * 0xaa, (c & 1) * 0xaa);
+            ega->pallook64[c] += makecol32(((c >> 5) & 1) * 0x55, ((c >> 4) & 1) * 0x55, ((c >> 3) & 1) * 0x55);
+            ega->pallook16[c] = makecol32(((c >> 2) & 1) * 0xaa, ((c >> 1) & 1) * 0xaa, (c & 1) * 0xaa);
+            ega->pallook16[c] += makecol32(((c >> 4) & 1) * 0x55, ((c >> 4) & 1) * 0x55, ((c >> 4) & 1) * 0x55);
             if ((c & 0x17) == 6)
-                pallook16[c] = makecol32(0xaa, 0x55, 0);
+                ega->pallook16[c] = makecol32(0xaa, 0x55, 0);
         }
     }
 
-    ega->pallook = pallook16;
+    ega->pallook = ega->pallook16;
 
     for (uint16_t c = 0; c < 256; c++) {
         ega->mda_attr_to_color_table[c][0][0] = ega->mda_attr_to_color_table[c][1][0] = ega->mda_attr_to_color_table[c][1][1] = 16;
@@ -2015,7 +2118,7 @@ ega_init(ega_t *ega, int monitor_type, int is_mono)
     ega->mda_attr_to_color_table[0x80][0][1] = ega->mda_attr_to_color_table[0x80][1][1] = 16;
     ega->mda_attr_to_color_table[0x88][0][1] = ega->mda_attr_to_color_table[0x88][1][1] = 16;
 
-    egaswitches = monitor_type & 0xf;
+    ega->switches = monitor_type & 0xf;
 
     ega->vram_limit = 256 * 1024;
     ega->vrammask   = ega->vram_limit - 1;
@@ -2038,7 +2141,7 @@ ega_init(ega_t *ega, int monitor_type, int is_mono)
     ega->render_override = NULL;
 
     timer_add(&ega->timer, ega_poll, ega, 1);
-    if (ega_type == EGA_TYPE_COMPAQ)
+    if (ega->type == EGA_TYPE_COMPAQ)
         timer_add(&ega->dot_timer, ega_dot_poll, ega, 1);
 }
 
@@ -2048,11 +2151,11 @@ ega_set_type(void *priv, uint32_t local)
     ega_t *ega = (ega_t *) priv;
 
     if ((local == EGA_IBM) || (local == EGA_ISKRA) || (local == EGA_TSENG))
-        ega_type = EGA_TYPE_IBM;
+        ega->type = EGA_TYPE_IBM;
     else if (local == EGA_COMPAQ)
-        ega_type = EGA_TYPE_COMPAQ;
+        ega->type = EGA_TYPE_COMPAQ;
     else
-        ega_type = EGA_TYPE_OTHER;
+        ega->type = EGA_TYPE_OTHER;
 
     ega->actual_type = local;
     ega->chipset = 0;
@@ -2103,7 +2206,7 @@ ega_feature_init(ega_t *ega, int card)
                                    ((c & 0x01) ? gb : 0.0) + ((c & 0x10) ? gi : 0.0)) /
                                   (gr + gg + gb + gi);
 
-                pallook16[c] = pallook64[c] = makecol32((int) (((t >> 16) & 0xff) * y),
+                ega->pallook16[c] = ega->pallook64[c] = makecol32((int) (((t >> 16) & 0xff) * y),
                                                         (int) (((t >> 8) & 0xff) * y),
                                                         (int) ((t & 0xff) * y));
             }
@@ -2114,7 +2217,7 @@ ega_feature_init(ega_t *ega, int card)
             /* As for NTSC below, the palette output becomes the RGBI index, which
                ega_pal_process() encodes and decodes as PAL. */
             for (uint16_t c = 0; c < 256; c++)
-                pallook16[c] = pallook64[c] = ((c >> 1) & 0x08) | (c & 0x07);
+                ega->pallook16[c] = ega->pallook64[c] = ((c >> 1) & 0x08) | (c & 0x07);
 
             ega->pal = ega_pal_init(device_get_config_int("pal_lock"), device_get_config_int("pal_luma"));
             break;
@@ -2123,7 +2226,7 @@ ega_feature_init(ega_t *ega, int card)
             /* The palette output becomes the raw RGBI index, which
                ega_feature_process_line() encodes and decodes as NTSC. */
             for (uint16_t c = 0; c < 256; c++)
-                pallook16[c] = pallook64[c] = ((c >> 1) & 0x08) | (c & 0x07);
+                ega->pallook16[c] = ega->pallook64[c] = ((c >> 1) & 0x08) | (c & 0x07);
 
             /* The "new" CGA model mixes R, G and B into luminance, as a
                resistor-network RGBI encoder does. */
@@ -2208,11 +2311,11 @@ ega_standalone_init(const device_t *info)
     ega->y_add = 14;
 
     if ((info->local == EGA_IBM) || (info->local == EGA_ISKRA) || (info->local == EGA_TSENG))
-        ega_type = EGA_TYPE_IBM;
+        ega->type = EGA_TYPE_IBM;
     else if (info->local == EGA_COMPAQ)
-        ega_type = EGA_TYPE_COMPAQ;
+        ega->type = EGA_TYPE_COMPAQ;
     else
-        ega_type = EGA_TYPE_OTHER;
+        ega->type = EGA_TYPE_OTHER;
 
     ega->actual_type = info->local;
     ega->chipset = 0;
@@ -2220,8 +2323,10 @@ ega_standalone_init(const device_t *info)
     switch (info->local) {
         default:
         case EGA_IBM:
+            /* The IBM EGA's ROM is a single 16 KB 27128, and the card only decodes
+               C0000-C3FFF; C4000-C7FFF is left free for other adapters. */
             rom_init(&ega->bios_rom, BIOS_IBM_PATH,
-                     0xc0000, 0x8000, 0x7fff, 0, MEM_MAPPING_EXTERNAL);
+                     0xc0000, 0x4000, 0x3fff, 0, MEM_MAPPING_EXTERNAL);
             break;
         case EGA_COMPAQ:
             ega->ctl_mode = 0x21;
@@ -2291,11 +2396,11 @@ ega_standalone_init(const device_t *info)
 
     mem_mapping_add(&ega->mapping, 0xa0000, ega->mono_io_disabled ? 0x10000 : 0x20000,
                     ega_read, NULL, NULL, ega_write, NULL, NULL, NULL, MEM_MAPPING_EXTERNAL, ega);
-    if (ega_type == EGA_TYPE_COMPAQ)
+    if (ega->type == EGA_TYPE_COMPAQ)
         mem_mapping_disable(&ega->mapping);
     uint16_t addr = 0x03a0;
 #ifdef EGA_ALT_ADDR_SUPPORT
-    if (ega_type == EGA_TYPE_IBM) {
+    if (ega->type == EGA_TYPE_IBM) {
         addr = device_get_config_hex16("base") - 0x0020;
         if (addr == 0x02a0)
             ega->alt_addr = 1;
