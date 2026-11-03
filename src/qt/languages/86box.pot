@@ -4300,3 +4300,6 @@ msgstr ""
 
 msgid "Color composite (NTSC)"
 msgstr ""
+
+msgid "Color composite (PAL)"
+msgstr ""
