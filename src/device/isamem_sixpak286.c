@@ -78,6 +78,30 @@ typedef struct sp286_base_t {
 
 #define MAPPER_MODE(bs) ((bs)->creg[0x40] & 0x80)
 
+/*
+ * Control registers (B+8000h index, B+8001h data), from REMM 4.41:
+ *   00h       ID: D0h = SixPak 286 (70h, E0h = related mapper boards)
+ *   0Ch, 36h, 39h, 3Dh, 3Fh  read/write latches: REMM's probe (31A6h)
+ *             writes 04h/B4h/E9h/DAh/A5h and needs them read back
+ *   20h       active map set
+ *   30h-3Fh   EMS 4.0 DMA register sets: register 30h + n = the map set
+ *             used while DMA channel n is active, 80h = none. REMM writes
+ *             them from INT 67h 5Bh/06 (enable DMA on an alternate map
+ *             set) and 5Bh/07, 08 (disable, deallocate); its /A=n option
+ *             makes the top n of the 32 sets DMA sets (default 8). All are
+ *             set to 80h at init, after the 2048 map entries are cleared.
+ *   40h       bit 7 mapper mode; bit 6 set by REMM when it assigns a DMA
+ *             channel (never cleared again), i.e. DMA map switching on;
+ *             bits 1..0 read by REMM as a capacity code for its page probe
+ *             limit (0 = 80h pages, 1 = 140h, else 200h); bits 5..0 are
+ *             written as 0
+ *   50h, 60h  linear start / size - 1, 128 KB units
+ *   80h       written (with REMM's /M= value) only on the 70h board
+ * TODO: the DMA map sets are latched but not acted on: the mapper always
+ *       uses register 20h's set. Switching per DMA channel would need the
+ *       DMA controller to say which channel is accessing memory.
+ */
+
 typedef struct sp286_win_t {
     sp286_t      *dev;
     int           win;
@@ -717,8 +741,13 @@ sp286_apply(sp286_t *dev)
         uint32_t below = (uint32_t) rev6(f[10]) << 17;
         uint32_t size1 = (uint32_t) (rev4(f[6]) + 1) << 17;
         uint32_t size2 = 0;
-        /* Base 2 linear part: f5 = size code, f7/f8 = its "memory below"
-           (all ones = none). Only with base 1 fully linear. */
+        /* Base 2 linear part: f5 = size code (same coding as f6), f7/f8 =
+           its "memory below", rev7(f7 | f8 << 2) x 128 KB, all ones =
+           none. SMART6 always writes base 1's memory below + base 1's
+           linear size there (verified for 256, 640 and 1024 KB installed),
+           so base 2's block follows base 1's and the field is not needed.
+           Only with base 1 fully linear. f0 (5 bits) is 0 in every record
+           SMART6 1.00.04 writes. */
         if (!((f[7] == 3) && (f[8] == 0x1f)) && (size1 == SP286_BASE_RAM) && dev->base[1].iobase)
             size2 = (uint32_t) (rev4(f[5]) + 1) << 17;
         sp286_set_linear(dev, (below < 0xa0000) ? below : (below + 0x60000), size1, size2);
