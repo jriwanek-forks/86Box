@@ -207,6 +207,17 @@ extern int update_overscan;
 #define EGA_FEATURE_MONO_COMP_W    2 /* RGBI to monochrome composite, white      */
 #define EGA_FEATURE_MONO_COMP_G    3 /* RGBI to monochrome composite, green      */
 #define EGA_FEATURE_MONO_COMP_A    4 /* RGBI to monochrome composite, amber      */
+
+/* Monochrome composite card: Hugo Holden's EGA-to-IBM 5155 design. The R, G, B and
+   g (intensity in 200-line modes) pins go through a 74LS244 and these resistors
+   (ohms) into one summing node, which drives a BC639 emitter follower. Composite
+   sync and the bias network add only a fixed offset during active video, so each
+   line's share of the luminance is its conductance over the total. Resistor values
+   from his schematic; adjust them here to model a different build. */
+#define EGA_MONO_COMP_R_RED        2000.0
+#define EGA_MONO_COMP_R_GREEN      1000.0
+#define EGA_MONO_COMP_R_BLUE       4300.0
+#define EGA_MONO_COMP_R_INTENSITY   470.0
 #define EGA_FEATURE_COLOR_COMP     5 /* RGBI to NTSC colour composite            */
 #define EGA_FEATURE_COLOR_COMP_PAL 6 /* RGBI to PAL colour composite             */
 

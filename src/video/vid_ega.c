@@ -2091,13 +2091,17 @@ ega_feature_init(ega_t *ega, int card)
             const uint32_t t = tint[card - EGA_FEATURE_MONO_COMP_W];
 
             for (uint16_t c = 0; c < 256; c++) {
-                /* RGBI to luminance: each gun at 2/3 when on plus 1/3 from the
-                   intensity line, weighted with the NTSC luma coefficients. */
-                const double i = (c & 0x10) ? (1.0 / 3.0) : 0.0;
-                const double r = ((c & 0x04) ? (2.0 / 3.0) : 0.0) + i;
-                const double g = ((c & 0x02) ? (2.0 / 3.0) : 0.0) + i;
-                const double b = ((c & 0x01) ? (2.0 / 3.0) : 0.0) + i;
-                const double y = (0.299 * r) + (0.587 * g) + (0.114 * b);
+                /* RGBI to luminance through the card's resistor network: each
+                   active line adds its conductance (see EGA_MONO_COMP_R_*). With
+                   Holden's values intensity outweighs R+G+B together, giving 16
+                   distinct grey levels, every bright colour above every normal one. */
+                const double gr = 1.0 / EGA_MONO_COMP_R_RED;
+                const double gg = 1.0 / EGA_MONO_COMP_R_GREEN;
+                const double gb = 1.0 / EGA_MONO_COMP_R_BLUE;
+                const double gi = 1.0 / EGA_MONO_COMP_R_INTENSITY;
+                const double y  = (((c & 0x04) ? gr : 0.0) + ((c & 0x02) ? gg : 0.0) +
+                                   ((c & 0x01) ? gb : 0.0) + ((c & 0x10) ? gi : 0.0)) /
+                                  (gr + gg + gb + gi);
 
                 pallook16[c] = pallook64[c] = makecol32((int) (((t >> 16) & 0xff) * y),
                                                         (int) (((t >> 8) & 0xff) * y),
