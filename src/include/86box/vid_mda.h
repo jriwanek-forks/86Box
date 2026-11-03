@@ -114,6 +114,7 @@ typedef struct mda_t {
     int32_t     monitor_index;
     int32_t     prev_monitor_index;
     int32_t     monitor_type;           // Used for MDA Colour support (REV0 u64)
+    int32_t     colour_outputs;         // Pins 3-5 carry the attribute colour bits (early IBM MDA, or reworked)
 
     uint8_t    *vram;
     lpt_t      *lpt;
