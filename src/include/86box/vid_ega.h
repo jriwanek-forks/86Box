@@ -160,6 +160,7 @@ typedef struct ega_t {
     uint8_t    feat_in;       /* FEAT0/FEAT1, driven by the card, read back at 3C2h. */
     uint8_t    drivers_off;   /* Misc Output bit 4 set with nothing else driving a display. */
     double     ext_clock;     /* Dot clock supplied by the card, 0 if none. */
+    void      *pal;           /* PAL encoder/decoder state (ega_pal_t), NULL if unused. */
 } ega_t;
 #endif
 
@@ -207,6 +208,14 @@ extern int update_overscan;
 #define EGA_FEATURE_MONO_COMP_G    3 /* RGBI to monochrome composite, green      */
 #define EGA_FEATURE_MONO_COMP_A    4 /* RGBI to monochrome composite, amber      */
 #define EGA_FEATURE_COLOR_COMP     5 /* RGBI to NTSC colour composite            */
+#define EGA_FEATURE_COLOR_COMP_PAL 6 /* RGBI to PAL colour composite             */
+
+#define EGA_FEATURE_IS_COMPOSITE(c) (((c) == EGA_FEATURE_COLOR_COMP) || ((c) == EGA_FEATURE_COLOR_COMP_PAL))
+
+/* PAL colour subcarrier (Hz). Unlike NTSC it is not a sub-multiple of any EGA dot
+   clock (14.318 MHz / 4.434 MHz = 3.229 samples per cycle), so the cross-colour
+   patterns crawl from line to line and frame to frame instead of standing still. */
+#define EGA_PAL_FSC                4433618.75
 
 /* Dot clock of the 132-column feature card, selected by programming Misc Output
    bits 3-2 to 10b (external clock). No period card's documentation has turned up

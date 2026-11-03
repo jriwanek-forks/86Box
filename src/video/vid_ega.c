@@ -15,7 +15,9 @@
  *          Copyright 2008-2019 Sarah Walker.
  *          Copyright 2016-2019 Miran Grca.
  */
+#define _USE_MATH_DEFINES
 #include <stdarg.h>
+#include <math.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdint.h>
@@ -582,6 +584,8 @@ ega_in(uint16_t addr, void *priv)
     return ret;
 }
 
+static void ega_pal_recalc(void *priv, double dot_hz, double line_dots);
+
 static void
 ega_recalctimings_common(ega_t *ega)
 {
@@ -702,6 +706,17 @@ ega_recalctimings_common(ega_t *ega)
        feature card produces its own picture, the monitor goes dark. */
     ega->drivers_off = (ega->actual_type == EGA_IBM) && (ega->miscout & 0x10) &&
                        ((ega->feature_card == EGA_FEATURE_NONE) || (ega->feature_card == EGA_FEATURE_132COL));
+
+    /* The PAL encoder works on buffer pixels, which always come at the master
+       dot clock (a halved clock is drawn as doubled pixels). */
+    if (ega->pal) {
+        const int    clk = (ega->miscout >> 2) & 0x03;
+        const double hz  = ((clk == 2) && (ega->ext_clock > 0.0)) ? ega->ext_clock :
+                           (ega->vidclock ? 16257000.0 : (157500000.0 / 11.0));
+        const double chars = (ega->seqregs[1] & 8) ? ((ega->crtc[0] + 2) << 1) : (ega->crtc[0] + 2);
+
+        ega_pal_recalc(ega->pal, hz, chars * mdiv);
+    }
     ega->dot_clock = crtcconst / mdiv;
 
     ega->interlace = 0;
@@ -897,6 +912,171 @@ ega_dot_poll(void *priv)
     }
 }
 
+/* ---- PAL colour composite ------------------------------------------------
+   86Box's CGA decoder is NTSC only, so the PAL card gets its own model, run on
+   buffer pixels at the EGA's master dot clock:
+
+   encoder: RGBI -> R'G'B' (2/3 per gun + 1/3 intensity) -> Y, U, V;
+            composite = Y + U sin(wt) +/- V cos(wt), V switched every line,
+            subcarrier phase carried across pixels, lines and frames.
+   decoder: synchronous demodulation (2 sin, +/-2 cos) and a 1.3 MHz chroma
+            low-pass, luma = composite minus the re-modulated chroma, then a
+            PAL delay line (U and V averaged with the previous line), then RGB.
+
+   There is no hue error to correct, so the delay line only adds the vertical
+   chroma blur and the cancelling of cross-colour that a real PAL set shows. */
+#define EGA_PAL_TAPS     15      /* Odd; chroma low-pass length. */
+#define EGA_PAL_CHROMA_F 1300000.0
+#define EGA_PAL_MAXW     2048
+
+typedef struct ega_pal_t {
+    double fs;            /* Sample (master dot clock) rate in Hz. */
+    double step;          /* Subcarrier cycles per sample. */
+    double cyc_per_line;  /* Subcarrier cycles per scanline. */
+    double phase;         /* Subcarrier phase at the start of the current line, in cycles. */
+    int    vsign;         /* PAL V switch for the current line. */
+
+    float  lpf[EGA_PAL_TAPS];
+    float  y[16], u[16], v[16];
+    uint32_t rgb[16];     /* Steady-state colour, for flat border lines. */
+
+    float  comp[EGA_PAL_MAXW], s[EGA_PAL_MAXW], c[EGA_PAL_MAXW];
+    float  du[EGA_PAL_MAXW], dv[EGA_PAL_MAXW];
+    float  prev_u[EGA_PAL_MAXW], prev_v[EGA_PAL_MAXW];
+} ega_pal_t;
+
+static uint32_t
+ega_pal_yuv_to_rgb(float y, float u, float v)
+{
+    int r = (int) ((y + (1.13983f * v)) * 255.0f + 0.5f);
+    int g = (int) ((y - (0.39465f * u) - (0.58060f * v)) * 255.0f + 0.5f);
+    int b = (int) ((y + (2.03211f * u)) * 255.0f + 0.5f);
+
+    r = (r < 0) ? 0 : ((r > 255) ? 255 : r);
+    g = (g < 0) ? 0 : ((g > 255) ? 255 : g);
+    b = (b < 0) ? 0 : ((b > 255) ? 255 : b);
+
+    return (r << 16) | (g << 8) | b;
+}
+
+/* (Re)builds the chroma low-pass for a new sample rate. */
+static void
+ega_pal_set_rate(ega_pal_t *pal, double fs)
+{
+    const int    half = EGA_PAL_TAPS / 2;
+    const double fc   = EGA_PAL_CHROMA_F / fs;
+    double       sum  = 0.0;
+    double       h[EGA_PAL_TAPS];
+
+    if (fs == pal->fs)
+        return;
+
+    pal->fs   = fs;
+    pal->step = EGA_PAL_FSC / fs;
+
+    for (int n = 0; n < EGA_PAL_TAPS; n++) {
+        const int    k    = n - half;
+        const double sinc = (k == 0) ? (2.0 * fc) : (sin(2.0 * M_PI * fc * k) / (M_PI * k));
+        const double win  = 0.54 - 0.46 * cos(2.0 * M_PI * n / (EGA_PAL_TAPS - 1)); /* Hamming */
+
+        h[n] = sinc * win;
+        sum += h[n];
+    }
+    for (int n = 0; n < EGA_PAL_TAPS; n++)
+        pal->lpf[n] = (float) (h[n] / sum);
+}
+
+static ega_pal_t *
+ega_pal_init(void)
+{
+    ega_pal_t *pal = calloc(1, sizeof(ega_pal_t));
+
+    for (int c = 0; c < 16; c++) {
+        const float i = (c & 8) ? (1.0f / 3.0f) : 0.0f;
+        const float r = ((c & 4) ? (2.0f / 3.0f) : 0.0f) + i;
+        const float g = ((c & 2) ? (2.0f / 3.0f) : 0.0f) + i;
+        const float b = ((c & 1) ? (2.0f / 3.0f) : 0.0f) + i;
+
+        pal->y[c]   = (0.299f * r) + (0.587f * g) + (0.114f * b);
+        pal->u[c]   = 0.492f * (b - pal->y[c]);
+        pal->v[c]   = 0.877f * (r - pal->y[c]);
+        pal->rgb[c] = ega_pal_yuv_to_rgb(pal->y[c], pal->u[c], pal->v[c]);
+    }
+
+    pal->vsign = 1;
+    ega_pal_set_rate(pal, 157500000.0 / 11.0);
+
+    return pal;
+}
+
+static void
+ega_pal_recalc(void *priv, double dot_hz, double line_dots)
+{
+    ega_pal_t *pal = (ega_pal_t *) priv;
+
+    ega_pal_set_rate(pal, dot_hz);
+    pal->cyc_per_line = line_dots * EGA_PAL_FSC / dot_hz;
+}
+
+/* Called once per scanline, displayed or not, so the subcarrier phase and the
+   V switch run on through the blanking intervals as they do on real hardware. */
+static void
+ega_pal_next_line(ega_pal_t *pal)
+{
+    pal->phase += pal->cyc_per_line;
+    pal->phase -= floor(pal->phase);
+    pal->vsign = -pal->vsign;
+}
+
+/* Encodes and decodes one line of RGBI indices in place. */
+static void
+ega_pal_process(ega_pal_t *pal, uint32_t *p, int width)
+{
+    const int   half  = EGA_PAL_TAPS / 2;
+    const float vsign = (float) pal->vsign;
+
+    if (width > EGA_PAL_MAXW)
+        width = EGA_PAL_MAXW;
+
+    /* Encode. */
+    for (int n = 0; n < width; n++) {
+        const int    idx = p[n] & 0x0f;
+        const double ph  = 2.0 * M_PI * (pal->phase + (n * pal->step));
+
+        pal->s[n]    = (float) sin(ph);
+        pal->c[n]    = (float) cos(ph);
+        pal->comp[n] = pal->y[idx] + (pal->u[idx] * pal->s[n]) + (vsign * pal->v[idx] * pal->c[n]);
+    }
+
+    /* Demodulate and low-pass the chroma (edges clamp to the end samples). */
+    for (int n = 0; n < width; n++) {
+        float u = 0.0f;
+        float v = 0.0f;
+
+        for (int t = 0; t < EGA_PAL_TAPS; t++) {
+            int k = n + t - half;
+
+            k = (k < 0) ? 0 : ((k >= width) ? (width - 1) : k);
+            u += pal->lpf[t] * 2.0f * pal->comp[k] * pal->s[k];
+            v += pal->lpf[t] * 2.0f * vsign * pal->comp[k] * pal->c[k];
+        }
+        pal->du[n] = u;
+        pal->dv[n] = v;
+    }
+
+    /* Luma, delay line, RGB. */
+    for (int n = 0; n < width; n++) {
+        const float y = pal->comp[n] - ((pal->du[n] * pal->s[n]) + (vsign * pal->dv[n] * pal->c[n]));
+        const float u = 0.5f * (pal->du[n] + pal->prev_u[n]);
+        const float v = 0.5f * (pal->dv[n] + pal->prev_v[n]);
+
+        pal->prev_u[n] = pal->du[n];
+        pal->prev_v[n] = pal->dv[n];
+
+        p[n] = ega_pal_yuv_to_rgb(y, u, v);
+    }
+}
+
 /* CGA mode register value the colour composite decoder is run with: 640x200
    graphics with the colour burst on, so it decodes the RGBI stream exactly as it
    comes from the EGA, with no CGA text-mode or B&W quirks applied. */
@@ -906,7 +1086,7 @@ ega_dot_poll(void *priv)
    connector does to the picture. The line holds palette output, which with a
    composite card is the raw RGBI index (see ega_feature_init()). */
 static void
-ega_feature_process_line(ega_t *ega, int line, int width)
+ega_feature_process_line(ega_t *ega, int line, int width, int border)
 {
     uint32_t *p;
 
@@ -925,12 +1105,23 @@ ega_feature_process_line(ega_t *ega, int line, int width)
             p[x] = 0x00000000;
     } else if ((ega->feature_card == EGA_FEATURE_COLOR_COMP) && (width > 0))
         Composite_Process(EGA_COMP_CGAMODE, ega->overscan_color & 0x0f, (width + 3) >> 2, p);
+    else if ((ega->feature_card == EGA_FEATURE_COLOR_COMP_PAL) && (width > 0)) {
+        ega_pal_t *pal = (ega_pal_t *) ega->pal;
+
+        /* A flat border line decodes back to its own colour, and must not
+           disturb the delay line, which holds the last picture line. */
+        if (border) {
+            for (int x = 0; x < width; x++)
+                p[x] = pal->rgb[p[x] & 0x0f];
+        } else
+            ega_pal_process(pal, p, width);
+    }
 }
 
 static inline int
 ega_feature_needs_processing(const ega_t *ega)
 {
-    return ega->drivers_off || (ega->feature_card == EGA_FEATURE_COLOR_COMP);
+    return ega->drivers_off || EGA_FEATURE_IS_COMPOSITE(ega->feature_card);
 }
 
 static void
@@ -945,6 +1136,9 @@ ega_poll_common(ega_t *ega)
         ega->status |= 1;
         ega->linepos = 1;
 
+        if (ega->pal)
+            ega_pal_next_line((ega_pal_t *) ega->pal);
+
         if (ega->dispon) {
             ega->hdisp_on = 1;
 
@@ -957,7 +1151,7 @@ ega_poll_common(ega_t *ega)
             /* Text lines are normally only redrawn when something changed, but
                the composite decoder overwrites the buffer with its output, so
                the indices it works from have to be rendered every time. */
-            if (ega->feature_card == EGA_FEATURE_COLOR_COMP)
+            if (EGA_FEATURE_IS_COMPOSITE(ega->feature_card))
                 ega->fullchange = 2;
 
             old_ma = ega->memaddr;
@@ -974,10 +1168,19 @@ ega_poll_common(ega_t *ega)
                 ega->x_add = (overscan_x >> 1) - ega->scrollcache;
 
                 /* Feature connector output (composite encoding, drivers off). */
-                if (ega_feature_needs_processing(ega))
+                if ((y > 0) && (ega->feature_card == EGA_FEATURE_COLOR_COMP_PAL) && !ega->drivers_off) {
+                    /* A line-doubled 200-line scanline is one line on the wire:
+                       repeat the decoded result rather than run the delay line
+                       and the V switch a second time. */
+                    const int dl = ega->displine + ega->y_add;
+
+                    if ((dl > 0) && (buffer32 != NULL) && buffer32->line[dl & 0x7ff] && buffer32->line[(dl - 1) & 0x7ff])
+                        memcpy(buffer32->line[dl & 0x7ff], buffer32->line[(dl - 1) & 0x7ff],
+                               MIN(overscan_x + ega->hdisp + ega->scrollcache, 2044) * sizeof(uint32_t));
+                } else if (ega_feature_needs_processing(ega))
                     ega_feature_process_line(ega, ega->displine + ega->y_add,
                                              ega->drivers_off ? (xsize + overscan_x) :
-                                                                (overscan_x + ega->hdisp + ega->scrollcache));
+                                                                (overscan_x + ega->hdisp + ega->scrollcache), 0);
 
                 if (y != ega->vres) {
                     ega->memaddr = old_ma;
@@ -1236,7 +1439,7 @@ ega_doblit(int wx, int wy, ega_t *ega)
                 p[j] = ega->overscan_color;
 
             if (ega_feature_needs_processing(ega))
-                ega_feature_process_line(ega, i, xsize + x_add);
+                ega_feature_process_line(ega, i, xsize + x_add, 1);
         }
 
         for (int i = 0; i < bottom; i++) {
@@ -1246,7 +1449,7 @@ ega_doblit(int wx, int wy, ega_t *ega)
                 p[j] = ega->overscan_color;
 
             if (ega_feature_needs_processing(ega))
-                ega_feature_process_line(ega, ysize + ega->y_add + i, xsize + x_add);
+                ega_feature_process_line(ega, ysize + ega->y_add + i, xsize + x_add, 1);
         }
     }
 
@@ -1778,6 +1981,15 @@ ega_feature_init(ega_t *ega, int card)
             break;
         }
 
+        case EGA_FEATURE_COLOR_COMP_PAL:
+            /* As for NTSC below, the palette output becomes the RGBI index, which
+               ega_pal_process() encodes and decodes as PAL. */
+            for (uint16_t c = 0; c < 256; c++)
+                pallook16[c] = pallook64[c] = ((c >> 1) & 0x08) | (c & 0x07);
+
+            ega->pal = ega_pal_init();
+            break;
+
         case EGA_FEATURE_COLOR_COMP:
             /* The palette output becomes the raw RGBI index, which
                ega_feature_process_line() encodes and decodes as NTSC. */
@@ -2022,6 +2234,8 @@ ega_close(void *priv)
 
     if (ega->eeprom)
         free(ega->eeprom);
+    if (ega->pal)
+        free(ega->pal);
     free(ega->vram);
     free(ega);
 }
@@ -2137,7 +2351,8 @@ static const device_config_t ega_ibm_config[] = {
             { .description = "Monochrome composite (white)",       .value = EGA_FEATURE_MONO_COMP_W },
             { .description = "Monochrome composite (green)",       .value = EGA_FEATURE_MONO_COMP_G },
             { .description = "Monochrome composite (amber)",       .value = EGA_FEATURE_MONO_COMP_A },
-            { .description = "Color composite (NTSC)",             .value = EGA_FEATURE_COLOR_COMP  },
+            { .description = "Color composite (NTSC)",             .value = EGA_FEATURE_COLOR_COMP     },
+            { .description = "Color composite (PAL)",              .value = EGA_FEATURE_COLOR_COMP_PAL },
             { .description = ""                                                                     }
         },
         .bios           = { { 0 } }
