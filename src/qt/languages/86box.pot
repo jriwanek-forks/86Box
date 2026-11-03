@@ -3709,3 +3709,21 @@ msgstr ""
 
 msgid "SW1-4 Off Off On Off: Primary, Monochrome (5151)"
 msgstr ""
+
+msgid "Feature connector"
+msgstr ""
+
+msgid "132-column clock card"
+msgstr ""
+
+msgid "Monochrome composite (white)"
+msgstr ""
+
+msgid "Monochrome composite (green)"
+msgstr ""
+
+msgid "Monochrome composite (amber)"
+msgstr ""
+
+msgid "Color composite (NTSC)"
+msgstr ""
