@@ -146,6 +146,43 @@ mda_recalctimings(mda_t *mda)
     mda->dispofftime = (uint64_t) (int64_t) (_dispofftime);
 }
 
+/* Colour output of the early IBM MDA (5150 Technical Reference, August 1981
+   schematics; seasip.info MDA notes).
+
+   On the first revision U64 drives pins 3-5 of the DE9 with attribute bits 0-2
+   on foreground pixels and bits 4-6 on background pixels, so an RGBI colour
+   monitor that can sync to 18.432 kHz / 50 Hz shows eight colours. Pin 6 is the
+   card's normal intensity output: bit 3 on foreground pixels and, with blinking
+   disabled, bit 7 on background pixels. The colour monitor ignores the mono
+   video signal on pin 7, so reverse video and underline come out as plain
+   colour, and the intensity-only "dark" shades become dark grey. Attributes 00h,
+   08h, 80h and 88h, which the card blanks, stay black.
+
+   Later revisions leave pins 3-5 unconnected (restoring U30-U63, U63-U64 and
+   U64-DE9 brings them back), so a colour monitor on one of those only sees the
+   intensity line. */
+static inline uint32_t
+mda_rgbi_colour(const mda_t *mda, uint8_t attr, int fg)
+{
+    uint8_t col;
+
+    if ((attr & 0x77) == 0x00)
+        return CGAPAL_CGA_START + MDA_COLOR_BLACK;
+
+    if (fg)
+        col = attr & 0x0f;
+    else {
+        col = (attr >> 4) & 0x07;
+        if (!(mda->mode & MDA_MODE_BLINK) && (attr & 0x80))
+            col |= 0x08;
+    }
+
+    if (!mda->colour_outputs)
+        col &= 0x08;
+
+    return CGAPAL_CGA_START + col;
+}
+
 void
 mda_poll(void *priv)
 {
@@ -175,107 +212,74 @@ mda_poll(void *priv)
             }
             mda->lastline = mda->displine;
 
+            /* The mode control register's B&W bit (stored in U58) is taken to turn
+               the colour outputs off, as the same bit does on the CGA. */
+            const bool colour = (mda->monitor_type == MDA_MONITOR_TYPE_RGBI) && !(mda->mode & MDA_MODE_BW);
+
             for (uint32_t x = 0; x < mda->crtc[MDA_CRTC_HDISP]; x++) {
                 chr        = mda->vram[(mda->memaddr << 1) & 0xfff];
                 attr       = mda->vram[((mda->memaddr << 1) + 1) & 0xfff];
                 drawcursor = ((mda->memaddr == cursoraddr) && mda->cursorvisible && mda->cursoron);
                 blink      = ((mda->blink & 16) && (mda->mode & MDA_MODE_BLINK) && (attr & 0x80) && !drawcursor);
 
-                // Colours that will be used
-                int32_t color_bg = 0, color_fg = 0;
+                uint32_t *p = &buffer32->line[mda->displine][x * 9];
 
-                // If we are using an RGBI monitor allow colour
-                if (mda->monitor_type == MDA_MONITOR_TYPE_RGBI
-                    && !(mda->mode & MDA_MODE_BW)) {
-                    color_bg = (attr >> 4) & 0x0F;
-                    color_fg = (attr & 0x0F);
+                if (colour) {
+                    /* Each pixel is a foreground or background one, and the colour
+                       monitor sees the matching attribute bits plus intensity. */
+                    const uint32_t fg_col = mda_rgbi_colour(mda, attr, 1);
+                    const uint32_t bg_col = mda_rgbi_colour(mda, attr, 0);
+                    const uint8_t  font   = fontdatm[chr + mda->fontbase][mda->scanline];
+                    const bool     uline  = (mda->scanline == 12) && ((attr & 7) == 1);
 
-                    // turn off bright bg colours in blink mode
-                    if ((mda->mode & MDA_MODE_BLINK)
-                        && (color_bg & 0x8))
-                        color_bg &= ~(0x8);
+                    for (uint32_t column = 0; column < 9; column++) {
+                        bool is_fg;
 
-                    // black-on-non black or white colours forced to white
-                    // grey-on-colours forced to bright white
+                        if (uline)
+                            is_fg = true;
+                        else if (column < 8)
+                            is_fg = (font & (1 << (column ^ 7))) != 0;
+                        else /* Line-drawing characters C0-DF extend into the 9th column. */
+                            is_fg = ((chr & ~0x1f) == 0xc0) && (font & 1);
 
-                    bool special_treatment = (color_bg != 0 && color_bg != 7);
+                        if (blink)
+                            is_fg = false;
+                        if (drawcursor)
+                            is_fg = true;
 
-                    if (color_fg == MDA_COLOR_GREY
-                        && special_treatment)
-                        color_fg = MDA_COLOR_BRIGHT_WHITE;
+                        p[column] = is_fg ? fg_col : bg_col;
+                    }
 
-                    if (color_fg == 0
-                        && special_treatment)
-                        color_fg = MDA_COLOR_GREY;
-
-                    // gray is black
-                    if (color_fg == MDA_COLOR_GREY
-                        && (color_bg == MDA_COLOR_GREY || color_bg == MDA_COLOR_BLACK))
-                        color_fg = MDA_COLOR_BLACK;
+                    mda->memaddr++;
+                    continue;
                 }
 
                 if (mda->scanline == 12
                     && ((attr & 7) == 1)) { // underline
-                    for (uint32_t column = 0; column < 9; column++) {
-                        if (mda->monitor_type == MDA_MONITOR_TYPE_RGBI
-                            && !(mda->mode & MDA_MODE_BW)) {
-                            buffer32->line[mda->displine][(x * 9) + column] = CGAPAL_CGA_START + color_fg;
-                        } else
-                            buffer32->line[mda->displine][(x * 9) + column] = mda_attr_to_color_table[attr][blink][1];
-                    }
+                    for (uint32_t column = 0; column < 9; column++)
+                        p[column] = mda_attr_to_color_table[attr][blink][1];
                 } else { // character
                     for (uint32_t column = 0; column < 8; column++) {
                         // bg=0, fg=1
                         bool is_fg = (fontdatm[chr + mda->fontbase][mda->scanline] & (1 << (column ^ 7))) ? 1 : 0;
 
-                        uint32_t font_char = mda_attr_to_color_table[attr][blink][is_fg];
-
-                        if (mda->monitor_type == MDA_MONITOR_TYPE_RGBI
-                            && !(mda->mode & MDA_MODE_BW)) {
-                            if (!is_fg)
-                                font_char = CGAPAL_CGA_START + color_bg;
-                            else
-                                font_char = CGAPAL_CGA_START + color_fg;
-                        }
-
-                        buffer32->line[mda->displine][(x * 9) + column] = font_char;
+                        p[column] = mda_attr_to_color_table[attr][blink][is_fg];
                     }
 
                     // these characters (C0-DF) have their background extended to their 9th column
                     if ((chr & ~0x1f) == 0xc0) {
-                        bool     is_fg        = fontdatm[chr + mda->fontbase][mda->scanline] & 1;
-                        uint32_t final_result = mda_attr_to_color_table[attr][blink][is_fg];
+                        bool is_fg = fontdatm[chr + mda->fontbase][mda->scanline] & 1;
 
-                        if (mda->monitor_type == MDA_MONITOR_TYPE_RGBI
-                            && !(mda->mode & MDA_MODE_BW)) {
-                            if (!is_fg)
-                                final_result = CGAPAL_CGA_START + color_bg;
-                            else
-                                final_result = CGAPAL_CGA_START + color_fg;
-                        }
-
-                        buffer32->line[mda->displine][(x * 9) + 8] = final_result;
-
-                    } else {
-                        if (mda->monitor_type == MDA_MONITOR_TYPE_RGBI
-                            && !(mda->mode & MDA_MODE_BW)) {
-                            buffer32->line[mda->displine][(x * 9) + 8] = CGAPAL_CGA_START + color_bg;
-
-                        } else
-                            buffer32->line[mda->displine][(x * 9) + 8] = mda_attr_to_color_table[attr][blink][0];
-                    }
+                        p[8] = mda_attr_to_color_table[attr][blink][is_fg];
+                    } else
+                        p[8] = mda_attr_to_color_table[attr][blink][0];
                 }
 
                 mda->memaddr++;
 
                 if (drawcursor) {
-                    for (uint32_t column = 0; column < 9; column++) {
-                        if (mda->monitor_type == MDA_MONITOR_TYPE_RGBI
-                            && !(mda->mode & MDA_MODE_BW)) {
-                            buffer32->line[mda->displine][(x * 9) + column] ^= CGAPAL_CGA_START + color_fg;
-                        } else
-                            buffer32->line[mda->displine][(x * 9) + column] ^= mda_attr_to_color_table[attr][0][1];
-                    }
+                    for (uint32_t column = 0; column < 9; column++)
+                        p[column] ^= mda_attr_to_color_table[attr][0][1];
                 }
             }
 
@@ -416,7 +420,8 @@ mda_init(mda_t *mda)
     overscan_x = overscan_y = 0;
     mda->monitor_index      = monitor_index_global;
 
-    mda->monitor_type = device_get_config_int("rgb_type");
+    mda->monitor_type   = device_get_config_int("rgb_type");
+    mda->colour_outputs = 1;
     cga_palette       = mda->monitor_type << 1;
     if (cga_palette > 6) {
         cga_palette = 0;
@@ -465,6 +470,8 @@ mda_standalone_init(UNUSED(const device_t *info))
                   mda);
 
     mda_init(mda);
+
+    mda->colour_outputs = device_get_config_int("revision");
 
     if (!lpt_get_3bc_used()) {
         mda->lpt = device_add_inst(&lpt_port_device, -1);
@@ -515,6 +522,23 @@ static const device_config_t mda_config[] = {
             { .description = "Amber", .value = MDA_MONITOR_TYPE_AMBER },
             { .description = "Gray",  .value = MDA_MONITOR_TYPE_GRAY  },
             { .description = "Generic RGBI color monitor",  .value = MDA_MONITOR_TYPE_RGBI },
+            { .description = "" }
+        },
+        .bios           = { { 0 } }
+    },
+    {
+        /* Only matters with a colour monitor: whether pins 3-5 carry colour. */
+        .name           = "revision",
+        .description    = "Card revision",
+        .type           = CONFIG_SELECTION,
+        .default_string = NULL,
+        .default_int    = 1,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      =
+        {
+            { .description = "Early (color outputs)",            .value = 0 },
+            { .description = "Later (no color outputs)",         .value = 1 },
             { .description = "" }
         },
         .bios           = { { 0 } }

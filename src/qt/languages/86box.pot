@@ -4324,3 +4324,12 @@ msgstr ""
 
 msgid "4.43 MHz luma trap (soft)"
 msgstr ""
+
+msgid "Card revision"
+msgstr ""
+
+msgid "Early (color outputs)"
+msgstr ""
+
+msgid "Later (no color outputs)"
+msgstr ""
