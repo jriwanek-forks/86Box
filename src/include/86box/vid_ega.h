@@ -217,6 +217,30 @@ extern int update_overscan;
    patterns crawl from line to line and frame to frame instead of standing still. */
 #define EGA_PAL_FSC                4433618.75
 
+/* How the emulated PAL television locks to the card's signal ("pal_lock"). */
+#define EGA_PAL_LOCK_IDEAL         0 /* Always locks: just the PAL decoding      */
+#define EGA_PAL_LOCK_PAL60         1 /* PAL-60 capable set                       */
+#define EGA_PAL_LOCK_50HZ          2 /* 50 Hz-only set: 60 Hz signals roll       */
+
+/* Television timebase, all tweakable. The vertical oscillator free-runs at
+   EGA_PAL_TV_V_FREE and pulls in to fields within the lock range; outside it
+   the picture rolls at the difference frequency. Lines outside the horizontal
+   range are not locked at all, and the set shows no picture. */
+#define EGA_PAL_TV_V_FREE          50.0
+#define EGA_PAL_TV_V_MIN           45.0    /* Both kinds of set                 */
+#define EGA_PAL_TV_V_MAX_50HZ      55.0    /* 50 Hz-only set                    */
+#define EGA_PAL_TV_V_MAX_PAL60     65.0    /* PAL-60 capable set                */
+#define EGA_PAL_TV_H_MIN           15000.0
+#define EGA_PAL_TV_H_MAX           16500.0
+
+/* Luma separation in the emulated television ("pal_luma"). */
+#define EGA_PAL_LUMA_COMB          0 /* Composite minus re-modulated chroma: sharp */
+#define EGA_PAL_LUMA_TRAP          1 /* 4.43 MHz notch, as in most PAL sets: soft  */
+
+/* Stop band of the luma trap, centred on the subcarrier (Hz). */
+#define EGA_PAL_TRAP_LO            3400000.0
+#define EGA_PAL_TRAP_HI            5400000.0
+
 /* Dot clock of the 132-column feature card, selected by programming Misc Output
    bits 3-2 to 10b (external clock). No period card's documentation has turned up
    yet, so this is derived rather than measured: 16.257 MHz x 132 / 80, which gives

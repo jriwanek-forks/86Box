@@ -584,7 +584,7 @@ ega_in(uint16_t addr, void *priv)
     return ret;
 }
 
-static void ega_pal_recalc(void *priv, double dot_hz, double line_dots);
+static void ega_pal_recalc(void *priv, double dot_hz, double line_dots, int vtotal);
 
 static void
 ega_recalctimings_common(ega_t *ega)
@@ -715,7 +715,7 @@ ega_recalctimings_common(ega_t *ega)
                            (ega->vidclock ? 16257000.0 : (157500000.0 / 11.0));
         const double chars = (ega->seqregs[1] & 8) ? ((ega->crtc[0] + 2) << 1) : (ega->crtc[0] + 2);
 
-        ega_pal_recalc(ega->pal, hz, chars * mdiv);
+        ega_pal_recalc(ega->pal, hz, chars * mdiv, ega->vtotal);
     }
     ega->dot_clock = crtcconst / mdiv;
 
@@ -926,6 +926,7 @@ ega_dot_poll(void *priv)
    There is no hue error to correct, so the delay line only adds the vertical
    chroma blur and the cancelling of cross-colour that a real PAL set shows. */
 #define EGA_PAL_TAPS     15      /* Odd; chroma low-pass length. */
+#define EGA_PAL_TRAP_TAPS 25     /* Odd; luma trap length (about -30 dB at the subcarrier). */
 #define EGA_PAL_CHROMA_F 1300000.0
 #define EGA_PAL_MAXW     2048
 
@@ -937,6 +938,18 @@ typedef struct ega_pal_t {
     int    vsign;         /* PAL V switch for the current line. */
 
     float  lpf[EGA_PAL_TAPS];
+    float  trap[EGA_PAL_TRAP_TAPS]; /* Luma notch at the subcarrier. */
+
+    int    lock_mode;     /* EGA_PAL_LOCK_* */
+    int    luma_mode;     /* EGA_PAL_LUMA_* */
+    double h_rate;        /* Line rate of the signal (Hz). */
+    double v_rate;        /* Field rate of the signal (Hz). */
+    int    vtotal;        /* Scanlines per field. */
+    int    h_locked;      /* The set's line timebase locks to the signal. */
+    int    v_locked;      /* The set's field timebase locks to the signal. */
+    double roll;          /* Vertical roll position, in fields (0..1). */
+    uint32_t *roll_buf;   /* Frame copy for rolling. */
+    size_t   roll_size;
     float  y[16], u[16], v[16];
     uint32_t rgb[16];     /* Steady-state colour, for flat border lines. */
 
@@ -984,12 +997,31 @@ ega_pal_set_rate(ega_pal_t *pal, double fs)
     }
     for (int n = 0; n < EGA_PAL_TAPS; n++)
         pal->lpf[n] = (float) (h[n] / sum);
+
+    /* Luma trap: unit impulse minus a band-pass from TRAP_LO to TRAP_HI (the
+       difference of two windowed-sinc low-passes); unity gain at DC. */
+    const double f1 = EGA_PAL_TRAP_LO / fs;
+    const double f2 = MIN(EGA_PAL_TRAP_HI / fs, 0.499);
+
+    for (int n = 0; n < EGA_PAL_TRAP_TAPS; n++) {
+        const int    k   = n - (EGA_PAL_TRAP_TAPS / 2);
+        const double win = 0.54 - 0.46 * cos(2.0 * M_PI * n / (EGA_PAL_TRAP_TAPS - 1));
+        const double lp2 = (k == 0) ? (2.0 * f2) : (sin(2.0 * M_PI * f2 * k) / (M_PI * k));
+        const double lp1 = (k == 0) ? (2.0 * f1) : (sin(2.0 * M_PI * f1 * k) / (M_PI * k));
+
+        pal->trap[n] = (float) (((k == 0) ? 1.0 : 0.0) - ((lp2 - lp1) * win));
+    }
 }
 
 static ega_pal_t *
-ega_pal_init(void)
+ega_pal_init(int lock_mode, int luma_mode)
 {
     ega_pal_t *pal = calloc(1, sizeof(ega_pal_t));
+
+    pal->lock_mode = lock_mode;
+    pal->luma_mode = luma_mode;
+    pal->h_locked  = 1;
+    pal->v_locked  = 1;
 
     for (int c = 0; c < 16; c++) {
         const float i = (c & 8) ? (1.0f / 3.0f) : 0.0f;
@@ -1010,12 +1042,85 @@ ega_pal_init(void)
 }
 
 static void
-ega_pal_recalc(void *priv, double dot_hz, double line_dots)
+ega_pal_recalc(void *priv, double dot_hz, double line_dots, int vtotal)
 {
     ega_pal_t *pal = (ega_pal_t *) priv;
+    double     v_max;
 
     ega_pal_set_rate(pal, dot_hz);
     pal->cyc_per_line = line_dots * EGA_PAL_FSC / dot_hz;
+
+    pal->vtotal = (vtotal > 0) ? vtotal : 1;
+    pal->h_rate = dot_hz / line_dots;
+    pal->v_rate = pal->h_rate / pal->vtotal;
+
+    switch (pal->lock_mode) {
+        case EGA_PAL_LOCK_IDEAL:
+            pal->h_locked = pal->v_locked = 1;
+            break;
+
+        default:
+            v_max = (pal->lock_mode == EGA_PAL_LOCK_50HZ) ? EGA_PAL_TV_V_MAX_50HZ : EGA_PAL_TV_V_MAX_PAL60;
+
+            pal->h_locked = (pal->h_rate >= EGA_PAL_TV_H_MIN) && (pal->h_rate <= EGA_PAL_TV_H_MAX);
+            pal->v_locked = pal->h_locked && (pal->v_rate >= EGA_PAL_TV_V_MIN) && (pal->v_rate <= v_max);
+            break;
+    }
+
+    if (pal->v_locked)
+        pal->roll = 0.0;
+}
+
+/* Rolls the finished frame on a set whose field timebase isn't locked. The set
+   free-runs at EGA_PAL_TV_V_FREE, so every signal field the picture slips by
+   (v_rate - free) / v_rate of a field; the field's vertical blanking shows as a
+   black bar travelling with it. rows is the visible height in buffer lines and
+   field the height a whole field (blanking included) would take. */
+static void
+ega_pal_roll(ega_pal_t *pal, int rows, int field, int width)
+{
+    size_t need;
+    int    offset;
+
+    if (pal->v_locked || !pal->h_locked || (rows <= 0) || (width <= 0) || (buffer32 == NULL))
+        return;
+
+    rows  = MIN(rows, 2048);
+    width = MIN(width, 2048);
+    if (field <= rows)
+        field = rows + (rows / 12) + 1; /* Always leave a visible blanking bar. */
+
+    pal->roll += (pal->v_rate - EGA_PAL_TV_V_FREE) / pal->v_rate;
+    pal->roll -= floor(pal->roll);
+    offset = (int) (pal->roll * field);
+
+    need = (size_t) rows * width;
+    if (pal->roll_size < need) {
+        free(pal->roll_buf);
+        pal->roll_buf  = malloc(need * sizeof(uint32_t));
+        pal->roll_size = pal->roll_buf ? need : 0;
+        if (pal->roll_buf == NULL)
+            return;
+    }
+
+    for (int i = 0; i < rows; i++)
+        memcpy(&pal->roll_buf[(size_t) i * width], buffer32->line[i], width * sizeof(uint32_t));
+
+    for (int i = 0; i < rows; i++) {
+        const int v = (i + offset) % field;
+
+        if (v < rows)
+            memcpy(buffer32->line[i], &pal->roll_buf[(size_t) v * width], width * sizeof(uint32_t));
+        else
+            memset(buffer32->line[i], 0, width * sizeof(uint32_t));
+    }
+}
+
+static void
+ega_pal_close(ega_pal_t *pal)
+{
+    free(pal->roll_buf);
+    free(pal);
 }
 
 /* Called once per scanline, displayed or not, so the subcarrier phase and the
@@ -1066,7 +1171,18 @@ ega_pal_process(ega_pal_t *pal, uint32_t *p, int width)
 
     /* Luma, delay line, RGB. */
     for (int n = 0; n < width; n++) {
-        const float y = pal->comp[n] - ((pal->du[n] * pal->s[n]) + (vsign * pal->dv[n] * pal->c[n]));
+        float y;
+
+        if (pal->luma_mode == EGA_PAL_LUMA_TRAP) {
+            y = 0.0f;
+            for (int t = 0; t < EGA_PAL_TRAP_TAPS; t++) {
+                int k = n + t - (EGA_PAL_TRAP_TAPS / 2);
+
+                k = (k < 0) ? 0 : ((k >= width) ? (width - 1) : k);
+                y += pal->trap[t] * pal->comp[k];
+            }
+        } else
+            y = pal->comp[n] - ((pal->du[n] * pal->s[n]) + (vsign * pal->dv[n] * pal->c[n]));
         const float u = 0.5f * (pal->du[n] + pal->prev_u[n]);
         const float v = 0.5f * (pal->dv[n] + pal->prev_v[n]);
 
@@ -1108,9 +1224,13 @@ ega_feature_process_line(ega_t *ega, int line, int width, int border)
     else if ((ega->feature_card == EGA_FEATURE_COLOR_COMP_PAL) && (width > 0)) {
         ega_pal_t *pal = (ega_pal_t *) ega->pal;
 
-        /* A flat border line decodes back to its own colour, and must not
-           disturb the delay line, which holds the last picture line. */
-        if (border) {
+        /* No line lock, no picture. A flat border line decodes back to its own
+           colour, and must not disturb the delay line, which holds the last
+           picture line. */
+        if (!pal->h_locked) {
+            for (int x = 0; x < width; x++)
+                p[x] = 0x00000000;
+        } else if (border) {
             for (int x = 0; x < width; x++)
                 p[x] = pal->rgb[p[x] & 0x0f];
         } else
@@ -1452,6 +1572,11 @@ ega_doblit(int wx, int wy, ega_t *ega)
                 ega_feature_process_line(ega, ysize + ega->y_add + i, xsize + x_add, 1);
         }
     }
+
+    /* A PAL television that can't hold the field rate rolls the picture. */
+    if (ega->pal && (ega->feature_card == EGA_FEATURE_COLOR_COMP_PAL))
+        ega_pal_roll((ega_pal_t *) ega->pal, y_start + ysize + y_add,
+                     ega->vtotal << (ega->vres ? 1 : 0), xsize + x_add);
 
     video_blit_memtoscreen(x_start, y_start, xsize + x_add, ysize + y_add);
 
@@ -1987,7 +2112,7 @@ ega_feature_init(ega_t *ega, int card)
             for (uint16_t c = 0; c < 256; c++)
                 pallook16[c] = pallook64[c] = ((c >> 1) & 0x08) | (c & 0x07);
 
-            ega->pal = ega_pal_init();
+            ega->pal = ega_pal_init(device_get_config_int("pal_lock"), device_get_config_int("pal_luma"));
             break;
 
         case EGA_FEATURE_COLOR_COMP:
@@ -2235,7 +2360,7 @@ ega_close(void *priv)
     if (ega->eeprom)
         free(ega->eeprom);
     if (ega->pal)
-        free(ega->pal);
+        ega_pal_close((ega_pal_t *) ega->pal);
     free(ega->vram);
     free(ega);
 }
@@ -2354,6 +2479,37 @@ static const device_config_t ega_ibm_config[] = {
             { .description = "Color composite (NTSC)",             .value = EGA_FEATURE_COLOR_COMP     },
             { .description = "Color composite (PAL)",              .value = EGA_FEATURE_COLOR_COMP_PAL },
             { .description = ""                                                                     }
+        },
+        .bios           = { { 0 } }
+    },
+    {
+        .name           = "pal_lock",
+        .description    = "PAL TV sync",
+        .type           = CONFIG_SELECTION,
+        .default_string = NULL,
+        .default_int    = EGA_PAL_LOCK_PAL60,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = {
+            { .description = "Ideal (always locks)",          .value = EGA_PAL_LOCK_IDEAL },
+            { .description = "PAL-60 capable TV",             .value = EGA_PAL_LOCK_PAL60 },
+            { .description = "50 Hz-only TV (60 Hz rolls)",   .value = EGA_PAL_LOCK_50HZ  },
+            { .description = ""                                                          }
+        },
+        .bios           = { { 0 } }
+    },
+    {
+        .name           = "pal_luma",
+        .description    = "PAL TV luma separation",
+        .type           = CONFIG_SELECTION,
+        .default_string = NULL,
+        .default_int    = EGA_PAL_LUMA_TRAP,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = {
+            { .description = "Chroma subtraction (sharp)",    .value = EGA_PAL_LUMA_COMB },
+            { .description = "4.43 MHz luma trap (soft)",     .value = EGA_PAL_LUMA_TRAP },
+            { .description = ""                                                         }
         },
         .bios           = { { 0 } }
     },
