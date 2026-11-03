@@ -3667,3 +3667,45 @@ msgstr ""
 
 msgid "Software-initiated poweroff device (IBM 5140)"
 msgstr ""
+
+msgid "Configuration switches"
+msgstr ""
+
+msgid "Automatic (from monitor and other adapter)"
+msgstr ""
+
+msgid "SW1-4 On On On On: Secondary to MDA, Color 40x25 (5153)"
+msgstr ""
+
+msgid "SW1-4 Off On On On: Secondary to MDA, Color 80x25 (5153)"
+msgstr ""
+
+msgid "SW1-4 On Off On On: Secondary to MDA, Enhanced Color - Normal (5154)"
+msgstr ""
+
+msgid "SW1-4 Off Off On On: Secondary to MDA, Enhanced Color - Enhanced (5154)"
+msgstr ""
+
+msgid "SW1-4 On On Off On: Secondary to CGA 40x25, Monochrome (5151)"
+msgstr ""
+
+msgid "SW1-4 Off On Off On: Secondary to CGA 80x25, Monochrome (5151)"
+msgstr ""
+
+msgid "SW1-4 On Off Off On: Primary, Color 40x25 (5153)"
+msgstr ""
+
+msgid "SW1-4 Off Off Off On: Primary, Color 80x25 (5153)"
+msgstr ""
+
+msgid "SW1-4 On On On Off: Primary, Enhanced Color - Normal (5154)"
+msgstr ""
+
+msgid "SW1-4 Off On On Off: Primary, Enhanced Color - Enhanced (5154)"
+msgstr ""
+
+msgid "SW1-4 On Off On Off: Primary, Monochrome (5151), CGA 40x25 secondary"
+msgstr ""
+
+msgid "SW1-4 Off Off On Off: Primary, Monochrome (5151)"
+msgstr ""
