@@ -153,6 +153,13 @@ typedef struct ega_t {
     uint8_t    mono_io_disabled;
 
     int        monitor_index; /* Monitor this card renders to. */
+
+    /* Feature connector (see EGA_FEATURE_* below). */
+    uint8_t    feature_card;  /* Card plugged into the feature connector. */
+    uint8_t    feat_ctrl;     /* FC0/FC1, written through the Feature Control register. */
+    uint8_t    feat_in;       /* FEAT0/FEAT1, driven by the card, read back at 3C2h. */
+    uint8_t    drivers_off;   /* Misc Output bit 4 set with nothing else driving a display. */
+    double     ext_clock;     /* Dot clock supplied by the card, 0 if none. */
 } ega_t;
 #endif
 
@@ -192,6 +199,22 @@ extern int update_overscan;
 #define EGA_SW_MONO_CGA40     0x0a /* EGA primary on 5151, CGA secondary 40x25    */
 #define EGA_SW_MONO           0x0b /* EGA primary on 5151 (CGA 80x25 optional)    */
 #define EGA_SW_AUTO           0x10 /* Not a switch setting: derive from the setup */
+
+/* Cards for the IBM EGA's 32-pin feature connector. */
+#define EGA_FEATURE_NONE           0
+#define EGA_FEATURE_132COL         1 /* External dot clock for 132-column modes */
+#define EGA_FEATURE_MONO_COMP_W    2 /* RGBI to monochrome composite, white      */
+#define EGA_FEATURE_MONO_COMP_G    3 /* RGBI to monochrome composite, green      */
+#define EGA_FEATURE_MONO_COMP_A    4 /* RGBI to monochrome composite, amber      */
+#define EGA_FEATURE_COLOR_COMP     5 /* RGBI to NTSC colour composite            */
+
+/* Dot clock of the 132-column feature card, selected by programming Misc Output
+   bits 3-2 to 10b (external clock). No period card's documentation has turned up
+   yet, so this is derived rather than measured: 16.257 MHz x 132 / 80, which gives
+   a 132-column mode exactly the horizontal timing of the standard 80-column
+   Enhanced Color Display modes once the CRTC horizontal registers are scaled by
+   the same 132/80. Replace it with the crystal of a real card when one is known. */
+#define EGA_FEATURE_132COL_CLOCK   26824050.0
 
 #define EGA_SW_IS_MONO(sw)    (((sw) == EGA_SW_CGA40_PRI_MONO) || ((sw) == EGA_SW_CGA80_PRI_MONO) || \
                                ((sw) == EGA_SW_MONO_CGA40) || ((sw) == EGA_SW_MONO))

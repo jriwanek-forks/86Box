@@ -35,6 +35,8 @@
 #include <86box/machine.h>
 #include <86box/video.h>
 #include <86box/vid_ati_eeprom.h>
+#include <86box/vid_cga.h>
+#include <86box/vid_cga_comp.h>
 #include <86box/vid_ega.h>
 #include <86box/plat_unused.h>
 
@@ -308,6 +310,11 @@ ega_out(uint16_t addr, uint8_t val, void *priv)
         case 0x3d4:
             ega->crtcreg = ega->chipset ? (val & 0x3f) : val;
             return;
+        case 0x2da:
+        case 0x3da:
+            /* Feature Control: bits 0-1 drive the FC0/FC1 feature connector pins. */
+            ega->feat_ctrl = val & 0x03;
+            break;
         case 0x2d1:
         case 0x3d1:
         case 0x2d5:
@@ -400,6 +407,8 @@ ega_in(uint16_t addr, void *priv)
         case 0x2c2:
         case 0x3c2:
             ret = (egaswitches & (8 >> egaswitchread)) ? 0x10 : 0x00;
+            /* Bits 5-6: FEAT0/FEAT1 inputs from the feature connector. */
+            ret |= (ega->feat_in & 0x03) << 5;
             break;
         case 0x2c4:
         case 0x3c4:
@@ -676,12 +685,23 @@ ega_recalctimings_common(ega_t *ega)
         }
         crtcconst *= mdiv;
     } else {
-        if (ega->vidclock)
+        clksel = (ega->miscout >> 2) & 0x03;
+
+        /* Clock select 10b takes the dot clock from the feature connector; with
+           no card supplying one, keep the previous (bit 2 only) behaviour. */
+        if ((clksel == 2) && (ega->ext_clock > 0.0))
+            crtcconst = (cpuclock / ega->ext_clock * (double) (1ULL << 32));
+        else if (ega->vidclock)
             crtcconst = (cpuclock / 16257000.0 * (double) (1ULL << 32));
         else
             crtcconst = (cpuclock / (157500000.0 / 11.0) * (double) (1ULL << 32));
         crtcconst *= mdiv;
     }
+
+    /* Misc Output bit 4 turns off the IBM EGA's own monitor drivers; unless a
+       feature card produces its own picture, the monitor goes dark. */
+    ega->drivers_off = (ega->actual_type == EGA_IBM) && (ega->miscout & 0x10) &&
+                       ((ega->feature_card == EGA_FEATURE_NONE) || (ega->feature_card == EGA_FEATURE_132COL));
     ega->dot_clock = crtcconst / mdiv;
 
     ega->interlace = 0;
@@ -689,7 +709,7 @@ ega_recalctimings_common(ega_t *ega)
     ega->memaddr_latch = (ega->crtc[0xc] << 8) | ega->crtc[0xd];
 
     ega->render = ega_render_blank;
-    if (!ega->scrblank && ega->attr_palette_enable) {
+    if (!ega->scrblank && ega->attr_palette_enable && !ega->drivers_off) {
         if (!(ega->gdcreg[6] & 1)) {
             if (ega->seqregs[1] & 8)
                 ega->hdisp *= (ega->seqregs[1] & 1) ? 16 : 18;
@@ -877,6 +897,42 @@ ega_dot_poll(void *priv)
     }
 }
 
+/* CGA mode register value the colour composite decoder is run with: 640x200
+   graphics with the colour burst on, so it decodes the RGBI stream exactly as it
+   comes from the EGA, with no CGA text-mode or B&W quirks applied. */
+#define EGA_COMP_CGAMODE (CGA_MODE_FLAG_GRAPHICS | CGA_MODE_FLAG_VIDEO_ENABLE | CGA_MODE_FLAG_HIGHRES_GRAPHICS)
+
+/* Post-processes one buffer line, of width pixels, for what the feature
+   connector does to the picture. The line holds palette output, which with a
+   composite card is the raw RGBI index (see ega_feature_init()). */
+static void
+ega_feature_process_line(ega_t *ega, int line, int width)
+{
+    uint32_t *p;
+
+    if ((line < 0) || (buffer32 == NULL))
+        return;
+
+    p = buffer32->line[line & 0x7ff];
+    if (p == NULL)
+        return;
+
+    if (width > 2044)
+        width = 2044;
+
+    if (ega->drivers_off) {
+        for (int x = 0; x < width; x++)
+            p[x] = 0x00000000;
+    } else if ((ega->feature_card == EGA_FEATURE_COLOR_COMP) && (width > 0))
+        Composite_Process(EGA_COMP_CGAMODE, ega->overscan_color & 0x0f, (width + 3) >> 2, p);
+}
+
+static inline int
+ega_feature_needs_processing(const ega_t *ega)
+{
+    return ega->drivers_off || (ega->feature_card == EGA_FEATURE_COLOR_COMP);
+}
+
 static void
 ega_poll_common(ega_t *ega)
 {
@@ -898,6 +954,12 @@ ega_poll_common(ega_t *ega)
                 video_wait_for_buffer();
             }
 
+            /* Text lines are normally only redrawn when something changed, but
+               the composite decoder overwrites the buffer with its output, so
+               the indices it works from have to be rendered every time. */
+            if (ega->feature_card == EGA_FEATURE_COLOR_COMP)
+                ega->fullchange = 2;
+
             old_ma = ega->memaddr;
             ega->displine *= ega->vres + 1;
             ega->y_add *= ega->vres + 1;
@@ -910,6 +972,12 @@ ega_poll_common(ega_t *ega)
                 ega_render_overscan_left(ega);
                 ega_render_overscan_right(ega);
                 ega->x_add = (overscan_x >> 1) - ega->scrollcache;
+
+                /* Feature connector output (composite encoding, drivers off). */
+                if (ega_feature_needs_processing(ega))
+                    ega_feature_process_line(ega, ega->displine + ega->y_add,
+                                             ega->drivers_off ? (xsize + overscan_x) :
+                                                                (overscan_x + ega->hdisp + ega->scrollcache));
 
                 if (y != ega->vres) {
                     ega->memaddr = old_ma;
@@ -1166,6 +1234,9 @@ ega_doblit(int wx, int wy, ega_t *ega)
 
             for (int j = 0; j < (xsize + x_add); j++)
                 p[j] = ega->overscan_color;
+
+            if (ega_feature_needs_processing(ega))
+                ega_feature_process_line(ega, i, xsize + x_add);
         }
 
         for (int i = 0; i < bottom; i++) {
@@ -1173,6 +1244,9 @@ ega_doblit(int wx, int wy, ega_t *ega)
 
             for (int j = 0; j < (xsize + x_add); j++)
                 p[j] = ega->overscan_color;
+
+            if (ega_feature_needs_processing(ega))
+                ega_feature_process_line(ega, ysize + ega->y_add + i, xsize + x_add);
         }
     }
 
@@ -1664,6 +1738,63 @@ ega_set_type(void *priv, uint32_t local)
     }
 }
 
+/* Sets up the card on the IBM EGA's feature connector. Both composite cards take
+   the R, G, B and I (secondary green in 350-line modes) pins off the connector,
+   so the palettes are rebuilt to what they produce from those four lines. */
+static void
+ega_feature_init(ega_t *ega, int card)
+{
+    /* Brightest level of the mono tints, as in ega_init(). */
+    static const uint32_t tint[3] = { 0xfffded, 0x34ff5d, 0xffe334 };
+
+    ega->feature_card = card;
+    ega->feat_ctrl    = 0;
+    ega->feat_in      = 0; /* None of the supported cards drives FEAT0/FEAT1. */
+    ega->ext_clock    = 0.0;
+
+    switch (card) {
+        case EGA_FEATURE_132COL:
+            ega->ext_clock = EGA_FEATURE_132COL_CLOCK;
+            break;
+
+        case EGA_FEATURE_MONO_COMP_W:
+        case EGA_FEATURE_MONO_COMP_G:
+        case EGA_FEATURE_MONO_COMP_A: {
+            const uint32_t t = tint[card - EGA_FEATURE_MONO_COMP_W];
+
+            for (uint16_t c = 0; c < 256; c++) {
+                /* RGBI to luminance: each gun at 2/3 when on plus 1/3 from the
+                   intensity line, weighted with the NTSC luma coefficients. */
+                const double i = (c & 0x10) ? (1.0 / 3.0) : 0.0;
+                const double r = ((c & 0x04) ? (2.0 / 3.0) : 0.0) + i;
+                const double g = ((c & 0x02) ? (2.0 / 3.0) : 0.0) + i;
+                const double b = ((c & 0x01) ? (2.0 / 3.0) : 0.0) + i;
+                const double y = (0.299 * r) + (0.587 * g) + (0.114 * b);
+
+                pallook16[c] = pallook64[c] = makecol32((int) (((t >> 16) & 0xff) * y),
+                                                        (int) (((t >> 8) & 0xff) * y),
+                                                        (int) ((t & 0xff) * y));
+            }
+            break;
+        }
+
+        case EGA_FEATURE_COLOR_COMP:
+            /* The palette output becomes the raw RGBI index, which
+               ega_feature_process_line() encodes and decodes as NTSC. */
+            for (uint16_t c = 0; c < 256; c++)
+                pallook16[c] = pallook64[c] = ((c >> 1) & 0x08) | (c & 0x07);
+
+            /* The "new" CGA model mixes R, G and B into luminance, as a
+               resistor-network RGBI encoder does. */
+            cga_comp_init(1);
+            update_cga16_color(EGA_COMP_CGAMODE, 0x00);
+            break;
+
+        default:
+            break;
+    }
+}
+
 /* Class of the adapter sharing the machine with this EGA, if it is one of the
    two the IBM EGA's switches know about, VIDEO_FLAG_TYPE_NONE otherwise. */
 static int
@@ -1802,6 +1933,9 @@ ega_standalone_init(const device_t *info)
     }
 
     ega_init(ega, monitor_type, EGA_SW_IS_MONO(monitor_type & 0x0f));
+
+    if (info->local == EGA_IBM)
+        ega_feature_init(ega, device_get_config_int("feature_card"));
 
     ega->vram_limit = device_get_config_int("memory") * 1024;
     ega->vrammask   = ega->vram_limit - 1;
@@ -1986,6 +2120,25 @@ static const device_config_t ega_ibm_config[] = {
             { .description = "SW1-4 On Off On Off: Primary, Monochrome (5151), CGA 40x25 secondary",    .value = EGA_SW_MONO_CGA40     },
             { .description = "SW1-4 Off Off On Off: Primary, Monochrome (5151)",                        .value = EGA_SW_MONO           },
             { .description = ""                                                                                        }
+        },
+        .bios           = { { 0 } }
+    },
+    {
+        .name           = "feature_card",
+        .description    = "Feature connector",
+        .type           = CONFIG_SELECTION,
+        .default_string = NULL,
+        .default_int    = EGA_FEATURE_NONE,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = {
+            { .description = "None",                               .value = EGA_FEATURE_NONE        },
+            { .description = "132-column clock card",              .value = EGA_FEATURE_132COL      },
+            { .description = "Monochrome composite (white)",       .value = EGA_FEATURE_MONO_COMP_W },
+            { .description = "Monochrome composite (green)",       .value = EGA_FEATURE_MONO_COMP_G },
+            { .description = "Monochrome composite (amber)",       .value = EGA_FEATURE_MONO_COMP_A },
+            { .description = "Color composite (NTSC)",             .value = EGA_FEATURE_COLOR_COMP  },
+            { .description = ""                                                                     }
         },
         .bios           = { { 0 } }
     },
