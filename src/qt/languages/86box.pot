@@ -3730,3 +3730,24 @@ msgstr ""
 
 msgid "Color composite (PAL)"
 msgstr ""
+
+msgid "PAL TV sync"
+msgstr ""
+
+msgid "Ideal (always locks)"
+msgstr ""
+
+msgid "PAL-60 capable TV"
+msgstr ""
+
+msgid "50 Hz-only TV (60 Hz rolls)"
+msgstr ""
+
+msgid "PAL TV luma separation"
+msgstr ""
+
+msgid "Chroma subtraction (sharp)"
+msgstr ""
+
+msgid "4.43 MHz luma trap (soft)"
+msgstr ""
