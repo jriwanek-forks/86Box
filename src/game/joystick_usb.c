@@ -340,3 +340,199 @@ const joystick_t joystick_guillemot_jet_leader_usb = {
     .pov_names     = { "Hat" },
     .usb_device    = { &gamepad_guillemot_jet_leader_device, &gamepad_guillemot_jet_leader_2_device }
 };
+
+const joystick_t joystick_logitech_wingman_formula_yellow_usb = {
+    .name          = "Logitech WingMan Formula (Yellow)(USB)",
+    .internal_name = "logitech_wingman_formula_yellow_usb",
+    .init          = joystick_usb_init,
+    .close         = joystick_usb_close,
+    .read          = joystick_usb_read,
+    .write         = joystick_usb_write,
+    .read_axis     = joystick_usb_read_axis,
+    .a0_over       = joystick_usb_a0_over,
+    .axis_count    = 2,
+    .button_count  = 6,
+    .pov_count     = 0,
+    .max_joysticks = 2,
+    .axis_names    = { "Wheel", "Pedals" },
+    .button_names  = { "Button 1", "Button 2", "Button 3", "Button 4", "Button 5", "Button 6" },
+    .pov_names     = { NULL },
+    .usb_device    = { &gamepad_logitech_wingman_formula_yellow_device, &gamepad_logitech_wingman_formula_yellow_2_device }
+};
+
+const joystick_t joystick_logitech_wingman_extreme_digital_3d_usb = {
+    .name          = "Logitech WingMan Extreme Digital 3D (USB)",
+    .internal_name = "logitech_wingman_extreme_digital_3d_usb",
+    .init          = joystick_usb_init,
+    .close         = joystick_usb_close,
+    .read          = joystick_usb_read,
+    .write         = joystick_usb_write,
+    .read_axis     = joystick_usb_read_axis,
+    .a0_over       = joystick_usb_a0_over,
+    .axis_count    = 4,
+    .button_count  = 7,
+    .pov_count     = 1,
+    .max_joysticks = 2,
+    .axis_names    = { "X axis", "Y axis", "Rudder", "Throttle" },
+    .button_names  = { "Trigger", "Button 2", "Button 3", "Button 4", "Button 5", "Button 6", "Button 7" },
+    .pov_names     = { "Hat" },
+    .usb_device    = { &gamepad_logitech_wingman_extreme_digital_3d_device, &gamepad_logitech_wingman_extreme_digital_3d_2_device }
+};
+
+const joystick_t joystick_logitech_wingman_gamepad_extreme_usb = {
+    .name          = "Logitech WingMan Gamepad Extreme (USB)",
+    .internal_name = "logitech_wingman_gamepad_extreme_usb",
+    .init          = joystick_usb_init,
+    .close         = joystick_usb_close,
+    .read          = joystick_usb_read,
+    .write         = joystick_usb_write,
+    .read_axis     = joystick_usb_read_axis,
+    .a0_over       = joystick_usb_a0_over,
+    .axis_count    = 2,
+    .button_count  = 11,
+    .pov_count     = 1,
+    .max_joysticks = 2,
+    .axis_names    = { "X axis", "Y axis" },
+    .button_names  = { "A", "B", "C", "X", "Y", "Z", "L", "R", "Start", "Mode", "Select" },
+    .pov_names     = { "Hat" },
+    .usb_device    = { &gamepad_logitech_wingman_gamepad_extreme_device, &gamepad_logitech_wingman_gamepad_extreme_2_device }
+};
+
+const joystick_t joystick_logitech_wingman_gamepad_usb = {
+    .name          = "Logitech WingMan Gamepad (USB)",
+    .internal_name = "logitech_wingman_gamepad_usb",
+    .init          = joystick_usb_init,
+    .close         = joystick_usb_close,
+    .read          = joystick_usb_read,
+    .write         = joystick_usb_write,
+    .read_axis     = joystick_usb_read_axis,
+    .a0_over       = joystick_usb_a0_over,
+    .axis_count    = 2,
+    .button_count  = 11,
+    .pov_count     = 0,
+    .max_joysticks = 2,
+    .axis_names    = { "D-pad X", "D-pad Y" },
+    .button_names  = { "A", "B", "C", "X", "Y", "Z", "L", "R", "Start", "Mode", "Select" },
+    .pov_names     = { NULL },
+    .usb_device    = { &gamepad_logitech_wingman_gamepad_device, &gamepad_logitech_wingman_gamepad_2_device }
+};
+
+const joystick_t joystick_usb_gamepad_2axis_8button = {
+    .name          = "USB gamepad (2-axis, 8-button)",
+    .internal_name = "usb_gamepad_2axis_8button",
+    .init          = joystick_usb_init,
+    .close         = joystick_usb_close,
+    .read          = joystick_usb_read,
+    .write         = joystick_usb_write,
+    .read_axis     = joystick_usb_read_axis,
+    .a0_over       = joystick_usb_a0_over,
+    .axis_count    = 2,
+    .button_count  = 8,
+    .pov_count     = 0,
+    .max_joysticks = 2,
+    .axis_names    = { "D-pad X", "D-pad Y" },
+    .button_names  = { "Button 1", "Button 2", "Button 3", "Button 4", "Button 5", "Button 6",
+                       "Button 7", "Button 8" },
+    .pov_names     = { NULL },
+    .usb_device    = { &gamepad_usb_2axis_8button_device, &gamepad_usb_2axis_8button_2_device }
+};
+
+const joystick_t joystick_usb_gamepad_3axis_8button = {
+    .name          = "USB gamepad (3-axis, 8-button)",
+    .internal_name = "usb_gamepad_3axis_8button",
+    .init          = joystick_usb_init,
+    .close         = joystick_usb_close,
+    .read          = joystick_usb_read,
+    .write         = joystick_usb_write,
+    .read_axis     = joystick_usb_read_axis,
+    .a0_over       = joystick_usb_a0_over,
+    .axis_count    = 3,
+    .button_count  = 8,
+    .pov_count     = 0,
+    .max_joysticks = 2,
+    .axis_names    = { "D-pad X", "D-pad Y", "Throttle" },
+    .button_names  = { "Button 1", "Button 2", "Button 3", "Button 4", "Button 5", "Button 6",
+                       "Button 7", "Button 8" },
+    .pov_names     = { NULL },
+    .usb_device    = { &gamepad_usb_3axis_8button_device, &gamepad_usb_3axis_8button_2_device }
+};
+
+const joystick_t joystick_usb_gamepad_4axis_8button = {
+    .name          = "USB gamepad (4-axis, 8-button)",
+    .internal_name = "usb_gamepad_4axis_8button",
+    .init          = joystick_usb_init,
+    .close         = joystick_usb_close,
+    .read          = joystick_usb_read,
+    .write         = joystick_usb_write,
+    .read_axis     = joystick_usb_read_axis,
+    .a0_over       = joystick_usb_a0_over,
+    .axis_count    = 4,
+    .button_count  = 8,
+    .pov_count     = 0,
+    .max_joysticks = 2,
+    .axis_names    = { "Left stick X", "Left stick Y", "Right stick X", "Right stick Y" },
+    .button_names  = { "Button 1", "Button 2", "Button 3", "Button 4", "Button 5", "Button 6",
+                       "Button 7", "Button 8" },
+    .pov_names     = { NULL },
+    .usb_device    = { &gamepad_usb_4axis_8button_device, &gamepad_usb_4axis_8button_2_device }
+};
+
+const joystick_t joystick_usb_joystick_2axis_8button = {
+    .name          = "USB joystick (2-axis, 8-button)",
+    .internal_name = "usb_joystick_2axis_8button",
+    .init          = joystick_usb_init,
+    .close         = joystick_usb_close,
+    .read          = joystick_usb_read,
+    .write         = joystick_usb_write,
+    .read_axis     = joystick_usb_read_axis,
+    .a0_over       = joystick_usb_a0_over,
+    .axis_count    = 2,
+    .button_count  = 8,
+    .pov_count     = 0,
+    .max_joysticks = 2,
+    .axis_names    = { "X axis", "Y axis" },
+    .button_names  = { "Trigger", "Button 2", "Button 3", "Button 4", "Button 5", "Button 6",
+                       "Button 7", "Button 8" },
+    .pov_names     = { NULL },
+    .usb_device    = { &gamepad_usb_joystick_2axis_8button_device, &gamepad_usb_joystick_2axis_8button_2_device }
+};
+
+const joystick_t joystick_usb_joystick_3axis_8button = {
+    .name          = "USB joystick (3-axis, 8-button)",
+    .internal_name = "usb_joystick_3axis_8button",
+    .init          = joystick_usb_init,
+    .close         = joystick_usb_close,
+    .read          = joystick_usb_read,
+    .write         = joystick_usb_write,
+    .read_axis     = joystick_usb_read_axis,
+    .a0_over       = joystick_usb_a0_over,
+    .axis_count    = 3,
+    .button_count  = 8,
+    .pov_count     = 0,
+    .max_joysticks = 2,
+    .axis_names    = { "X axis", "Y axis", "Throttle" },
+    .button_names  = { "Trigger", "Button 2", "Button 3", "Button 4", "Button 5", "Button 6",
+                       "Button 7", "Button 8" },
+    .pov_names     = { NULL },
+    .usb_device    = { &gamepad_usb_joystick_3axis_8button_device, &gamepad_usb_joystick_3axis_8button_2_device }
+};
+
+const joystick_t joystick_usb_joystick_4axis_8button = {
+    .name          = "USB joystick (4-axis, 8-button)",
+    .internal_name = "usb_joystick_4axis_8button",
+    .init          = joystick_usb_init,
+    .close         = joystick_usb_close,
+    .read          = joystick_usb_read,
+    .write         = joystick_usb_write,
+    .read_axis     = joystick_usb_read_axis,
+    .a0_over       = joystick_usb_a0_over,
+    .axis_count    = 4,
+    .button_count  = 8,
+    .pov_count     = 0,
+    .max_joysticks = 2,
+    .axis_names    = { "X axis", "Y axis", "Rudder", "Throttle" },
+    .button_names  = { "Trigger", "Button 2", "Button 3", "Button 4", "Button 5", "Button 6",
+                       "Button 7", "Button 8" },
+    .pov_names     = { NULL },
+    .usb_device    = { &gamepad_usb_joystick_4axis_8button_device, &gamepad_usb_joystick_4axis_8button_2_device }
+};
