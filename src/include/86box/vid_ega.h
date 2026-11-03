@@ -161,6 +161,21 @@ typedef struct ega_t {
     uint8_t    drivers_off;   /* Misc Output bit 4 set with nothing else driving a display. */
     double     ext_clock;     /* Dot clock supplied by the card, 0 if none. */
     void      *pal;           /* PAL encoder/decoder state (ega_pal_t), NULL if unused. */
+
+    /* Per-card state that used to be file-wide in vid_ega.c. */
+    int        type;          /* EGA_TYPE_* (set by ega_set_type() or the standalone init). */
+    int        switches;      /* Configuration switch value, SW1 in bit 0, 1 = off. */
+    int        switchread;    /* Switch selected by Misc Output bits 3-2. */
+    uint8_t    dot_active;    /* Compaq dot clock: inside the active display. */
+    uint32_t   pallook16[256]; /* 200-line (RGBI) palette. */
+    uint32_t   pallook64[256]; /* 350-line (rgbRGB) palette. */
+
+    /* Light pen (through the "CGA lightpen" input device). */
+    uint8_t    lp_strobe;     /* Light pen latch flip-flop, 3DAh bit 1. */
+    uint8_t    lp_found;      /* The pen's position was crossed this frame. */
+    int        lp_found_x;    /* Buffer coordinates of the pen. */
+    int        lp_found_y;
+    uint16_t   lp_found_ma;   /* CRTC address at the pen's position. */
 } ega_t;
 #endif
 

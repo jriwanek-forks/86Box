@@ -146,8 +146,6 @@ typedef struct {
     uint16_t end;
 } fontx_tbl;
 
-extern uint32_t pallook16[256];
-extern uint32_t pallook64[256];
 static bool     is_SJIS_1(uint8_t chr) { return (chr >= 0x81 && chr <= 0x9f) || (chr >= 0xe0 && chr <= 0xfc); }
 static bool     is_SJIS_2(uint8_t chr) { return (chr >= 0x40 && chr <= 0x7e) || (chr >= 0x80 && chr <= 0xfc); }
 
@@ -772,11 +770,11 @@ jega_common_init(const device_t *info, void *priv, int vga)
         io_sethandler(0x03a0, 0x0040, jega_in, NULL, NULL, jega_out, NULL, NULL, jega);
     } else {
         for (uint16_t c = 0; c < 256; c++) {
-            pallook64[c] = makecol32(((c >> 2) & 1) * 0xaa, ((c >> 1) & 1) * 0xaa, (c & 1) * 0xaa);
-            pallook64[c] += makecol32(((c >> 5) & 1) * 0x55, ((c >> 4) & 1) * 0x55, ((c >> 3) & 1) * 0x55);
+            jega->ega.pallook64[c] = makecol32(((c >> 2) & 1) * 0xaa, ((c >> 1) & 1) * 0xaa, (c & 1) * 0xaa);
+            jega->ega.pallook64[c] += makecol32(((c >> 5) & 1) * 0x55, ((c >> 4) & 1) * 0x55, ((c >> 3) & 1) * 0x55);
         }
         video_inform(VIDEO_FLAG_TYPE_SPECIAL, &timing_ega);
-        jega->pallook = pallook64;
+        jega->pallook = jega->ega.pallook64;
         ega_init(&jega->ega, 9, 0);
         ega_set_type(&jega->ega, EGA_SUPEREGA);
         jega->ega.priv_parent = jega;
@@ -982,12 +980,12 @@ if386_p6x_write(uint16_t port, uint8_t val, void *priv)
         if (p65idx == 0x03) {
             if (val & 0x04) { /* Color monitor */
                 for (uint16_t c = 0; c < 256; c++) {
-                    pallook64[c] = makecol32(((c >> 2) & 1) * 0xaa, ((c >> 1) & 1) * 0xaa, (c & 1) * 0xaa);
-                    pallook64[c] += makecol32(((c >> 5) & 1) * 0x55, ((c >> 4) & 1) * 0x55, ((c >> 3) & 1) * 0x55);
-                    pallook16[c] = makecol32(((c >> 2) & 1) * 0xaa, ((c >> 1) & 1) * 0xaa, (c & 1) * 0xaa);
-                    pallook16[c] += makecol32(((c >> 4) & 1) * 0x55, ((c >> 4) & 1) * 0x55, ((c >> 4) & 1) * 0x55);
+                    jega->ega.pallook64[c] = makecol32(((c >> 2) & 1) * 0xaa, ((c >> 1) & 1) * 0xaa, (c & 1) * 0xaa);
+                    jega->ega.pallook64[c] += makecol32(((c >> 5) & 1) * 0x55, ((c >> 4) & 1) * 0x55, ((c >> 3) & 1) * 0x55);
+                    jega->ega.pallook16[c] = makecol32(((c >> 2) & 1) * 0xaa, ((c >> 1) & 1) * 0xaa, (c & 1) * 0xaa);
+                    jega->ega.pallook16[c] += makecol32(((c >> 4) & 1) * 0x55, ((c >> 4) & 1) * 0x55, ((c >> 4) & 1) * 0x55);
                     if ((c & 0x17) == 6)
-                        pallook16[c] = makecol32(0xaa, 0x55, 0);
+                        jega->ega.pallook16[c] = makecol32(0xaa, 0x55, 0);
                 }
             } else { /* Monochrome LCD */
                 for (uint16_t c = 0; c < 256; c++) {
@@ -995,18 +993,18 @@ if386_p6x_write(uint16_t port, uint8_t val, void *priv)
 #ifdef SIMPLE_BW
                     if (c & 0x0f)
                         cval = ((c & 0x0e) * 0x10) + 0x1f;
-                    pallook64[c] = makecol32(cval, cval, cval);
-                    pallook16[c] = makecol32(cval, cval, cval);
+                    jega->ega.pallook64[c] = makecol32(cval, cval, cval);
+                    jega->ega.pallook16[c] = makecol32(cval, cval, cval);
 #else
                     if (c & 0x3f) {
                         cval = (c & 0x10) >> 2;
                         cval |= (c & 0x06) >> 1;
                     }
-                    pallook64[c] = lcd_cols[cval];
+                    jega->ega.pallook64[c] = lcd_cols[cval];
                     cval = 0;
                     if (c & 0x0f)
                         cval = (c & 0x0e) >> 1;
-                    pallook16[c] = lcd_cols[cval];
+                    jega->ega.pallook16[c] = lcd_cols[cval];
 #endif
                 }
             }
