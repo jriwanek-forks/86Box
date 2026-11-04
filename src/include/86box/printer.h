@@ -56,4 +56,16 @@
 extern void
 select_codepage(uint16_t code, uint16_t *curmap);
 
+/* FreeType handle, shared between the printers which render text. */
+#ifdef FT_FREETYPE_H
+extern FT_Library ft_lib;
+#endif
+
+/* HP DeskJet 500 series PCL 3 page engine. */
+extern void *pcl3_open(double width, double height, int dpi);
+extern void  pcl3_write(void *priv, uint8_t ch);
+extern void  pcl3_flush(void *priv);
+extern void  pcl3_reset(void *priv);
+extern void  pcl3_close(void *priv);
+
 #endif /*PRINTER_H*/

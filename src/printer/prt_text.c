@@ -47,6 +47,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING  IN ANY  WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
@@ -76,17 +77,42 @@
 #    define PAGE_TMARGIN 0.25
 #    define PAGE_BMARGIN 0.25
 #endif
-#define PAGE_CPI 10.0 /* standard 10 cpi */
-#define PAGE_LPI 6.0  /* standard 6 lpi */
+#define PAGE_CPI           10.0  /* standard 10 cpi */
+#define PAGE_LPI           6.0   /* standard 6 lpi */
+#define PAGE_CONDENSED_CPI 17.14 /* the usual pitch of SI */
+#define PAGE_MIN_WIDTH     8.0   /* 80 columns fit on all the paper sizes */
+
+/* Enough for the longest paper at the highest pitch. */
+#define MAX_COLUMNS 256
+#define MAX_LINES   128
+
+enum {
+    PAPER_LETTER = 0,
+    PAPER_A4,
+    PAPER_LEGAL
+};
+
+/* Printer languages this printer does not speak are dropped, not printed. */
+enum {
+    ESC_NONE = 0,
+    ESC_START,        /* ESC was seen */
+    ESC_PCL_VALUE,    /* in a parameterized PCL sequence */
+    ESC_LENGTH_LOW,   /* ESC ( x nL nH, the length of what follows */
+    ESC_LENGTH_HIGH,
+    ESC_COUNT_LOW,    /* ESC K nL nH, the number of columns */
+    ESC_COUNT_HIGH,
+    ESC_IMAGE_MODE,   /* ESC * m nL nH */
+    ESC_SKIP
+};
 
 typedef struct psurface_t {
     int8_t dirty; /* has the page been printed on? */
     char   pad;
 
-    uint8_t w; /* size //INFO */
-    uint8_t h;
+    uint16_t w; /* size //INFO */
+    uint16_t h;
 
-    uint8_t *chars; /* character data */
+    uint8_t *chars; /* character data, 0x00 where nothing was printed */
 } psurface_t;
 
 typedef struct prnt_t {
@@ -101,7 +127,8 @@ typedef struct prnt_t {
     pc_timer_t pulse_timer;
     pc_timer_t timeout_timer;
 
-    /* page data (TODO: make configurable) */
+    /* page data */
+    int    paper_size;
     double page_width; /* all in inches */
     double page_height;
     double left_margin;
@@ -111,14 +138,22 @@ typedef struct prnt_t {
 
     /* internal page data */
     psurface_t *page;
-    uint8_t     max_chars;
-    uint8_t     max_lines;
-    uint8_t     curr_x; /* print head position (x, chars) */
-    uint8_t     curr_y; /* print head position (y, chars) */
+    uint16_t    max_chars;
+    uint16_t    max_lines;
+    uint16_t    curr_x; /* print head position (x, chars) */
+    uint16_t    curr_y; /* print head position (y, chars) */
+    bool        form_feed;
 
     /* font data */
     double cpi; /* defined chars per inch */
     double lpi; /* defined lines per inch */
+
+    /* command skipping */
+    uint8_t  esc_state;
+    uint8_t  esc_bytes_per_column;
+    uint32_t esc_skip;
+    uint32_t esc_value;
+    bool     esc_binary;
 
     /* handshake data */
     uint8_t data;
@@ -137,6 +172,7 @@ dump_page(prnt_t *dev)
 {
     char     path[1024];
     FILE    *fp;
+    uint16_t lines = 0;
 
     /* Create the full path for this file. */
     memset(path, 0x00, sizeof(path));
@@ -154,21 +190,31 @@ dump_page(prnt_t *dev)
     }
     fseek(fp, 0, SEEK_END);
 
-    /* If this is not a new file, add a formfeed first. */
-    if (ftell(fp) != 0)
+    /* The previous sheet ended with a form feed: start a new one. */
+    if (dev->form_feed && (ftell(fp) != 0))
         fputc('\014', fp);
+    dev->form_feed = false;
 
-    for (uint16_t y = 0; y < dev->curr_y; y++) {
+    /* Blank lines at the end of the sheet are not worth keeping. */
+    for (uint16_t y = 0; y < dev->page->h; y++) {
         for (uint16_t x = 0; x < dev->page->w; x++) {
-            const uint8_t ch = dev->page->chars[(y * dev->page->w) + x];
-            if (ch == 0x00) {
-                /* End of line marker. */
-                fputc('\n', fp);
-                break;
-            } else {
-                fputc(ch, fp);
-            }
+            if (dev->page->chars[(y * dev->page->w) + x] != 0x00)
+                lines = y + 1;
         }
+    }
+
+    for (uint16_t y = 0; y < lines; y++) {
+        const uint8_t *line  = &dev->page->chars[y * dev->page->w];
+        uint16_t       width = dev->page->w;
+
+        while ((width > 0) && ((line[width - 1] == 0x00) || (line[width - 1] == ' ')))
+            width--;
+
+        /* Head movement leaves gaps, which are spaces on paper. */
+        for (uint16_t x = 0; x < width; x++)
+            fputc(line[x] ? line[x] : ' ', fp);
+
+        fputc('\n', fp);
     }
 
     /* All done, close the file. */
@@ -176,16 +222,24 @@ dump_page(prnt_t *dev)
 }
 
 static void
+clear_page(prnt_t *dev)
+{
+    memset(dev->page->chars, 0x00, (size_t) dev->page->h * dev->page->w);
+    dev->curr_x      = 0;
+    dev->curr_y      = 0;
+    dev->page->dirty = 0;
+}
+
+static void
 new_page(prnt_t *dev)
 {
     /* Dump the current page if needed. */
-    if (dev->page->dirty)
+    if (dev->page->dirty) {
         dump_page(dev);
+        dev->form_feed = true;
+    }
 
-    /* Clear page. */
-    memset(dev->page->chars, 0x00, dev->page->h * dev->page->w);
-    dev->curr_y      = 0;
-    dev->page->dirty = 0;
+    clear_page(dev);
 }
 
 static void
@@ -206,18 +260,58 @@ timeout_timer(void *priv)
 {
     prnt_t *dev = (prnt_t *) priv;
 
-    if (dev->page->dirty)
-        new_page(dev);
+    /* A pause is not the end of the sheet, so no form feed is written. */
+    if (dev->page->dirty) {
+        dump_page(dev);
+        clear_page(dev);
+    }
 
     timer_stop(&dev->timeout_timer);
 }
 
 static void
+update_layout(prnt_t *dev)
+{
+    double width = dev->page_width - dev->left_margin - dev->right_margin;
+
+    if (width < PAGE_MIN_WIDTH)
+        width = PAGE_MIN_WIDTH;
+
+    dev->max_chars = (uint16_t) (width * dev->cpi);
+    dev->max_lines = (uint16_t) ((dev->page_height - dev->top_margin - dev->bot_margin) * dev->lpi);
+
+    if (dev->max_chars > MAX_COLUMNS)
+        dev->max_chars = MAX_COLUMNS;
+    if (dev->max_lines > MAX_LINES)
+        dev->max_lines = MAX_LINES;
+
+    if (dev->curr_x >= dev->max_chars)
+        dev->curr_x = dev->max_chars - 1;
+}
+
+static void
 reset_printer(prnt_t *dev)
 {
-    /* TODO: these should be configurable */
-    dev->page_width   = LETTER_PAGE_WIDTH;
-    dev->page_height  = LETTER_PAGE_HEIGHT;
+    /* Whatever has been printed so far is on paper already. */
+    if ((dev->page != NULL) && dev->page->dirty)
+        dump_page(dev);
+
+    switch (dev->paper_size) {
+        case PAPER_A4:
+            dev->page_width  = A4_PAGE_WIDTH;
+            dev->page_height = A4_PAGE_HEIGHT;
+            break;
+        case PAPER_LEGAL:
+            dev->page_width  = LEGAL_PAGE_WIDTH;
+            dev->page_height = LEGAL_PAGE_HEIGHT;
+            break;
+        case PAPER_LETTER:
+        default:
+            dev->page_width  = LETTER_PAGE_WIDTH;
+            dev->page_height = LETTER_PAGE_HEIGHT;
+            break;
+    }
+
     dev->left_margin  = PAGE_LMARGIN;
     dev->right_margin = PAGE_RMARGIN;
     dev->top_margin   = PAGE_TMARGIN;
@@ -225,15 +319,14 @@ reset_printer(prnt_t *dev)
     dev->cpi          = PAGE_CPI;
     dev->lpi          = PAGE_LPI;
     dev->ack          = 0;
+    dev->esc_state    = ESC_NONE;
+    dev->form_feed    = false;
 
     /* Default page layout. */
-    dev->max_chars = (int) ((dev->page_width - dev->left_margin - dev->right_margin) * dev->cpi);
-    dev->max_lines = (int) ((dev->page_height - dev->top_margin - dev->bot_margin) * dev->lpi);
-
-    dev->curr_x = dev->curr_y = 0;
+    update_layout(dev);
 
     if (dev->page != NULL)
-        dev->page->dirty = 0;
+        clear_page(dev);
 
     /* Create a file for this page. */
     plat_tempfile(dev->filename, NULL, ".txt");
@@ -242,16 +335,124 @@ reset_printer(prnt_t *dev)
     timer_stop(&dev->timeout_timer);
 }
 
+static void
+line_feed(prnt_t *dev)
+{
+    dev->curr_x = 0;
+    if (++dev->curr_y >= dev->max_lines)
+        new_page(dev);
+}
+
+/* Printing on top of a character adds to it on paper. A space adds nothing, and
+   the character stays readable in a text file when an underline adds to it. */
+static void
+put_char(prnt_t *dev, uint16_t x, uint8_t ch)
+{
+    uint8_t *cell = &dev->page->chars[((size_t) dev->curr_y * dev->page->w) + x];
+
+    if ((*cell != 0x00) && (*cell != ' ') && ((ch == ' ') || (ch == '_')))
+        return;
+
+    *cell = ch;
+}
+
+/* Text is all that this printer knows. Drop the commands of the common printer
+   languages rather than print them, including any graphics data they carry. */
+static void
+skip_escape(prnt_t *dev, uint8_t ch)
+{
+    switch (dev->esc_state) {
+        case ESC_START:
+            dev->esc_state = ESC_NONE;
+
+            if ((ch == '&') || (ch == '%') || (ch == ')')) {
+                dev->esc_value = 0;
+                dev->esc_state = ESC_PCL_VALUE;
+            } else if ((ch == '(') || (ch == '*')) {
+                /* ESC/P follows with a command or mode, PCL with a group or value. */
+                dev->esc_binary = true;
+                dev->esc_value  = ch;
+                dev->esc_state  = ESC_IMAGE_MODE;
+            } else if ((ch != 0x00) && (strchr(" !-/3ACIJNQRSUWaklprstwx+", ch) != NULL)) {
+                dev->esc_skip  = 1;
+                dev->esc_state = ESC_SKIP;
+            } else if ((ch == '$') || (ch == '\\')) {
+                dev->esc_skip  = 2;
+                dev->esc_state = ESC_SKIP;
+            } else if ((ch != 0x00) && (strchr("KLYZ", ch) != NULL)) {
+                dev->esc_bytes_per_column = 1;
+                dev->esc_state            = ESC_COUNT_LOW;
+            }
+            break;
+
+        case ESC_IMAGE_MODE:
+            if (((ch >= '0') && (ch <= '9')) || (ch == '-') || (ch == '+') ||
+                ((ch >= 'a') && (ch <= 'z') && (dev->esc_value == '*')) ||
+                ((ch == 's') && (dev->esc_value == '('))) {
+                dev->esc_value = 0;
+                dev->esc_state = ESC_PCL_VALUE;
+                if ((ch >= '0') && (ch <= '9'))
+                    dev->esc_value = ch - '0';
+            } else if (dev->esc_value == '(')
+                dev->esc_state = ESC_LENGTH_LOW;
+            else {
+                dev->esc_bytes_per_column = (ch < 32) ? 1 : ((ch < 64) ? 3 : 6);
+                dev->esc_state            = ESC_COUNT_LOW;
+            }
+            break;
+
+        case ESC_PCL_VALUE:
+            if ((ch >= '0') && (ch <= '9'))
+                dev->esc_value = (dev->esc_value * 10) + (ch - '0');
+            else if ((ch >= '@') && (ch <= '^')) {
+                dev->esc_state = ESC_NONE;
+                if ((ch == 'W') || (ch == 'V')) {
+                    dev->esc_skip  = dev->esc_value;
+                    dev->esc_state = dev->esc_skip ? ESC_SKIP : ESC_NONE;
+                }
+            } else if ((ch == 'w') || (ch == 'v')) {
+                dev->esc_skip  = dev->esc_value;
+                dev->esc_value = 0;
+                dev->esc_state = dev->esc_skip ? ESC_SKIP : ESC_PCL_VALUE;
+            } else if ((ch >= 'a') && (ch <= 'z'))
+                dev->esc_value = 0;
+            else if ((ch != '-') && (ch != '+') && (ch != '.'))
+                dev->esc_state = ESC_NONE;
+            break;
+
+        case ESC_LENGTH_LOW:
+        case ESC_COUNT_LOW:
+            dev->esc_value = ch;
+            dev->esc_state++;
+            break;
+
+        case ESC_LENGTH_HIGH:
+            dev->esc_skip  = dev->esc_value | ((uint32_t) ch << 8);
+            dev->esc_state = dev->esc_skip ? ESC_SKIP : ESC_NONE;
+            break;
+
+        case ESC_COUNT_HIGH:
+            dev->esc_skip  = (dev->esc_value | ((uint32_t) ch << 8)) * dev->esc_bytes_per_column;
+            dev->esc_state = dev->esc_skip ? ESC_SKIP : ESC_NONE;
+            break;
+
+        case ESC_SKIP:
+            if (--dev->esc_skip == 0)
+                dev->esc_state = ESC_NONE;
+            break;
+
+        default:
+            dev->esc_state = ESC_NONE;
+            break;
+    }
+}
+
 static int
 process_char(prnt_t *dev, uint8_t ch)
 {
-    uint8_t i;
+    uint16_t i;
 
     switch (ch) {
-        case 0x07: /* Beeper (BEL) */
-            /* TODO: beep? */
-            return 1;
-
         case 0x08: /* Backspace (BS) */
             if (dev->curr_x > 0)
                 dev->curr_x--;
@@ -259,17 +460,16 @@ process_char(prnt_t *dev, uint8_t ch)
 
         case 0x09: /* Tab horizontally (HT) */
             /* Find tab right to current pos. */
-            i                                                    = dev->curr_x;
-            dev->page->chars[(dev->curr_y * dev->page->w) + i++] = ' ';
-            while ((i < dev->max_chars) && ((i % 8) != 0)) {
-                dev->page->chars[(dev->curr_y * dev->page->w) + i] = ' ';
-                i++;
-            }
-            dev->curr_x = i;
+            i = dev->curr_x;
+            do {
+                put_char(dev, i++, ' ');
+            } while ((i < dev->max_chars) && ((i % 8) != 0));
+            dev->curr_x = (i < dev->max_chars) ? i : (dev->max_chars - 1);
             return 1;
 
-        case 0x0b: /* Tab vertically (VT) */
-            dev->curr_x = 0;
+        case 0x0a: /* Line feed */
+        case 0x0b: /* Tab vertically (VT), with no vertical tabs set */
+            line_feed(dev);
             return 1;
 
         case 0x0c: /* Form feed (FF) */
@@ -278,54 +478,33 @@ process_char(prnt_t *dev, uint8_t ch)
 
         case 0x0d: /* Carriage Return (CR) */
             dev->curr_x = 0;
-            if (!dev->autofeed)
-                return 1;
-            fallthrough;
-
-        case 0x0a: /* Line feed */
-            dev->curr_x = 0;
-            if (++dev->curr_y >= dev->max_lines)
-                new_page(dev);
-            return 1;
-
-        case 0x0e: /* select wide printing (SO) */
-            /* Ignore. */
+            if (dev->autofeed)
+                line_feed(dev);
             return 1;
 
         case 0x0f: /* select condensed printing (SI) */
-            /* Ignore. */
+            dev->cpi = PAGE_CONDENSED_CPI;
+            update_layout(dev);
             return 1;
-
-        case 0x11: /* select printer (DC1) */
-            /* Ignore. */
-            return 0;
 
         case 0x12: /* cancel condensed printing (DC2) */
-            /* Ignore. */
-            return 1;
-
-        case 0x13: /* deselect printer (DC3) */
-            /* Ignore. */
-            return 1;
-
-        case 0x14: /* cancel double-width printing (one line) (DC4) */
-            /* Ignore. */
-            return 1;
-
-        case 0x18: /* cancel line (CAN) */
-            /* Ignore. */
+            dev->cpi = PAGE_CPI;
+            update_layout(dev);
             return 1;
 
         case 0x1b: /* ESC */
-            /* Ignore. */
+            dev->esc_state = ESC_START;
+            return 1;
+
+        case 0x7f:
             return 1;
 
         default:
             break;
     }
 
-    /* Just a printable character. */
-    return 0;
+    /* The other control codes do not print. */
+    return ch < 0x20;
 }
 
 static void
@@ -336,21 +515,25 @@ handle_char(prnt_t *dev)
     if (dev->page == NULL)
         return;
 
+    if (dev->esc_state != ESC_NONE) {
+        skip_escape(dev, ch);
+        return;
+    }
+
     if (process_char(dev, ch) == 1) {
         /* Command was processed. */
         return;
     }
 
     /* Store character in the page buffer. */
-    dev->page->chars[(dev->curr_y * dev->page->w) + dev->curr_x] = ch;
-    dev->page->dirty                                             = 1;
+    put_char(dev, dev->curr_x, ch);
+
+    if (ch != ' ')
+        dev->page->dirty = 1;
 
     /* Update print head position. */
-    if (++dev->curr_x >= dev->max_chars) {
-        dev->curr_x = 0;
-        if (++dev->curr_y >= dev->max_lines)
-            new_page(dev);
-    }
+    if (++dev->curr_x >= dev->max_chars)
+        line_feed(dev);
 }
 
 static void
@@ -460,14 +643,16 @@ prnt_init(const device_t *info)
     dev->ctrl = 0x04;
     dev->lpt  = lpt_attach(write_data, write_ctrl, strobe, read_status, NULL, NULL, NULL, dev);
 
-    /* Initialize parameters. */
-    reset_printer(dev);
+    dev->paper_size = device_get_config_int("paper_size");
 
     /* Create a page buffer. */
     dev->page        = (psurface_t *) calloc(1, sizeof(psurface_t));
-    dev->page->w     = dev->max_chars;
-    dev->page->h     = dev->max_lines;
+    dev->page->w     = MAX_COLUMNS;
+    dev->page->h     = MAX_LINES;
     dev->page->chars = (uint8_t *) calloc(dev->page->w, dev->page->h);
+
+    /* Initialize parameters. */
+    reset_printer(dev);
 
     timer_add(&dev->pulse_timer, pulse_timer, dev, 0);
     timer_add(&dev->timeout_timer, timeout_timer, dev, 0);
@@ -500,26 +685,25 @@ prnt_close(void *priv)
 }
 
 // clang-format off
-#if 0
 static const device_config_t lpt_prt_text_config[] = {
     {
         .name           = "paper_size",
         .description    = "Paper Size",
         .type           = CONFIG_SELECTION,
         .default_string = NULL,
-        .default_int    = 0,
+        .default_int    = PAPER_LETTER,
         .file_filter    = NULL,
         .spinner        = { 0 },
         .selection      = {
-            { .description = "Letter", .value = 0 },
-            { .description = "A4",     .value = 1 },
-            { .description = ""                   }
+            { .description = "Letter", .value = PAPER_LETTER },
+            { .description = "A4",     .value = PAPER_A4     },
+            { .description = "Legal",  .value = PAPER_LEGAL  },
+            { .description = ""                              }
         },
         .bios           = { { 0 } }
     },
     { .name = "", .description = "", .type = CONFIG_END }
 };
-#endif
 // clang-format on
 
 const device_t lpt_prt_text_device = {
@@ -533,9 +717,5 @@ const device_t lpt_prt_text_device = {
     .available     = NULL,
     .speed_changed = NULL,
     .force_redraw  = NULL,
-#if 0
     .config        = lpt_prt_text_config
-#else
-    .config        = NULL
-#endif
 };

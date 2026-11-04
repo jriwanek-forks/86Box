@@ -64,8 +64,24 @@ enum {
     RASTER_RLE_REPEAT
 };
 
+/* ESC . 2 (TIFF compressed raster graphics) sub-command parser states. */
+enum {
+    RASTER_TIFF_COMMAND = 0,
+    RASTER_TIFF_XFER_COUNT,
+    RASTER_TIFF_XFER_DATA,
+    RASTER_TIFF_MOVX_ARG,
+    RASTER_TIFF_MOVY_ARG
+};
+
+/* User-defined character skipping, used by ESC &. */
+enum {
+    USERCHAR_NONE = 0,
+    USERCHAR_HEADER,
+    USERCHAR_DATA
+};
+
 /* Default page values (for now.) */
-#define COLOR_BLACK  7 << 5
+#define COLOR_BLACK  (7 << 5)
 #define PAGE_CPI     10.0 /* standard 10 cpi */
 #define PAGE_LPI     6.0  /* standard 6 lpi */
 
@@ -182,7 +198,7 @@ typedef struct escp_t {
     uint16_t bg_v_density; /* in dpi */
     int8_t   bg_adjacent;  /* print adjacent pixels */
     uint8_t  bg_bytes_per_column;
-    uint16_t bg_remaining_bytes; /* #bytes left before img is complete */
+    uint32_t bg_remaining_bytes; /* #bytes left before img is complete */
     uint8_t  bg_column[6];       /* #bytes of the current and last col */
     uint8_t  bg_previous[6];     // for non-adjacent pixels in graphics mode
     uint8_t  bg_bytes_read;      /* #bytes read so far for current col */
@@ -201,6 +217,16 @@ typedef struct escp_t {
     double   rg_origin_x;
     double   rg_origin_y;
 
+    /* TIFF compressed raster graphics data (ESC . 2) */
+    uint8_t  rg_tiff_state;
+    uint8_t  rg_tiff_arg[2];
+    uint8_t  rg_tiff_arg_count;
+    uint8_t  rg_tiff_arg_needed;
+    bool     rg_tiff_move_bytes;
+    int32_t  rg_tiff_x; /* in dots from the left margin */
+    int32_t  rg_tiff_y; /* in raster rows from the entry position */
+    uint16_t rg_tiff_xfer_remaining;
+
     /* handshake data */
     uint8_t data;
     bool ack;
@@ -217,6 +243,14 @@ typedef struct escp_t {
     uint8_t  esc_parms_req;
     uint8_t  esc_parms_curr;
     uint8_t  esc_parms[20]; /* 20 should be enough for everybody */
+    uint32_t esc_skip;      /* command bytes still to be discarded */
+
+    /* ESC & user-defined character definition skipping */
+    uint8_t  userchar_state;
+    uint8_t  userchar_header[3];
+    uint8_t  userchar_header_pos;
+    uint16_t userchar_count;
+    uint32_t userchar_data;
 
     /* internal page data */
     char        fontpath[1024];
@@ -246,8 +280,8 @@ typedef struct escp_t {
     uint8_t density_y;
     uint8_t density_z;
 
-    int8_t print_upper_control;    /* ESC 6, ESC 7 */
-    int8_t print_everything_count; /* for ESC ( ^ */
+    int8_t   print_upper_control;    /* ESC 6, ESC 7 */
+    uint16_t print_everything_count; /* for ESC ( ^ */
 
     double defined_unit; /* internal unit for some ESC/P
                           * commands. -1 = use default */
@@ -257,7 +291,8 @@ typedef struct escp_t {
 
     PALETTE palcol;
 
-    bool auto_lf;
+    bool    auto_lf;
+    uint8_t default_quality;
 } escp_t;
 
 /* Codepage table, needed for ESC t ( */
@@ -379,10 +414,45 @@ timeout_timer(void *priv)
 {
     escp_t *dev = (escp_t *) priv;
 
+    /* A pause in the data does not eject the sheet on the real printer: save
+       what has been printed so far, and keep the page so that a slow job can
+       carry on. The next save simply replaces this file. */
     if (dev->page->dirty)
-        new_page(dev, 1, 1);
+        dump_page(dev);
 
     timer_stop(&dev->timeout_timer);
+}
+
+/* Follow a page length change made by the host. */
+static void
+resize_page(escp_t *dev)
+{
+    const double max_height = 32767.0 / (double) dev->dpi;
+    int          new_h;
+    uint8_t     *pixels;
+
+    if (!dev->page)
+        return;
+
+    if (dev->page_height > max_height)
+        dev->page_height = max_height;
+    if (dev->bottom_margin > dev->page_height)
+        dev->bottom_margin = dev->page_height;
+
+    new_h = (int) (dev->dpi * dev->page_height);
+    if ((new_h <= 0) || (new_h == dev->page->h))
+        return;
+
+    pixels = (uint8_t *) realloc(dev->page->pixels, (size_t) dev->page->pitch * new_h);
+    if (pixels == NULL)
+        return;
+
+    if (new_h > dev->page->h)
+        memset(pixels + ((size_t) dev->page->pitch * dev->page->h), 0x00,
+               (size_t) dev->page->pitch * (new_h - dev->page->h));
+
+    dev->page->pixels = pixels;
+    dev->page->h      = new_h;
 }
 
 static void
@@ -526,6 +596,8 @@ init_codepage(escp_t *dev, uint16_t num)
 static void
 reset_printer(escp_t *dev)
 {
+    const double old_y = dev->curr_y;
+
     dev->top_margin = dev->left_margin = 1.0 / 36.0;
     dev->right_margin         = dev->page_width;
     switch (dev->paper_size) {
@@ -556,7 +628,10 @@ reset_printer(escp_t *dev)
     dev->cpi                  = PAGE_CPI;
     dev->curr_char_table      = 1;
     dev->font_style           = 0;
-    dev->print_quality        = device_get_config_int("quality");
+    dev->print_quality        = dev->default_quality;
+    dev->font_score           = SCORE_NONE;
+    dev->esc_skip             = 0;
+    dev->userchar_state       = USERCHAR_NONE;
     dev->extra_intra_space    = 0.0;
     dev->print_upper_control  = 1;
     dev->bg_remaining_bytes   = 0;
@@ -580,15 +655,19 @@ reset_printer(escp_t *dev)
 
     update_font(dev);
 
-    new_page(dev, 0, 1);
+    resize_page(dev);
+
+    /* ESC @ does not eject the sheet, and must not lose what is on it. */
+    if (dev->page && dev->page->dirty) {
+        dev->curr_x = dev->left_margin;
+        dev->curr_y = old_y;
+    } else
+        new_page(dev, 0, 1);
 
     for (uint8_t i = 0; i < 32; i++)
         dev->horizontal_tabs[i] = i * 8.0 * (1.0 / dev->cpi);
     dev->num_horizontal_tabs = 32;
     dev->num_vertical_tabs   = -1;
-
-    if (dev->page)
-        dev->page->dirty = 0;
 
     escp_log("ESC/P: width=%.1fin,height=%.1fin dpi=%i cpi=%i lpi=%i\n",
              dev->page_width, dev->page_height, (int) dev->dpi,
@@ -601,6 +680,11 @@ reset_printer_hard(escp_t *dev)
     dev->ack = false;
     timer_disable(&dev->pulse_timer);
     timer_stop(&dev->timeout_timer);
+
+    /* A hardware reset starts on a fresh page, without losing the old one. */
+    if (dev->page && dev->page->dirty)
+        new_page(dev, 1, 1);
+
     reset_printer(dev);
 }
 
@@ -766,7 +850,7 @@ setup_bit_image(escp_t *dev, uint8_t density, uint16_t num_columns)
     for (uint8_t i = 0; i < dev->bg_bytes_per_column; ++i)
         dev->bg_previous[i] = 0;
 
-    dev->bg_remaining_bytes = num_columns * dev->bg_bytes_per_column;
+    dev->bg_remaining_bytes = (uint32_t) num_columns * dev->bg_bytes_per_column;
     dev->bg_bytes_read      = 0;
 }
 
@@ -781,19 +865,27 @@ setup_raster_graphics(escp_t *dev)
 
     dev->rg_active = false;
 
-    if ((compression > 1) ||
-        ((v != 5) && (v != 10) && (v != 20)) ||
-        ((h != 5) && (h != 10) && (h != 20)) ||
+    /* The band commands take a fixed band of 1, 8 or 24 rows. ESC . 2 sends its
+       rows in sub-commands instead, and zero densities keep the previous ones:
+       the driver leaves and re-enters this mode around a form feed that way. */
+    if ((compression > 2) ||
+        ((v != 5) && (v != 10) && (v != 20) && ((compression != 2) || (v != 0))) ||
+        ((h != 5) && (h != 10) && (h != 20) && ((compression != 2) || (h != 0))) ||
         ((rows != 1) && (rows != 8) && (rows != 24)) ||
-        (width == 0)) {
+        ((width == 0) && (compression != 2))) {
         escp_log("ESC/P: Invalid raster graphics parameters: c=%u v=%u h=%u m=%u n=%u.\n",
                  compression, v, h, rows, width);
         return;
     }
 
     dev->rg_compression   = compression;
-    dev->rg_h_density     = 3600 / h;
-    dev->rg_v_density     = 3600 / v;
+    if (h != 0)
+        dev->rg_h_density = 3600 / h;
+    if (v != 0)
+        dev->rg_v_density = 3600 / v;
+    if ((dev->rg_h_density == 0) || (dev->rg_v_density == 0))
+        return;
+
     dev->rg_width         = width;
     dev->rg_bytes_per_row = (width + 7) / 8;
     dev->rg_rle_state     = RASTER_RLE_COUNTER;
@@ -803,6 +895,13 @@ setup_raster_graphics(escp_t *dev)
     dev->rg_origin_x      = dev->curr_x;
     dev->rg_origin_y      = dev->curr_y;
     dev->rg_active        = true;
+
+    if (compression == 2) {
+        dev->rg_tiff_state      = RASTER_TIFF_COMMAND;
+        dev->rg_tiff_move_bytes = false;
+        dev->rg_tiff_x          = (int32_t) round((dev->curr_x - dev->left_margin) * dev->rg_h_density);
+        dev->rg_tiff_y          = 0;
+    }
 }
 
 /* This is the actual ESC/P interpreter. */
@@ -816,8 +915,14 @@ process_char(escp_t *dev, uint8_t ch)
     double   reverse;
     double   new_top;
     double   new_bottom;
-    uint16_t rel_move;
+    int16_t  rel_move;
     int16_t  i;
+
+    /* Discard the payload of a command which has no effect here. */
+    if (dev->esc_skip > 0) {
+        dev->esc_skip--;
+        return 1;
+    }
 
     escp_log("Esc_seen=%d, fss_seen=%d\n", dev->esc_seen, dev->fss_seen);
     /* Determine number of additional command params that are expected. */
@@ -898,18 +1003,21 @@ process_char(escp_t *dev, uint8_t ch)
                     dev->esc_pending = 0;
                     return 1;
                 }
+                fallthrough;
             case '+':  // Set n/360-inch line spacing
                 if (dev->lang < LANG_ESCP) {
                     dev->esc_parms_req = 0;
                     dev->esc_pending = 0;
                     return 1;
                 }
+                fallthrough;
             case 'w':  // Turn double-height printing on/off
                 if (dev->lang == LANG_EX1000) {
                     dev->esc_parms_req = 0;
                     dev->esc_pending = 0;
                     return 1;
                 }
+                fallthrough;
             case 0x19:  // Control paper loading/ejecting (ESC EM)
             case ' ':  // Set intercharacter space
             case '!':  // Master select
@@ -960,6 +1068,7 @@ process_char(escp_t *dev, uint8_t ch)
                     dev->esc_pending = 0;
                     return 1;
                 }
+                fallthrough;
             case '$':  // Set absolute horizontal print position
             case '?':  // Reassign bit-image mode
             case 'K':  // Select 60-dpi graphics
@@ -985,14 +1094,18 @@ process_char(escp_t *dev, uint8_t ch)
                     dev->esc_pending = 0;
                     return 1;
                 }
+                dev->esc_parms_req = 3;
+                break;
             case '^': /* 9-pin ESC/P: Select 60/120-dpi, 9-bit graphics
                          IBM: Enable printing of all character codes on next character */
                 if (dev->lang <= LANG_9PIN)
                     dev->esc_parms_req = 3;
                 else {
                     dev->esc_parms_req = 0;
-                    if (dev->lang == LANG_ESCP)
+                    if (dev->lang == LANG_ESCP) {
                         dev->esc_pending = 0;
+                        return 1;
+                    }
                 }
                 break;
             case '*': // Select bit image
@@ -1018,9 +1131,20 @@ process_char(escp_t *dev, uint8_t ch)
                 return 1;
 
             case '%': // Select user-defined set
-            case '&': // Define user-defined characters
+                escp_log("ESC/P: User-defined characters not supported (0x%02x).\n", dev->esc_pending);
+                dev->esc_pending = 0;
+                dev->esc_skip    = 1;
+                return 1;
+
             case ':': // Copy ROM to RAM
                 escp_log("ESC/P: User-defined characters not supported (0x%02x).\n", dev->esc_pending);
+                dev->esc_pending = 0;
+                dev->esc_skip    = 3;
+                return 1;
+
+            case '&': // Define user-defined characters
+                escp_log("ESC/P: User-defined characters not supported (0x%02x).\n", dev->esc_pending);
+                dev->esc_parms_req = 3;
                 return 1;
 
             case '(': // Two bytes sequence
@@ -1060,11 +1184,18 @@ process_char(escp_t *dev, uint8_t ch)
 
         escp_log("Two-byte command pending=%03x, font path=%s\n", dev->esc_pending, dev->fontpath);
         switch (dev->esc_pending) {
-            case 0x025e: // Print data as characters (ESC (^)
-                if (dev->lang < LANG_ESCP2)
             default:
                 /* ESC ( commands are always followed by a "number of parameters" word parameter */
-                    dev->esc_pending = 0x101; /* dummy value to be checked later */
+                dev->esc_pending   = 0x101; /* dummy value to be checked later */
+                dev->esc_parms_req = 2;
+                break;
+
+            case 0x025e: // Print data as characters (ESC (^)
+                if (dev->lang < LANG_ESCP2)
+                    dev->esc_pending = 0x101;
+                dev->esc_parms_req = 2;
+                break;
+
             case 0x0242: // Bar code setup and print (ESC (B)
                 dev->esc_parms_req = 2;
                 break;
@@ -1095,7 +1226,8 @@ process_char(escp_t *dev, uint8_t ch)
                     dev->esc_pending = 0x101;
                     break;
                 }
-            case 0x0228: // Assign character table (ESC (t)
+                fallthrough;
+            case 0x0274: // Assign character table (ESC (t)
                 dev->esc_parms_req = 5;
                 break;
 
@@ -1128,6 +1260,7 @@ process_char(escp_t *dev, uint8_t ch)
             if (dev->num_vertical_tabs >= 0 && dev->num_vertical_tabs < 16)
                 dev->vertical_tabs[dev->num_vertical_tabs++] = (double) ch * dev->linespacing;
         }
+        return 1;
     }
 
     /* Collect horizontal tabs. */
@@ -1139,6 +1272,31 @@ process_char(escp_t *dev, uint8_t ch)
             if (dev->num_horizontal_tabs < 32)
                 dev->horizontal_tabs[dev->num_horizontal_tabs++] = (double) ch * (1.0 / dev->cpi);
         }
+        return 1;
+    }
+
+    /* Discard user-defined character definitions (ESC &). */
+    if (dev->userchar_state != USERCHAR_NONE) {
+        if (dev->userchar_state == USERCHAR_DATA) {
+            if (--dev->userchar_data == 0)
+                dev->userchar_state = (dev->userchar_count > 0) ? USERCHAR_HEADER : USERCHAR_NONE;
+            return 1;
+        }
+
+        dev->userchar_header[dev->userchar_header_pos++] = ch;
+        if (dev->userchar_header_pos == 3) {
+            dev->userchar_header_pos = 0;
+            dev->userchar_count--;
+            if (dev->lang >= LANG_ESCP)
+                dev->userchar_data = (uint32_t) dev->userchar_header[1] * 3;
+            else
+                dev->userchar_data = 11;
+            if (dev->userchar_data > 0)
+                dev->userchar_state = USERCHAR_DATA;
+            else if (dev->userchar_count == 0)
+                dev->userchar_state = USERCHAR_NONE;
+        }
+        return 1;
     }
 
     /* Check if we're still collecting parameters for the current command. */
@@ -1247,6 +1405,13 @@ process_char(escp_t *dev, uint8_t ch)
                 /* Ignore */
                 break;
 
+            case '&': /* define user-defined characters */
+                dev->userchar_count      = (dev->esc_parms[2] >= dev->esc_parms[1]) ? (dev->esc_parms[2] - dev->esc_parms[1] + 1) : 0;
+                dev->userchar_header_pos = 0;
+                if (dev->userchar_count > 0)
+                    dev->userchar_state = USERCHAR_HEADER;
+                break;
+
             case '0': /* select 1/8-inch line spacing */
                 dev->linespacing = 1.0 / 8.0;
                 break;
@@ -1329,6 +1494,7 @@ process_char(escp_t *dev, uint8_t ch)
             case 'C': /* set page length in lines */
                 if (dev->esc_parms[0] != 0) {
                     dev->page_height = dev->bottom_margin = (double) dev->esc_parms[0] * dev->linespacing;
+                    resize_page(dev);
                 } else { /* == 0 => Set page length in inches */
                     dev->esc_parms_req  = 1;
                     dev->esc_parms_curr = 0;
@@ -1376,9 +1542,10 @@ process_char(escp_t *dev, uint8_t ch)
                 update_font(dev);
                 break;
 
-            case 'N': /* set bottom margin */
-                dev->top_margin    = 0.0;
-                dev->bottom_margin = (double) dev->esc_parms[0] * dev->linespacing;
+            case 'N': /* set bottom margin, in lines from the bottom of the page */
+                dev->bottom_margin = dev->page_height - (double) dev->esc_parms[0] * dev->linespacing;
+                if (dev->bottom_margin <= dev->top_margin)
+                    dev->bottom_margin = dev->page_height;
                 break;
 
             case 'O': /* cancel bottom (and top) margin */
@@ -1394,7 +1561,7 @@ process_char(escp_t *dev, uint8_t ch)
                 break;
 
             case 'Q': /* set right margin */
-                dev->right_margin = ((double) dev->esc_parms[0] - 1.0) / dev->cpi;
+                dev->right_margin = (double) dev->esc_parms[0] / dev->cpi;
                 break;
 
             case 'R': /* select an intl character set */
@@ -1418,10 +1585,11 @@ process_char(escp_t *dev, uint8_t ch)
                 break;
 
             case 'S': /* select superscript/subscript printing */
+                dev->font_style &= ~(STYLE_SUPERSCRIPT | STYLE_SUBSCRIPT);
                 if ((dev->esc_parms[0] == 0) || (dev->esc_parms[0] == '0'))
-                    dev->font_style |= STYLE_SUBSCRIPT;
-                if ((dev->esc_parms[0] == 1) || (dev->esc_parms[1] == '1'))
                     dev->font_style |= STYLE_SUPERSCRIPT;
+                if ((dev->esc_parms[0] == 1) || (dev->esc_parms[0] == '1'))
+                    dev->font_style |= STYLE_SUBSCRIPT;
                 update_font(dev);
                 break;
 
@@ -1476,16 +1644,20 @@ process_char(escp_t *dev, uint8_t ch)
                 break;
 
             case '\\': /* set relative horizontal print pos */
-                rel_move  = PARAM16(0);
+                rel_move  = (int16_t) PARAM16(0);
                 unit_size = dev->defined_unit;
                 if (unit_size < 0)
                     unit_size = (dev->print_quality == QUALITY_DRAFT || dev->lang < LANG_ESCP) ? 120.0 : 180.0;
-                if (dev->curr_x + ((double) rel_move / unit_size) < dev->right_margin)
-                    dev->curr_x += ((double) rel_move / unit_size);
+                new_x = dev->curr_x + ((double) rel_move / unit_size);
+                if ((new_x >= dev->left_margin) && (new_x < dev->right_margin))
+                    dev->curr_x = new_x;
                 break;
 
             case '^': // Select 60/120-dpi, 9-pin graphics)
-                setup_bit_image(dev, 255 - dev->esc_parms[0], PARAM16(0));
+                if (dev->lang <= LANG_9PIN)
+                    setup_bit_image(dev, 255 - dev->esc_parms[0], PARAM16(1));
+                else /* IBM: print the next code as a character */
+                    dev->print_everything_count = 1;
                 break;
 
             case 'a': /* select justification */
@@ -1510,9 +1682,9 @@ process_char(escp_t *dev, uint8_t ch)
                 break;
 
             case 'j': // Reverse paper feed (ESC j)
-                reverse = dev->curr_y - (double) PARAM16(0) / (double) 216.0;
-                if (reverse < dev->left_margin)
-                    dev->curr_y = dev->left_margin;
+                reverse = dev->curr_y - (double) dev->esc_parms[0] / 216.0;
+                if (reverse < dev->top_margin)
+                    dev->curr_y = dev->top_margin;
                 else
                     dev->curr_y = reverse;
                 break;
@@ -1525,7 +1697,7 @@ process_char(escp_t *dev, uint8_t ch)
                 break;
 
             case 'l': /* set left margin */
-                dev->left_margin = ((double) dev->esc_parms[0] - 1.0) / dev->cpi;
+                dev->left_margin = (double) dev->esc_parms[0] / dev->cpi;
                 if (dev->curr_x < dev->left_margin)
                     dev->curr_x = dev->left_margin;
                 break;
@@ -1577,11 +1749,9 @@ process_char(escp_t *dev, uint8_t ch)
             case 'x': /* select LQ or draft */
                 if ((dev->esc_parms[0] == 0) || (dev->esc_parms[0] == '0')) {
                     dev->print_quality = QUALITY_DRAFT;
-                    dev->font_style |= STYLE_CONDENSED;
                 }
                 if ((dev->esc_parms[0] == 1) || (dev->esc_parms[0] == '1')) {
                     dev->print_quality = QUALITY_LQ;
-                    dev->font_style &= ~STYLE_CONDENSED;
                 }
                 dev->hmi = -1;
                 update_font(dev);
@@ -1592,17 +1762,16 @@ process_char(escp_t *dev, uint8_t ch)
                 dev->page_height   = (double) dev->esc_parms[0];
                 dev->bottom_margin = dev->page_height;
                 dev->top_margin    = 0.0;
+                resize_page(dev);
                 break;
 
             case 0x0101: /* skip unsupported ESC ( command */
-                dev->esc_parms_req  = PARAM16(0);
-                dev->esc_parms_curr = 0;
+                dev->esc_skip = PARAM16(0);
                 break;
 
             /* Extended ESC ( <x> commands */
-            case 0x0228: /* assign character table (ESC (t) */
-            case 0x0274:
-                if (dev->esc_parms[2] < 4 && dev->esc_parms[3] < 16) {
+            case 0x0274: /* assign character table (ESC (t) */
+                if (dev->esc_parms[2] < 4 && dev->esc_parms[3] < 15) {
                     dev->char_tables[dev->esc_parms[2]] = codepages[dev->esc_parms[3]];
                     if (dev->esc_parms[2] == dev->curr_char_table)
                         init_codepage(dev, dev->char_tables[dev->curr_char_table]);
@@ -1627,30 +1796,40 @@ process_char(escp_t *dev, uint8_t ch)
                 // ERRLOG("ESC/P: Barcode printing not supported.\n");
 
                 /* Find out how many bytes to skip. */
-                dev->esc_parms_req  = PARAM16(0);
-                dev->esc_parms_curr = 0;
+                dev->esc_skip = PARAM16(0);
                 break;
 
             case 0x0243: /* set page length in defined unit (ESC (C) */
-                if (dev->esc_parms[0] && (dev->defined_unit > 0)) {
-                    dev->page_height = dev->bottom_margin = (double) PARAM16(2) * dev->defined_unit;
+                unit_size = (dev->defined_unit > 0.0) ? dev->defined_unit : 360.0;
+                if (PARAM16(2) != 0) {
+                    dev->page_height = dev->bottom_margin = (double) PARAM16(2) / unit_size;
                     dev->top_margin                       = 0.0;
+                    resize_page(dev);
                 }
+                if (PARAM16(0) > 2)
+                    dev->esc_skip = PARAM16(0) - 2;
                 break;
 
             case 0x0255: /* set unit (ESC (U) */
-                dev->defined_unit = 3600.0 / (double) dev->esc_parms[2];
+                /* The unit is m/3600 of an inch, kept here as units per inch.
+                   The extended form carries its unit in further bytes. */
+                if (dev->esc_parms[2] != 0)
+                    dev->defined_unit = 3600.0 / (double) dev->esc_parms[2];
+                if (PARAM16(0) > 1)
+                    dev->esc_skip = PARAM16(0) - 1;
                 break;
 
             case 0x0256: /* set abse vertical print pos (ESC (V) */
                 unit_size = dev->defined_unit;
                 if (unit_size < 0)
                     unit_size = 360.0;
-                new_y = dev->top_margin + (double) PARAM16(2) * unit_size;
+                new_y = dev->top_margin + (double) PARAM16(2) / unit_size;
                 if (new_y > dev->bottom_margin)
                     new_page(dev, 1, 0);
                 else
                     dev->curr_y = new_y;
+                if (PARAM16(0) > 2)
+                    dev->esc_skip = PARAM16(0) - 2;
                 break;
 
             case 0x025e: /* print data as characters (ESC (^) */
@@ -1658,18 +1837,19 @@ process_char(escp_t *dev, uint8_t ch)
                 break;
 
             case 0x0263: /* set page format (ESC (c) */
-                if (dev->defined_unit > 0.0) {
-                    new_top    = (double) PARAM16(2) * dev->defined_unit;
-                    new_bottom = (double) PARAM16(4) * dev->defined_unit;
-                    if (new_top >= new_bottom)
-                        break;
-                    if (new_top < dev->page_height)
-                        dev->top_margin = new_top;
-                    if (new_bottom < dev->page_height)
-                        dev->bottom_margin = new_bottom;
-                    if (dev->top_margin > dev->curr_y)
-                        dev->curr_y = dev->top_margin;
-                }
+                unit_size  = (dev->defined_unit > 0.0) ? dev->defined_unit : 360.0;
+                new_top    = (double) PARAM16(2) / unit_size;
+                new_bottom = (double) PARAM16(4) / unit_size;
+                if (PARAM16(0) > 4)
+                    dev->esc_skip = PARAM16(0) - 4;
+                if (new_top >= new_bottom)
+                    break;
+                if (new_top < dev->page_height)
+                    dev->top_margin = new_top;
+                if (new_bottom <= dev->page_height)
+                    dev->bottom_margin = new_bottom;
+                if (dev->top_margin > dev->curr_y)
+                    dev->curr_y = dev->top_margin;
                 break;
 
             case 0x0276: /* set relative vertical print pos (ESC (v) */
@@ -1677,13 +1857,15 @@ process_char(escp_t *dev, uint8_t ch)
                     unit_size = dev->defined_unit;
                     if (unit_size < 0.0)
                         unit_size = 360.0;
-                    new_y = dev->curr_y + (double) ((int16_t) PARAM16(2)) * unit_size;
-                    if (new_y > dev->top_margin) {
+                    new_y = dev->curr_y + (double) ((int16_t) PARAM16(2)) / unit_size;
+                    if (new_y >= dev->top_margin) {
                         if (new_y > dev->bottom_margin)
                             new_page(dev, 1, 0);
                         else
                             dev->curr_y = new_y;
                     }
+                    if (PARAM16(0) > 2)
+                        dev->esc_skip = PARAM16(0) - 2;
                 }
                 break;
 
@@ -1718,8 +1900,10 @@ process_char(escp_t *dev, uint8_t ch)
             /* Find tab right to current pos. */
             move_to = -1.0;
             for (i = 0; i < dev->num_horizontal_tabs; i++) {
-                if (dev->horizontal_tabs[i] > dev->curr_x)
+                if (dev->horizontal_tabs[i] > dev->curr_x) {
                     move_to = dev->horizontal_tabs[i];
+                    break;
+                }
             }
 
             /* Nothing found or out of page bounds => Ignore. */
@@ -1742,8 +1926,10 @@ process_char(escp_t *dev, uint8_t ch)
                 /* Find tab below current pos. */
                 move_to = -1;
                 for (i = 0; i < dev->num_vertical_tabs; i++) {
-                    if (dev->vertical_tabs[i] > dev->curr_y)
+                    if (dev->vertical_tabs[i] > dev->curr_y) {
                         move_to = dev->vertical_tabs[i];
+                        break;
+                    }
                 }
 
                 /* Nothing found => Act like FF. */
@@ -1833,8 +2019,13 @@ process_char(escp_t *dev, uint8_t ch)
                 dev->fss_seen = true;
                 return 1;
             }
+            fallthrough;
 
         default:
+            /* The upper control codes do nothing unless made printable (ESC 6). */
+            if (!dev->print_upper_control && (ch >= 0x80) && (ch <= 0x9f))
+                return 1;
+
             /* This is a printable character -> print it. */
             return 0;
     }
@@ -1962,30 +2153,40 @@ print_bit_graph(escp_t *dev, uint8_t ch)
 }
 
 static void
-print_raster_byte(escp_t *dev, uint8_t ch)
+plot_raster_dot(escp_t *dev, double origin_x, double origin_y, int32_t dot_x, int32_t row)
 {
-    const uint32_t row        = dev->rg_bytes_read / dev->rg_bytes_per_row;
-    const uint32_t byte_x     = dev->rg_bytes_read % dev->rg_bytes_per_row;
     const unsigned dot_size_x = fmax(1.0, round((double) dev->dpi / dev->rg_h_density));
     const unsigned dot_size_y = fmax(1.0, round((double) dev->dpi / dev->rg_v_density));
+    const double   x          = (origin_x + (double) dot_x / dev->rg_h_density) * dev->dpi;
+    const double   y          = (origin_y + (double) row / dev->rg_v_density) * dev->dpi;
+
+    if ((x < 0.0) || (y < 0.0))
+        return;
+
+    const unsigned page_x = (unsigned) round(x);
+    const unsigned page_y = (unsigned) round(y);
+
+    for (unsigned xx = 0; (xx < dot_size_x) && ((page_x + xx) < dev->page->w); xx++) {
+        for (unsigned yy = 0; (yy < dot_size_y) && ((page_y + yy) < dev->page->h); yy++)
+            dev->page->pixels[(page_y + yy) * dev->page->pitch + page_x + xx] |= (dev->color | 0x1f);
+    }
+
+    dev->page->dirty = 1;
+}
+
+static void
+print_raster_byte(escp_t *dev, uint8_t ch)
+{
+    const uint32_t row    = dev->rg_bytes_read / dev->rg_bytes_per_row;
+    const uint32_t byte_x = dev->rg_bytes_read % dev->rg_bytes_per_row;
 
     for (uint8_t bit = 0; bit < 8; bit++) {
         const uint32_t dot_x = byte_x * 8 + bit;
 
         if (dot_x >= dev->rg_width)
             break;
-        if (!(ch & (0x80 >> bit)))
-            continue;
-
-        const unsigned page_x = (unsigned) round((dev->rg_origin_x + (double) dot_x / dev->rg_h_density) * dev->dpi);
-        const unsigned page_y = (unsigned) round((dev->rg_origin_y + (double) row / dev->rg_v_density) * dev->dpi);
-
-        for (unsigned xx = 0; (xx < dot_size_x) && ((page_x + xx) < dev->page->w); xx++) {
-            for (unsigned yy = 0; (yy < dot_size_y) && ((page_y + yy) < dev->page->h); yy++)
-                dev->page->pixels[(page_y + yy) * dev->page->pitch + page_x + xx] |= (dev->color | 0x1f);
-        }
-
-        dev->page->dirty = 1;
+        if (ch & (0x80 >> bit))
+            plot_raster_dot(dev, dev->rg_origin_x, dev->rg_origin_y, dot_x, row);
     }
 
     dev->rg_bytes_read++;
@@ -2030,6 +2231,148 @@ print_raster_graph(escp_t *dev, uint8_t ch)
     }
 }
 
+/* Put one decompressed byte of an XFER on the page. */
+static void
+print_tiff_byte(escp_t *dev, uint8_t ch)
+{
+    for (uint8_t bit = 0; bit < 8; bit++) {
+        if (ch & (0x80 >> bit))
+            plot_raster_dot(dev, dev->left_margin, dev->rg_origin_y, dev->rg_tiff_x + bit, dev->rg_tiff_y);
+    }
+
+    dev->rg_tiff_x += 8;
+}
+
+/* Take one PackBits byte of an XFER. */
+static void
+print_tiff_data(escp_t *dev, uint8_t ch)
+{
+    switch (dev->rg_rle_state) {
+        case RASTER_RLE_COUNTER:
+            if (ch == 128)
+                break;
+            if (ch < 128) {
+                dev->rg_rle_remaining = (uint16_t) ch + 1;
+                dev->rg_rle_state     = RASTER_RLE_LITERAL;
+            } else {
+                dev->rg_rle_remaining = 257 - (uint16_t) ch;
+                dev->rg_rle_state     = RASTER_RLE_REPEAT;
+            }
+            break;
+
+        case RASTER_RLE_LITERAL:
+            print_tiff_byte(dev, ch);
+            if (--dev->rg_rle_remaining == 0)
+                dev->rg_rle_state = RASTER_RLE_COUNTER;
+            break;
+
+        case RASTER_RLE_REPEAT:
+            while (dev->rg_rle_remaining > 0) {
+                dev->rg_rle_remaining--;
+                print_tiff_byte(dev, ch);
+            }
+            dev->rg_rle_state = RASTER_RLE_COUNTER;
+            break;
+    }
+}
+
+static void
+tiff_move(escp_t *dev, uint8_t state, int32_t amount)
+{
+    if (state == RASTER_TIFF_MOVX_ARG)
+        dev->rg_tiff_x += dev->rg_tiff_move_bytes ? (amount * 8) : amount;
+    else
+        dev->rg_tiff_y += amount;
+}
+
+/* Leave TIFF mode and hand the position back to the text cursor. */
+static void
+tiff_exit(escp_t *dev)
+{
+    dev->rg_active = false;
+    dev->curr_y    = dev->rg_origin_y + (double) dev->rg_tiff_y / dev->rg_v_density;
+    dev->curr_x    = dev->left_margin + (double) dev->rg_tiff_x / dev->rg_h_density;
+}
+
+static void
+tiff_start_args(escp_t *dev, uint8_t state, uint8_t needed)
+{
+    dev->rg_tiff_state      = state;
+    dev->rg_tiff_arg_count  = 0;
+    dev->rg_tiff_arg_needed = needed;
+}
+
+static void
+print_tiff_graph(escp_t *dev, uint8_t ch)
+{
+    int32_t value;
+
+    switch (dev->rg_tiff_state) {
+        case RASTER_TIFF_COMMAND:
+            if ((ch >= 0x20) && (ch <= 0x2f)) {        /* XFER, 4-bit length */
+                dev->rg_tiff_xfer_remaining = ch & 0x0f;
+                dev->rg_rle_state           = RASTER_RLE_COUNTER;
+                if (dev->rg_tiff_xfer_remaining > 0)
+                    dev->rg_tiff_state = RASTER_TIFF_XFER_DATA;
+            } else if ((ch == 0x31) || (ch == 0x32)) { /* XFER, 8 or 16-bit length */
+                tiff_start_args(dev, RASTER_TIFF_XFER_COUNT, ch & 0x03);
+            } else if ((ch >= 0x40) && (ch <= 0x4f)) { /* MOVX, signed 4-bit */
+                tiff_move(dev, RASTER_TIFF_MOVX_ARG, (int8_t) (ch << 4) >> 4);
+            } else if ((ch == 0x51) || (ch == 0x52)) { /* MOVX, signed 8 or 16-bit */
+                tiff_start_args(dev, RASTER_TIFF_MOVX_ARG, ch & 0x03);
+            } else if ((ch >= 0x60) && (ch <= 0x6f)) { /* MOVY, 4-bit */
+                tiff_move(dev, RASTER_TIFF_MOVY_ARG, ch & 0x0f);
+            } else if ((ch == 0x71) || (ch == 0x72)) { /* MOVY, 8 or 16-bit */
+                tiff_start_args(dev, RASTER_TIFF_MOVY_ARG, ch & 0x03);
+            } else if ((ch >= 0x80) && (ch <= 0x8f)) { /* COLR */
+                ch &= 0x07;
+                dev->color = ((ch == 0) || (ch == 7)) ? COLOR_BLACK : (ch << 5);
+            } else if (ch == 0xe2) {                   /* CR */
+                dev->rg_tiff_x = 0;
+            } else if (ch == 0xe3) {                   /* EXIT */
+                tiff_exit(dev);
+            } else if (ch == 0xe4) {                   /* MOVX is in bytes */
+                dev->rg_tiff_move_bytes = true;
+            } else if (ch == 0xe5) {                   /* MOVX is in dots */
+                dev->rg_tiff_move_bytes = false;
+            }
+            break;
+
+        case RASTER_TIFF_XFER_COUNT:
+        case RASTER_TIFF_MOVX_ARG:
+        case RASTER_TIFF_MOVY_ARG:
+            dev->rg_tiff_arg[dev->rg_tiff_arg_count++] = ch;
+            if (dev->rg_tiff_arg_count < dev->rg_tiff_arg_needed)
+                break;
+
+            value = dev->rg_tiff_arg[0];
+            if (dev->rg_tiff_arg_needed == 2)
+                value |= (int32_t) dev->rg_tiff_arg[1] << 8;
+
+            if (dev->rg_tiff_state == RASTER_TIFF_XFER_COUNT) {
+                dev->rg_tiff_xfer_remaining = value;
+                dev->rg_rle_state           = RASTER_RLE_COUNTER;
+                dev->rg_tiff_state          = (value > 0) ? RASTER_TIFF_XFER_DATA : RASTER_TIFF_COMMAND;
+                break;
+            }
+
+            if (dev->rg_tiff_arg_needed == 2)
+                value = (int16_t) value;
+            else
+                value = (int8_t) value;
+
+            tiff_move(dev, dev->rg_tiff_state, value);
+            dev->rg_tiff_state = RASTER_TIFF_COMMAND;
+            break;
+
+        case RASTER_TIFF_XFER_DATA:
+            print_tiff_data(dev, ch);
+            if (--dev->rg_tiff_xfer_remaining == 0)
+                dev->rg_tiff_state = RASTER_TIFF_COMMAND;
+            break;
+    }
+}
+
 static void
 handle_char(escp_t *dev, uint8_t ch)
 {
@@ -2054,7 +2397,10 @@ handle_char(escp_t *dev, uint8_t ch)
         return;
 
     if (dev->rg_active) {
-        print_raster_graph(dev, ch);
+        if (dev->rg_compression == 2)
+            print_tiff_graph(dev, ch);
+        else
+            print_raster_graph(dev, ch);
         return;
     }
 
@@ -2321,7 +2667,8 @@ escp_init(const device_t *info)
 
     dev->auto_lf = device_get_config_int("auto_lf");
 
-    dev->dpi           = dev->lang >= LANG_ESCP ? 360 : 240;
+    dev->dpi             = dev->lang >= LANG_ESCP ? device_get_config_int("resolution") : 240;
+    dev->default_quality = device_get_config_int("quality");
 
     /* Create 8-bit grayscale buffer for the page. */
     dev->page         = (psurface_t *) calloc(1, sizeof(psurface_t));
@@ -2407,10 +2754,8 @@ static const device_config_t lpt_prt_escp_config[] = {
         .spinner        = { 0 },
         .selection      = {
             { .description = "EX-1000", .value = LANG_EX1000 },
-#if 0
             { .description = "9-pin",   .value = LANG_9PIN },
             { .description = "ESC/P",   .value = LANG_ESCP },
-#endif
             { .description = "ESC/P 2", .value = LANG_ESCP2 },
             { .description = "" }
         },
@@ -2445,6 +2790,21 @@ static const device_config_t lpt_prt_escp_config[] = {
             { .description = "Draft",         .value = QUALITY_DRAFT },
             { .description = "(Near) Letter", .value = QUALITY_LQ    },
             { .description = ""                   }
+        },
+        .bios           = { { 0 } }
+    },
+    {
+        .name           = "resolution",
+        .description    = "Page resolution",
+        .type           = CONFIG_SELECTION,
+        .default_string = NULL,
+        .default_int    = 360,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = {
+            { .description = "360 DPI", .value = 360 },
+            { .description = "720 DPI", .value = 720 },
+            { .description = ""                     }
         },
         .bios           = { { 0 } }
     },

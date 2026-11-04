@@ -316,7 +316,7 @@ select_codepage(uint16_t code, uint16_t *curmap)
 
     map_to_use = maps[0].map;
 
-    while (maps[i].code != 0) {
+    while (maps[i].map != NULL) {
         if (maps[i].code == code) {
             map_to_use = maps[i].map;
             break;

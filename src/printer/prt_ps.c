@@ -36,6 +36,7 @@
 #include <86box/plat_dynld.h>
 #include <86box/ui.h>
 #include "cpu.h"
+#include <86box/printer.h>
 #include <86box/prt_papersizes.h>
 
 #ifdef _WIN32
@@ -49,13 +50,26 @@
 
 #define POSTSCRIPT_BUFFER_LENGTH 65536
 
+/* How long the data may stop before a job is taken to be over: a short time when
+   the job ended in its own way, and long enough for a slow host to render the
+   next band otherwise. Cutting a job in two would ruin both of the parts. */
+#define JOB_TIMEOUT_ENDED 5000000.0
+#define JOB_TIMEOUT_OPEN  60000000.0
+
+/* Data seen before an ESC E can make it the end of a job, not its start. */
+#define JOB_MIN_BYTES 16
+
+/* The default paper of the DeskJet engine, and its finest ink grid. */
+#define DESKJET_DPI 600
+
 enum {
     LANG_RAW    = 0,
     LANG_PS,
     LANG_PCL_5E,
     LANG_PCL_5C,
     LANG_HP_RTL,
-    LANG_PCL_6
+    LANG_PCL_6,
+    LANG_DESKJET
 };
 
 typedef struct ps_t {
@@ -73,6 +87,10 @@ typedef struct ps_t {
     bool        pjl_mismatch;
     bool        pjl_line_overflow;
     bool        interpreter_ref;
+    bool        job_ended;
+    bool        binary_protocol;
+    bool        binary_quote;
+    bool        ctrl_a_seen;
 
     uint8_t     data;
 
@@ -93,6 +111,11 @@ typedef struct ps_t {
     int         resolution;
 
     size_t      buffer_pos;
+    uint32_t    job_bytes;
+
+    char        text_tail[34];
+
+    void       *deskjet;
 } ps_t;
 
 typedef struct gsapi_revision_s {
@@ -159,6 +182,53 @@ pulse_timer(void *priv)
     timer_disable(&dev->pulse_timer);
 }
 
+static void
+get_paper_size(const ps_t *dev, double *paper_width, double *paper_height)
+{
+    *paper_width  = 0.0;
+    *paper_height = 0.0;
+
+    switch (dev->paper_size) {
+        case 1: *paper_width = LETTER_PAGE_WIDTH;  *paper_height = LETTER_PAGE_HEIGHT;  break;
+        case 2: *paper_width = LEGAL_PAGE_WIDTH;   *paper_height = LEGAL_PAGE_HEIGHT;   break;
+        case 3: *paper_width = LEDGER_PAGE_WIDTH;  *paper_height = LEDGER_PAGE_HEIGHT;  break;
+        case 4: *paper_width = A0_PAGE_WIDTH;      *paper_height = A0_PAGE_HEIGHT;      break;
+        case 5: *paper_width = A1_PAGE_WIDTH;      *paper_height = A1_PAGE_HEIGHT;      break;
+        case 6: *paper_width = A2_PAGE_WIDTH;      *paper_height = A2_PAGE_HEIGHT;      break;
+        case 7: *paper_width = A3_PAGE_WIDTH;      *paper_height = A3_PAGE_HEIGHT;      break;
+        case 8: *paper_width = A4_PAGE_WIDTH;      *paper_height = A4_PAGE_HEIGHT;      break;
+        case 9:  *paper_width = B4_PAGE_WIDTH;  *paper_height = B4_PAGE_HEIGHT;  break;
+        case 10: *paper_width = A5_PAGE_WIDTH;  *paper_height = A5_PAGE_HEIGHT;  break;
+        case 11: *paper_width = A6_PAGE_WIDTH;  *paper_height = A6_PAGE_HEIGHT;  break;
+        case 12: *paper_width = A7_PAGE_WIDTH;  *paper_height = A7_PAGE_HEIGHT;  break;
+        case 13: *paper_width = A8_PAGE_WIDTH;  *paper_height = A8_PAGE_HEIGHT;  break;
+        case 14: *paper_width = A9_PAGE_WIDTH;  *paper_height = A9_PAGE_HEIGHT;  break;
+        case 15: *paper_width = A10_PAGE_WIDTH; *paper_height = A10_PAGE_HEIGHT; break;
+        case 16: *paper_width = B0_PAGE_WIDTH;  *paper_height = B0_PAGE_HEIGHT;  break;
+        case 17: *paper_width = B1_PAGE_WIDTH;  *paper_height = B1_PAGE_HEIGHT;  break;
+        case 18: *paper_width = B2_PAGE_WIDTH;  *paper_height = B2_PAGE_HEIGHT;  break;
+        case 19: *paper_width = B3_PAGE_WIDTH;  *paper_height = B3_PAGE_HEIGHT;  break;
+        case 20: *paper_width = B5_PAGE_WIDTH;  *paper_height = B5_PAGE_HEIGHT;  break;
+        case 21: *paper_width = B6_PAGE_WIDTH;  *paper_height = B6_PAGE_HEIGHT;  break;
+        case 22: *paper_width = B7_PAGE_WIDTH;  *paper_height = B7_PAGE_HEIGHT;  break;
+        case 23: *paper_width = B8_PAGE_WIDTH;  *paper_height = B8_PAGE_HEIGHT;  break;
+        case 24: *paper_width = B9_PAGE_WIDTH;  *paper_height = B9_PAGE_HEIGHT;  break;
+        case 25: *paper_width = B10_PAGE_WIDTH; *paper_height = B10_PAGE_HEIGHT; break;
+        case 26: *paper_width = EXECUTIVE_PAGE_WIDTH; *paper_height = EXECUTIVE_PAGE_HEIGHT; break;
+        case 27: *paper_width = STATEMENT_PAGE_WIDTH; *paper_height = STATEMENT_PAGE_HEIGHT; break;
+        case 28: *paper_width = FOLIO_PAGE_WIDTH; *paper_height = FOLIO_PAGE_HEIGHT; break;
+        case 29: *paper_width = TEN_BY_FOURTEEN_PAGE_WIDTH; *paper_height = TEN_BY_FOURTEEN_PAGE_HEIGHT; break;
+        case 30: *paper_width = ANSI_C_PAGE_WIDTH; *paper_height = ANSI_C_PAGE_HEIGHT; break;
+        case 31: *paper_width = ANSI_D_PAGE_WIDTH; *paper_height = ANSI_D_PAGE_HEIGHT; break;
+        case 32: *paper_width = ANSI_E_PAGE_WIDTH; *paper_height = ANSI_E_PAGE_HEIGHT; break;
+        case 33: *paper_width = ENVELOPE_DL_PAGE_WIDTH; *paper_height = ENVELOPE_DL_PAGE_HEIGHT; break;
+        case 34: *paper_width = ENVELOPE_C5_PAGE_WIDTH; *paper_height = ENVELOPE_C5_PAGE_HEIGHT; break;
+        case 35: *paper_width = ENVELOPE_NO10_PAGE_WIDTH; *paper_height = ENVELOPE_NO10_PAGE_HEIGHT; break;
+        case 36: *paper_width = ENVELOPE_MONARCH_PAGE_WIDTH; *paper_height = ENVELOPE_MONARCH_PAGE_HEIGHT; break;
+        default: break;
+    }
+}
+
 static int
 convert_to_pdf(ps_t *dev)
 {
@@ -191,45 +261,7 @@ convert_to_pdf(ps_t *dev)
     /* An automatic setting leaves the incoming job's page size/resolution
        alone. Explicit paper settings model the physical media available in
        the generic printer and therefore constrain the interpreter's media. */
-    switch (dev->paper_size) {
-        case 1: paper_width = LETTER_PAGE_WIDTH;  paper_height = LETTER_PAGE_HEIGHT;  break;
-        case 2: paper_width = LEGAL_PAGE_WIDTH;   paper_height = LEGAL_PAGE_HEIGHT;   break;
-        case 3: paper_width = LEDGER_PAGE_WIDTH;  paper_height = LEDGER_PAGE_HEIGHT;  break;
-        case 4: paper_width = A0_PAGE_WIDTH;      paper_height = A0_PAGE_HEIGHT;      break;
-        case 5: paper_width = A1_PAGE_WIDTH;      paper_height = A1_PAGE_HEIGHT;      break;
-        case 6: paper_width = A2_PAGE_WIDTH;      paper_height = A2_PAGE_HEIGHT;      break;
-        case 7: paper_width = A3_PAGE_WIDTH;      paper_height = A3_PAGE_HEIGHT;      break;
-        case 8: paper_width = A4_PAGE_WIDTH;      paper_height = A4_PAGE_HEIGHT;      break;
-        case 9:  paper_width = B4_PAGE_WIDTH;  paper_height = B4_PAGE_HEIGHT;  break;
-        case 10: paper_width = A5_PAGE_WIDTH;  paper_height = A5_PAGE_HEIGHT;  break;
-        case 11: paper_width = A6_PAGE_WIDTH;  paper_height = A6_PAGE_HEIGHT;  break;
-        case 12: paper_width = A7_PAGE_WIDTH;  paper_height = A7_PAGE_HEIGHT;  break;
-        case 13: paper_width = A8_PAGE_WIDTH;  paper_height = A8_PAGE_HEIGHT;  break;
-        case 14: paper_width = A9_PAGE_WIDTH;  paper_height = A9_PAGE_HEIGHT;  break;
-        case 15: paper_width = A10_PAGE_WIDTH; paper_height = A10_PAGE_HEIGHT; break;
-        case 16: paper_width = B0_PAGE_WIDTH;  paper_height = B0_PAGE_HEIGHT;  break;
-        case 17: paper_width = B1_PAGE_WIDTH;  paper_height = B1_PAGE_HEIGHT;  break;
-        case 18: paper_width = B2_PAGE_WIDTH;  paper_height = B2_PAGE_HEIGHT;  break;
-        case 19: paper_width = B3_PAGE_WIDTH;  paper_height = B3_PAGE_HEIGHT;  break;
-        case 20: paper_width = B5_PAGE_WIDTH;  paper_height = B5_PAGE_HEIGHT;  break;
-        case 21: paper_width = B6_PAGE_WIDTH;  paper_height = B6_PAGE_HEIGHT;  break;
-        case 22: paper_width = B7_PAGE_WIDTH;  paper_height = B7_PAGE_HEIGHT;  break;
-        case 23: paper_width = B8_PAGE_WIDTH;  paper_height = B8_PAGE_HEIGHT;  break;
-        case 24: paper_width = B9_PAGE_WIDTH;  paper_height = B9_PAGE_HEIGHT;  break;
-        case 25: paper_width = B10_PAGE_WIDTH; paper_height = B10_PAGE_HEIGHT; break;
-        case 26: paper_width = EXECUTIVE_PAGE_WIDTH; paper_height = EXECUTIVE_PAGE_HEIGHT; break;
-        case 27: paper_width = STATEMENT_PAGE_WIDTH; paper_height = STATEMENT_PAGE_HEIGHT; break;
-        case 28: paper_width = FOLIO_PAGE_WIDTH; paper_height = FOLIO_PAGE_HEIGHT; break;
-        case 29: paper_width = TEN_BY_FOURTEEN_PAGE_WIDTH; paper_height = TEN_BY_FOURTEEN_PAGE_HEIGHT; break;
-        case 30: paper_width = ANSI_C_PAGE_WIDTH; paper_height = ANSI_C_PAGE_HEIGHT; break;
-        case 31: paper_width = ANSI_D_PAGE_WIDTH; paper_height = ANSI_D_PAGE_HEIGHT; break;
-        case 32: paper_width = ANSI_E_PAGE_WIDTH; paper_height = ANSI_E_PAGE_HEIGHT; break;
-        case 33: paper_width = ENVELOPE_DL_PAGE_WIDTH; paper_height = ENVELOPE_DL_PAGE_HEIGHT; break;
-        case 34: paper_width = ENVELOPE_C5_PAGE_WIDTH; paper_height = ENVELOPE_C5_PAGE_HEIGHT; break;
-        case 35: paper_width = ENVELOPE_NO10_PAGE_WIDTH; paper_height = ENVELOPE_NO10_PAGE_HEIGHT; break;
-        case 36: paper_width = ENVELOPE_MONARCH_PAGE_WIDTH; paper_height = ENVELOPE_MONARCH_PAGE_HEIGHT; break;
-        default: break;
-    }
+    get_paper_size(dev, &paper_width, &paper_height);
 
     if (dev->resolution > 0) {
         snprintf(resolution_arg, sizeof(resolution_arg), "-r%d", dev->resolution);
@@ -410,12 +442,15 @@ release_interpreter(ps_t *dev)
     dev->interpreter_ref = false;
 }
 
-static void
-reset_ps(ps_t *dev)
-{
-    dev->ack = false;
+static void write_buffer(ps_t *dev, bool finish);
 
-    if (dev->pending) {
+/* Everything has been received: hand the job over. */
+static void
+finish_job(ps_t *dev)
+{
+    if (dev->buffer_pos != 0)
+        write_buffer(dev, true);
+    else if (dev->pending) {
         if ((dev->lang != LANG_RAW) && interpreter_available(dev))
             convert_to_pdf(dev);
 
@@ -423,6 +458,24 @@ reset_ps(ps_t *dev)
 
         dev->pending     = false;
     }
+
+    dev->job_bytes       = 0;
+    dev->job_ended       = false;
+    dev->binary_protocol = false;
+    dev->binary_quote    = false;
+    dev->ctrl_a_seen     = false;
+    dev->text_tail[0]    = 0;
+}
+
+static void
+reset_ps(ps_t *dev)
+{
+    dev->ack = false;
+
+    finish_job(dev);
+
+    if (dev->deskjet != NULL)
+        pcl3_reset(dev->deskjet);
 
     dev->buffer[0]  = 0;
     dev->buffer_pos = 0;
@@ -491,16 +544,10 @@ timeout_timer(void *priv)
 {
     ps_t *dev = (ps_t *) priv;
 
-    if (dev->buffer_pos != 0)
-        write_buffer(dev, true);
-    else if (dev->pending) {
-        if ((dev->lang != LANG_RAW) && interpreter_available(dev))
-            convert_to_pdf(dev);
-
-        dev->filename[0] = 0;
-
-        dev->pending     = false;
-    }
+    if (dev->deskjet != NULL)
+        pcl3_flush(dev->deskjet);
+    else
+        finish_job(dev);
 
     timer_stop(&dev->timeout_timer);
 }
@@ -595,7 +642,8 @@ pjl_is_command(const char *line)
            ((p[4] == 0) || (p[4] == ' ') || (p[4] == '\t'));
 }
 
-static void
+/* Returns false if the byte is the start of data in the printer's language. */
+static bool
 process_pjl_data(ps_t *dev, uint8_t val)
 {
     static const uint8_t uel[] = { 0x1b, '%', '-', '1', '2', '3', '4', '5', 'X' };
@@ -609,8 +657,18 @@ process_pjl_data(ps_t *dev, uint8_t val)
                 dev->pjl_line_pos = 0;
                 dev->pjl_line_overflow = false;
                 dev->pjl_line[0] = 0;
+                dev->pjl_mismatch = false;
             }
-            return;
+            return true;
+        }
+
+        /* A UEL need not be followed by PJL: PCL can follow at once. */
+        if ((dev->pjl_line_pos == 0) && !dev->pjl_mismatch) {
+            for (size_t i = 0; i < dev->uel_pos; i++)
+                append_buffer(dev, dev->uel_candidate[i]);
+            dev->uel_pos = 0;
+            dev->pjl     = false;
+            return false;
         }
 
         for (size_t i = 0; i < dev->uel_pos; i++) {
@@ -626,7 +684,14 @@ process_pjl_data(ps_t *dev, uint8_t val)
     if (val == uel[0]) {
         dev->uel_candidate[0] = val;
         dev->uel_pos = 1;
-        return;
+        return true;
+    }
+
+    /* PJL commands are text lines starting with @PJL. */
+    if ((dev->pjl_line_pos == 0) && !dev->pjl_mismatch && (val != '@') && (val != ' ') &&
+        (val != '\t') && (val != '\r') && (val != '\n')) {
+        dev->pjl = false;
+        return false;
     }
 
     if (val != '\n') {
@@ -645,7 +710,7 @@ process_pjl_data(ps_t *dev, uint8_t val)
             /* Ignore overlong PJL lines instead of allowing the print buffer to overflow. */
             dev->pjl_line_overflow = true;
         }
-        return;
+        return true;
     }
 
     dev->pjl_line[dev->pjl_line_pos] = 0;
@@ -680,6 +745,8 @@ process_pjl_data(ps_t *dev, uint8_t val)
     dev->pjl_line_pos      = 0;
     dev->pjl_line_overflow = false;
     dev->pjl_line[0]       = 0;
+
+    return true;
 }
 
 static int
@@ -705,11 +772,13 @@ process_escape(ps_t *dev, int do_pjl)
 
         dev->uel_pos = 0;
         if (do_pjl) {
+            /* The UEL at the end of a job also starts the next one. */
+            finish_job(dev);
             dev->pjl_line_pos = 0;
             dev->pjl_line_overflow = false;
             dev->pjl_line[0] = 0;
             dev->pjl = true;
-            dev->pending = false;
+            dev->pjl_mismatch = false;
             return 1;
         }
 
@@ -733,6 +802,67 @@ process_escape(ps_t *dev, int do_pjl)
     return 0;
 }
 
+/* The Windows driver turns the binary protocols on from within the job, and the
+   end of the document is the one thing which tells a finished job from a pause. */
+static void
+track_postscript_text(ps_t *dev, uint8_t val)
+{
+    static const char eof[]      = "%%EOF";
+    static const char binary[]   = "/Protocol/Binary";
+    static const char normal[]   = "/Protocol/Normal";
+    static const char iomode[]   = " statusdict/setsoftwareiomode";
+    size_t            len        = strlen(dev->text_tail);
+
+    if (len >= (sizeof(dev->text_tail) - 1)) {
+        memmove(dev->text_tail, dev->text_tail + 1, len);
+        len--;
+    }
+
+    dev->text_tail[len++] = (char) val;
+    dev->text_tail[len]   = 0;
+
+#define TAIL_IS(s) ((len >= (sizeof(s) - 1)) && !memcmp(dev->text_tail + len - (sizeof(s) - 1), s, sizeof(s) - 1))
+    if (TAIL_IS(eof))
+        dev->job_ended = true;
+    else if (TAIL_IS(binary))
+        dev->binary_protocol = true;
+    else if (TAIL_IS(normal))
+        dev->binary_protocol = false;
+    else if (TAIL_IS(iomode) && (len >= (sizeof(iomode) + 2)))
+        dev->binary_protocol = !memcmp(dev->text_tail + len - (sizeof(iomode) + 2), "100", 3);
+#undef TAIL_IS
+}
+
+/* Returns true if the byte is part of the protocol, not of the job. */
+static bool
+process_binary_protocol(ps_t *dev)
+{
+    if (dev->binary_quote) {
+        dev->binary_quote = false;
+        append_buffer(dev, dev->data ^ 0x40);
+        return true;
+    }
+
+    if (dev->ctrl_a_seen) {
+        dev->ctrl_a_seen = false;
+        /* ^A M enters the Tagged Binary Communications Protocol. */
+        if (dev->data == 'M') {
+            dev->binary_protocol = true;
+            return true;
+        }
+    }
+
+    if (dev->data == 0x01) {
+        if (dev->binary_protocol)
+            dev->binary_quote = true;
+        else
+            dev->ctrl_a_seen = true;
+        return true;
+    }
+
+    return false;
+}
+
 static void
 process_data(ps_t *dev)
 {
@@ -742,16 +872,39 @@ process_data(ps_t *dev)
         return;
     }
 
-    /* PJL is recognized automatically for either generic printer backend. */
-    if (dev->pjl) {
-        process_pjl_data(dev, dev->data);
+    /* The DeskJet engine takes the stream as it is. */
+    if (dev->deskjet != NULL) {
+        pcl3_write(dev->deskjet, dev->data);
         return;
     }
+
+    /* PJL is recognized automatically for either generic printer backend. */
+    if (dev->pjl && process_pjl_data(dev, dev->data))
+        return;
+
+    const bool after_esc = (dev->uel_pos == 1);
 
     /* The Universal Exit Language sequence is recognized in both PS and PCL. */
     if ((dev->data == 0x1b) || (dev->uel_pos > 0)) {
         if (process_escape(dev, 1) != 0)
             return;
+    }
+
+    dev->job_bytes++;
+
+    /* Line ends after the end of the job do not reopen it. */
+    if ((dev->data != '\r') && (dev->data != '\n'))
+        dev->job_ended = false;
+
+    if (dev->pcl) {
+        /* A reset after some data is how a PCL job usually ends. */
+        if (after_esc && (dev->data == 'E') && (dev->job_bytes > JOB_MIN_BYTES))
+            dev->job_ended = true;
+    } else {
+        if (process_binary_protocol(dev))
+            return;
+
+        track_postscript_text(dev, dev->data);
     }
 
     if (!dev->pcl && ((dev->data < 0x20) || (dev->data == 0x7f))) {
@@ -769,7 +922,7 @@ process_data(ps_t *dev)
 
             /* Ctrl+D is a common PostScript job terminator. */
             case '\4':
-                write_buffer(dev, true);
+                finish_job(dev);
                 return;
 
             default:
@@ -778,6 +931,15 @@ process_data(ps_t *dev)
     }
 
     append_buffer(dev, dev->data);
+}
+
+static double
+job_timeout(const ps_t *dev)
+{
+    if ((dev->deskjet != NULL) || (dev->lang == LANG_RAW) || dev->job_ended)
+        return JOB_TIMEOUT_ENDED;
+
+    return JOB_TIMEOUT_OPEN;
 }
 
 static void
@@ -802,7 +964,7 @@ ps_strobe(uint8_t old, uint8_t val, void *priv)
         dev->ack = true;
 
         timer_set_delay_u64(&dev->pulse_timer, ISACONST);
-        timer_on_auto(&dev->timeout_timer, 5000000.0);
+        timer_on_auto(&dev->timeout_timer, job_timeout(dev));
     }
 }
 
@@ -840,7 +1002,7 @@ ps_write_ctrl(uint8_t val, void *priv)
         dev->ack = true;
 
         timer_set_delay_u64(&dev->pulse_timer, ISACONST);
-        timer_on_auto(&dev->timeout_timer, 5000000.0);
+        timer_on_auto(&dev->timeout_timer, job_timeout(dev));
     }
 
     dev->ctrl = val;
@@ -908,7 +1070,18 @@ pcl_init(const device_t *info)
     dev->paper_size = device_get_config_int("paper_size");
     dev->resolution = device_get_config_int("resolution");
 
-    if (dev->lang != LANG_RAW)
+    if (dev->lang == LANG_DESKJET) {
+        double width;
+        double height;
+
+        get_paper_size(dev, &width, &height);
+        if ((width <= 0.0) || (height <= 0.0)) {
+            width  = LETTER_PAGE_WIDTH;
+            height = LETTER_PAGE_HEIGHT;
+        }
+
+        dev->deskjet = pcl3_open(width, height, (dev->resolution > 0) ? dev->resolution : DESKJET_DPI);
+    } else if (dev->lang != LANG_RAW)
         load_interpreter(dev);
 
     /* Cache print folder path. */
@@ -934,8 +1107,10 @@ ps_close(void *priv)
     if (dev == NULL)
         return;
 
-    if (dev->buffer[0] != 0)
-        write_buffer(dev, true);
+    finish_job(dev);
+
+    if (dev->deskjet != NULL)
+        pcl3_close(dev->deskjet);
 
     release_interpreter(dev);
 
@@ -1050,6 +1225,7 @@ static const device_config_t lpt_prt_pcl_config[] = {
             { .description = "PDF (PCL 5c)", .value = LANG_PCL_5C },
             { .description = "PDF (HP-RTL)", .value = LANG_HP_RTL },
             { .description = "PDF (PCL 6)",  .value = LANG_PCL_6  },
+            { .description = "PNG (HP DeskJet 500 series)", .value = LANG_DESKJET },
             { .description = ""                                   }
         },
         .bios           = { { 0 } }
