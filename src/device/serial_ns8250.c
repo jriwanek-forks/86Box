@@ -1085,10 +1085,12 @@ serial_close(void *priv)
 {
     serial_t *dev = (serial_t *) priv;
 
-    if (serial_has_device(dev) || com_ports[dev->inst].char_port.type) {
+    if (serial_has_device(dev) || com_ports[dev->inst].char_port.type)
         serial_endpoint_detach(&dev->ep);
-        fifo_close(dev->rcvr_fifo);
-    }
+
+    /* These are NULL on a port that was not enabled, which fifo_close() is fine with. */
+    fifo_close(dev->rcvr_fifo);
+    fifo_close(dev->xmit_fifo);
 
     if ((dev->inst < SERIAL_MAX) && (com_ports[dev->inst].ep == &dev->ep))
         com_ports[dev->inst].ep = NULL;
