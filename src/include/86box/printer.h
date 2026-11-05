@@ -62,11 +62,23 @@ extern FT_Library ft_lib;
 #endif
 
 /* HP DeskJet 500 series PCL 3 page engine. */
+enum {
+    PCL3_MODEL_500 = 0,
+    PCL3_MODEL_500C,
+    PCL3_MODEL_510,
+    PCL3_MODEL_520,
+    PCL3_MODEL_540,
+    PCL3_MODEL_550C,
+    PCL3_MODEL_560C
+};
+
 extern void *pcl3_open(double width, double height, int dpi);
 extern void  pcl3_write(void *priv, uint8_t ch);
 extern void  pcl3_flush(void *priv);
 extern void  pcl3_reset(void *priv);
 extern void  pcl3_close(void *priv);
 extern void  pcl3_load_cartridge(void *priv, const char *fn);
+extern void  pcl3_set_model(void *priv, int model);
+extern void  pcl3_add_ram_cartridge(void *priv, int kilobytes);
 
 #endif /*PRINTER_H*/

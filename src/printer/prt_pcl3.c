@@ -48,6 +48,9 @@
 #define MAX_DATA     0x100000  /* longest binary payload kept in memory */
 #define MAX_SOFTFONT 16
 #define MAX_CART_FONT 64
+#define MAX_RAM_PAGE  8         /* two RAM cartridges of 256 KB */
+#define RAM_PAGE      0x10000   /* a font pass cannot cross one */
+#define RAM_BLOCK     0x1000    /* fonts are given memory in these */
 #define MAX_CART_BANK 32
 #define CART_BANK    0x10000   /* each 64 KB of a cartridge has its own header */
 #define CART_BASELINE 42       /* the descriptor does not give one that is known */
@@ -101,6 +104,9 @@ typedef struct pcl3_softfont_t {
     double       pitch;
     int          typeface;
     int          symbol_set; /* the set of a recreation; a real cartridge has them all */
+    /* Soft fonts only. */
+    uint32_t     ram_used[MAX_RAM_PAGE]; /* of each memory page */
+    bool         ram_by_glyph;           /* it did not say how much it needs */
     pcl3_glyph_t glyphs[256];
 } pcl3_softfont_t;
 
@@ -195,6 +201,14 @@ typedef struct pcl3_t {
     pcl3_softfont_t softfonts[MAX_SOFTFONT];
     pcl3_softfont_t *carts[MAX_CART_FONT]; /* fonts in cartridges; a reset keeps them */
     int              cart_fonts;
+
+    /* What the model can do. */
+    bool     color;
+    bool     landscape_graphics;
+    bool     deskjet_fonts;
+    bool     ram_limited;
+    int      ram_pages;
+    uint32_t ram_free[MAX_RAM_PAGE];
     int             font_id;
     int             char_code;
     double          rect_w;
@@ -317,6 +331,10 @@ set_palette_planes(pcl3_t *dev, int planes)
 {
     static const uint8_t kcmy[4] = { INK_K, INK_C, INK_M, INK_Y };
     static const uint8_t cmy[3]  = { INK_C, INK_M, INK_Y };
+
+    /* A black only model has no other palette. */
+    if (!dev->color)
+        planes = 1;
 
     dev->palette_planes = planes;
 
@@ -961,16 +979,77 @@ delete_softfont(pcl3_softfont_t *font)
     font->id = -1;
 }
 
+/* Memory for soft fonts is in the RAM cartridges, which are divided into 64 KB pages.
+   The printer takes the page with the most room. */
+static bool
+take_font_ram(pcl3_t *dev, pcl3_softfont_t *font, uint32_t size)
+{
+    int page = 0;
+
+    if (!dev->ram_limited)
+        return true;
+
+    if (dev->ram_pages == 0)
+        return false;
+
+    for (int i = 1; i < dev->ram_pages; i++) {
+        if (dev->ram_free[i] > dev->ram_free[page])
+            page = i;
+    }
+
+    if (size > dev->ram_free[page])
+        return false;
+
+    dev->ram_free[page] -= size;
+    font->ram_used[page] += size;
+
+    return true;
+}
+
+static void
+free_softfont(pcl3_t *dev, pcl3_softfont_t *font)
+{
+    for (int i = 0; i < MAX_RAM_PAGE; i++) {
+        dev->ram_free[i] += font->ram_used[i];
+        font->ram_used[i] = 0;
+    }
+
+    font->ram_by_glyph = false;
+    delete_softfont(font);
+}
+
 static void
 store_font_descriptor(pcl3_t *dev, const uint8_t *data, uint32_t len)
 {
-    pcl3_softfont_t *font = find_softfont(dev, dev->font_id, true);
+    pcl3_softfont_t *font;
     int              format;
+    uint32_t         size = 0;
 
-    if ((font == NULL) || (len < 18))
+    if (len < 18)
         return;
 
     format = data[2];
+
+    /* The DeskJet 540 only takes LaserJet format fonts, and the others need RAM. */
+    if (!dev->deskjet_fonts && ((format == 5) || (format == 9) || (format == 12)))
+        return;
+    if (dev->ram_limited && (dev->ram_pages == 0))
+        return;
+
+    /* Creating a font replaces one with the same ID. */
+    font = find_softfont(dev, dev->font_id, false);
+    if (font != NULL)
+        free_softfont(dev, font);
+
+    font = find_softfont(dev, dev->font_id, true);
+    if (font == NULL)
+        return;
+
+    if (((format == 5) || (format == 9) || (format == 12)) && (len >= (uint32_t) ((format == 12) ? 78 : 76))) {
+        const uint32_t at = (format == 12) ? 76 : 74;
+
+        size = (data[at] << 8) | data[at + 1];
+    }
 
     /* The DeskJet formats have a 600 x 300 dpi grid, and format 20 names its own. */
     font->res_x   = 300.0;
@@ -1018,6 +1097,16 @@ store_font_descriptor(pcl3_t *dev, const uint8_t *data, uint32_t len)
             font->pass_base[j] = base;
         }
         font->passes = passes;
+
+        /* The font disappears if a pass of it does not fit. */
+        for (int i = 0; size && (i < passes); i++) {
+            const uint32_t pass = (((size / passes) + RAM_BLOCK - 1) / RAM_BLOCK) * RAM_BLOCK;
+
+            if ((pass > RAM_PAGE) || !take_font_ram(dev, font, pass)) {
+                free_softfont(dev, font);
+                return;
+            }
+        }
     } else if ((format == 20) && (len >= 68)) {
         font->res_x = (data[64] << 8) | data[65];
         font->res_y = (data[66] << 8) | data[67];
@@ -1025,6 +1114,7 @@ store_font_descriptor(pcl3_t *dev, const uint8_t *data, uint32_t len)
             font->res_x = font->res_y = 300.0;
     }
 
+    font->ram_by_glyph = size == 0;
     font->proportional = data[13] != 0;
     /* The pitch field is in quarter dots, which are 300 dpi dots in all the formats
        except format 20. */
@@ -1152,8 +1242,11 @@ store_glyph(pcl3_t *dev, const uint8_t *data, uint32_t len)
     glyph = &font->glyphs[dev->char_code];
 
     if (font->deskjet && ((data[0] == 5) || (data[0] == 9) || (data[0] == 12))) {
-        if (len >= 8)
+        if (len >= 8) {
             store_deskjet_glyph(font, glyph, data, len);
+            if (font->ram_by_glyph && !take_font_ram(dev, font, len))
+                delete_glyph(glyph);
+        }
         return;
     }
 
@@ -1172,6 +1265,9 @@ store_glyph(pcl3_t *dev, const uint8_t *data, uint32_t len)
     delete_glyph(glyph);
 
     if ((data[0] != 4) || (len < 16))
+        return;
+
+    if (font->ram_by_glyph && !take_font_ram(dev, font, len))
         return;
 
     glyph->left   = (int16_t) ((data[6] << 8) | data[7]);
@@ -1837,13 +1933,13 @@ cmd_asterisk(pcl3_t *dev, uint8_t group, uint8_t term, double value, bool relati
             if ((ival == 0) || (ival == 1)) {
                 for (int i = 0; i < MAX_SOFTFONT; i++) {
                     if (dev->softfonts[i].id >= 0)
-                        delete_softfont(&dev->softfonts[i]);
+                        free_softfont(dev, &dev->softfonts[i]);
                 }
             } else if (ival == 2) {
                 pcl3_softfont_t *font = find_softfont(dev, dev->font_id, false);
 
                 if (font != NULL)
-                    delete_softfont(font);
+                    free_softfont(dev, font);
             } else if ((ival == 3) && (dev->char_code >= 0) && (dev->char_code < 256)) {
                 pcl3_softfont_t *font = find_softfont(dev, dev->font_id, false);
 
@@ -1944,15 +2040,18 @@ finish_data(pcl3_t *dev)
     const uint32_t kept  = (dev->data_len > MAX_DATA) ? MAX_DATA : dev->data_len;
 
     if ((param == '*') && (group == 'b')) {
-        if (!dev->raster_active)
-            start_raster(dev, 0);
+        /* The DeskJet 500 and 500C take no graphics on a landscape page. */
+        if (!dev->landscape || dev->landscape_graphics) {
+            if (!dev->raster_active)
+                start_raster(dev, 0);
 
-        decode_plane(dev, dev->data, kept);
-        dev->curr_plane++;
+            decode_plane(dev, dev->data, kept);
+            dev->curr_plane++;
 
-        if (dev->data_term == 'W') {
-            print_row(dev, dev->curr_plane);
-            dev->curr_plane = 0;
+            if (dev->data_term == 'W') {
+                print_row(dev, dev->curr_plane);
+                dev->curr_plane = 0;
+            }
         }
     } else if ((param == '*') && (group == 'g'))
         configure_raster_data(dev, dev->data, kept);
@@ -2196,7 +2295,10 @@ pcl3_open(double width, double height, int dpi)
     if (dev == NULL)
         return NULL;
 
-    dev->dpi            = dpi;
+    dev->dpi                = dpi;
+    dev->color              = true;
+    dev->landscape_graphics = true;
+    dev->deskjet_fonts      = true;
     dev->default_width  = width;
     dev->default_height = height;
     dev->data           = (uint8_t *) malloc(MAX_DATA);
@@ -2231,6 +2333,28 @@ pcl3_open(double width, double height, int dpi)
     page_defaults(dev);
 
     return dev;
+}
+
+void
+pcl3_set_model(void *priv, int model)
+{
+    pcl3_t *dev = (pcl3_t *) priv;
+
+    dev->color              = (model == PCL3_MODEL_500C) || (model == PCL3_MODEL_540) ||
+                              (model == PCL3_MODEL_550C) || (model == PCL3_MODEL_560C);
+    dev->landscape_graphics = (model != PCL3_MODEL_500) && (model != PCL3_MODEL_500C) && (model != PCL3_MODEL_510);
+    dev->deskjet_fonts      = model != PCL3_MODEL_540;
+    /* The DeskJet 540 keeps soft fonts in its internal buffer, of an unknown size. */
+    dev->ram_limited        = model != PCL3_MODEL_540;
+}
+
+void
+pcl3_add_ram_cartridge(void *priv, int kilobytes)
+{
+    pcl3_t *dev = (pcl3_t *) priv;
+
+    for (int i = 0; (i < (kilobytes / 64)) && (dev->ram_pages < MAX_RAM_PAGE); i++)
+        dev->ram_free[dev->ram_pages++] = RAM_PAGE;
 }
 
 /* A set name such as 8U, as the text at offset 7 of a recreation ends with. */

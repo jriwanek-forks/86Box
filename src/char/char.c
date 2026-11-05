@@ -64,6 +64,7 @@ static const struct {
     { &lpt_prt_escp_device },
     { &lpt_prt_ps_device },
     { &lpt_prt_pcl_device },
+    { &lpt_prt_deskjet_device },
     { &lpt_hasp_savquest_device },
     { &lpt_bpfdd_device },
     { &lpt_bpmcd_device },

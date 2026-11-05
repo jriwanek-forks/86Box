@@ -1066,9 +1066,13 @@ pcl_init(const device_t *info)
     dev->pcl  = true;
 
     dev->lpt  = lpt_attach(ps_write_data, ps_write_ctrl, ps_strobe, ps_read_status, NULL, NULL, NULL, dev);
-    dev->lang       = device_get_config_int("language");
+    dev->lang       = info->local ? LANG_DESKJET : device_get_config_int("language");
     dev->paper_size = device_get_config_int("paper_size");
     dev->resolution = device_get_config_int("resolution");
+
+    /* The DeskJet language has moved to a device of its own. */
+    if (!info->local && (dev->lang == LANG_DESKJET))
+        dev->lang = LANG_PCL_5C;
 
     if (dev->lang == LANG_DESKJET) {
         double width;
@@ -1082,12 +1086,21 @@ pcl_init(const device_t *info)
 
         dev->deskjet = pcl3_open(width, height, (dev->resolution > 0) ? dev->resolution : DESKJET_DPI);
 
-        /* The printer has two slots for font cartridges. */
-        for (int i = 0; i < 2; i++) {
-            const char *cartridge = device_get_config_string(i ? "cartridge_b" : "cartridge_a");
+        if (dev->deskjet != NULL) {
+            const int model = device_get_config_int("model");
 
-            if ((dev->deskjet != NULL) && (cartridge != NULL) && (cartridge[0] != 0))
-                pcl3_load_cartridge(dev->deskjet, cartridge);
+            pcl3_set_model(dev->deskjet, model);
+
+            /* The DeskJet 540 has no slots. A slot that is not given a font cartridge
+               is taken to hold a 256 KB RAM cartridge. */
+            for (int i = 0; (i < 2) && (model != PCL3_MODEL_540); i++) {
+                const char *cartridge = device_get_config_string(i ? "cartridge_b" : "cartridge_a");
+
+                if ((cartridge != NULL) && (cartridge[0] != 0))
+                    pcl3_load_cartridge(dev->deskjet, cartridge);
+                else
+                    pcl3_add_ram_cartridge(dev->deskjet, 256);
+            }
         }
     } else if (dev->lang != LANG_RAW)
         load_interpreter(dev);
@@ -1233,7 +1246,6 @@ static const device_config_t lpt_prt_pcl_config[] = {
             { .description = "PDF (PCL 5c)", .value = LANG_PCL_5C },
             { .description = "PDF (HP-RTL)", .value = LANG_HP_RTL },
             { .description = "PDF (PCL 6)",  .value = LANG_PCL_6  },
-            { .description = "PNG (HP DeskJet 500 series)", .value = LANG_DESKJET },
             { .description = ""                                   }
         },
         .bios           = { { 0 } }
@@ -1306,9 +1318,70 @@ static const device_config_t lpt_prt_pcl_config[] = {
         },
         .bios           = { { 0 } }
     },
+{ .name = "", .description = "", .type = CONFIG_END }
+};
+// clang-format on
+
+static const device_config_t lpt_prt_deskjet_config[] = {
+    {
+        .name           = "model",
+        .description    = "Model",
+        .type           = CONFIG_SELECTION,
+        .default_string = NULL,
+        .default_int    = PCL3_MODEL_500,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = {
+            { .description = "DeskJet 500",  .value = PCL3_MODEL_500  },
+            { .description = "DeskJet 500C", .value = PCL3_MODEL_500C },
+            { .description = "DeskJet 510",  .value = PCL3_MODEL_510  },
+            { .description = "DeskJet 520",  .value = PCL3_MODEL_520  },
+            { .description = "DeskJet 540",  .value = PCL3_MODEL_540  },
+            { .description = "DeskJet 550C", .value = PCL3_MODEL_550C },
+            { .description = "DeskJet 560C", .value = PCL3_MODEL_560C },
+            { .description = ""                                        }
+        },
+        .bios           = { { 0 } }
+    },
+    {
+        .name           = "paper_size",
+        .description    = "Paper Size",
+        .type           = CONFIG_SELECTION,
+        .default_string = NULL,
+        .default_int    = 0,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = {
+            { .description = "Use job setting", .value = 0  },
+            { .description = "Letter",          .value = 1  },
+            { .description = "Legal",           .value = 2  },
+            { .description = "A4",              .value = 8  },
+            { .description = "A5",              .value = 10 },
+            { .description = ""                             }
+        },
+        .bios           = { { 0 } }
+    },
+    {
+        .name           = "resolution",
+        .description    = "Resolution (DPI)",
+        .type           = CONFIG_SELECTION,
+        .default_string = NULL,
+        .default_int    = 0,
+        .file_filter    = NULL,
+        .spinner        = { 0 },
+        .selection      = {
+            { .description = "Use job setting", .value = 0    },
+            { .description = "150 DPI",         .value = 150  },
+            { .description = "300 DPI",         .value = 300  },
+            { .description = "600 DPI",         .value = 600  },
+            { .description = "1200 DPI",        .value = 1200 },
+            { .description = ""                               }
+        },
+        .bios           = { { 0 } }
+    },
     {
         .name           = "cartridge_a",
-        .description    = "Font cartridge A",
+        .description    = "Slot A (empty: 256 KB RAM cartridge)",
         .type           = CONFIG_FNAME,
         .default_string = "",
         .default_int    = 0,
@@ -1319,7 +1392,7 @@ static const device_config_t lpt_prt_pcl_config[] = {
     },
     {
         .name           = "cartridge_b",
-        .description    = "Font cartridge B",
+        .description    = "Slot B (empty: 256 KB RAM cartridge)",
         .type           = CONFIG_FNAME,
         .default_string = "",
         .default_int    = 0,
@@ -1328,9 +1401,8 @@ static const device_config_t lpt_prt_pcl_config[] = {
         .selection      = { { 0 } },
         .bios           = { { 0 } }
     },
-    { .name = "", .description = "", .type = CONFIG_END }
+        { .name = "", .description = "", .type = CONFIG_END }
 };
-// clang-format on
 
 const device_t lpt_prt_ps_device = {
     .name          = "Generic PostScript Printer",
@@ -1358,4 +1430,18 @@ const device_t lpt_prt_pcl_device = {
     .speed_changed = NULL,
     .force_redraw  = NULL,
     .config        = lpt_prt_pcl_config
+};
+
+const device_t lpt_prt_deskjet_device = {
+    .name          = "HP DeskJet 500 Series",
+    .internal_name = "deskjet",
+    .flags         = DEVICE_LPT | DEVICE_HOTPLUG,
+    .local         = 1,
+    .init          = pcl_init,
+    .close         = ps_close,
+    .reset         = NULL,
+    .available     = NULL,
+    .speed_changed = NULL,
+    .force_redraw  = NULL,
+    .config        = lpt_prt_deskjet_config
 };
