@@ -107,6 +107,7 @@ typedef struct pcl3_softfont_t {
     /* Soft fonts only. */
     uint32_t     ram_used[MAX_RAM_PAGE]; /* of each memory page */
     bool         ram_by_glyph;           /* it did not say how much it needs */
+    bool         permanent;              /* a reset leaves it */
     pcl3_glyph_t glyphs[256];
 } pcl3_softfont_t;
 
@@ -217,6 +218,8 @@ typedef struct pcl3_t {
     bool     landscape_graphics;
     bool     has_univers;
     bool     landscape_ps;
+    int      permanent_id;   /* a font ID marked before it was downloaded */
+    bool     permanent_next;
     bool     deskjet_fonts;
     bool     ram_limited;
     int      ram_pages;
@@ -1029,6 +1032,7 @@ free_softfont(pcl3_t *dev, pcl3_softfont_t *font)
     }
 
     font->ram_by_glyph = false;
+    font->permanent    = false;
     delete_softfont(font);
 }
 
@@ -1129,6 +1133,7 @@ store_font_descriptor(pcl3_t *dev, const uint8_t *data, uint32_t len)
     }
 
     font->ram_by_glyph = size == 0;
+    font->permanent    = (dev->permanent_id == dev->font_id) && dev->permanent_next;
     font->proportional = data[13] != 0;
     /* The pitch field is in quarter dots, which are 300 dpi dots in all the formats
        except format 20. */
@@ -1579,6 +1584,10 @@ draw_soft_glyph(pcl3_t *dev, pcl3_softfont_t *font, uint8_t ch)
     if (font->deskjet && !font->proportional && (((cell / px) - (glyph->width * dev->algo.sx)) > 0.0))
         base_x += floor(((cell / px) - (glyph->width * dev->algo.sx)) / 2.0) * px;
     base_y = dev->top_margin + dev->y - (glyph->top * py * dev->algo.sy);
+    /* Half height characters are printed with the bottom half of the print head, so
+       their baseline sinks: row r of the cell of the bottom pass goes to 25 + (r / 2). */
+    if (font->deskjet && (dev->algo.sy == 0.5))
+        base_y += (25.0 - (font->pass_base[font->passes - 1] / 2.0)) * py;
 
     if (glyph->bits != NULL) {
         const int stride = (glyph->width + 7) / 8;
@@ -1822,6 +1831,11 @@ printer_reset(pcl3_t *dev)
     if (dev->dirty)
         eject_page(dev);
 
+    for (int i = 0; i < MAX_SOFTFONT; i++) {
+        if ((dev->softfonts[i].id >= 0) && !dev->softfonts[i].permanent)
+            free_softfont(dev, &dev->softfonts[i]);
+    }
+
     set_page_size(dev, dev->default_width, dev->default_height);
     page_defaults(dev);
 }
@@ -2023,9 +2037,17 @@ cmd_asterisk(pcl3_t *dev, uint8_t group, uint8_t term, double value, bool relati
         case ('c' << 8) | 'F': /* soft font control */
             if ((ival == 0) || (ival == 1)) {
                 for (int i = 0; i < MAX_SOFTFONT; i++) {
-                    if (dev->softfonts[i].id >= 0)
+                    if ((dev->softfonts[i].id >= 0) && ((ival == 0) || !dev->softfonts[i].permanent))
                         free_softfont(dev, &dev->softfonts[i]);
                 }
+            } else if ((ival == 4) || (ival == 5)) {
+                /* This may come before the font does. */
+                pcl3_softfont_t *font = find_softfont(dev, dev->font_id, false);
+
+                dev->permanent_id   = dev->font_id;
+                dev->permanent_next = ival == 5;
+                if (font != NULL)
+                    font->permanent = ival == 5;
             } else if (ival == 2) {
                 pcl3_softfont_t *font = find_softfont(dev, dev->font_id, false);
 
@@ -2390,6 +2412,7 @@ pcl3_open(double width, double height, int dpi)
     dev->color              = true;
     dev->landscape_graphics = true;
     dev->deskjet_fonts      = true;
+    dev->permanent_id       = -1;
     dev->has_univers        = true;
     dev->landscape_ps       = true;
     dev->algo.sx            = 1.0;
@@ -2437,10 +2460,11 @@ pcl3_set_model(void *priv, int model)
 
     dev->color              = (model == PCL3_MODEL_500C) || (model == PCL3_MODEL_540) ||
                               (model == PCL3_MODEL_550C) || (model == PCL3_MODEL_560C);
-    dev->landscape_graphics = (model != PCL3_MODEL_500) && (model != PCL3_MODEL_500C) && (model != PCL3_MODEL_510);
+    dev->landscape_graphics = (model != PCL3_MODEL_500) && (model != PCL3_MODEL_500C);
     dev->deskjet_fonts      = model != PCL3_MODEL_540;
     /* The tables of internal fonts in Appendix D of the Technical Reference. */
-    dev->has_univers        = (model != PCL3_MODEL_500) && (model != PCL3_MODEL_500C) && (model != PCL3_MODEL_510);
+    /* The guide's page 3 says that what it has on the 520 applies to the 510. */
+    dev->has_univers        = (model != PCL3_MODEL_500) && (model != PCL3_MODEL_500C);
     dev->landscape_ps       = model == PCL3_MODEL_540;
     /* The DeskJet 540 keeps soft fonts in its internal buffer, of an unknown size. */
     dev->ram_limited        = model != PCL3_MODEL_540;
