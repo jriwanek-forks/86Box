@@ -47,7 +47,8 @@
 #define MAX_ROW      0x8000    /* bytes in one raster plane */
 #define MAX_DATA     0x100000  /* longest binary payload kept in memory */
 #define MAX_SOFTFONT 16
-#define MAX_CART_FONT 8
+#define MAX_CART_FONT 64
+#define MAX_CART_BANK 32
 #define CART_BANK    0x10000   /* each 64 KB of a cartridge has its own header */
 #define CART_BASELINE 42       /* the descriptor does not give one that is known */
 #define MAX_GLYPH    0x10000   /* largest bitmap of one soft font character */
@@ -95,6 +96,8 @@ typedef struct pcl3_softfont_t {
     /* Cartridge fonts only. */
     bool         pool;       /* glyphs are by HP's index, not by character code */
     bool         bold;
+    bool         italic;
+    double       height;     /* proportional fonts, in points */
     double       pitch;
     int          typeface;
     int          symbol_set; /* the set of a recreation; a real cartridge has them all */
@@ -674,6 +677,147 @@ print_row(pcl3_t *dev, int planes)
 }
 
 /* The next character is drawn with the face this selection maps to. */
+/* Symbol sets that differ from a base set, from Appendix C of the Technical Reference. */
+typedef struct pcl3_set_change_t {
+    uint8_t  code;
+    uint16_t unicode;
+} pcl3_set_change_t;
+
+static const pcl3_set_change_t set_turkish[] = {
+    { 0x8D, 0x0131 }, { 0x98, 0x0130 }, { 0x9E, 0x015E }, { 0x9F, 0x015F }, { 0xA6, 0x011E },
+    { 0xA7, 0x011F },
+};
+
+static const pcl3_set_change_t set_danish[] = {
+    { 0x8D, 0x00EC }, { 0x9B, 0x00F8 }, { 0x9D, 0x00D8 }, { 0x9E, 0x013F }, { 0x9F, 0x0140 },
+    { 0xA6, 0x00F5 }, { 0xA7, 0x00D5 }, { 0xA9, 0x00E3 }, { 0xAA, 0x00C3 }, { 0xAB, 0x2113 },
+    { 0xAC, 0x0149 }, { 0xAD, 0x00A1 }, { 0xAE, 0x00B3 }, { 0xAF, 0x00A4 },
+};
+
+static const pcl3_set_change_t set_windows[] = {
+    { 0x91, 0x2018 }, { 0x92, 0x2019 },
+};
+
+static const pcl3_set_change_t set_latin5[] = {
+    { 0xD0, 0x011E }, { 0xDD, 0x0130 }, { 0xDE, 0x015E }, { 0xF0, 0x011F }, { 0xFD, 0x0131 },
+    { 0xFE, 0x015F },
+};
+
+static const uint16_t set_latin2[96] = {
+    0x00A0, 0x0104, 0x02D8, 0x0141, 0x00A4, 0x013D, 0x015A, 0x00A7, 0x00A8, 0x0160, 0x015E, 0x0164,
+    0x0179, 0x00AD, 0x017D, 0x017B, 0x00B0, 0x0105, 0x02DB, 0x0142, 0x00B4, 0x013E, 0x015B, 0x02C7,
+    0x00B8, 0x0161, 0x015F, 0x0165, 0x017A, 0x02DD, 0x017E, 0x017C, 0x0154, 0x00C1, 0x00C2, 0x0102,
+    0x00C4, 0x0139, 0x0106, 0x00C7, 0x010C, 0x00C9, 0x0118, 0x00CB, 0x011A, 0x00CD, 0x00CE, 0x010E,
+    0x0110, 0x0143, 0x0147, 0x00D3, 0x00D4, 0x0150, 0x00D6, 0x00D7, 0x0158, 0x016E, 0x00DA, 0x0170,
+    0x00DC, 0x00DD, 0x0162, 0x00DF, 0x0155, 0x00E1, 0x00E2, 0x0103, 0x00E4, 0x013A, 0x0107, 0x00E7,
+    0x010D, 0x00E9, 0x0119, 0x00EB, 0x011B, 0x00ED, 0x00EE, 0x010F, 0x0111, 0x0144, 0x0148, 0x00F3,
+    0x00F4, 0x0151, 0x00F6, 0x00F7, 0x0159, 0x016F, 0x00FA, 0x0171, 0x00FC, 0x00FD, 0x0163, 0x02D9,
+};
+
+static const uint16_t set_line_draw[224] = {
+    0x0020, 0x2520, 0x2528, 0x2530, 0x2538, 0x255F, 0x2562, 0x2564, 0x2567, 0x2551, 0x2542, 0x253F,
+    0x2500, 0x2514, 0x2502, 0x253C, 0x254B, 0x2523, 0x252B, 0x2533, 0x253B, 0x251C, 0x2524, 0x252C,
+    0x2534, 0x2550, 0x2503, 0x2501, 0x256B, 0x250C, 0x256A, 0x256C, 0x255E, 0x2517, 0x2542, 0x2588,
+    0x258C, 0x2503, 0x2514, 0x2518, 0x2510, 0x2561, 0x252C, 0x2565, 0x2566, 0x254B, 0x2548, 0x2563,
+    0x2518, 0x250F, 0x250C, 0x251B, 0x2510, 0x2524, 0x2542, 0x2513, 0x25A0, 0x2510, 0x25AC, 0x2561,
+    0x254C, 0x2568, 0x25AA, 0x2556, 0x255E, 0x2517, 0x2542, 0x2588, 0x258C, 0x2503, 0x2514, 0x2518,
+    0x2510, 0x2561, 0x252C, 0x2565, 0x2566, 0x254B, 0x2548, 0x2563, 0x2518, 0x250F, 0x250C, 0x251B,
+    0x2510, 0x2524, 0x2542, 0x2513, 0x25A0, 0x2510, 0x25AC, 0x2561, 0x254C, 0x2568, 0x25AA, 0x2592,
+    0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020,
+    0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020,
+    0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020,
+    0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020,
+    0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020,
+    0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020,
+    0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020,
+    0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020,
+    0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020,
+    0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020,
+    0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020,
+};
+
+static const uint16_t set_math7[224] = {
+    0x0020, 0x221A, 0x007C, 0x00A7, 0x2207, 0x00B1, 0x221D, 0x2320, 0x00F7, 0x2243, 0x03A0, 0x0393,
+    0x03A8, 0x2261, 0x03A6, 0x039E, 0x0030, 0x0031, 0x0032, 0x0033, 0x0034, 0x0035, 0x0036, 0x0037,
+    0x0038, 0x0039, 0x03A9, 0x039B, 0x221E, 0x2321, 0x2020, 0x03A3, 0x00B6, 0x03B1, 0x03B2, 0x03C8,
+    0x03C6, 0x03B5, 0x2202, 0x03BB, 0x03B7, 0x03B9, 0x0398, 0x03BA, 0x03C9, 0x03BC, 0x03BD, 0x03C1,
+    0x03C0, 0x03B3, 0x03B8, 0x03C3, 0x03C4, 0x03BE, 0x0394, 0x03B4, 0x03C7, 0x03C5, 0x03B6, 0x2191,
+    0x2192, 0x03A4, 0x2190, 0x2193, 0x00B6, 0x03B1, 0x03B2, 0x03C8, 0x03C6, 0x03B5, 0x2202, 0x03BB,
+    0x03B7, 0x03B9, 0x0398, 0x03BA, 0x03C9, 0x03BC, 0x03BD, 0x03C1, 0x03C0, 0x03B3, 0x03B8, 0x03C3,
+    0x03C4, 0x03BE, 0x0394, 0x03B4, 0x03C7, 0x03C5, 0x03B6, 0x2191, 0x2192, 0x03A4, 0x2190, 0x2592,
+    0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020,
+    0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020,
+    0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020,
+    0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020,
+    0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020,
+    0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020,
+    0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020,
+    0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020,
+    0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020,
+    0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020,
+    0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020,
+};
+
+static const uint16_t set_math8[224] = {
+    0x0020, 0x221A, 0x2033, 0x00B0, 0x221E, 0x00F7, 0x221D, 0x2032, 0x0028, 0x0029, 0x00D7, 0x002B,
+    0x002C, 0x2212, 0x002E, 0x002F, 0x0030, 0x0031, 0x0032, 0x0033, 0x0034, 0x0035, 0x0036, 0x0037,
+    0x0038, 0x0039, 0x0065, 0x03B5, 0x003C, 0x003D, 0x003E, 0x2248, 0x2234, 0x0391, 0x0392, 0x0393,
+    0x0394, 0x0395, 0x0396, 0x0397, 0x0398, 0x0399, 0x039A, 0x039B, 0x039C, 0x039D, 0x039E, 0x039F,
+    0x03A0, 0x03A1, 0x03A3, 0x03A4, 0x03D2, 0x03A6, 0x03A7, 0x03A8, 0x03A9, 0x2207, 0x2202, 0x03C2,
+    0x2264, 0x2260, 0x2265, 0x005F, 0x2235, 0x03B1, 0x03B2, 0x03B3, 0x03B4, 0x03B5, 0x03B6, 0x03B7,
+    0x03B8, 0x03B9, 0x03BA, 0x03BB, 0x03BC, 0x03BD, 0x03BE, 0x03BF, 0x03C0, 0x03C1, 0x03C3, 0x03C4,
+    0x03C5, 0x03C6, 0x03C7, 0x03C8, 0x03C9, 0x03D1, 0x03D5, 0x03D6, 0x2243, 0x2261, 0x2262, 0x2592,
+    0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020,
+    0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020,
+    0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x2191, 0x2192, 0x2193,
+    0x2190, 0x21D1, 0x21D2, 0x21D3, 0x21D0, 0x2195, 0x2194, 0x21D5, 0x21D4, 0x21C4, 0x21C6, 0x2192,
+    0x203E, 0x2200, 0x2203, 0x22A4, 0x22A5, 0x222A, 0x2229, 0x2208, 0x220B, 0x2209, 0x2282, 0x2283,
+    0x2284, 0x2285, 0x2286, 0x2287, 0x2295, 0x2299, 0x2297, 0x2296, 0x2298, 0x2227, 0x2228, 0x22BB,
+    0x00AC, 0x2218, 0x22C5, 0x2022, 0x25CF, 0x25CB, 0x2020, 0x2021, 0x00C5, 0x22A3, 0x22A2, 0x221F,
+    0x220D, 0x222B, 0x222E, 0x2220, 0x2205, 0x2135, 0x2136, 0x2137, 0x212D, 0x2111, 0x211C, 0x2128,
+    0x23A1, 0x23A3, 0x23A7, 0x23A8, 0x23A9, 0x2320, 0x233D, 0x2321, 0x2572, 0x2016, 0x2220, 0x2571,
+    0x0020, 0x23A4, 0x23A6, 0x23AB, 0x23AC, 0x23AD, 0x23AE, 0x23AE, 0x230B, 0x00AC, 0x27E9, 0x231F,
+    0x2572, 0x0020, 0x2213, 0x00B1, 0x0020, 0x0020, 0x0020, 0x0020,
+};
+
+static const uint16_t set_pi_font[224] = {
+    0x0020, 0x0020, 0x0020, 0x0020, 0x201C, 0x201D, 0x2018, 0x2019, 0x27E8, 0x27E9, 0x2122, 0x2120,
+    0x00AE, 0x00A9, 0x24C2, 0x0020, 0x203E, 0x02D8, 0x02C7, 0x02D9, 0x2197, 0x2198, 0x2199, 0x2196,
+    0x25B3, 0x25B7, 0x25BD, 0x25C1, 0x226A, 0x00A7, 0x226B, 0x00B6, 0x2237, 0x225C, 0x0020, 0x0020,
+    0x0020, 0x0020, 0x1DA0, 0x0020, 0x210F, 0x0020, 0x0020, 0x0020, 0x2112, 0x2113, 0x0020, 0x0020,
+    0x2118, 0x2118, 0x211E, 0x2211, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x27E6,
+    0x2016, 0x27E7, 0x0020, 0x0020, 0x250C, 0x2514, 0x256D, 0x2570, 0x253C, 0x251C, 0x2500, 0x2551,
+    0x222A, 0x2229, 0x27E6, 0x27E6, 0x25A1, 0x25C7, 0x0020, 0x0020, 0x2510, 0x2518, 0x256E, 0x256F,
+    0x252C, 0x2524, 0x2534, 0x2502, 0x2294, 0x2293, 0x27E7, 0x27E7, 0x25A0, 0x25C6, 0x0020, 0x2592,
+    0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020,
+    0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020,
+    0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020,
+    0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020,
+    0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020,
+    0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020,
+    0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020,
+    0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020,
+    0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020,
+    0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020,
+    0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020, 0x0020,
+};
+
+static void
+apply_set_changes(pcl3_t *dev, const pcl3_set_change_t *changes, size_t count)
+{
+    for (size_t i = 0; i < count; i++)
+        dev->symbol_map[changes[i].code] = changes[i].unicode;
+}
+
+/* Sets of symbols: the printable codes are listed, and the rest are not printed. */
+static void
+apply_symbol_table(pcl3_t *dev, const uint16_t *table)
+{
+    memset(dev->symbol_map, 0x00, sizeof(dev->symbol_map));
+    for (int i = 0x20; i < 0x100; i++)
+        dev->symbol_map[i] = table[i - 0x20];
+}
+
 static void
 select_symbol_set(pcl3_t *dev, int symbol_set)
 {
@@ -690,9 +834,45 @@ select_symbol_set(pcl3_t *dev, int symbol_set)
                 dev->symbol_map[i + 128] = roman8_map[i];
             }
             break;
-        default: /* 0N: ISO 8859-1, 19U: Windows ANSI, 0U: ASCII */
+        case 11 * 32 + 21: /* 11U: PC-8 D/N */
+            select_codepage(437, dev->symbol_map);
+            apply_set_changes(dev, set_danish, sizeof(set_danish) / sizeof(set_danish[0]));
+            break;
+        case 17 * 32 + 21: /* 17U: PC-852 */
+            select_codepage(852, dev->symbol_map);
+            break;
+        case 9 * 32 + 20: /* 9T: PC-8 Turkish */
+            select_codepage(437, dev->symbol_map);
+            apply_set_changes(dev, set_turkish, sizeof(set_turkish) / sizeof(set_turkish[0]));
+            break;
+        case 2 * 32 + 14: /* 2N: ISO 8859/2 */
+            for (int i = 0; i < 0xA0; i++)
+                dev->symbol_map[i] = i;
+            for (int i = 0xA0; i < 0x100; i++)
+                dev->symbol_map[i] = set_latin2[i - 0xA0];
+            break;
+        case 0 * 32 + 12: /* 0L: Line Draw */
+            apply_symbol_table(dev, set_line_draw);
+            break;
+        case 0 * 32 + 13: /* 0M: Math-7 */
+            apply_symbol_table(dev, set_math7);
+            break;
+        case 8 * 32 + 13: /* 8M: Math-8 */
+            apply_symbol_table(dev, set_math8);
+            break;
+        case 15 * 32 + 21: /* 15U: Pi Font */
+            apply_symbol_table(dev, set_pi_font);
+            break;
+        default: /* 0N: ISO 8859-1, 9U and 19U: Windows, 5N: ISO 8859/9, 0U: ASCII */
             for (int i = 0; i < 256; i++)
                 dev->symbol_map[i] = i;
+            if (symbol_set == (5 * 32 + 14))
+                apply_set_changes(dev, set_latin5, sizeof(set_latin5) / sizeof(set_latin5[0]));
+            else if (symbol_set == (9 * 32 + 21)) {
+                for (int i = 0x80; i < 0xA0; i++)
+                    dev->symbol_map[i] = 0;
+                apply_set_changes(dev, set_windows, sizeof(set_windows) / sizeof(set_windows[0]));
+            }
             break;
     }
 }
@@ -1163,25 +1343,32 @@ draw_cart_glyph(pcl3_t *dev, pcl3_softfont_t *font, uint8_t ch)
     dev->x += dev->hmi_set ? dev->hmi : font->hmi;
 }
 
-/* Fonts are chosen by attributes, as the printer does it. Cartridges here only hold
-   landscape fonts, so they answer only on a landscape page. */
+/* Fonts are chosen by attributes, as the printer does it. */
 static pcl3_softfont_t *
 find_cart_font(pcl3_t *dev, const pcl3_fontsel_t *sel)
 {
-    pcl3_softfont_t *best = NULL;
-
-    if (!dev->landscape || (sel->spacing != 0))
-        return NULL;
+    pcl3_softfont_t *best       = NULL;
+    int              best_score = -1;
 
     for (int i = 0; i < dev->cart_fonts; i++) {
         pcl3_softfont_t *font = dev->carts[i];
+        int              score;
 
-        if ((font->typeface != sel->typeface) || (fabs(font->pitch - sel->pitch) > 0.5))
+        if ((font->landscape != dev->landscape) || (font->proportional != (sel->spacing != 0)))
             continue;
-        if (!font->pool && (font->symbol_set != sel->symbol_set))
+        if (font->typeface != sel->typeface)
             continue;
-        if ((best == NULL) || (font->bold == (sel->weight > 0)))
-            best = font;
+        if (font->proportional ? (fabs(font->height - sel->height) > 0.5) : (fabs(font->pitch - sel->pitch) > 0.5))
+            continue;
+        /* An ASCII font answers for any set. */
+        if (!font->pool && (font->symbol_set != sel->symbol_set) && (font->symbol_set != 21))
+            continue;
+
+        score = ((font->bold == (sel->weight > 0)) ? 2 : 0) + ((font->italic == ((sel->style & 1) != 0)) ? 1 : 0);
+        if (score > best_score) {
+            best       = font;
+            best_score = score;
+        }
     }
 
     return best;
@@ -1323,7 +1510,10 @@ print_char(pcl3_t *dev, uint8_t ch)
 
     if (cart != NULL) {
         update_face(dev);
-        draw_cart_glyph(dev, cart, ch);
+        if (cart->landscape)
+            draw_cart_glyph(dev, cart, ch);
+        else
+            draw_soft_glyph(dev, cart, ch);
     } else if ((font != NULL) && (font->deskjet || (font->glyphs[ch].bits != NULL) || (font->glyphs[ch].delta != 0)))
         draw_soft_glyph(dev, font, ch);
     else
@@ -2084,28 +2274,84 @@ cart_word(const uint8_t *rom, uint32_t at)
     return rom[at] | (rom[at + 1] << 8);
 }
 
+/* Recreated cartridges have a block of their own after the four words of a font, as
+   nothing is known of how HP stores portrait or proportional fonts. */
+#define CART_EXT_SIZE 26
+
 static void
-load_cart_font(pcl3_t *dev, const uint8_t *rom, uint32_t record)
+load_cart_ext(pcl3_softfont_t *font, const uint8_t *ext)
+{
+    const uint8_t flags = ext[4];
+    const int     hmi   = cart_word(ext, 24);
+
+    font->landscape    = (flags & 1) != 0;
+    font->proportional = (flags & 2) != 0;
+    font->bold         = (flags & 4) != 0;
+    font->italic       = (flags & 8) != 0;
+    font->passes       = ext[5];
+    font->format       = 12;
+    font->pool         = false;
+    font->pitch        = cart_word(ext, 14) / 100.0;
+    font->height       = cart_word(ext, 16) / 100.0;
+    font->typeface     = cart_word(ext, 18);
+    font->symbol_set   = cart_word(ext, 20);
+    font->hmi          = hmi / 1200.0;
+
+    for (int i = 0; i < 4; i++)
+        font->pass_base[i] = cart_word(ext, 6 + (i * 2));
+
+    font->baseline = font->pass_base[0];
+}
+
+/* The bytes of one pass of a character: a flag byte per column, then its data. */
+static uint32_t
+cart_pass_size(const uint8_t *rom, uint32_t from, int width, uint32_t to)
+{
+    uint32_t size = width;
+
+    for (int i = 0; (i < width) && ((from + i) < to); i++) {
+        for (int box = 0; box < DJ_BOXES; box++)
+            size += (rom[from + i] >> box) & 1;
+    }
+
+    return size;
+}
+
+/* Returns how much of the cartridge from this part the font takes up. */
+static uint32_t
+load_cart_font(pcl3_t *dev, const uint8_t *rom, uint32_t limit, uint32_t record)
 {
     const uint32_t descriptor = cart_word(rom, record);
     const uint32_t widths     = cart_word(rom, record + 2);
     const uint32_t offsets    = cart_word(rom, record + 4);
     const uint32_t pads       = cart_word(rom, record + 6);
+    const uint32_t ext_at     = cart_word(rom, record + 8);
     const bool     real       = memcmp(rom + 7, "RECREATION ", 11) != 0;
+    const bool     ext        = !real && ((ext_at + CART_EXT_SIZE) <= CART_BANK) && !memcmp(rom + ext_at, "RX1", 4);
+    uint32_t       rights     = 0;
+    uint32_t       scale      = 1; /* very large fonts count in 16 byte steps */
+    uint32_t       end        = 0;
     uint8_t       *block;
     pcl3_softfont_t *font;
     char           name[17];
 
+    if (ext) {
+        rights = cart_word(rom, ext_at + 22);
+        if (rom[ext_at + 4] & 0x10)
+            scale = 16;
+    }
+
     if ((dev->cart_fonts >= MAX_CART_FONT) || ((descriptor + 0x54) > CART_BANK) ||
-        ((widths + 256) > CART_BANK) || ((offsets + 514) > CART_BANK) || ((pads + 256) > CART_BANK))
-        return;
+        ((widths + 256) > CART_BANK) || ((offsets + 514) > CART_BANK) || ((pads + 256) > CART_BANK) ||
+        ((rights + 256) > CART_BANK))
+        return 0;
 
     font  = (pcl3_softfont_t *) calloc(1, sizeof(pcl3_softfont_t));
     block = (uint8_t *) malloc(8 + CART_BANK);
     if ((font == NULL) || (block == NULL)) {
         free(font);
         free(block);
-        return;
+        return 0;
     }
 
     /* Its characters are the same as those of a landscape soft font of format 9. */
@@ -2127,31 +2373,64 @@ load_cart_font(pcl3_t *dev, const uint8_t *rom, uint32_t record)
     name[16]       = 0;
     font->typeface = strstr(name, "Letter Gothic") ? 6 : strstr(name, "Courier") ? 3 : -1;
 
-    for (int i = 0; i < 256; i++) {
-        const uint32_t from  = cart_word(rom, offsets + (i * 2));
-        const uint32_t to    = cart_word(rom, offsets + (i * 2) + 2);
-        const uint8_t  width = rom[widths + i];
+    if (ext) {
+        load_cart_ext(font, rom + ext_at);
 
-        if ((width == 0) || (width == 255) || (to <= from) || (to > CART_BANK))
+        /* Tall cells would make for huge characters. */
+        if ((font->passes < 1) || (font->passes > 4) || (font->hmi <= 0.0)) {
+            free(font);
+            free(block);
+            return 0;
+        }
+        for (int i = 0; i < font->passes; i++) {
+            if ((font->pass_base[i] < 1) || (font->pass_base[i] > DJ_MAX_BASE) ||
+                (i && (font->pass_base[i] > font->pass_base[i - 1]))) {
+                free(font);
+                free(block);
+                return 0;
+            }
+        }
+    }
+
+    for (int i = 0; i < 256; i++) {
+        uint32_t       from  = cart_word(rom, offsets + (i * 2)) * scale;
+        const uint32_t to    = cart_word(rom, offsets + (i * 2) + 2) * scale;
+        const uint8_t  width = rom[widths + i];
+        pcl3_glyph_t  *glyph = &font->glyphs[real ? i : ((i + 0x20) & 0xFF)];
+
+        if ((width == 255) || (!ext && ((width == 0) || (to <= from))) || (to > limit))
             continue;
 
-        block[0] = 9;
-        block[1] = 0;
-        block[2] = 6;
-        block[3] = 0;
-        block[4] = width;
-        block[5] = rom[pads + i];
-        block[6] = 0;
-        block[7] = 0;
-        memcpy(block + 8, rom + from, to - from);
-        store_deskjet_glyph(font, &font->glyphs[real ? i : ((i + 0x20) & 0xFF)], block, 8 + to - from);
+        if (to > end)
+            end = to;
+
+        for (int pass = 0; pass < font->passes; pass++) {
+            const uint32_t size = cart_pass_size(rom, from, width, to);
+
+            if (((from + size) > to) || (size > CART_BANK))
+                break;
+
+            block[0] = font->format;
+            block[1] = 0;
+            block[2] = 6;
+            block[3] = (font->passes > 1) ? (pass + 2) : 0;
+            block[4] = width;
+            block[5] = rom[pads + i];
+            block[6] = rom[pads + i];
+            block[7] = ext ? rom[rights + i] : 0;
+            memcpy(block + 8, rom + from, size);
+            store_deskjet_glyph(font, glyph, block, 8 + size);
+            from += size;
+        }
     }
 
     free(block);
     dev->carts[dev->cart_fonts++] = font;
+
+    return end;
 }
 
-/* A cartridge is one or two 64 KB parts, each with a list of font records at 0x26. */
+/* A cartridge is 64 KB parts, each with a list of font records from 0x26. */
 void
 pcl3_load_cartridge(void *priv, const char *fn)
 {
@@ -2163,24 +2442,34 @@ pcl3_load_cartridge(void *priv, const char *fn)
     if (fp == NULL)
         return;
 
-    rom = (uint8_t *) malloc(CART_BANK * 2);
+    rom = (uint8_t *) malloc(CART_BANK * MAX_CART_BANK);
     if (rom == NULL) {
         fclose(fp);
         return;
     }
 
-    size = fread(rom, 1, CART_BANK * 2, fp);
+    size = fread(rom, 1, CART_BANK * MAX_CART_BANK, fp);
     fclose(fp);
 
-    for (uint32_t bank = 0; (bank + CART_BANK) <= size; bank += CART_BANK) {
-        const uint8_t *part = rom + bank;
+    for (uint32_t bank = 0; (bank + CART_BANK) <= size;) {
+        const uint8_t *part  = rom + bank;
+        const uint32_t first = cart_word(part, 0x26);
+        uint32_t       used  = CART_BANK;
 
-        for (uint32_t list = 0x26; list < 0x2A; list += 2) {
+        for (uint32_t list = 0x26; (list < first) && (list < 0x100); list += 2) {
             const uint32_t record = cart_word(part, list);
 
-            if ((record != 0) && ((record + 8) <= CART_BANK))
-                load_cart_font(dev, part, record);
+            if (record == 0)
+                break;
+            if ((record + 10) <= CART_BANK) {
+                const uint32_t end = load_cart_font(dev, part, (uint32_t) (size - bank), record);
+
+                if (end > used)
+                    used = end;
+            }
         }
+
+        bank += (used + CART_BANK - 1) & ~(CART_BANK - 1);
     }
 
     free(rom);
