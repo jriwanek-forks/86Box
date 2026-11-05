@@ -1081,6 +1081,14 @@ pcl_init(const device_t *info)
         }
 
         dev->deskjet = pcl3_open(width, height, (dev->resolution > 0) ? dev->resolution : DESKJET_DPI);
+
+        /* The printer has two slots for font cartridges. */
+        for (int i = 0; i < 2; i++) {
+            const char *cartridge = device_get_config_string(i ? "cartridge_b" : "cartridge_a");
+
+            if ((dev->deskjet != NULL) && (cartridge != NULL) && (cartridge[0] != 0))
+                pcl3_load_cartridge(dev->deskjet, cartridge);
+        }
     } else if (dev->lang != LANG_RAW)
         load_interpreter(dev);
 
@@ -1296,6 +1304,28 @@ static const device_config_t lpt_prt_pcl_config[] = {
             { .description = "1200 DPI",        .value = 1200 },
             { .description = "" }
         },
+        .bios           = { { 0 } }
+    },
+    {
+        .name           = "cartridge_a",
+        .description    = "Font cartridge A",
+        .type           = CONFIG_FNAME,
+        .default_string = "",
+        .default_int    = 0,
+        .file_filter    = "Font cartridge images (*.bin)|*.bin",
+        .spinner        = { 0 },
+        .selection      = { { 0 } },
+        .bios           = { { 0 } }
+    },
+    {
+        .name           = "cartridge_b",
+        .description    = "Font cartridge B",
+        .type           = CONFIG_FNAME,
+        .default_string = "",
+        .default_int    = 0,
+        .file_filter    = "Font cartridge images (*.bin)|*.bin",
+        .spinner        = { 0 },
+        .selection      = { { 0 } },
         .bios           = { { 0 } }
     },
     { .name = "", .description = "", .type = CONFIG_END }

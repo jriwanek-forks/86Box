@@ -47,6 +47,9 @@
 #define MAX_ROW      0x8000    /* bytes in one raster plane */
 #define MAX_DATA     0x100000  /* longest binary payload kept in memory */
 #define MAX_SOFTFONT 16
+#define MAX_CART_FONT 8
+#define CART_BANK    0x10000   /* each 64 KB of a cartridge has its own header */
+#define CART_BASELINE 42       /* the descriptor does not give one that is known */
 #define MAX_GLYPH    0x10000   /* largest bitmap of one soft font character */
 #define PCL_DPI      300.0     /* PCL units, used by soft fonts and *p moves */
 #define DJ_BAND      50        /* dots in one pass of a DeskJet font */
@@ -89,6 +92,12 @@ typedef struct pcl3_softfont_t {
     int          passes;   /* print head passes per character */
     int          baseline; /* dots from the top of the bottom pass */
     int          pass_base[4]; /* dots from the top of each pass to the baseline */
+    /* Cartridge fonts only. */
+    bool         pool;       /* glyphs are by HP's index, not by character code */
+    bool         bold;
+    double       pitch;
+    int          typeface;
+    int          symbol_set; /* the set of a recreation; a real cartridge has them all */
     pcl3_glyph_t glyphs[256];
 } pcl3_softfont_t;
 
@@ -181,6 +190,8 @@ typedef struct pcl3_t {
     uint16_t        symbol_map[256];
     uint8_t         pen_ink;
     pcl3_softfont_t softfonts[MAX_SOFTFONT];
+    pcl3_softfont_t *carts[MAX_CART_FONT]; /* fonts in cartridges; a reset keeps them */
+    int              cart_fonts;
     int             font_id;
     int             char_code;
     double          rect_w;
@@ -1034,7 +1045,7 @@ char_advance(pcl3_t *dev, double natural)
    as wide as the line spacing. The rows run from its right side to its left, and the
    cell is one character pitch tall. Such fonts are always fixed pitch. */
 static void
-draw_landscape_glyph(pcl3_t *dev, const pcl3_softfont_t *font, const pcl3_glyph_t *glyph)
+blit_landscape_glyph(pcl3_t *dev, const pcl3_softfont_t *font, const pcl3_glyph_t *glyph)
 {
     const double px     = 1.0 / font->res_x;
     const double py     = 1.0 / font->res_y;
@@ -1052,8 +1063,128 @@ draw_landscape_glyph(pcl3_t *dev, const pcl3_softfont_t *font, const pcl3_glyph_
             }
         }
     }
+}
 
-    dev->x += pitch;
+static void
+draw_landscape_glyph(pcl3_t *dev, const pcl3_softfont_t *font, const pcl3_glyph_t *glyph)
+{
+    blit_landscape_glyph(dev, font, glyph);
+    dev->x += dev->hmi_set ? dev->hmi : font->hmi;
+}
+
+/* What the glyphs of a real cartridge are, by index. Zero is not a character. */
+static const uint16_t cart_pool[255] = {
+    0x0020, 0x0021, 0x0022, 0x0023, 0x0024, 0x0025, 0x0026, 0x0027, 0x0028, 0x0029, 0x002A, 0x002B,
+    0x002C, 0x002D, 0x002E, 0x002F, 0x0030, 0x0031, 0x0032, 0x0033, 0x0034, 0x0035, 0x0036, 0x0037,
+    0x0038, 0x0039, 0x003A, 0x003B, 0x003C, 0x003D, 0x003E, 0x003F, 0x0040, 0x0041, 0x0042, 0x0043,
+    0x0044, 0x0045, 0x0046, 0x0047, 0x0048, 0x0049, 0x004A, 0x004B, 0x004C, 0x004D, 0x004E, 0x004F,
+    0x0050, 0x0051, 0x0052, 0x0053, 0x0054, 0x0055, 0x0056, 0x0057, 0x0058, 0x0059, 0x005A, 0x005B,
+    0x005C, 0x005D, 0x005E, 0x005F, 0x0060, 0x0061, 0x0062, 0x0063, 0x0064, 0x0065, 0x0066, 0x0067,
+    0x0068, 0x0069, 0x006A, 0x006B, 0x006C, 0x006D, 0x006E, 0x006F, 0x0070, 0x0071, 0x0072, 0x0073,
+    0x0074, 0x0075, 0x0076, 0x0077, 0x0078, 0x0079, 0x007A, 0x007B, 0x007C, 0x007D, 0x007E, 0x2592,
+    0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x00D7, 0x0000, 0x0000, 0x00A1, 0x00BF, 0x00A4, 0x00A3,
+    0x00A5, 0x00A7, 0x0192, 0x00A2, 0x00D8, 0x00C6, 0x00E5, 0x00F8, 0x00E6, 0x00DF, 0x00D0, 0x00F0,
+    0x0160, 0x0161, 0x00DE, 0x00FE, 0x2022, 0x00B5, 0x00B6, 0x00BE, 0x2014, 0x00BC, 0x00BD, 0x00AA,
+    0x00BA, 0x00AB, 0x25A0, 0x00BB, 0x00B1, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000, 0x0000,
+    0x263A, 0x263B, 0x2665, 0x2666, 0x2663, 0x2660, 0x25D8, 0x25CB, 0x25D9, 0x2642, 0x2640, 0x266A,
+    0x266B, 0x263C, 0x25BA, 0x25C4, 0x203C, 0x25AC, 0x21A8, 0x2191, 0x2193, 0x2192, 0x2190, 0x221F,
+    0x25B2, 0x25BC, 0x00A6, 0x20A7, 0x2310, 0x00AC, 0x2591, 0x2592, 0x2593, 0x2502, 0x2524, 0x2561,
+    0x2562, 0x2556, 0x2555, 0x2563, 0x2551, 0x2557, 0x255D, 0x255C, 0x255B, 0x2510, 0x2514, 0x2534,
+    0x252C, 0x251C, 0x255E, 0x255F, 0x255A, 0x2554, 0x2569, 0x2566, 0x2560, 0x2550, 0x256C, 0x2567,
+    0x2568, 0x2564, 0x2565, 0x2559, 0x2558, 0x2552, 0x2553, 0x2518, 0x250C, 0x2584, 0x258C, 0x2590,
+    0x2580, 0x03B1, 0x03B2, 0x0393, 0x03C0, 0x03A3, 0x03C3, 0x03C4, 0x03A6, 0x0398, 0x03A9, 0x03B4,
+    0x221E, 0x03C6, 0x03B5, 0x2229, 0x2261, 0x2265, 0x2264, 0x2320, 0x2321, 0x00F7, 0x2248, 0x2219,
+    0x221A, 0x207F, 0x00B2, 0x25AA, 0x0000, 0x2113, 0x0149, 0x00B3, 0x00B7, 0x00A9, 0x00AE, 0x00B9,
+    0x0000, 0x2020, 0x2122,
+};
+
+/* Letters that a real cartridge makes from a base letter and a loose accent. */
+static const struct { uint16_t code; uint8_t base; uint8_t accent; } cart_accents[] = {
+    { 0x00C0, 0x41, 0x61 }, { 0x00C1, 0x41, 0x60 }, { 0x00C2, 0x41, 0x62 }, { 0x00C3, 0x41, 0x64 },
+    { 0x00C4, 0x41, 0x63 }, { 0x00C5, 0x41, 0x67 }, { 0x00C7, 0x43, 0x89 }, { 0x00C8, 0x45, 0x61 },
+    { 0x00C9, 0x45, 0x60 }, { 0x00CA, 0x45, 0x62 }, { 0x00CB, 0x45, 0x63 }, { 0x00CC, 0x49, 0x61 },
+    { 0x00CD, 0x49, 0x60 }, { 0x00CE, 0x49, 0x62 }, { 0x00CF, 0x49, 0x63 }, { 0x00D1, 0x4E, 0x64 },
+    { 0x00D2, 0x4F, 0x61 }, { 0x00D3, 0x4F, 0x60 }, { 0x00D4, 0x4F, 0x62 }, { 0x00D5, 0x4F, 0x64 },
+    { 0x00D6, 0x4F, 0x63 }, { 0x00D9, 0x55, 0x61 }, { 0x00DA, 0x55, 0x60 }, { 0x00DB, 0x55, 0x62 },
+    { 0x00DC, 0x55, 0x63 }, { 0x00DD, 0x59, 0x60 }, { 0x00E0, 0x61, 0x8B }, { 0x00E1, 0x61, 0x8A },
+    { 0x00E2, 0x61, 0x8C }, { 0x00E3, 0x61, 0x8E }, { 0x00E4, 0x61, 0x8D }, { 0x00E7, 0x63, 0x89 },
+    { 0x00E8, 0x65, 0x8B }, { 0x00E9, 0x65, 0x8A }, { 0x00EA, 0x65, 0x8C }, { 0x00EB, 0x65, 0x8D },
+    { 0x00EC, 0x69, 0x8B }, { 0x00ED, 0x69, 0x8A }, { 0x00EE, 0x69, 0x8C }, { 0x00EF, 0x69, 0x8D },
+    { 0x00F1, 0x6E, 0x8E }, { 0x00F2, 0x6F, 0x8B }, { 0x00F3, 0x6F, 0x8A }, { 0x00F4, 0x6F, 0x8C },
+    { 0x00F5, 0x6F, 0x8E }, { 0x00F6, 0x6F, 0x8D }, { 0x00F9, 0x75, 0x8B }, { 0x00FA, 0x75, 0x8A },
+    { 0x00FB, 0x75, 0x8C }, { 0x00FC, 0x75, 0x8D }, { 0x00FD, 0x79, 0x8A }, { 0x00FF, 0x79, 0x8D },
+    { 0x0106, 0x43, 0x60 }, { 0x0107, 0x63, 0x8A }, { 0x0108, 0x43, 0x62 }, { 0x0109, 0x63, 0x8C },
+    { 0x011C, 0x47, 0x62 }, { 0x011D, 0x67, 0x8C }, { 0x0122, 0x47, 0x89 }, { 0x0123, 0x67, 0x89 },
+    { 0x0124, 0x48, 0x62 }, { 0x0125, 0x68, 0x8C }, { 0x0128, 0x49, 0x64 }, { 0x0129, 0x69, 0x8E },
+    { 0x0134, 0x4A, 0x62 }, { 0x0135, 0x6A, 0x8C }, { 0x0136, 0x4B, 0x89 }, { 0x0137, 0x6B, 0x89 },
+    { 0x0139, 0x4C, 0x60 }, { 0x013A, 0x6C, 0x8A }, { 0x013B, 0x4C, 0x89 }, { 0x013C, 0x6C, 0x89 },
+    { 0x0143, 0x4E, 0x60 }, { 0x0144, 0x6E, 0x8A }, { 0x0145, 0x4E, 0x89 }, { 0x0146, 0x6E, 0x89 },
+    { 0x0154, 0x52, 0x60 }, { 0x0155, 0x72, 0x8A }, { 0x0156, 0x52, 0x89 }, { 0x0157, 0x72, 0x89 },
+    { 0x015A, 0x53, 0x60 }, { 0x015B, 0x73, 0x8A }, { 0x015C, 0x53, 0x62 }, { 0x015D, 0x73, 0x8C },
+    { 0x015E, 0x53, 0x89 }, { 0x015F, 0x73, 0x89 }, { 0x0162, 0x54, 0x89 }, { 0x0163, 0x74, 0x89 },
+    { 0x0168, 0x55, 0x64 }, { 0x0169, 0x75, 0x8E }, { 0x016E, 0x55, 0x67 }, { 0x016F, 0x75, 0x67 },
+    { 0x0174, 0x57, 0x62 }, { 0x0175, 0x77, 0x8C }, { 0x0176, 0x59, 0x62 }, { 0x0177, 0x79, 0x8C },
+    { 0x0178, 0x59, 0x63 }, { 0x0179, 0x5A, 0x60 }, { 0x017A, 0x7A, 0x8A },
+};
+
+static int
+cart_pool_index(uint16_t code)
+{
+    for (int i = 0; i < (int) (sizeof(cart_pool) / sizeof(cart_pool[0])); i++) {
+        if (cart_pool[i] == code)
+            return i;
+    }
+
+    return -1;
+}
+
+/* Prints a character of the selected symbol set from a cartridge font. */
+static void
+draw_cart_glyph(pcl3_t *dev, pcl3_softfont_t *font, uint8_t ch)
+{
+    if (font->pool) {
+        const uint16_t code  = dev->symbol_map[ch];
+        const int      index = cart_pool_index(code);
+
+        if (index >= 0)
+            blit_landscape_glyph(dev, font, &font->glyphs[index]);
+        else {
+            for (size_t i = 0; i < (sizeof(cart_accents) / sizeof(cart_accents[0])); i++) {
+                if (cart_accents[i].code == code) {
+                    blit_landscape_glyph(dev, font, &font->glyphs[cart_accents[i].base - 0x20]);
+                    blit_landscape_glyph(dev, font, &font->glyphs[cart_accents[i].accent]);
+                    break;
+                }
+            }
+        }
+    } else
+        blit_landscape_glyph(dev, font, &font->glyphs[ch]);
+
+    dev->x += dev->hmi_set ? dev->hmi : font->hmi;
+}
+
+/* Fonts are chosen by attributes, as the printer does it. Cartridges here only hold
+   landscape fonts, so they answer only on a landscape page. */
+static pcl3_softfont_t *
+find_cart_font(pcl3_t *dev, const pcl3_fontsel_t *sel)
+{
+    pcl3_softfont_t *best = NULL;
+
+    if (!dev->landscape || (sel->spacing != 0))
+        return NULL;
+
+    for (int i = 0; i < dev->cart_fonts; i++) {
+        pcl3_softfont_t *font = dev->carts[i];
+
+        if ((font->typeface != sel->typeface) || (fabs(font->pitch - sel->pitch) > 0.5))
+            continue;
+        if (!font->pool && (font->symbol_set != sel->symbol_set))
+            continue;
+        if ((best == NULL) || (font->bold == (sel->weight > 0)))
+            best = font;
+    }
+
+    return best;
 }
 
 static void
@@ -1182,6 +1313,7 @@ print_char(pcl3_t *dev, uint8_t ch)
 {
     const pcl3_fontsel_t *sel  = &dev->font[dev->font_active];
     pcl3_softfont_t      *font = (sel->soft_id >= 0) ? find_softfont(dev, sel->soft_id, false) : NULL;
+    pcl3_softfont_t      *cart = (sel->soft_id >= 0) ? NULL : find_cart_font(dev, sel);
     const double          from = dev->x;
 
     if (dev->wrap && (dev->x >= dev->right_margin)) {
@@ -1189,7 +1321,10 @@ print_char(pcl3_t *dev, uint8_t ch)
         line_feed(dev);
     }
 
-    if ((font != NULL) && (font->deskjet || (font->glyphs[ch].bits != NULL) || (font->glyphs[ch].delta != 0)))
+    if (cart != NULL) {
+        update_face(dev);
+        draw_cart_glyph(dev, cart, ch);
+    } else if ((font != NULL) && (font->deskjet || (font->glyphs[ch].bits != NULL) || (font->glyphs[ch].delta != 0)))
         draw_soft_glyph(dev, font, ch);
     else
         draw_face_glyph(dev, ch);
@@ -1908,6 +2043,149 @@ pcl3_open(double width, double height, int dpi)
     return dev;
 }
 
+/* A set name such as 8U, as the text at offset 7 of a recreation ends with. */
+static int
+cart_symbol_set(const uint8_t *rom)
+{
+    int end = 37;
+    int start;
+    int value = 0;
+
+    while ((end > 7) && (rom[end] == ' '))
+        end--;
+    start = end;
+    while ((start > 7) && (rom[start - 1] >= '0') && (rom[start - 1] <= '9'))
+        start--;
+    if ((start == end) || (rom[end] < 'A') || (rom[end] > 'Z'))
+        return -1;
+    for (int i = start; i < end; i++)
+        value = (value * 10) + (rom[i] - '0');
+
+    return (value * 32) + (rom[end] - 64);
+}
+
+/* The name field is followed by sizes in text: the first is the pitch. */
+static double
+cart_pitch(const uint8_t *descriptor)
+{
+    int pitch = 0;
+
+    for (int i = 0x3C; i < 0x41; i++) {
+        if ((descriptor[i] >= '0') && (descriptor[i] <= '9'))
+            pitch = (pitch * 10) + (descriptor[i] - '0');
+    }
+
+    return ((pitch >= 5) && (pitch <= 30)) ? pitch : 12.0;
+}
+
+static uint16_t
+cart_word(const uint8_t *rom, uint32_t at)
+{
+    return rom[at] | (rom[at + 1] << 8);
+}
+
+static void
+load_cart_font(pcl3_t *dev, const uint8_t *rom, uint32_t record)
+{
+    const uint32_t descriptor = cart_word(rom, record);
+    const uint32_t widths     = cart_word(rom, record + 2);
+    const uint32_t offsets    = cart_word(rom, record + 4);
+    const uint32_t pads       = cart_word(rom, record + 6);
+    const bool     real       = memcmp(rom + 7, "RECREATION ", 11) != 0;
+    uint8_t       *block;
+    pcl3_softfont_t *font;
+    char           name[17];
+
+    if ((dev->cart_fonts >= MAX_CART_FONT) || ((descriptor + 0x54) > CART_BANK) ||
+        ((widths + 256) > CART_BANK) || ((offsets + 514) > CART_BANK) || ((pads + 256) > CART_BANK))
+        return;
+
+    font  = (pcl3_softfont_t *) calloc(1, sizeof(pcl3_softfont_t));
+    block = (uint8_t *) malloc(8 + CART_BANK);
+    if ((font == NULL) || (block == NULL)) {
+        free(font);
+        free(block);
+        return;
+    }
+
+    /* Its characters are the same as those of a landscape soft font of format 9. */
+    font->deskjet      = true;
+    font->landscape    = true;
+    font->format       = 9;
+    font->passes       = 1;
+    font->baseline     = CART_BASELINE;
+    font->pass_base[0] = CART_BASELINE;
+    font->res_x        = 600.0;
+    font->res_y        = 300.0;
+    font->pool         = real;
+    font->bold         = cart_word(rom, descriptor + 10) != 0;
+    font->pitch        = cart_pitch(rom + descriptor);
+    font->hmi          = 1.0 / font->pitch;
+    font->symbol_set   = real ? -1 : cart_symbol_set(rom);
+
+    memcpy(name, rom + descriptor + 0x2A, 16);
+    name[16]       = 0;
+    font->typeface = strstr(name, "Letter Gothic") ? 6 : strstr(name, "Courier") ? 3 : -1;
+
+    for (int i = 0; i < 256; i++) {
+        const uint32_t from  = cart_word(rom, offsets + (i * 2));
+        const uint32_t to    = cart_word(rom, offsets + (i * 2) + 2);
+        const uint8_t  width = rom[widths + i];
+
+        if ((width == 0) || (width == 255) || (to <= from) || (to > CART_BANK))
+            continue;
+
+        block[0] = 9;
+        block[1] = 0;
+        block[2] = 6;
+        block[3] = 0;
+        block[4] = width;
+        block[5] = rom[pads + i];
+        block[6] = 0;
+        block[7] = 0;
+        memcpy(block + 8, rom + from, to - from);
+        store_deskjet_glyph(font, &font->glyphs[real ? i : ((i + 0x20) & 0xFF)], block, 8 + to - from);
+    }
+
+    free(block);
+    dev->carts[dev->cart_fonts++] = font;
+}
+
+/* A cartridge is one or two 64 KB parts, each with a list of font records at 0x26. */
+void
+pcl3_load_cartridge(void *priv, const char *fn)
+{
+    pcl3_t  *dev = (pcl3_t *) priv;
+    FILE    *fp  = fopen(fn, "rb");
+    uint8_t *rom;
+    size_t   size;
+
+    if (fp == NULL)
+        return;
+
+    rom = (uint8_t *) malloc(CART_BANK * 2);
+    if (rom == NULL) {
+        fclose(fp);
+        return;
+    }
+
+    size = fread(rom, 1, CART_BANK * 2, fp);
+    fclose(fp);
+
+    for (uint32_t bank = 0; (bank + CART_BANK) <= size; bank += CART_BANK) {
+        const uint8_t *part = rom + bank;
+
+        for (uint32_t list = 0x26; list < 0x2A; list += 2) {
+            const uint32_t record = cart_word(part, list);
+
+            if ((record != 0) && ((record + 8) <= CART_BANK))
+                load_cart_font(dev, part, record);
+        }
+    }
+
+    free(rom);
+}
+
 void
 pcl3_close(void *priv)
 {
@@ -1922,6 +2200,11 @@ pcl3_close(void *priv)
     for (int i = 0; i < MAX_SOFTFONT; i++) {
         if (dev->softfonts[i].id >= 0)
             delete_softfont(&dev->softfonts[i]);
+    }
+
+    for (int i = 0; i < dev->cart_fonts; i++) {
+        delete_softfont(dev->carts[i]);
+        free(dev->carts[i]);
     }
 
     for (int i = 0; i < MAX_PLANES; i++)

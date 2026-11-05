@@ -67,5 +67,6 @@ extern void  pcl3_write(void *priv, uint8_t ch);
 extern void  pcl3_flush(void *priv);
 extern void  pcl3_reset(void *priv);
 extern void  pcl3_close(void *priv);
+extern void  pcl3_load_cartridge(void *priv, const char *fn);
 
 #endif /*PRINTER_H*/
