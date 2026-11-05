@@ -50,6 +50,8 @@
 #define MAX_GLYPH    0x10000   /* largest bitmap of one soft font character */
 #define PCL_DPI      300.0     /* PCL units, used by soft fonts and *p moves */
 #define DJ_BAND      50        /* dots in one pass of a DeskJet font */
+#define DJ_STEP      48        /* dots between the passes, when a font does not say */
+#define DJ_MAX_BASE  200       /* more than the height of four passes */
 #define DJ_BOXES     7         /* boxes per dot column: 6 of 8 rows, 1 of 2 rows */
 
 enum {
@@ -71,6 +73,8 @@ typedef struct pcl3_glyph_t {
     uint8_t *bits;
     uint32_t bytes;  /* size of bits */
     uint32_t filled; /* how much of bits has arrived */
+    uint8_t  passes; /* DeskJet: mask of the passes that have arrived */
+    bool     nonspacing;
 } pcl3_glyph_t;
 
 typedef struct pcl3_softfont_t {
@@ -84,6 +88,7 @@ typedef struct pcl3_softfont_t {
     int          format;
     int          passes;   /* print head passes per character */
     int          baseline; /* dots from the top of the bottom pass */
+    int          pass_base[4]; /* dots from the top of each pass to the baseline */
     pcl3_glyph_t glyphs[256];
 } pcl3_softfont_t;
 
@@ -785,14 +790,43 @@ store_font_descriptor(pcl3_t *dev, const uint8_t *data, uint32_t len)
     font->deskjet = (format == 5) || (format == 9) || (format == 12);
     if (font->deskjet) {
         const int cell_height = (data[10] << 8) | data[11];
+        const int offsets     = (format == 12) ? 88 : 86;
+        int       passes      = 1;
 
         font->res_x    = 600.0;
         font->baseline = (data[6] << 8) | data[7];
-        font->passes   = (cell_height + DJ_BAND - 1) / DJ_BAND;
-        if (font->passes < 1)
-            font->passes = 1;
-        if (font->passes > 4)
-            font->passes = 4;
+
+        /* The baseline position is for the bottom cell, and each further cell has its
+           own offset to the same baseline: the higher a pass, the larger its offset. */
+        font->pass_base[0] = font->baseline;
+        for (int i = 0; (i < 3) && (len >= (uint32_t) (offsets + (i * 2) + 2)); i++) {
+            const int base = (data[offsets + (i * 2)] << 8) | data[offsets + (i * 2) + 1];
+
+            if ((base > 0) && (base <= DJ_MAX_BASE))
+                font->pass_base[passes++] = base;
+        }
+
+        /* Without offsets, take the cell height, with cells the usual 48 dots apart. */
+        if (passes == 1) {
+            passes = (cell_height + DJ_STEP - 1 - (DJ_BAND - DJ_STEP)) / DJ_STEP;
+            if (passes < 1)
+                passes = 1;
+            if (passes > 4)
+                passes = 4;
+            for (int i = 1; i < passes; i++)
+                font->pass_base[i] = font->baseline + (i * DJ_STEP);
+        }
+
+        /* Largest first, so that the index is the print head pass, from the top. */
+        for (int i = 1; i < passes; i++) {
+            const int base = font->pass_base[i];
+            int       j    = i;
+
+            for (; (j > 0) && (font->pass_base[j - 1] < base); j--)
+                font->pass_base[j] = font->pass_base[j - 1];
+            font->pass_base[j] = base;
+        }
+        font->passes = passes;
     } else if ((format == 20) && (len >= 68)) {
         font->res_x = (data[64] << 8) | data[65];
         font->res_y = (data[66] << 8) | data[67];
@@ -838,21 +872,23 @@ expand_compressed_glyph(pcl3_glyph_t *glyph, const uint8_t *data, uint32_t len)
 }
 
 /* DeskJet characters are stored by print head column. Each column of 1/600 inch
-   has a flag byte, whose bits say which boxes of its 50 rows have data bytes. The
-   head prints tall characters in passes, the bottom band first. */
+   has a flag byte, whose bits say which boxes of its 50 rows have data bytes. Tall
+   characters are in one block per pass, of which pass 1 is the top, and the bottom
+   pass comes first: all the characters of a font are sent a pass at a time. */
 static void
 store_deskjet_glyph(pcl3_softfont_t *font, pcl3_glyph_t *glyph, const uint8_t *data, uint32_t len)
 {
     const uint32_t header = 2 + ((data[2] < 6) ? 6 : data[2]);
     const int      type   = data[3];
     const int      width  = data[4];
-    const int      band   = (type < 2) ? (font->passes - 1) : (font->passes - 1 - (type - 2));
+    const int      band   = (type < 2) ? 0 : (type - 2);
     uint32_t       in;
 
-    if ((len < header) || (band < 0))
+    if ((len < header) || (type == 1) || (band >= font->passes))
         return;
 
-    if (type < 3) {
+    /* A pass already seen, or another width, is a new definition of the character. */
+    if ((glyph->bits == NULL) || (glyph->passes & (1 << band)) || (width != glyph->width)) {
         const bool signed_pads = font->format == 12;
         /* A landscape character has its left pad in the compressed width field. */
         const int  left        = font->landscape ? data[5] : (signed_pads ? (int8_t) data[6] : data[6]);
@@ -861,24 +897,29 @@ store_deskjet_glyph(pcl3_softfont_t *font, pcl3_glyph_t *glyph, const uint8_t *d
         delete_glyph(glyph);
 
         /* 255 is a character which neither prints nor moves. */
-        if (width == 255)
+        if (width == 255) {
+            glyph->nonspacing = true;
             return;
+        }
 
-        glyph->left   = (font->proportional || font->landscape) ? left : 0;
-        glyph->top    = font->baseline + ((font->passes - 1) * DJ_BAND);
-        glyph->width  = width;
-        glyph->height = font->passes * DJ_BAND;
-        glyph->delta  = (width + left + right) * 4;
-        glyph->bytes  = (uint32_t) ((glyph->width + 7) / 8) * glyph->height;
-        glyph->filled = glyph->bytes;
-        glyph->bits   = (uint8_t *) calloc(glyph->bytes ? glyph->bytes : 1, 1);
+        glyph->nonspacing = false;
+        glyph->left       = (font->proportional || font->landscape) ? left : 0;
+        glyph->top        = font->pass_base[0];
+        glyph->width      = width;
+        glyph->height     = font->pass_base[0] - font->pass_base[font->passes - 1] + DJ_BAND;
+        glyph->delta      = (width + left + right) * 4;
+        glyph->bytes      = (uint32_t) ((glyph->width + 7) / 8) * glyph->height;
+        glyph->filled     = glyph->bytes;
+        glyph->bits       = (uint8_t *) calloc(glyph->bytes ? glyph->bytes : 1, 1);
         if (glyph->bits == NULL) {
             glyph->bytes = 0;
             return;
         }
     }
 
-    if ((glyph->bits == NULL) || (width != glyph->width) || ((header + width) > len))
+    glyph->passes |= 1 << band;
+
+    if ((header + width) > len)
         return;
 
     in = header + width;
@@ -898,7 +939,7 @@ store_deskjet_glyph(pcl3_softfont_t *font, pcl3_glyph_t *glyph, const uint8_t *d
 
             for (int row = 0; row < rows; row++) {
                 if (value & (0x80 >> row)) {
-                    const int y = (band * DJ_BAND) + (box * 8) + row;
+                    const int y = (font->pass_base[0] - font->pass_base[band]) + (box * 8) + row;
 
                     glyph->bits[(y * ((glyph->width + 7) / 8)) + (col / 8)] |= 0x80 >> (col & 7);
                 }
@@ -987,16 +1028,19 @@ char_advance(pcl3_t *dev, double natural)
     return (sel->spacing == 0) ? (1.0 / sel->pitch) : natural;
 }
 
-/* On a landscape page the logical X runs down the sheet, and the logical Y runs
-   from the right edge to the left. The character is stored as it lies on the sheet,
-   and such fonts are fixed pitch, so its width does not move the cursor. */
+/* A landscape page is turned 90 degrees counter-clockwise on the sheet, so text runs
+   up the sheet, and later lines sit further right. A character is stored as it lies
+   on the sheet, with its top to the left: a left pad, then its columns, across a cell
+   as wide as the line spacing. The rows run from its right side to its left, and the
+   cell is one character pitch tall. Such fonts are always fixed pitch. */
 static void
 draw_landscape_glyph(pcl3_t *dev, const pcl3_softfont_t *font, const pcl3_glyph_t *glyph)
 {
     const double px     = 1.0 / font->res_x;
     const double py     = 1.0 / font->res_y;
-    const double base_x = dev->page_width - dev->top_margin - dev->y - (glyph->width * px) + (glyph->left * px);
-    const double base_y = dev->left_origin + dev->x;
+    const double pitch  = dev->hmi_set ? dev->hmi : font->hmi;
+    const double base_x = dev->top_margin + dev->y - (font->baseline * py) + (glyph->left * px);
+    const double base_y = dev->page_height - dev->left_origin - dev->x - pitch;
     const int    stride = (glyph->width + 7) / 8;
 
     if (glyph->bits != NULL) {
@@ -1009,7 +1053,7 @@ draw_landscape_glyph(pcl3_t *dev, const pcl3_softfont_t *font, const pcl3_glyph_
         }
     }
 
-    dev->x += dev->hmi_set ? dev->hmi : font->hmi;
+    dev->x += pitch;
 }
 
 static void
@@ -1024,6 +1068,10 @@ draw_soft_glyph(pcl3_t *dev, pcl3_softfont_t *font, uint8_t ch)
     double              base_y;
     double              advance;
 
+    /* What was not sent is nothing at all if a control code, and otherwise a space. */
+    if (font->deskjet && (glyph->nonspacing || ((glyph->bits == NULL) && (ch < 0x20))))
+        return;
+
     /* A font is only selected for the orientation it was made for. */
     if (font->landscape) {
         if (dev->landscape)
@@ -1034,6 +1082,9 @@ draw_soft_glyph(pcl3_t *dev, pcl3_softfont_t *font, uint8_t ch)
     }
 
     base_x = dev->left_origin + dev->x + (glyph->left * px);
+    /* Fixed pitch DeskJet characters are centred in their cell, without their pads. */
+    if (font->deskjet && !font->proportional && (((font->hmi / px) - glyph->width) > 0.0))
+        base_x += floor(((font->hmi / px) - glyph->width) / 2.0) * px;
     base_y = dev->top_margin + dev->y - (glyph->top * py);
 
     if (glyph->bits != NULL) {
@@ -1049,6 +1100,8 @@ draw_soft_glyph(pcl3_t *dev, pcl3_softfont_t *font, uint8_t ch)
     }
 
     advance = font->proportional ? ((glyph->delta / 4.0) * px) : font->hmi;
+    if ((advance <= 0.0) && font->deskjet && (glyph->bits == NULL))
+        advance = (font->glyphs[0x20].delta / 4.0) * px;
     if (advance <= 0.0)
         advance = font->hmi;
 
@@ -1136,7 +1189,7 @@ print_char(pcl3_t *dev, uint8_t ch)
         line_feed(dev);
     }
 
-    if ((font != NULL) && ((font->glyphs[ch].bits != NULL) || (font->glyphs[ch].delta != 0)))
+    if ((font != NULL) && (font->deskjet || (font->glyphs[ch].bits != NULL) || (font->glyphs[ch].delta != 0)))
         draw_soft_glyph(dev, font, ch);
     else
         draw_face_glyph(dev, ch);
