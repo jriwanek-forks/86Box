@@ -80,6 +80,7 @@ typedef struct pcl3_softfont_t {
     double       res_x;
     double       res_y;
     bool         deskjet;  /* character data is in the DeskJet column format */
+    bool         landscape;
     int          format;
     int          passes;   /* print head passes per character */
     int          baseline; /* dots from the top of the bottom pass */
@@ -148,6 +149,7 @@ typedef struct pcl3_t {
     double push_y[20];
     int    push_count;
     bool   display_functions;
+    bool   landscape;
 
     /* Raster graphics. */
     int      res;
@@ -778,6 +780,8 @@ store_font_descriptor(pcl3_t *dev, const uint8_t *data, uint32_t len)
     font->res_x   = 300.0;
     font->res_y   = 300.0;
     font->format  = format;
+    /* The DeskJet has no way to rotate a font: a landscape one is drawn on its side. */
+    font->landscape = data[12] == 1;
     font->deskjet = (format == 5) || (format == 9) || (format == 12);
     if (font->deskjet) {
         const int cell_height = (data[10] << 8) | data[11];
@@ -850,8 +854,9 @@ store_deskjet_glyph(pcl3_softfont_t *font, pcl3_glyph_t *glyph, const uint8_t *d
 
     if (type < 3) {
         const bool signed_pads = font->format == 12;
-        const int  left        = signed_pads ? (int8_t) data[6] : data[6];
-        const int  right       = signed_pads ? (int8_t) data[7] : data[7];
+        /* A landscape character has its left pad in the compressed width field. */
+        const int  left        = font->landscape ? data[5] : (signed_pads ? (int8_t) data[6] : data[6]);
+        const int  right       = font->landscape ? 0 : (signed_pads ? (int8_t) data[7] : data[7]);
 
         delete_glyph(glyph);
 
@@ -859,7 +864,7 @@ store_deskjet_glyph(pcl3_softfont_t *font, pcl3_glyph_t *glyph, const uint8_t *d
         if (width == 255)
             return;
 
-        glyph->left   = font->proportional ? left : 0;
+        glyph->left   = (font->proportional || font->landscape) ? left : 0;
         glyph->top    = font->baseline + ((font->passes - 1) * DJ_BAND);
         glyph->width  = width;
         glyph->height = font->passes * DJ_BAND;
@@ -982,6 +987,31 @@ char_advance(pcl3_t *dev, double natural)
     return (sel->spacing == 0) ? (1.0 / sel->pitch) : natural;
 }
 
+/* On a landscape page the logical X runs down the sheet, and the logical Y runs
+   from the right edge to the left. The character is stored as it lies on the sheet,
+   and such fonts are fixed pitch, so its width does not move the cursor. */
+static void
+draw_landscape_glyph(pcl3_t *dev, const pcl3_softfont_t *font, const pcl3_glyph_t *glyph)
+{
+    const double px     = 1.0 / font->res_x;
+    const double py     = 1.0 / font->res_y;
+    const double base_x = dev->page_width - dev->top_margin - dev->y - (glyph->width * px) + (glyph->left * px);
+    const double base_y = dev->left_origin + dev->x;
+    const int    stride = (glyph->width + 7) / 8;
+
+    if (glyph->bits != NULL) {
+        for (int y = 0; y < glyph->height; y++) {
+            for (int x = 0; x < glyph->width; x++) {
+                if (glyph->bits[(y * stride) + (x / 8)] & (0x80 >> (x & 7)))
+                    fill_rect(dev, base_x + (x * px), base_y + (y * py),
+                              base_x + (x * px) + (1.0 / PCL_DPI), base_y + ((y + 1) * py), dev->pen_ink);
+            }
+        }
+    }
+
+    dev->x += dev->hmi_set ? dev->hmi : font->hmi;
+}
+
 static void
 draw_soft_glyph(pcl3_t *dev, pcl3_softfont_t *font, uint8_t ch)
 {
@@ -993,6 +1023,15 @@ draw_soft_glyph(pcl3_t *dev, pcl3_softfont_t *font, uint8_t ch)
     double              base_x;
     double              base_y;
     double              advance;
+
+    /* A font is only selected for the orientation it was made for. */
+    if (font->landscape) {
+        if (dev->landscape)
+            draw_landscape_glyph(dev, font, glyph);
+        else
+            dev->x += dev->hmi_set ? dev->hmi : font->hmi;
+        return;
+    }
 
     base_x = dev->left_origin + dev->x + (glyph->left * px);
     base_y = dev->top_margin + dev->y - (glyph->top * py);
@@ -1182,6 +1221,7 @@ page_defaults(pcl3_t *dev)
     dev->wrap             = true;
     dev->line_termination = 0;
     dev->underline        = false;
+    dev->landscape        = false;
     dev->push_count       = 0;
     dev->res              = 75;
     dev->compression      = 0;
@@ -1328,6 +1368,9 @@ cmd_ampersand(pcl3_t *dev, uint8_t group, uint8_t term, double value, bool relat
         case ('l' << 8) | 'E': /* top margin, in lines */
             dev->top_margin = value * dev->vmi;
             home_cursor(dev);
+            break;
+        case ('l' << 8) | 'O': /* orientation */
+            dev->landscape = ival == 1;
             break;
         case ('l' << 8) | 'H': /* paper source; 0 ejects the page */
             if (ival == 0)
