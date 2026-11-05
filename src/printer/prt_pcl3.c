@@ -110,6 +110,15 @@ typedef struct pcl3_softfont_t {
     pcl3_glyph_t glyphs[256];
 } pcl3_softfont_t;
 
+/* The printer's algorithms make more fonts from one: dots are spread or squeezed, and
+   bold adds dots to a trailing edge. */
+typedef struct pcl3_algo_t {
+    double sx;   /* along the columns of a character */
+    double sy;   /* along its rows */
+    double hmi;  /* zero: as the font has it */
+    int    bold; /* dots added, at 300 dpi */
+} pcl3_algo_t;
+
 /* What a PCL font selection asks for. */
 typedef struct pcl3_fontsel_t {
     int    symbol_set;
@@ -203,8 +212,11 @@ typedef struct pcl3_t {
     int              cart_fonts;
 
     /* What the model can do. */
+    pcl3_algo_t algo;
     bool     color;
     bool     landscape_graphics;
+    bool     has_univers;
+    bool     landscape_ps;
     bool     deskjet_fonts;
     bool     ram_limited;
     int      ram_pages;
@@ -919,9 +931,11 @@ update_face(pcl3_t *dev)
     if (ft_lib == NULL)
         return;
 
-    if (sel->spacing == 0)
+    /* Only some models have proportional landscape fonts, or Univers. */
+    if ((sel->spacing == 0) || (dev->landscape && !dev->landscape_ps))
         fn = FONT_FILE_COURIER;
-    else if ((sel->typeface == 4) || (sel->typeface == 24) || (sel->typeface == 16602))
+    else if (dev->has_univers && ((sel->typeface == 4) || (sel->typeface == 24) || (sel->typeface == 52) ||
+                                  (sel->typeface == 16602)))
         fn = FONT_FILE_SANSSERIF;
     else
         fn = FONT_FILE_ROMAN;
@@ -1325,17 +1339,21 @@ blit_landscape_glyph(pcl3_t *dev, const pcl3_softfont_t *font, const pcl3_glyph_
 {
     const double px     = 1.0 / font->res_x;
     const double py     = 1.0 / font->res_y;
-    const double pitch  = dev->hmi_set ? dev->hmi : font->hmi;
-    const double base_x = dev->top_margin + dev->y - (font->baseline * py) + (glyph->left * px);
+    const double sx     = dev->algo.sx;
+    const double sy     = dev->algo.sy;
+    const double pitch  = dev->hmi_set ? dev->hmi : ((dev->algo.hmi > 0.0) ? dev->algo.hmi : font->hmi);
+    const double base_x = dev->top_margin + dev->y - (font->baseline * py * sx) + (glyph->left * px * sx);
     const double base_y = dev->page_height - dev->left_origin - dev->x - pitch;
     const int    stride = (glyph->width + 7) / 8;
+    const double bold   = (double) dev->algo.bold / PCL_DPI;
+    const double dot    = ((sx > 1.0) ? sx : 1.0) / PCL_DPI;
 
     if (glyph->bits != NULL) {
         for (int y = 0; y < glyph->height; y++) {
             for (int x = 0; x < glyph->width; x++) {
                 if (glyph->bits[(y * stride) + (x / 8)] & (0x80 >> (x & 7)))
-                    fill_rect(dev, base_x + (x * px), base_y + (y * py),
-                              base_x + (x * px) + (1.0 / PCL_DPI), base_y + ((y + 1) * py), dev->pen_ink);
+                    fill_rect(dev, base_x + (x * px * sx), base_y + (y * py * sy) - bold,
+                              base_x + (x * px * sx) + dot, base_y + (y * py * sy) + py, dev->pen_ink);
             }
         }
     }
@@ -1345,7 +1363,7 @@ static void
 draw_landscape_glyph(pcl3_t *dev, const pcl3_softfont_t *font, const pcl3_glyph_t *glyph)
 {
     blit_landscape_glyph(dev, font, glyph);
-    dev->x += dev->hmi_set ? dev->hmi : font->hmi;
+    dev->x += dev->hmi_set ? dev->hmi : ((dev->algo.hmi > 0.0) ? dev->algo.hmi : font->hmi);
 }
 
 /* What the glyphs of a real cartridge are, by index. Zero is not a character. */
@@ -1436,34 +1454,93 @@ draw_cart_glyph(pcl3_t *dev, pcl3_softfont_t *font, uint8_t ch)
     } else
         blit_landscape_glyph(dev, font, &font->glyphs[ch]);
 
-    dev->x += dev->hmi_set ? dev->hmi : font->hmi;
+    dev->x += dev->hmi_set ? dev->hmi : ((dev->algo.hmi > 0.0) ? dev->algo.hmi : font->hmi);
 }
 
-/* Fonts are chosen by attributes, as the printer does it. */
+static double
+nearest_scale(double have, double want, double high)
+{
+    double best = 1.0;
+
+    if (have > 0.0) {
+        if (fabs((have / 2.0) - want) < fabs(have - want))
+            best = 0.5;
+        if (fabs((have * high) - want) < fabs((have * best) - want))
+            best = high;
+    }
+
+    return best;
+}
+
+/* Fonts are chosen by attributes, as the printer does it. A font also answers for what
+   the algorithms make of it. Their columns run across a character in portrait, and
+   down it in landscape, so that double width makes a landscape font taller. */
 static pcl3_softfont_t *
-find_cart_font(pcl3_t *dev, const pcl3_fontsel_t *sel)
+find_cart_font(pcl3_t *dev, const pcl3_fontsel_t *sel, pcl3_algo_t *algo)
 {
     pcl3_softfont_t *best       = NULL;
     int              best_score = -1;
 
     for (int i = 0; i < dev->cart_fonts; i++) {
         pcl3_softfont_t *font = dev->carts[i];
-        int              score;
+        pcl3_algo_t      try_algo;
+        int              score = 0;
 
         if ((font->landscape != dev->landscape) || (font->proportional != (sel->spacing != 0)))
             continue;
         if (font->typeface != sel->typeface)
             continue;
-        if (font->proportional ? (fabs(font->height - sel->height) > 0.5) : (fabs(font->pitch - sel->pitch) > 0.5))
-            continue;
         /* An ASCII font answers for any set. */
         if (!font->pool && (font->symbol_set != sel->symbol_set) && (font->symbol_set != 21))
             continue;
 
-        score = ((font->bold == (sel->weight > 0)) ? 2 : 0) + ((font->italic == ((sel->style & 1) != 0)) ? 1 : 0);
+        try_algo.sx   = 1.0;
+        try_algo.sy   = 1.0;
+        try_algo.hmi  = 0.0;
+        try_algo.bold = 0;
+
+        if (font->proportional) {
+            if (fabs((font->height / 2.0) - sel->height) <= 0.25)
+                try_algo.sy = 0.5;
+            else if (fabs(font->height - sel->height) > 0.5)
+                continue;
+        } else {
+            double pitch = 0.0;
+
+            if (fabs(font->pitch - sel->pitch) <= 0.5)
+                pitch = 1.0;
+            else if (fabs((font->pitch * 2.0) - sel->pitch) <= 0.5)
+                pitch = 2.0;
+            else if (!font->landscape && (fabs((font->pitch / 2.0) - sel->pitch) <= 0.25))
+                pitch = 0.5;
+            else
+                continue;
+
+            try_algo.hmi = 1.0 / (font->pitch * pitch);
+            if (font->landscape) {
+                try_algo.sy = 1.0 / pitch;
+                try_algo.sx = nearest_scale(font->height, sel->height, 2.0);
+            } else {
+                try_algo.sx = 1.0 / pitch;
+                try_algo.sy = nearest_scale(font->height, sel->height, 1.0);
+            }
+        }
+
+        if ((sel->weight > 0) && !font->bold) {
+            try_algo.bold = (font->height >= 14.0) ? 2 : 1;
+            score += 1;
+        } else if (font->bold == (sel->weight > 0))
+            score += 2;
+
+        if (font->italic == ((sel->style & 1) != 0))
+            score += 8;
+        if ((try_algo.sx == 1.0) && (try_algo.sy == 1.0))
+            score += 4;
+
         if (score > best_score) {
             best       = font;
             best_score = score;
+            *algo      = try_algo;
         }
     }
 
@@ -1481,6 +1558,7 @@ draw_soft_glyph(pcl3_t *dev, pcl3_softfont_t *font, uint8_t ch)
     double              base_x;
     double              base_y;
     double              advance;
+    double              cell;
 
     /* What was not sent is nothing at all if a control code, and otherwise a space. */
     if (font->deskjet && (glyph->nonspacing || ((glyph->bits == NULL) && (ch < 0x20))))
@@ -1495,11 +1573,12 @@ draw_soft_glyph(pcl3_t *dev, pcl3_softfont_t *font, uint8_t ch)
         return;
     }
 
-    base_x = dev->left_origin + dev->x + (glyph->left * px);
+    cell   = (dev->algo.hmi > 0.0) ? dev->algo.hmi : font->hmi;
+    base_x = dev->left_origin + dev->x + (glyph->left * px * dev->algo.sx);
     /* Fixed pitch DeskJet characters are centred in their cell, without their pads. */
-    if (font->deskjet && !font->proportional && (((font->hmi / px) - glyph->width) > 0.0))
-        base_x += floor(((font->hmi / px) - glyph->width) / 2.0) * px;
-    base_y = dev->top_margin + dev->y - (glyph->top * py);
+    if (font->deskjet && !font->proportional && (((cell / px) - (glyph->width * dev->algo.sx)) > 0.0))
+        base_x += floor(((cell / px) - (glyph->width * dev->algo.sx)) / 2.0) * px;
+    base_y = dev->top_margin + dev->y - (glyph->top * py * dev->algo.sy);
 
     if (glyph->bits != NULL) {
         const int stride = (glyph->width + 7) / 8;
@@ -1507,17 +1586,19 @@ draw_soft_glyph(pcl3_t *dev, pcl3_softfont_t *font, uint8_t ch)
         for (int y = 0; y < glyph->height; y++) {
             for (int x = 0; x < glyph->width; x++) {
                 if (glyph->bits[(y * stride) + (x / 8)] & (0x80 >> (x & 7)))
-                    fill_rect(dev, base_x + (x * px), base_y + (y * py),
-                              base_x + (x * px) + dot, base_y + ((y + 1) * py), dev->pen_ink);
+                    fill_rect(dev, base_x + (x * px * dev->algo.sx), base_y + (y * py * dev->algo.sy),
+                              base_x + (x * px * dev->algo.sx) + (dot * ((dev->algo.sx > 1.0) ? dev->algo.sx : 1.0)) +
+                                  ((double) dev->algo.bold / PCL_DPI),
+                              base_y + (y * py * dev->algo.sy) + py, dev->pen_ink);
             }
         }
     }
 
-    advance = font->proportional ? ((glyph->delta / 4.0) * px) : font->hmi;
+    advance = font->proportional ? (((glyph->delta / 4.0) * px * dev->algo.sx) + ((double) dev->algo.bold / PCL_DPI)) : cell;
     if ((advance <= 0.0) && font->deskjet && (glyph->bits == NULL))
         advance = (font->glyphs[0x20].delta / 4.0) * px;
     if (advance <= 0.0)
-        advance = font->hmi;
+        advance = cell;
 
     dev->x += dev->hmi_set ? dev->hmi : advance;
 }
@@ -1537,29 +1618,32 @@ draw_face_glyph(pcl3_t *dev, uint8_t ch)
             !FT_Render_Glyph(dev->face->glyph, FT_RENDER_MODE_MONO)) {
             const FT_GlyphSlot slot   = dev->face->glyph;
             const FT_Bitmap   *bitmap = &slot->bitmap;
-            const int          pen_x  = (int) lround((dev->left_origin + dev->x) * dev->dpi) + slot->bitmap_left;
-            const int          pen_y  = (int) lround((dev->top_margin + dev->y) * dev->dpi) - slot->bitmap_top;
             const int          bold   = (sel->weight > 0) ? (dev->dpi / 150) : 0;
+            int                pen_x;
+            int                pen_y;
+
+            /* A landscape page is turned counter-clockwise, as for fonts made for it. */
+            if (dev->landscape) {
+                pen_x = (int) lround((dev->top_margin + dev->y) * dev->dpi) - slot->bitmap_top;
+                pen_y = (int) lround((dev->page_height - dev->left_origin - dev->x) * dev->dpi) - slot->bitmap_left;
+            } else {
+                pen_x = (int) lround((dev->left_origin + dev->x) * dev->dpi) + slot->bitmap_left;
+                pen_y = (int) lround((dev->top_margin + dev->y) * dev->dpi) - slot->bitmap_top;
+            }
 
             for (unsigned int y = 0; y < bitmap->rows; y++) {
-                const uint8_t *src  = bitmap->buffer + ((int) y * bitmap->pitch);
-                const int      py   = pen_y + (int) y;
-                uint8_t       *line;
-
-                if ((py < 0) || (py >= dev->h))
-                    continue;
-
-                line = dev->pixels + ((size_t) py * dev->w);
+                const uint8_t *src = bitmap->buffer + ((int) y * bitmap->pitch);
 
                 for (unsigned int x = 0; x < bitmap->width; x++) {
                     if (!(src[x / 8] & (0x80 >> (x & 7))))
                         continue;
 
                     for (int b = 0; b <= bold; b++) {
-                        const int px = pen_x + (int) x + b;
+                        const int px = dev->landscape ? (pen_x + (int) y) : (pen_x + (int) x + b);
+                        const int py = dev->landscape ? (pen_y - (int) x - b) : (pen_y + (int) y);
 
-                        if ((px >= 0) && (px < dev->w))
-                            line[px] |= dev->pen_ink;
+                        if ((px >= 0) && (px < dev->w) && (py >= 0) && (py < dev->h))
+                            dev->pixels[((size_t) py * dev->w) + px] |= dev->pen_ink;
                     }
                 }
             }
@@ -1596,7 +1680,8 @@ print_char(pcl3_t *dev, uint8_t ch)
 {
     const pcl3_fontsel_t *sel  = &dev->font[dev->font_active];
     pcl3_softfont_t      *font = (sel->soft_id >= 0) ? find_softfont(dev, sel->soft_id, false) : NULL;
-    pcl3_softfont_t      *cart = (sel->soft_id >= 0) ? NULL : find_cart_font(dev, sel);
+    pcl3_algo_t           algo;
+    pcl3_softfont_t      *cart = (sel->soft_id >= 0) ? NULL : find_cart_font(dev, sel, &algo);
     const double          from = dev->x;
 
     if (dev->wrap && (dev->x >= dev->right_margin)) {
@@ -1606,10 +1691,15 @@ print_char(pcl3_t *dev, uint8_t ch)
 
     if (cart != NULL) {
         update_face(dev);
+        dev->algo = algo;
         if (cart->landscape)
             draw_cart_glyph(dev, cart, ch);
         else
             draw_soft_glyph(dev, cart, ch);
+        dev->algo.sx   = 1.0;
+        dev->algo.sy   = 1.0;
+        dev->algo.hmi  = 0.0;
+        dev->algo.bold = 0;
     } else if ((font != NULL) && (font->deskjet || (font->glyphs[ch].bits != NULL) || (font->glyphs[ch].delta != 0)))
         draw_soft_glyph(dev, font, ch);
     else
@@ -1844,7 +1934,8 @@ cmd_ampersand(pcl3_t *dev, uint8_t group, uint8_t term, double value, bool relat
             home_cursor(dev);
             break;
         case ('l' << 8) | 'O': /* orientation */
-            dev->landscape = ival == 1;
+            dev->landscape  = ival == 1;
+            dev->face_valid = false;
             break;
         case ('l' << 8) | 'H': /* paper source; 0 ejects the page */
             if (ival == 0)
@@ -2299,6 +2390,10 @@ pcl3_open(double width, double height, int dpi)
     dev->color              = true;
     dev->landscape_graphics = true;
     dev->deskjet_fonts      = true;
+    dev->has_univers        = true;
+    dev->landscape_ps       = true;
+    dev->algo.sx            = 1.0;
+    dev->algo.sy            = 1.0;
     dev->default_width  = width;
     dev->default_height = height;
     dev->data           = (uint8_t *) malloc(MAX_DATA);
@@ -2344,6 +2439,9 @@ pcl3_set_model(void *priv, int model)
                               (model == PCL3_MODEL_550C) || (model == PCL3_MODEL_560C);
     dev->landscape_graphics = (model != PCL3_MODEL_500) && (model != PCL3_MODEL_500C) && (model != PCL3_MODEL_510);
     dev->deskjet_fonts      = model != PCL3_MODEL_540;
+    /* The tables of internal fonts in Appendix D of the Technical Reference. */
+    dev->has_univers        = (model != PCL3_MODEL_500) && (model != PCL3_MODEL_500C) && (model != PCL3_MODEL_510);
+    dev->landscape_ps       = model == PCL3_MODEL_540;
     /* The DeskJet 540 keeps soft fonts in its internal buffer, of an unknown size. */
     dev->ram_limited        = model != PCL3_MODEL_540;
 }
@@ -2488,7 +2586,10 @@ load_cart_font(pcl3_t *dev, const uint8_t *rom, uint32_t limit, uint32_t record)
     font->res_x        = 600.0;
     font->res_y        = 300.0;
     font->pool         = real;
-    font->bold         = cart_word(rom, descriptor + 10) != 0;
+    /* The second font of 22707L has this set, and it is its italic. Bold is made by
+       an algorithm. */
+    font->italic       = cart_word(rom, descriptor + 10) != 0;
+    font->height       = 12.0;
     font->pitch        = cart_pitch(rom + descriptor);
     font->hmi          = 1.0 / font->pitch;
     font->symbol_set   = real ? -1 : cart_symbol_set(rom);
