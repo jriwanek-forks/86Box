@@ -32,6 +32,7 @@
 #include <86box/plat.h>
 #include <86box/rom.h>
 #include <86box/video.h>
+#include <86box/plat_fallthrough.h>
 #include <86box/png_struct.h>
 #include <86box/printer.h>
 #include <86box/prt_papersizes.h>
@@ -46,7 +47,10 @@
 #define MAX_ROW      0x8000    /* bytes in one raster plane */
 #define MAX_DATA     0x100000  /* longest binary payload kept in memory */
 #define MAX_SOFTFONT 16
+#define MAX_GLYPH    0x10000   /* largest bitmap of one soft font character */
 #define PCL_DPI      300.0     /* PCL units, used by soft fonts and *p moves */
+#define DJ_BAND      50        /* dots in one pass of a DeskJet font */
+#define DJ_BOXES     7         /* boxes per dot column: 6 of 8 rows, 1 of 2 rows */
 
 enum {
     STATE_TEXT = 0,
@@ -65,12 +69,20 @@ typedef struct pcl3_glyph_t {
     uint16_t height;
     int16_t  delta; /* in quarter dots */
     uint8_t *bits;
+    uint32_t bytes;  /* size of bits */
+    uint32_t filled; /* how much of bits has arrived */
 } pcl3_glyph_t;
 
 typedef struct pcl3_softfont_t {
     int          id; /* -1 = free */
     bool         proportional;
     double       hmi;
+    double       res_x;
+    double       res_y;
+    bool         deskjet;  /* character data is in the DeskJet column format */
+    int          format;
+    int          passes;   /* print head passes per character */
+    int          baseline; /* dots from the top of the bottom pass */
     pcl3_glyph_t glyphs[256];
 } pcl3_softfont_t;
 
@@ -152,6 +164,7 @@ typedef struct pcl3_t {
     double   raster_x;
     uint32_t raster_width; /* in dots, 0 = as sent */
     int32_t  raster_x_offset;
+    double   raster_shift; /* set by driver configuration, in inches */
 
     /* Text. */
     pcl3_fontsel_t  font[2];
@@ -312,45 +325,52 @@ set_palette_planes(pcl3_t *dev, int planes)
     }
 }
 
-/* Configure Raster Data sets the resolution of each ink on its own. */
+/* Configure Raster Data sets the resolution of each ink on its own. Four inks are
+   always listed as C, M, Y, K. Format 2 sends them in that order, while format 1
+   (DeskJet 520 and 560C) still sends black first. */
 static void
 configure_raster_data(pcl3_t *dev, const uint8_t *data, uint32_t len)
 {
-    static const uint8_t cmyk[4] = { INK_C, INK_M, INK_Y, INK_K };
-    static const uint8_t kcmy[4] = { INK_K, INK_C, INK_M, INK_Y };
-    static const uint8_t cmy[3]  = { INK_C, INK_M, INK_Y };
+    static const uint8_t cmyk[4]   = { INK_C, INK_M, INK_Y, INK_K };
+    static const uint8_t cmy[3]    = { INK_C, INK_M, INK_Y };
+    static const uint8_t black[1]  = { INK_K };
+    static const uint8_t list[4]   = { 0, 1, 2, 3 };
+    static const uint8_t bfirst[4] = { 3, 0, 1, 2 };
     const uint8_t       *inks;
+    const uint8_t       *order = list;
     int                  components;
     int                  plane = 0;
 
-    if (len < 2)
+    if ((len < 2) || (data[0] < 1) || (data[0] > 2))
         return;
 
     components = data[1];
     if ((components == 0) || (len < (2 + ((uint32_t) components * 6))))
         return;
 
-    if (components == 1) {
-        static const uint8_t k[1] = { INK_K };
-        inks                      = k;
-    } else if (components == 3)
+    if (components == 1)
+        inks = black;
+    else if (components == 3)
         inks = cmy;
     else if (components == 4) {
-        /* The black pen is the high resolution one, whichever end it is on. */
-        const int first = (data[2] << 8) | data[3];
-        const int last  = (data[20] << 8) | data[21];
-
-        inks = (last > first) ? cmyk : kcmy;
+        inks = cmyk;
+        if (data[0] == 1)
+            order = bfirst;
     } else
         return;
 
     for (int i = 0; (i < components) && (plane < MAX_PLANES); i++) {
-        const uint8_t *comp   = data + 2 + (i * 6);
+        const int      index  = order[i];
+        const uint8_t *comp   = data + 2 + (index * 6);
         const int      levels = (comp[4] << 8) | comp[5];
-        const int      planes = (levels > 2) ? 2 : 1;
+        int            planes = 1;
+
+        /* Each ink has enough planes for its levels, the lowest bit first. */
+        while ((1 << planes) < levels)
+            planes++;
 
         for (int j = 0; (j < planes) && (plane < MAX_PLANES); j++) {
-            dev->plane_ink[plane]  = inks[i];
+            dev->plane_ink[plane]  = inks[index];
             dev->plane_hres[plane] = (comp[0] << 8) | comp[1];
             dev->plane_vres[plane] = (comp[2] << 8) | comp[3];
             plane++;
@@ -373,7 +393,7 @@ clear_seeds(pcl3_t *dev)
 static void
 start_raster(pcl3_t *dev, int mode)
 {
-    dev->raster_x      = (mode & 1) ? dev->x : dev->left_margin;
+    dev->raster_x      = (mode & 1) ? dev->x : 0.0;
     dev->raster_active = true;
     dev->curr_plane    = 0;
 
@@ -582,7 +602,7 @@ print_row(pcl3_t *dev, int planes)
         const uint8_t *row     = dev->seed[p];
         const double   step    = 1.0 / vres;
         const double   dot     = (double) dev->dpi / hres;
-        const double   origin  = (dev->left_origin + dev->raster_x) * dev->dpi;
+        const double   origin  = (dev->left_origin + dev->raster_x + dev->raster_shift) * dev->dpi;
         const int      y0      = (int) lround((dev->y + dev->top_margin) * dev->dpi);
         int            y1      = (int) lround((dev->y + dev->top_margin + step) * dev->dpi);
         uint32_t       width   = dev->raster_width ? ((uint64_t) dev->raster_width * hres / dev->res) : (uint32_t) (dev->page_width * hres);
@@ -747,13 +767,139 @@ static void
 store_font_descriptor(pcl3_t *dev, const uint8_t *data, uint32_t len)
 {
     pcl3_softfont_t *font = find_softfont(dev, dev->font_id, true);
+    int              format;
 
-    if ((font == NULL) || (len < 16))
+    if ((font == NULL) || (len < 18))
         return;
 
+    format = data[2];
+
+    /* The DeskJet formats have a 600 x 300 dpi grid, and format 20 names its own. */
+    font->res_x   = 300.0;
+    font->res_y   = 300.0;
+    font->format  = format;
+    font->deskjet = (format == 5) || (format == 9) || (format == 12);
+    if (font->deskjet) {
+        const int cell_height = (data[10] << 8) | data[11];
+
+        font->res_x    = 600.0;
+        font->baseline = (data[6] << 8) | data[7];
+        font->passes   = (cell_height + DJ_BAND - 1) / DJ_BAND;
+        if (font->passes < 1)
+            font->passes = 1;
+        if (font->passes > 4)
+            font->passes = 4;
+    } else if ((format == 20) && (len >= 68)) {
+        font->res_x = (data[64] << 8) | data[65];
+        font->res_y = (data[66] << 8) | data[67];
+        if ((font->res_x <= 0.0) || (font->res_y <= 0.0))
+            font->res_x = font->res_y = 300.0;
+    }
+
     font->proportional = data[13] != 0;
-    /* The pitch field is in quarter dots. */
-    font->hmi = (double) ((data[14] << 8) | data[15]) / (4.0 * PCL_DPI);
+    /* The pitch field is in quarter dots, which are 300 dpi dots in all the formats
+       except format 20. */
+    font->hmi = (double) ((data[16] << 8) | data[17]) / (4.0 * ((format == 20) ? font->res_x : PCL_DPI));
+}
+
+/* Class 2 rows are a repeat count, then alternating white and black run lengths. */
+static void
+expand_compressed_glyph(pcl3_glyph_t *glyph, const uint8_t *data, uint32_t len)
+{
+    const int stride = (glyph->width + 7) / 8;
+    uint32_t  in     = 0;
+    int       y      = 0;
+
+    while ((in < len) && (y < glyph->height)) {
+        const int repeat = (int) data[in++] + 1;
+        const int row    = y;
+        int       x      = 0;
+        int       black  = 0;
+
+        while ((x < glyph->width) && (in < len)) {
+            int run = data[in++];
+
+            for (int i = 0; (i < run) && (x < glyph->width); i++, x++) {
+                if (black)
+                    glyph->bits[(row * stride) + (x / 8)] |= 0x80 >> (x & 7);
+            }
+
+            black = !black;
+        }
+
+        y++;
+        for (int i = 1; (i < repeat) && (y < glyph->height); i++, y++)
+            memcpy(&glyph->bits[y * stride], &glyph->bits[row * stride], stride);
+    }
+}
+
+/* DeskJet characters are stored by print head column. Each column of 1/600 inch
+   has a flag byte, whose bits say which boxes of its 50 rows have data bytes. The
+   head prints tall characters in passes, the bottom band first. */
+static void
+store_deskjet_glyph(pcl3_softfont_t *font, pcl3_glyph_t *glyph, const uint8_t *data, uint32_t len)
+{
+    const uint32_t header = 2 + ((data[2] < 6) ? 6 : data[2]);
+    const int      type   = data[3];
+    const int      width  = data[4];
+    const int      band   = (type < 2) ? (font->passes - 1) : (font->passes - 1 - (type - 2));
+    uint32_t       in;
+
+    if ((len < header) || (band < 0))
+        return;
+
+    if (type < 3) {
+        const bool signed_pads = font->format == 12;
+        const int  left        = signed_pads ? (int8_t) data[6] : data[6];
+        const int  right       = signed_pads ? (int8_t) data[7] : data[7];
+
+        delete_glyph(glyph);
+
+        /* 255 is a character which neither prints nor moves. */
+        if (width == 255)
+            return;
+
+        glyph->left   = font->proportional ? left : 0;
+        glyph->top    = font->baseline + ((font->passes - 1) * DJ_BAND);
+        glyph->width  = width;
+        glyph->height = font->passes * DJ_BAND;
+        glyph->delta  = (width + left + right) * 4;
+        glyph->bytes  = (uint32_t) ((glyph->width + 7) / 8) * glyph->height;
+        glyph->filled = glyph->bytes;
+        glyph->bits   = (uint8_t *) calloc(glyph->bytes ? glyph->bytes : 1, 1);
+        if (glyph->bits == NULL) {
+            glyph->bytes = 0;
+            return;
+        }
+    }
+
+    if ((glyph->bits == NULL) || (width != glyph->width) || ((header + width) > len))
+        return;
+
+    in = header + width;
+
+    for (int col = 0; col < width; col++) {
+        const uint8_t flags = data[header + col];
+
+        for (int box = 0; box < DJ_BOXES; box++) {
+            const int rows = (box == (DJ_BOXES - 1)) ? 2 : 8;
+
+            if (!(flags & (1 << box)))
+                continue;
+            if (in >= len)
+                return;
+
+            const uint8_t value = data[in++];
+
+            for (int row = 0; row < rows; row++) {
+                if (value & (0x80 >> row)) {
+                    const int y = (band * DJ_BAND) + (box * 8) + row;
+
+                    glyph->bits[(y * ((glyph->width + 7) / 8)) + (col / 8)] |= 0x80 >> (col & 7);
+                }
+            }
+        }
+    }
 }
 
 static void
@@ -761,35 +907,68 @@ store_glyph(pcl3_t *dev, const uint8_t *data, uint32_t len)
 {
     pcl3_softfont_t *font = find_softfont(dev, dev->font_id, false);
     pcl3_glyph_t    *glyph;
-    uint32_t         bytes;
+    uint32_t         count;
 
-    if ((font == NULL) || (len < 16) || (dev->char_code < 0) || (dev->char_code > 255))
+    if ((font == NULL) || (len < 2) || (dev->char_code < 0) || (dev->char_code > 255))
         return;
 
     glyph = &font->glyphs[dev->char_code];
+
+    if (font->deskjet && ((data[0] == 5) || (data[0] == 9) || (data[0] == 12))) {
+        if (len >= 8)
+            store_deskjet_glyph(font, glyph, data, len);
+        return;
+    }
+
+    /* Continuation blocks carry more of the bitmap from their third byte. */
+    if (data[1] != 0) {
+        if (glyph->bits != NULL) {
+            count = len - 2;
+            if (count > (glyph->bytes - glyph->filled))
+                count = glyph->bytes - glyph->filled;
+            memcpy(glyph->bits + glyph->filled, data + 2, count);
+            glyph->filled += count;
+        }
+        return;
+    }
+
     delete_glyph(glyph);
+
+    if ((data[0] != 4) || (len < 16))
+        return;
 
     glyph->left   = (int16_t) ((data[6] << 8) | data[7]);
     glyph->top    = (int16_t) ((data[8] << 8) | data[9]);
     glyph->width  = (data[10] << 8) | data[11];
     glyph->height = (data[12] << 8) | data[13];
     glyph->delta  = (int16_t) ((data[14] << 8) | data[15]);
+    if (glyph->delta < 0)
+        glyph->delta = 0;
 
-    bytes = (uint32_t) ((glyph->width + 7) / 8) * glyph->height;
-    if (bytes > (len - 16)) {
-        /* Keep the advance of a short definition, without any dots. */
-        glyph->height = 0;
+    /* A definition this large cannot be real: keep only its spacing. */
+    glyph->bytes = (uint32_t) ((glyph->width + 7) / 8) * glyph->height;
+    if (glyph->bytes > MAX_GLYPH) {
+        glyph->bytes = 0;
         return;
     }
 
-    glyph->bits = (uint8_t *) malloc(bytes ? bytes : 1);
+    glyph->bits = (uint8_t *) calloc(glyph->bytes ? glyph->bytes : 1, 1);
     if (glyph->bits == NULL) {
-        glyph->height = 0;
+        glyph->bytes = 0;
         return;
     }
 
-    if (bytes > 0)
-        memcpy(glyph->bits, data + 16, bytes);
+    if (data[3] == 2) {
+        expand_compressed_glyph(glyph, data + 16, len - 16);
+        glyph->filled = glyph->bytes;
+    } else if (data[3] == 1) {
+        count = len - 16;
+        if (count > glyph->bytes)
+            count = glyph->bytes;
+        memcpy(glyph->bits, data + 16, count);
+        glyph->filled = count;
+    } else
+        delete_glyph(glyph);
 }
 
 static double
@@ -807,13 +986,16 @@ static void
 draw_soft_glyph(pcl3_t *dev, pcl3_softfont_t *font, uint8_t ch)
 {
     const pcl3_glyph_t *glyph = &font->glyphs[ch];
-    const double        px    = 1.0 / PCL_DPI;
+    const double        px    = 1.0 / font->res_x;
+    const double        py    = 1.0 / font->res_y;
+    /* A DeskJet dot is 1/300 inch wide, on a 1/600 inch grid. */
+    const double        dot   = font->deskjet ? (1.0 / PCL_DPI) : px;
     double              base_x;
     double              base_y;
     double              advance;
 
     base_x = dev->left_origin + dev->x + (glyph->left * px);
-    base_y = dev->top_margin + dev->y - (glyph->top * px);
+    base_y = dev->top_margin + dev->y - (glyph->top * py);
 
     if (glyph->bits != NULL) {
         const int stride = (glyph->width + 7) / 8;
@@ -821,8 +1003,8 @@ draw_soft_glyph(pcl3_t *dev, pcl3_softfont_t *font, uint8_t ch)
         for (int y = 0; y < glyph->height; y++) {
             for (int x = 0; x < glyph->width; x++) {
                 if (glyph->bits[(y * stride) + (x / 8)] & (0x80 >> (x & 7)))
-                    fill_rect(dev, base_x + (x * px), base_y + (y * px),
-                              base_x + ((x + 1) * px), base_y + ((y + 1) * px), dev->pen_ink);
+                    fill_rect(dev, base_x + (x * px), base_y + (y * py),
+                              base_x + (x * px) + dot, base_y + ((y + 1) * py), dev->pen_ink);
             }
         }
     }
@@ -1005,6 +1187,7 @@ page_defaults(pcl3_t *dev)
     dev->compression      = 0;
     dev->raster_width     = 0;
     dev->raster_x_offset  = 0;
+    dev->raster_shift     = 0.0;
     dev->raster_active    = false;
     dev->rect_w           = 0.0;
     dev->rect_h           = 0.0;
@@ -1181,8 +1364,11 @@ cmd_asterisk(pcl3_t *dev, uint8_t group, uint8_t term, double value, bool relati
         case ('r' << 8) | 'A': /* start raster graphics */
             start_raster(dev, ival);
             break;
+        case ('r' << 8) | 'C': /* end raster graphics, and reset its settings */
+            dev->compression     = 0;
+            dev->raster_x_offset = 0;
+            fallthrough;
         case ('r' << 8) | 'B': /* end raster graphics */
-        case ('r' << 8) | 'C':
             dev->raster_active = false;
             dev->curr_plane    = 0;
             break;
@@ -1202,7 +1388,7 @@ cmd_asterisk(pcl3_t *dev, uint8_t group, uint8_t term, double value, bool relati
         case ('b' << 8) | 'Y': /* raster Y offset, in rows */
             if (!dev->raster_active)
                 start_raster(dev, 0);
-            dev->y += (double) ival / dev->res;
+            dev->y += (double) ival / (dev->plane_vres[0] ? dev->plane_vres[0] : dev->res);
             clear_seeds(dev);
             break;
 
@@ -1349,7 +1535,16 @@ finish_data(pcl3_t *dev)
         }
     } else if ((param == '*') && (group == 'g'))
         configure_raster_data(dev, dev->data, kept);
-    else if ((param == ')') && (group == 's'))
+    else if ((param == '*') && (group == 'o')) {
+        /* Driver configuration, format 3 function 7: the A4 left offset of the
+           DeskJet 520 and 560C. The driver sends 36 here, and the same move as 18
+           dots at 300 dpi to the other models. Printers ignore all the others. */
+        if ((kept >= 5) && (dev->data[0] == 3) && (dev->data[1] == 7)) {
+            dev->raster_shift = (double) ((dev->data[3] << 8) | dev->data[4]) / 600.0;
+            if (dev->data[2] == '-')
+                dev->raster_shift = -dev->raster_shift;
+        }
+    } else if ((param == ')') && (group == 's'))
         store_font_descriptor(dev, dev->data, kept);
     else if ((param == '(') && (group == 's'))
         store_glyph(dev, dev->data, kept);
