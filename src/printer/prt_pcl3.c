@@ -96,14 +96,20 @@ typedef struct pcl3_softfont_t {
     int          passes;   /* print head passes per character */
     int          baseline; /* dots from the top of the bottom pass */
     int          pass_base[4]; /* dots from the top of each pass to the baseline */
-    /* Cartridge fonts only. */
+    /* What font selection looks at. */
     bool         pool;       /* glyphs are by HP's index, not by character code */
     bool         bold;
     bool         italic;
-    double       height;     /* proportional fonts, in points */
+    double       height;     /* in points */
     double       pitch;
     int          typeface;
     int          symbol_set; /* the set of a recreation; a real cartridge has them all */
+    /* What the algorithms may do with it. */
+    bool         no_half_pitch;
+    bool         no_double_pitch;
+    bool         no_half_height;
+    bool         no_bold;
+    int          bold_method; /* 0 adds one dot, and 1 adds two */
     /* Soft fonts only. */
     uint32_t     ram_used[MAX_RAM_PAGE]; /* of each memory page */
     bool         ram_by_glyph;           /* it did not say how much it needs */
@@ -1135,10 +1141,40 @@ store_font_descriptor(pcl3_t *dev, const uint8_t *data, uint32_t len)
 
     font->ram_by_glyph = size == 0;
     font->permanent    = (dev->permanent_id == dev->font_id) && dev->permanent_next;
+
+    /* Soft fonts can be selected by these, like any others. */
+    if (len >= 28) {
+        const int v4 = (format == 12) ? 1 : 0;
+
+        font->italic     = (data[23 + v4] & 1) != 0;
+        font->bold       = ((int8_t) data[24 + v4]) > 0;
+        font->typeface   = v4 ? ((data[26] << 8) | data[27]) : data[25];
+        font->symbol_set = (data[14] << 8) | data[15];
+        font->height     = (((data[18] << 8) | data[19]) * 72.0) / 1200.0;
+    }
+
+    /* Only the DeskJet formats have flags, and the algorithms are for them alone. */
+    font->no_half_pitch   = !font->deskjet;
+    font->no_double_pitch = !font->deskjet;
+    font->no_half_height  = !font->deskjet;
+    font->no_bold         = !font->deskjet;
+    font->bold_method     = 0;
+    if (font->deskjet && (len >= 90)) {
+        const int at = (format == 12) ? 81 : 79;
+
+        font->no_half_pitch   = data[at] != 0;
+        font->no_double_pitch = data[at + 1] != 0;
+        font->no_half_height  = data[at + 2] != 0;
+        font->no_bold         = data[at + 3] != 0;
+        font->bold_method     = (data[at + 5] != 0) ? 1 : 0;
+    }
+
     font->proportional = data[13] != 0;
     /* The pitch field is in quarter dots, which are 300 dpi dots in all the formats
        except format 20. */
     font->hmi = (double) ((data[16] << 8) | data[17]) / (4.0 * ((format == 20) ? font->res_x : PCL_DPI));
+    if (!font->proportional && (font->hmi > 0.0))
+        font->pitch = 1.0 / font->hmi;
 }
 
 /* Class 2 rows are a repeat count, then alternating white and black run lengths. */
@@ -1463,41 +1499,47 @@ draw_cart_glyph(pcl3_t *dev, pcl3_softfont_t *font, uint8_t ch)
     dev->x += dev->hmi_set ? dev->hmi : ((dev->algo.hmi > 0.0) ? dev->algo.hmi : font->hmi);
 }
 
+/* The nearest of half, normal and double to a size that is asked for. */
 static double
-nearest_scale(double have, double want, double high)
+nearest_scale(double have, double want, bool halve, bool twice)
 {
     double best = 1.0;
 
     if (have > 0.0) {
-        if (fabs((have / 2.0) - want) < fabs(have - want))
+        if (halve && (fabs((have / 2.0) - want) < fabs(have - want)))
             best = 0.5;
-        if (fabs((have * high) - want) < fabs((have * best) - want))
-            best = high;
+        if (twice && (fabs((have * 2.0) - want) < fabs((have * best) - want)))
+            best = 2.0;
     }
 
     return best;
 }
 
-/* Fonts are chosen by attributes, as the printer does it. A font also answers for what
-   the algorithms make of it. Their columns run across a character in portrait, and
-   down it in landscape, so that double width makes a landscape font taller. */
+/* Fonts are chosen by attributes, as the printer does it: soft fonts first, then those
+   of the cartridges. A font also answers for what the algorithms make of it, where its
+   flags allow them. Half pitch comes from double width, and double pitch from half
+   width. Columns run across a character in portrait, and down it in landscape, so
+   that double width makes a landscape font taller, and half height halves its pitch. */
 static pcl3_softfont_t *
-find_cart_font(pcl3_t *dev, const pcl3_fontsel_t *sel, pcl3_algo_t *algo)
+find_font(pcl3_t *dev, const pcl3_fontsel_t *sel, pcl3_algo_t *algo)
 {
     pcl3_softfont_t *best       = NULL;
     int              best_score = -1;
 
-    for (int i = 0; i < dev->cart_fonts; i++) {
-        pcl3_softfont_t *font = dev->carts[i];
+    for (int i = 0; i < (MAX_SOFTFONT + dev->cart_fonts); i++) {
+        pcl3_softfont_t *font = (i < MAX_SOFTFONT) ? &dev->softfonts[i] : dev->carts[i - MAX_SOFTFONT];
         pcl3_algo_t      try_algo;
         int              score = 0;
 
+        if ((i < MAX_SOFTFONT) && (font->id < 0))
+            continue;
         if ((font->landscape != dev->landscape) || (font->proportional != (sel->spacing != 0)))
             continue;
         if (font->typeface != sel->typeface)
             continue;
-        /* An ASCII font answers for any set. */
-        if (!font->pool && (font->symbol_set != sel->symbol_set) && (font->symbol_set != 21))
+        /* An ASCII font answers for any set, and some soft fonts do not name one. */
+        if (!font->pool && (font->symbol_set != sel->symbol_set) && (font->symbol_set != 21) &&
+            (font->symbol_set != 0))
             continue;
 
         try_algo.sx   = 1.0;
@@ -1506,7 +1548,7 @@ find_cart_font(pcl3_t *dev, const pcl3_fontsel_t *sel, pcl3_algo_t *algo)
         try_algo.bold = 0;
 
         if (font->proportional) {
-            if (fabs((font->height / 2.0) - sel->height) <= 0.25)
+            if (!font->no_half_height && (fabs((font->height / 2.0) - sel->height) <= 0.25))
                 try_algo.sy = 0.5;
             else if (fabs(font->height - sel->height) > 0.5)
                 continue;
@@ -1515,9 +1557,11 @@ find_cart_font(pcl3_t *dev, const pcl3_fontsel_t *sel, pcl3_algo_t *algo)
 
             if (fabs(font->pitch - sel->pitch) <= 0.5)
                 pitch = 1.0;
-            else if (fabs((font->pitch * 2.0) - sel->pitch) <= 0.5)
+            else if (fabs((font->pitch * 2.0) - sel->pitch) <= 0.5) {
+                if (font->landscape ? font->no_half_height : font->no_double_pitch)
+                    continue;
                 pitch = 2.0;
-            else if (!font->landscape && (fabs((font->pitch / 2.0) - sel->pitch) <= 0.25))
+            } else if (!font->landscape && !font->no_half_pitch && (fabs((font->pitch / 2.0) - sel->pitch) <= 0.25))
                 pitch = 0.5;
             else
                 continue;
@@ -1525,15 +1569,15 @@ find_cart_font(pcl3_t *dev, const pcl3_fontsel_t *sel, pcl3_algo_t *algo)
             try_algo.hmi = 1.0 / (font->pitch * pitch);
             if (font->landscape) {
                 try_algo.sy = 1.0 / pitch;
-                try_algo.sx = nearest_scale(font->height, sel->height, 2.0);
+                try_algo.sx = nearest_scale(font->height, sel->height, !font->no_double_pitch, !font->no_half_pitch);
             } else {
                 try_algo.sx = 1.0 / pitch;
-                try_algo.sy = nearest_scale(font->height, sel->height, 1.0);
+                try_algo.sy = nearest_scale(font->height, sel->height, !font->no_half_height, false);
             }
         }
 
-        if ((sel->weight > 0) && !font->bold) {
-            try_algo.bold = (font->height >= 14.0) ? 2 : 1;
+        if ((sel->weight > 0) && !font->bold && !font->no_bold) {
+            try_algo.bold = font->bold_method + 1;
             score += 1;
         } else if (font->bold == (sel->weight > 0))
             score += 2;
@@ -1604,7 +1648,8 @@ draw_soft_glyph(pcl3_t *dev, pcl3_softfont_t *font, uint8_t ch)
         }
     }
 
-    advance = font->proportional ? (((glyph->delta / 4.0) * px * dev->algo.sx) + ((double) dev->algo.bold / PCL_DPI)) : cell;
+    /* Bold adds the bold method plus one, in 1/600 inch, to proportional characters. */
+    advance = font->proportional ? (((glyph->delta / 4.0) * px * dev->algo.sx) + (dev->algo.bold * px)) : cell;
     if ((advance <= 0.0) && font->deskjet && (glyph->bits == NULL))
         advance = (font->glyphs[0x20].delta / 4.0) * px;
     if (advance <= 0.0)
@@ -1691,7 +1736,7 @@ print_char(pcl3_t *dev, uint8_t ch)
     const pcl3_fontsel_t *sel  = &dev->font[dev->font_active];
     pcl3_softfont_t      *font = (sel->soft_id >= 0) ? find_softfont(dev, sel->soft_id, false) : NULL;
     pcl3_algo_t           algo;
-    pcl3_softfont_t      *cart = (sel->soft_id >= 0) ? NULL : find_cart_font(dev, sel, &algo);
+    pcl3_softfont_t      *cart = (sel->soft_id >= 0) ? NULL : find_font(dev, sel, &algo);
     const double          from = dev->x;
 
     if (dev->wrap && (dev->x >= dev->right_margin)) {
@@ -1702,7 +1747,7 @@ print_char(pcl3_t *dev, uint8_t ch)
     if (cart != NULL) {
         update_face(dev);
         dev->algo = algo;
-        if (cart->landscape)
+        if (cart->pool)
             draw_cart_glyph(dev, cart, ch);
         else
             draw_soft_glyph(dev, cart, ch);
@@ -2089,7 +2134,23 @@ cmd_font(pcl3_t *dev, uint8_t which, uint8_t group, uint8_t term, double value)
 
     if (group == 0) {
         if (term == 'X') { /* select a soft font by its ID */
+            const pcl3_softfont_t *font = find_softfont(dev, (int) value, false);
+
             sel->soft_id = (int) value;
+
+            /* Later attributes change this font: so bold can follow it. */
+            if (font != NULL) {
+                sel->spacing  = font->proportional ? 1 : 0;
+                sel->style    = font->italic ? 1 : 0;
+                sel->weight   = font->bold ? 3 : 0;
+                sel->typeface = font->typeface;
+                if (font->height > 0.0)
+                    sel->height = font->height;
+                if (font->pitch > 0.0)
+                    sel->pitch = font->pitch;
+                if (font->symbol_set != 0)
+                    sel->symbol_set = font->symbol_set;
+            }
         } else if (term != '@') { /* symbol set */
             sel->symbol_set = ((int) value * 32) + (term - 64);
             sel->soft_id    = -1;
@@ -2551,6 +2612,8 @@ load_cart_ext(pcl3_softfont_t *font, const uint8_t *ext)
         font->pass_base[i] = cart_word(ext, 6 + (i * 2));
 
     font->baseline = font->pass_base[0];
+    /* The guide has light bold for smaller fonts, and dark bold for larger ones. */
+    font->bold_method = font->height >= 14.0;
 }
 
 /* The bytes of one pass of a character: a flag byte per column, then its data. */
