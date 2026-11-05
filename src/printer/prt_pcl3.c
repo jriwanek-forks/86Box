@@ -218,6 +218,7 @@ typedef struct pcl3_t {
     bool     landscape_graphics;
     bool     has_univers;
     bool     landscape_ps;
+    bool     has_mode9;
     int      permanent_id;   /* a font ID marked before it was downloaded */
     bool     permanent_next;
     bool     deskjet_fonts;
@@ -2001,8 +2002,9 @@ cmd_asterisk(pcl3_t *dev, uint8_t group, uint8_t term, double value, bool relati
             set_palette_planes(dev, ival);
             break;
 
-        case ('b' << 8) | 'M': /* raster compression */
-            dev->compression = ival;
+        case ('b' << 8) | 'M': /* raster compression; other values are ignored */
+            if (((ival >= 0) && (ival <= 3)) || ((ival == 9) && dev->has_mode9))
+                dev->compression = ival;
             break;
         case ('b' << 8) | 'X': /* raster X offset, in dots */
             dev->raster_x_offset = ival;
@@ -2414,6 +2416,7 @@ pcl3_open(double width, double height, int dpi)
     dev->deskjet_fonts      = true;
     dev->permanent_id       = -1;
     dev->has_univers        = true;
+    dev->has_mode9          = true;
     dev->landscape_ps       = true;
     dev->algo.sx            = 1.0;
     dev->algo.sy            = 1.0;
@@ -2466,6 +2469,7 @@ pcl3_set_model(void *priv, int model)
     /* The guide's page 3 says that what it has on the 520 applies to the 510. */
     dev->has_univers        = (model != PCL3_MODEL_500) && (model != PCL3_MODEL_500C);
     dev->landscape_ps       = model == PCL3_MODEL_540;
+    dev->has_mode9          = model != PCL3_MODEL_500;
     /* The DeskJet 540 keeps soft fonts in its internal buffer, of an unknown size. */
     dev->ram_limited        = model != PCL3_MODEL_540;
 }
