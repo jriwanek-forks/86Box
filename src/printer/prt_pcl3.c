@@ -225,6 +225,9 @@ typedef struct pcl3_t {
     bool     has_univers;
     bool     landscape_ps;
     bool     has_mode9;
+    bool     has_kcmy;
+    bool     has_100_ppi;
+    bool     raster_locked; /* a block was started, which locks some commands out */
     int      permanent_id;   /* a font ID marked before it was downloaded */
     bool     permanent_next;
     bool     deskjet_fonts;
@@ -1928,6 +1931,10 @@ move_cursor(double *pos, double amount, bool relative)
 static void
 cmd_ampersand(pcl3_t *dev, uint8_t group, uint8_t term, double value, bool relative)
 {
+    /* Cursor moves are locked out while a block of graphics is open. */
+    if (dev->raster_locked && (group == 'a') && ((term == 'C') || (term == 'R') || (term == 'H') || (term == 'V')))
+        return;
+
     const int ival = (int) value;
 
     switch ((group << 8) | term) {
@@ -2017,34 +2024,51 @@ cmd_asterisk(pcl3_t *dev, uint8_t group, uint8_t term, double value, bool relati
     const int ival = (int) value;
 
     switch ((group << 8) | term) {
+        /* Once a block of graphics starts, the printer ignores these until it ends. */
         case ('p' << 8) | 'X':
-            move_cursor(&dev->x, value / PCL_DPI, relative);
+            if (!dev->raster_locked)
+                move_cursor(&dev->x, value / PCL_DPI, relative);
             break;
         case ('p' << 8) | 'Y':
-            move_cursor(&dev->y, value / PCL_DPI, relative);
+            if (!dev->raster_locked)
+                move_cursor(&dev->y, value / PCL_DPI, relative);
             break;
 
         case ('t' << 8) | 'R': /* raster resolution */
-            if (ival > 0)
+            if (!dev->raster_locked && ((ival == 75) || (ival == 150) || (ival == 300) ||
+                                        ((ival == 100) && dev->has_100_ppi)))
                 dev->res = ival;
             break;
 
         case ('r' << 8) | 'A': /* start raster graphics */
-            start_raster(dev, ival);
+            if (!dev->raster_locked && ((ival == 0) || (ival == 1))) {
+                start_raster(dev, ival);
+                dev->raster_locked = true;
+            }
             break;
         case ('r' << 8) | 'C': /* end raster graphics, and reset its settings */
+            /* The cursor is already on the next row: it goes back to the left edge. */
+            if (dev->raster_active)
+                dev->x = dev->raster_x;
             dev->compression     = 0;
             dev->raster_x_offset = 0;
+            dev->raster_x        = 0.0;
+            dev->raster_width    = 0;
+            clear_seeds(dev);
             fallthrough;
         case ('r' << 8) | 'B': /* end raster graphics */
             dev->raster_active = false;
+            dev->raster_locked = false;
             dev->curr_plane    = 0;
             break;
         case ('r' << 8) | 'S': /* raster width */
-            dev->raster_width = (ival > 0) ? ival : 0;
+            if (!dev->raster_locked && (ival >= 0))
+                dev->raster_width = ival;
             break;
         case ('r' << 8) | 'U': /* planes and palette */
-            set_palette_planes(dev, ival);
+            if (!dev->raster_locked && ((ival == 0) || (ival == 1) || (ival == -1) || (ival == 3) || (ival == -3) ||
+                                        ((ival == -4) && dev->has_kcmy)))
+                set_palette_planes(dev, ival);
             break;
 
         case ('b' << 8) | 'M': /* raster compression; other values are ignored */
@@ -2216,8 +2240,9 @@ finish_data(pcl3_t *dev)
     const uint32_t kept  = (dev->data_len > MAX_DATA) ? MAX_DATA : dev->data_len;
 
     if ((param == '*') && (group == 'b')) {
-        /* The DeskJet 500 and 500C take no graphics on a landscape page. */
-        if (!dev->landscape || dev->landscape_graphics) {
+        /* The DeskJet 500 and 500C take no graphics on a landscape page, and a plane
+           of data means nothing to a palette of one plane. */
+        if ((!dev->landscape || dev->landscape_graphics) && ((dev->data_term != 'V') || (dev->plane_count > 1))) {
             if (!dev->raster_active)
                 start_raster(dev, 0);
 
@@ -2478,6 +2503,8 @@ pcl3_open(double width, double height, int dpi)
     dev->permanent_id       = -1;
     dev->has_univers        = true;
     dev->has_mode9          = true;
+    dev->has_kcmy           = true;
+    dev->has_100_ppi        = true;
     dev->landscape_ps       = true;
     dev->algo.sx            = 1.0;
     dev->algo.sy            = 1.0;
@@ -2531,6 +2558,8 @@ pcl3_set_model(void *priv, int model)
     dev->has_univers        = (model != PCL3_MODEL_500) && (model != PCL3_MODEL_500C);
     dev->landscape_ps       = model == PCL3_MODEL_540;
     dev->has_mode9          = model != PCL3_MODEL_500;
+    dev->has_kcmy           = (model == PCL3_MODEL_540) || (model == PCL3_MODEL_550C) || (model == PCL3_MODEL_560C);
+    dev->has_100_ppi        = model != PCL3_MODEL_540;
     /* The DeskJet 540 keeps soft fonts in its internal buffer, of an unknown size. */
     dev->ram_limited        = model != PCL3_MODEL_540;
 }
