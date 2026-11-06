@@ -232,6 +232,58 @@ TEST_F(FileServices, FtpProvidesReadOnlyFileOverPassiveDataConnection)
     EXPECT_NE(tcp_payload(*completion).find("226 "), std::string::npos);
 }
 
+TEST_F(FileServices, FtpSupportsActiveDataConnections)
+{
+    FtpClient control(server, &sent, 21004);
+    control.connect();
+
+    EXPECT_NE(control.command("USER anonymous\r\n").find("331 "), std::string::npos);
+    EXPECT_NE(control.command("PASS any-password\r\n").find("230 "), std::string::npos);
+    EXPECT_NE(control.command("PORT 10,0,2,15,195,80\r\n").find("200 "), std::string::npos);
+    EXPECT_NE(control.command("EPRT |1|10.0.2.15|50000|\r\n").find("200 "), std::string::npos);
+    EXPECT_NE(control.command(std::string("RETR ") + VSERVER_FTP_TEST_FILE_NAME + "\r\n").find("150 "),
+              std::string::npos);
+
+    auto active_syn = std::find_if(sent.begin(), sent.end(), [](const bytes &packet) {
+        return get_be16(packet.data() + 20) == 20 && get_be16(packet.data() + 22) == 50000
+            && (packet[33] & 0x02) && !(packet[33] & 0x10);
+    });
+    ASSERT_NE(active_syn, sent.end());
+    const uint32_t server_syn_sequence = get_be32(active_syn->data() + 24);
+    sent.clear();
+
+    constexpr uint32_t client_sequence = 900;
+    bytes active_syn_ack = tcp_packet(50000, 20, client_sequence, server_syn_sequence + 1, 0x12);
+    EXPECT_TRUE(vserver_process_ipv4(server, active_syn_ack.data(), int(active_syn_ack.size())));
+    auto file_packet = std::find_if(sent.begin(), sent.end(), [](const bytes &packet) {
+        return get_be16(packet.data() + 20) == 20 && get_be16(packet.data() + 22) == 50000
+            && (packet[33] & 0x08);
+    });
+    ASSERT_NE(file_packet, sent.end());
+    EXPECT_EQ(tcp_payload(*file_packet), VSERVER_FTP_TEST_FILE_CONTENT);
+    const uint32_t file_end_sequence = get_be32(file_packet->data() + 24)
+                                     + uint32_t(tcp_payload(*file_packet).size());
+    sent.clear();
+
+    bytes file_ack = tcp_packet(50000, 20, client_sequence + 1, file_end_sequence, 0x10);
+    EXPECT_TRUE(vserver_process_ipv4(server, file_ack.data(), int(file_ack.size())));
+    auto fin = std::find_if(sent.begin(), sent.end(), [](const bytes &packet) {
+        return get_be16(packet.data() + 20) == 20 && get_be16(packet.data() + 22) == 50000
+            && (packet[33] & 0x01);
+    });
+    ASSERT_NE(fin, sent.end());
+    const uint32_t fin_sequence = get_be32(fin->data() + 24);
+    sent.clear();
+
+    bytes fin_ack = tcp_packet(50000, 20, client_sequence + 1, fin_sequence + 1, 0x10);
+    EXPECT_TRUE(vserver_process_ipv4(server, fin_ack.data(), int(fin_ack.size())));
+    auto completion = std::find_if(sent.begin(), sent.end(), [](const bytes &packet) {
+        return get_be16(packet.data() + 22) == 21004 && (packet[33] & 0x08);
+    });
+    ASSERT_NE(completion, sent.end());
+    EXPECT_NE(tcp_payload(*completion).find("226 "), std::string::npos);
+}
+
 TEST_F(FileServices, FtpRejectsWritesAndRequiresAuthentication)
 {
     FtpClient control(server, &sent, 21002);
@@ -246,6 +298,8 @@ TEST_F(FileServices, FtpRejectsWritesAndRequiresAuthentication)
     EXPECT_NE(control.command("PASS wrong\r\n").find("530 "), std::string::npos);
     EXPECT_NE(control.command(std::string("PASS ") + VSERVER_LOGON_PASSWORD + "\r\n").find("230 "),
               std::string::npos);
+    EXPECT_NE(control.command("PORT 10,0,2,16,195,80\r\n").find("501 "), std::string::npos);
+    EXPECT_NE(control.command("EPRT |2|10.0.2.15|50000|\r\n").find("522 "), std::string::npos);
 }
 
 TEST_F(FileServices, TftpReadsTestFileAndReportsMissingFiles)

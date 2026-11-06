@@ -99,6 +99,39 @@ make_reply(uint8_t *frame, uint8_t bootp_op, uint8_t message_type, bool udp_chec
 }
 
 static size_t
+make_bootp_request(uint8_t *frame, size_t bootp_length, bool udp_checksum)
+{
+    uint8_t *ip = frame + ETHERNET_HEADER_LENGTH;
+    uint8_t *udp = ip + IPV4_HEADER_LENGTH;
+    uint8_t *bootp = udp + UDP_HEADER_LENGTH;
+    uint16_t udp_length = (uint16_t) (UDP_HEADER_LENGTH + bootp_length);
+    uint16_t ip_length = (uint16_t) (IPV4_HEADER_LENGTH + udp_length);
+
+    memset(frame, 0, 512);
+    put_be16(frame + 12, 0x0800);
+    ip[0] = 0x45;
+    ip[8] = 64;
+    ip[9] = 17;
+    ip[16] = 255;
+    ip[17] = 255;
+    ip[18] = 255;
+    ip[19] = 255;
+    put_be16(udp, 68);
+    put_be16(udp + 2, 67);
+    put_be16(udp + 4, udp_length);
+    bootp[0] = 1;
+    bootp[1] = 1;
+    bootp[2] = 6;
+    put_be16(ip + 2, ip_length);
+    put_be16(ip + 10, checksum(0, ip, IPV4_HEADER_LENGTH));
+    if (udp_checksum) {
+        uint16_t value = checksum(pseudo_header_sum(ip, udp_length), udp, udp_length);
+        put_be16(udp + 6, value ? value : 0xFFFF);
+    }
+    return ETHERNET_HEADER_LENGTH + ip_length;
+}
+
+static size_t
 count_option(const uint8_t *frame, uint8_t wanted, const uint8_t **value, uint8_t *length)
 {
     const uint8_t *ip = frame + ETHERNET_HEADER_LENGTH;
@@ -188,6 +221,69 @@ test_adds_only_missing_option(void)
 }
 
 static void
+test_adds_tftp_boot_options(void)
+{
+    uint8_t       frame[512];
+    const char    boot_file[] = "boot.img";
+    const char    tftp_server[] = "10.0.2.4";
+    size_t        length = make_reply(frame, 2, 2, true, false);
+    const size_t  old_length = length;
+    const uint8_t *option_value;
+    uint8_t        option_length;
+    uint8_t       *bootp;
+    uint8_t       *udp;
+
+    assert(net_slirp_dhcp_add_vserver_options(frame, &length, sizeof(frame), 0x0A000204, true, true,
+                                              boot_file));
+    assert(length == old_length + sizeof(boot_file) + sizeof(tftp_server) + 11);
+    bootp = frame + ETHERNET_HEADER_LENGTH + IPV4_HEADER_LENGTH + UDP_HEADER_LENGTH;
+    assert(bootp[20] == 10 && bootp[21] == 0 && bootp[22] == 2 && bootp[23] == 4);
+    assert(strcmp((const char *) bootp + 108, boot_file) == 0);
+    assert(count_option(frame, 44, &option_value, NULL) == 1);
+    assert(count_option(frame, 46, &option_value, NULL) == 1);
+    assert(count_option(frame, 66, &option_value, &option_length) == 1);
+    assert(option_length == sizeof(tftp_server) - 1);
+    assert(memcmp(option_value, tftp_server, sizeof(tftp_server) - 1) == 0);
+    assert(count_option(frame, 67, &option_value, &option_length) == 1);
+    assert(option_length == sizeof(boot_file) - 1);
+    assert(memcmp(option_value, boot_file, sizeof(boot_file) - 1) == 0);
+
+    udp = frame + ETHERNET_HEADER_LENGTH + IPV4_HEADER_LENGTH;
+    assert(checksum(pseudo_header_sum(frame + ETHERNET_HEADER_LENGTH, get_be16(udp + 4)), udp,
+                    get_be16(udp + 4)) == 0);
+    assert(!net_slirp_dhcp_add_vserver_options(frame, &length, sizeof(frame), 0x0A000204, true, true,
+                                               boot_file));
+}
+
+static void
+test_bootp_requests_are_forwarded_as_dhcp_discover(void)
+{
+    uint8_t      frame[512];
+    size_t       length = make_bootp_request(frame, 236, true);
+    const size_t old_length = length;
+    uint8_t     *bootp;
+    uint8_t     *udp;
+
+    assert(net_slirp_dhcp_prepare_bootp_request(frame, &length, sizeof(frame)));
+    assert(length == old_length + 8);
+    bootp = frame + ETHERNET_HEADER_LENGTH + IPV4_HEADER_LENGTH + UDP_HEADER_LENGTH;
+    assert(bootp[0] == 1);
+    assert(memcmp(bootp + 236, "\x63\x82\x53\x63", 4) == 0);
+    assert(bootp[240] == 53 && bootp[241] == 1 && bootp[242] == 1 && bootp[243] == 255);
+    udp = frame + ETHERNET_HEADER_LENGTH + IPV4_HEADER_LENGTH;
+    assert(checksum(pseudo_header_sum(frame + ETHERNET_HEADER_LENGTH, get_be16(udp + 4)), udp,
+                    get_be16(udp + 4)) == 0);
+    assert(!net_slirp_dhcp_prepare_bootp_request(frame, &length, sizeof(frame)));
+
+    length = make_bootp_request(frame, 300, false);
+    assert(net_slirp_dhcp_prepare_bootp_request(frame, &length, sizeof(frame)));
+    assert(length == ETHERNET_HEADER_LENGTH + IPV4_HEADER_LENGTH + UDP_HEADER_LENGTH + 300);
+    bootp = frame + ETHERNET_HEADER_LENGTH + IPV4_HEADER_LENGTH + UDP_HEADER_LENGTH;
+    assert(memcmp(bootp + 236, "\x63\x82\x53\x63", 4) == 0);
+    assert(bootp[240] == 53 && bootp[241] == 1 && bootp[242] == 1 && bootp[243] == 255);
+}
+
+static void
 test_capacity_and_malformed_options(void)
 {
     uint8_t frame[512];
@@ -217,6 +313,8 @@ main(void)
     test_offer_and_ack(true, 5);
     test_ignored_packets_are_unchanged();
     test_adds_only_missing_option();
+    test_adds_tftp_boot_options();
+    test_bootp_requests_are_forwarded_as_dhcp_discover();
     test_capacity_and_malformed_options();
     return 0;
 }

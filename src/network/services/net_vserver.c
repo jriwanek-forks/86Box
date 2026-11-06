@@ -666,6 +666,13 @@ tcp_input(vserver_t *server, uint32_t ip, const uint8_t *tcp, int length)
 #ifdef ENABLE_VSERVER_FTP
             established = true;
 #endif
+#ifdef ENABLE_VSERVER_FTP
+        } else if (connection->state == TCP_ESTABLISHED && connection->ftp_active_data
+                   && (flags & TCP_ACK) && ack == connection->snd_una && seq + 1 == connection->rcv_nxt) {
+            tcp_send(server, ip, destination, source, connection->snd_una, connection->rcv_nxt, TCP_ACK,
+                     NULL, 0, false);
+            return;
+#endif
         } else
             return;
     }

@@ -451,10 +451,19 @@ net_slirp_send_packet(const void *qp, size_t pkt_len, void *opaque)
         return -1;
 
     memcpy(slirp->pkt.data, (uint8_t *) qp, pkt_len);
-#ifdef ENABLE_VSERVER_WINS
-    /* libslirp has no WINS DHCP setting, so add the options to its OFFER/ACK frames. */
+#if defined(ENABLE_VSERVER_WINS) || defined(ENABLE_VSERVER_TFTP)
     if (slirp->vserver)
-        net_slirp_dhcp_add_wins_options(slirp->pkt.data, &frame_len, NET_MAX_FRAME, slirp->vserver_ip);
+        net_slirp_dhcp_add_vserver_options(slirp->pkt.data, &frame_len, NET_MAX_FRAME, slirp->vserver_ip,
+#    ifdef ENABLE_VSERVER_WINS
+                                           true,
+#    else
+                                           false,
+#    endif
+#    ifdef ENABLE_VSERVER_TFTP
+                                           true, VSERVER_TFTP_BOOT_FILE_NAME);
+#    else
+                                           false, NULL);
+#    endif
 #endif
     slirp_log_packet_summary("from SLiRP", slirp->pkt.data, frame_len);
     slirp->pkt.len = frame_len;
@@ -637,6 +646,10 @@ net_slirp_in(net_slirp_t *slirp, uint8_t *pkt, int pkt_len)
 {
     if (!slirp)
         return;
+
+    size_t frame_len = (size_t) pkt_len;
+    if (net_slirp_dhcp_prepare_bootp_request(pkt, &frame_len, NET_MAX_FRAME))
+        pkt_len = (int) frame_len;
 
 #ifdef ENABLE_VSERVER
     if (vserver_eth_input(slirp->vserver, pkt, pkt_len))
