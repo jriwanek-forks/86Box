@@ -7,7 +7,8 @@
  *          This file is part of the 86Box distribution.
  *
  *          SMB1 server for the virtual server: the NetBIOS
- *          session layer, share-level security, IPC$ and one read-only folder.
+ *          session layer, user-level authentication with guest fallback, IPC$
+ *          and read-only shares.
  *
  *          The server negotiates everything from the core protocol to NT LM
  *          0.12 and behaves like Windows 9x at the top: no Unicode, no NT

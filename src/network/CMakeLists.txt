@@ -20,7 +20,6 @@ list(APPEND net_sources
     net_pcap.c
     net_slirp.c
     net_slirp_dhcp.c
-    net_slirp_rarp.c
     net_switch.c
     net_dp8390.c
     net_lance.c
@@ -45,6 +44,10 @@ list(APPEND net_sources
     net_l80225.c
     net_modem.c
 )
+
+if(ENABLE_VSERVER_RARP)
+    list(APPEND net_sources net_slirp_rarp.c)
+endif()
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(SLIRP REQUIRED IMPORTED_TARGET slirp)
@@ -138,6 +141,14 @@ endif()
 
 if(ENABLE_VSERVER_TFTP)
     target_compile_definitions(net PRIVATE ENABLE_VSERVER_TFTP)
+endif()
+
+if(ENABLE_VSERVER_RARP)
+    target_compile_definitions(net PRIVATE ENABLE_VSERVER_RARP)
+endif()
+
+if(ENABLE_VSERVER_BOOTP)
+    target_compile_definitions(net PRIVATE ENABLE_VSERVER_BOOTP)
 endif()
 
 if(ENABLE_MODEM_RAW_CAPTURE)
