@@ -49,12 +49,12 @@
 #    include <signal.h>
 #endif
 #include <86box/net_event.h>
-#ifdef ENABLE_MODEM_SMB
+#ifdef ENABLE_VSERVER_WINS
 #    include <stdbool.h>
 #    include <86box/log.h>
 #    include <86box/network/net_nbns.h>
 #    include <86box/network/net_vserver_eth.h>
-#    ifdef ENABLE_MODEM_PPTP
+#    ifdef ENABLE_VSERVER_PPTP
 #        include <86box/modem/modem_pptp.h>
 #    endif
 #endif
@@ -80,7 +80,7 @@ typedef struct net_slirp_t {
     netpkt_t       pkt_tx_v[SLIRP_PKT_BATCH];
     int            during_tx;
     int            recv_on_tx;
-#ifdef ENABLE_MODEM_SMB
+#ifdef ENABLE_VSERVER_WINS
     vserver_eth_t *vserver;    /* the virtual server, for network cards */
     void          *vserver_log;
     int64_t        vserver_ms; /* how far its clock has run */
@@ -625,7 +625,7 @@ net_slirp_in(net_slirp_t *slirp, uint8_t *pkt, int pkt_len)
     if (!slirp)
         return;
 
-#ifdef ENABLE_MODEM_SMB
+#ifdef ENABLE_VSERVER_WINS
     if (vserver_eth_input(slirp->vserver, pkt, pkt_len))
         return;
 #endif
@@ -635,7 +635,7 @@ net_slirp_in(net_slirp_t *slirp, uint8_t *pkt, int pkt_len)
     slirp_input(slirp->slirp, (const uint8_t *) pkt, pkt_len);
 }
 
-#ifdef ENABLE_MODEM_SMB
+#ifdef ENABLE_VSERVER_WINS
 #    define VSERVER_POLL_MS 100
 
 static void
@@ -715,7 +715,7 @@ net_slirp_thread(void *priv)
 #    endif
         if (timeout < 0)
             timeout = INFINITE;
-#    ifdef ENABLE_MODEM_SMB
+#    ifdef ENABLE_VSERVER_WINS
         if (slirp->vserver && timeout > VSERVER_POLL_MS)
             timeout = VSERVER_POLL_MS;
 #    endif
@@ -742,7 +742,7 @@ net_slirp_thread(void *priv)
                 slirp_pollfds_poll(slirp->slirp, ret == WAIT_FAILED, net_slirp_get_revents, slirp);
                 break;
         }
-#    ifdef ENABLE_MODEM_SMB
+#    ifdef ENABLE_VSERVER_WINS
         net_slirp_vserver_tick(slirp);
 #    endif
         if (run)
@@ -774,7 +774,7 @@ net_slirp_thread(void *priv)
         slirp_pollfds_fill(slirp->slirp, &timeout, net_slirp_add_poll, slirp);
 #    endif
 
-#    ifdef ENABLE_MODEM_SMB
+#    ifdef ENABLE_VSERVER_WINS
         if (slirp->vserver && timeout > VSERVER_POLL_MS)
             timeout = VSERVER_POLL_MS;
 #    endif
@@ -799,7 +799,7 @@ net_slirp_thread(void *priv)
             }
             slirp->during_tx = 0;
         }
-#    ifdef ENABLE_MODEM_SMB
+#    ifdef ENABLE_VSERVER_WINS
         net_slirp_vserver_tick(slirp);
 #    endif
         net_slirp_rx_deferred_packets(slirp);
@@ -991,30 +991,35 @@ net_slirp_init(const netcard_t *card, const uint8_t *mac_addr, UNUSED(void *priv
         slirp_input(slirp->slirp, (const uint8_t *) &arphdr, sizeof(struct arphdr_local));
     }
 
-#ifdef ENABLE_MODEM_SMB
+#ifdef ENABLE_VSERVER_WINS
     /* The modem brings its own server, and carries it over PPP rather than Ethernet. */
     if (!card->internal_modem) {
         slirp->vserver_log = log_open("VSERVER");
         slirp->vserver = vserver_eth_init(slirp->vserver_log, (ntohl(host.s_addr) & 0xFFFFFF00u) | NBNS_SERVER_HOST_ID,
-#    ifdef ENABLE_MODEM_NETBEUI
+#    ifdef ENABLE_VSERVER_SMB
                                           true,
 #    else
                                           false,
 #    endif
-#    ifdef ENABLE_MODEM_IPX
+#    ifdef ENABLE_VSERVER_NETBEUI
+                                          true,
+#    else
+                                          false,
+#    endif
+#    ifdef ENABLE_VSERVER_IPX
                                           true,
 #    else
                                           false,
 #    endif
                                           net_slirp_vserver_output, slirp);
-#    ifdef ENABLE_MODEM_PPTP
+#    ifdef ENABLE_VSERVER_PPTP
         pptp_attach(vserver_eth_server(slirp->vserver), slirp->vserver_log,
-#        ifdef ENABLE_MODEM_NETBEUI
+#        ifdef ENABLE_VSERVER_NETBEUI
                     true,
 #        else
                     false,
 #        endif
-#        ifdef ENABLE_MODEM_IPX
+#        ifdef ENABLE_VSERVER_IPX
                     true);
 #        else
                     false);
@@ -1050,7 +1055,7 @@ net_slirp_close(void *priv)
     net_event_close(&slirp->stop_event);
     net_event_close(&slirp->tx_event);
     net_event_close(&slirp->rx_event);
-#ifdef ENABLE_MODEM_SMB
+#ifdef ENABLE_VSERVER_WINS
     vserver_eth_close(slirp->vserver);
     if (slirp->vserver_log)
         log_close(slirp->vserver_log);

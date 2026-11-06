@@ -238,7 +238,8 @@ vserver_eth_tick(vserver_eth_t *eth)
 }
 
 vserver_eth_t *
-vserver_eth_init(void *log, uint32_t server_ip, bool netbeui, bool ipx, vserver_eth_output_t output, void *priv)
+vserver_eth_init(void *log, uint32_t server_ip, bool smb, bool netbeui, bool ipx, vserver_eth_output_t output,
+                 void *priv)
 {
     vserver_eth_t *eth = (vserver_eth_t *) calloc(1, sizeof(vserver_eth_t));
 
@@ -256,7 +257,7 @@ vserver_eth_init(void *log, uint32_t server_ip, bool netbeui, bool ipx, vserver_
     eth->address[4] = (uint8_t) (server_ip >> 8);
     eth->address[5] = (uint8_t) server_ip;
 
-    eth->server = vserver_init(log, server_ip, true, eth_ip_output, eth);
+    eth->server = vserver_init(log, server_ip, smb, eth_ip_output, eth);
     if (!eth->server) {
         free(eth);
         return NULL;

@@ -43,25 +43,25 @@
 #    include <arpa/inet.h>
 #endif
 #include <86box/modem/modem_ppp.h>
-#ifdef ENABLE_MODEM_WINS
+#ifdef ENABLE_VSERVER_WINS
 #    include <86box/network/net_nbns.h>
 #    include <86box/network/net_vserver.h>
-#    ifdef ENABLE_MODEM_NETBEUI
+#    ifdef ENABLE_VSERVER_NETBEUI
 #        include <86box/network/net_nbf.h>
 #        include <86box/modem/modem_nbfcp.h>
 #    endif
-#    ifdef ENABLE_MODEM_IPX
+#    ifdef ENABLE_VSERVER_IPX
 #        include <86box/network/net_ipx.h>
 #        include <86box/modem/modem_ipxcp.h>
 #    endif
-#    ifdef ENABLE_MODEM_PPTP
+#    ifdef ENABLE_VSERVER_PPTP
 #        include <86box/modem/modem_pptp.h>
-#        ifdef ENABLE_MODEM_NETBEUI
+#        ifdef ENABLE_VSERVER_NETBEUI
 #            define MODEM_PPTP_NETBEUI true
 #        else
 #            define MODEM_PPTP_NETBEUI false
 #        endif
-#        ifdef ENABLE_MODEM_IPX
+#        ifdef ENABLE_VSERVER_IPX
 #            define MODEM_PPTP_IPX true
 #        else
 #            define MODEM_PPTP_IPX false
@@ -522,12 +522,12 @@ typedef struct modem_t {
     char             password[64];
     uint32_t         ppp_wins1;
     uint32_t         ppp_wins2;
-#ifdef ENABLE_MODEM_WINS
+#ifdef ENABLE_VSERVER_WINS
     vserver_t       *vserver;            /* the virtual server, kept between calls */
-#    ifdef ENABLE_MODEM_NETBEUI
+#    ifdef ENABLE_VSERVER_NETBEUI
     nbf_t           *nbf;                /* the server's NetBEUI side, kept between calls */
 #endif
-#ifdef ENABLE_MODEM_IPX
+#ifdef ENABLE_VSERVER_IPX
     ipx_t           *ipx;                /* the server's IPX side, kept between calls */
 #    endif
 #endif
@@ -1245,11 +1245,11 @@ modem_ppp_serial_push(void *priv, const uint8_t *data, int len)
     fifo8_push_all(&modem->rx_data, (uint8_t *) data, (uint32_t) len);
 }
 
-#ifdef ENABLE_MODEM_WINS
-#    ifdef ENABLE_MODEM_SMB
-#        define MODEM_VSERVER_SMB true
+#ifdef ENABLE_VSERVER_WINS
+#    ifdef ENABLE_VSERVER_SMB
+#        define VSERVER_SMB_ENABLED true
 #    else
-#        define MODEM_VSERVER_SMB false
+#        define VSERVER_SMB_ENABLED false
 #    endif
 
 /* Packets from the virtual server reach the guest like any others from the network. */
@@ -1274,7 +1274,7 @@ modem_ppp_network_send_ip(void *priv, const uint8_t *ip_pkt, int len)
 
     modem_debug_log_ipv4(modem->log, "PPP modem->network", ip_pkt, len);
 
-#ifdef ENABLE_MODEM_WINS
+#ifdef ENABLE_VSERVER_WINS
     if (vserver_process_ipv4(modem->vserver, ip_pkt, len)) {
         free(buf);
         return;
@@ -1290,7 +1290,7 @@ modem_ppp_network_send_ip(void *priv, const uint8_t *ip_pkt, int len)
     free(buf);
 }
 
-#ifdef ENABLE_MODEM_NETBEUI
+#ifdef ENABLE_VSERVER_NETBEUI
 static void
 modem_ppp_network_send_nbf(void *priv, const uint8_t *frame, int len)
 {
@@ -1310,7 +1310,7 @@ modem_nbf_output(void *priv, const uint8_t *frame, int len)
 }
 #endif
 
-#ifdef ENABLE_MODEM_IPX
+#ifdef ENABLE_VSERVER_IPX
 static void
 modem_ppp_network_send_ipx(void *priv, const uint8_t *packet, int len)
 {
@@ -1959,14 +1959,14 @@ modem_start_local_ip_connection(modem_t *modem)
         modem->ppp_ctx->ppp_lqm_mode = (uint8_t) modem->ppp_lqm;
         modem->ppp_ctx->ppp_ipv6_mode = (uint8_t) modem->ppp_ipv6;
         modem->ppp_ctx->network_send_ip6 = modem_ppp_network_send_ip6;
-#ifdef ENABLE_MODEM_NETBEUI
+#ifdef ENABLE_VSERVER_NETBEUI
         if (!modem->nbf)
             modem->nbf = nbf_init(modem->log, modem_nbf_output, modem);
         nbf_reset(modem->nbf);
         if (modem->nbf)
             modem->ppp_ctx->network_send_nbf = modem_ppp_network_send_nbf;
 #endif
-#ifdef ENABLE_MODEM_IPX
+#ifdef ENABLE_VSERVER_IPX
         if (!modem->ipx) {
             static const uint8_t unassigned[IPX_NODE_LENGTH] = { 0 };
 
@@ -1993,14 +1993,14 @@ modem_start_local_ip_connection(modem_t *modem)
 #if 0
         modem_apply_network_wins(modem->ppp_ctx, modem->card);
 #endif
-#ifdef ENABLE_MODEM_WINS
+#ifdef ENABLE_VSERVER_WINS
         if (!modem->ppp_wins1 && modem->card && modem->card->slirp_host_ip) {
             const uint32_t wins_ip = (modem->card->slirp_host_ip & 0xFFFFFF00u) | NBNS_SERVER_HOST_ID;
 
             if (!modem->vserver) {
-                modem->vserver = vserver_init(modem->log, wins_ip, MODEM_VSERVER_SMB,
+                modem->vserver = vserver_init(modem->log, wins_ip, VSERVER_SMB_ENABLED,
                                               modem_vserver_output, modem);
-#ifdef ENABLE_MODEM_PPTP
+#ifdef ENABLE_VSERVER_PPTP
                 pptp_attach(modem->vserver, modem->log, MODEM_PPTP_NETBEUI, MODEM_PPTP_IPX);
 #endif
             }
@@ -3804,14 +3804,14 @@ modem_cmdpause_timer_callback(void *priv)
         }
     }
 
-#ifdef ENABLE_MODEM_WINS
+#ifdef ENABLE_VSERVER_WINS
     vserver_tick(modem->vserver);
 #endif
-#ifdef ENABLE_MODEM_NETBEUI
+#ifdef ENABLE_VSERVER_NETBEUI
     if (modem->ppp_active && modem->ppp_ctx && ppp_nbf_ready(modem->ppp_ctx))
         nbf_tick(modem->nbf);
 #endif
-#ifdef ENABLE_MODEM_IPX
+#ifdef ENABLE_VSERVER_IPX
     if (modem->ppp_active && modem->ppp_ctx && ppp_ipx_ready(modem->ppp_ctx))
         ipx_tick(modem->ipx);
 #endif
@@ -4313,15 +4313,15 @@ modem_close(void *priv)
     sound_in_remove_handler(modem_voice_capture, modem);
     sound_remove_handler(modem_voice_playback, modem);
 
-#ifdef ENABLE_MODEM_WINS
+#ifdef ENABLE_VSERVER_WINS
     vserver_close(modem->vserver);
     modem->vserver = NULL;
 #endif
-#ifdef ENABLE_MODEM_NETBEUI
+#ifdef ENABLE_VSERVER_NETBEUI
     nbf_close(modem->nbf);
     modem->nbf = NULL;
 #endif
-#ifdef ENABLE_MODEM_IPX
+#ifdef ENABLE_VSERVER_IPX
     ipx_close(modem->ipx);
     modem->ipx = NULL;
 #endif

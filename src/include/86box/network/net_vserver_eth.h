@@ -26,8 +26,8 @@ typedef struct vserver_eth_t vserver_eth_t;
 /* Takes one Ethernet frame headed for the guest. */
 typedef void (*vserver_eth_output_t)(void *priv, const uint8_t *frame, int len);
 
-vserver_eth_t *vserver_eth_init(void *log, uint32_t server_ip, bool netbeui, bool ipx, vserver_eth_output_t output,
-                                void *priv);
+vserver_eth_t *vserver_eth_init(void *log, uint32_t server_ip, bool smb, bool netbeui, bool ipx,
+                                vserver_eth_output_t output, void *priv);
 void           vserver_eth_close(vserver_eth_t *server);
 
 /* The server itself, for what is attached to it. */
