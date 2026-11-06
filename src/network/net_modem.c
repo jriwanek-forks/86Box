@@ -2070,7 +2070,7 @@ modem_start_local_ip_connection(modem_t *modem)
         modem_ras_decoder_init(&modem->ras_decoder, modem_ras_network_send_nbf,
                                modem_ras_log_event, modem);
         modem->ras_active = true;
-        modem_log(modem->log, "RAS: Down-level NetBEUI data link active; payloads are not logged\n");
+        modem_log(modem->log, "RAS: Down-level NetBEUI data link active; waiting for frames (payload logging enabled)\n");
 #else
         modem_log(modem->log, "RAS requires NetBEUI support\n");
         modem_enter_idle_state(modem);
