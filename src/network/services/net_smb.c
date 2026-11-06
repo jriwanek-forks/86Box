@@ -560,11 +560,11 @@ smb_tree_connect(smb_session_t *session, const char *path, smb_tree_t *type)
     const char *last = strrchr(path, '\\');
 
     last = last ? last + 1 : path;
-    if (!strcmp(last, "IPC$"))
+    if (!strcmp(last, VSERVER_IPC_SHARE_NAME))
         *type = SMB_TREE_IPC;
-    else if (!strcmp(last, SMB_FS_SHARE_NAME))
+    else if (!strcmp(last, VSERVER_SHARE_NAME))
         *type = SMB_TREE_SHARE;
-    else if (!strcmp(last, SMB_FS_LOGON_SHARE_NAME))
+    else if (!strcmp(last, VSERVER_LOGON_SHARE_NAME))
         *type = SMB_TREE_LOGON;
     else
         return SMB_FAIL(SMB_ERRSRV, SMB_ERRinvnetname);
@@ -648,7 +648,7 @@ smb_cmd_negotiate(smb_request_t *request)
         smb_put64(reply + 23, smb_filetime((uint32_t) time(NULL)));
         reply[33] = SMB_CHALLENGE_LENGTH;
         memcpy(reply + 36, smb_challenge, SMB_CHALLENGE_LENGTH);
-        bytes = SMB_CHALLENGE_LENGTH + smb_put_string(reply + 36 + SMB_CHALLENGE_LENGTH, NBNS_WORKGROUP);
+        bytes = SMB_CHALLENGE_LENGTH + smb_put_string(reply + 36 + SMB_CHALLENGE_LENGTH, VSERVER_DOMAIN_NAME);
         return smb_reply_length(request, 17, bytes);
     }
 }
@@ -803,16 +803,16 @@ smb_credentials_valid(const smb_request_t *request)
     bool           valid = false;
 
     if (user >= end || strnlen((const char *) msg + user, (size_t) (end - user)) == (size_t) (end - user)
-        || !smb_name_equal((const char *) msg + user, SMB_LOGON_USERNAME))
+        || !smb_name_equal((const char *) msg + user, VSERVER_LOGON_USERNAME))
         return false;
     name = (const char *) msg + user;
 
     if (oem == SMB_RESPONSE_LENGTH) {
-        smb_lm_response(SMB_LOGON_PASSWORD, expected);
+        smb_lm_response(VSERVER_LOGON_PASSWORD, expected);
         valid = modem_constant_time_equal(msg + at, expected, SMB_RESPONSE_LENGTH);
     }
     if (!valid && wide == SMB_RESPONSE_LENGTH) {
-        smb_nt_response(SMB_LOGON_PASSWORD, expected);
+        smb_nt_response(VSERVER_LOGON_PASSWORD, expected);
         valid = modem_constant_time_equal(msg + at + oem, expected, SMB_RESPONSE_LENGTH);
     }
     if (valid)
@@ -822,7 +822,7 @@ smb_credentials_valid(const smb_request_t *request)
     if (domain_at < end && strnlen((const char *) msg + domain_at, (size_t) (end - domain_at))
                                < (size_t) (end - domain_at))
         domain = (const char *) msg + domain_at;
-    smb_ntlmv2_hash(SMB_LOGON_PASSWORD, name, domain, v2_hash);
+    smb_ntlmv2_hash(VSERVER_LOGON_PASSWORD, name, domain, v2_hash);
     return (oem == SMB_RESPONSE_LENGTH && smb_ntlmv2_valid(v2_hash, msg + at, oem))
         || (wide > SMB_RESPONSE_LENGTH && smb_ntlmv2_valid(v2_hash, msg + at + oem, wide));
 }
@@ -844,9 +844,9 @@ smb_cmd_session_setup(smb_request_t *request)
     smb_put16(request->out + 28, SMB_UID);
     smb_put16(reply + 4, session->authenticated ? 0 : SMB_ACTION_GUEST);
 
-    length  = smb_put_string(bytes, "86Box");
-    length += smb_put_string(bytes + length, "86Box SMB");
-    length += smb_put_string(bytes + length, NBNS_WORKGROUP);
+    length  = smb_put_string(bytes, VSERVER_NATIVE_OS_NAME);
+    length += smb_put_string(bytes + length, VSERVER_NATIVE_LANMAN_NAME);
+    length += smb_put_string(bytes + length, VSERVER_DOMAIN_NAME);
     return smb_reply_length(request, 3, length);
 }
 
@@ -1394,7 +1394,7 @@ smb_cmd_search(smb_request_t *request)
     if (!key && (attributes & 0x1F) == SMB_FS_ATTR_VOLUME) {
         /* Asking for the volume label and nothing else. */
         if (max > 0) {
-            smb_dir_entry_put(entries, 0, 0, NULL, SMB_FS_SHARE_NAME, SMB_FS_ATTR_VOLUME, 0);
+            smb_dir_entry_put(entries, 0, 0, NULL, VSERVER_SHARE_NAME, SMB_FS_ATTR_VOLUME, 0);
             count = 1;
         }
     } else {
@@ -1685,7 +1685,7 @@ smb_trans2_query_fs(smb_request_t *request, const uint8_t *in, int in_len, uint8
     if (cap < 128)
         return SMB_FAIL(SMB_ERRDOS, SMB_ERRbadfunc);
 
-    length = (int) strlen(SMB_FS_SHARE_NAME);
+    length = (int) strlen(VSERVER_SHARE_NAME);
     switch (smb_get16(in)) {
         case FS_INFO_ALLOCATION:
             memset(data, 0, 18);
@@ -1697,7 +1697,7 @@ smb_trans2_query_fs(smb_request_t *request, const uint8_t *in, int in_len, uint8
         case FS_INFO_VOLUME:
             smb_put32(data, FS_SERIAL_NUMBER);
             data[4] = (uint8_t) length;
-            memcpy(data + 5, SMB_FS_SHARE_NAME, (size_t) length + 1);
+            memcpy(data + 5, VSERVER_SHARE_NAME, (size_t) length + 1);
             return 5 + length + 1;
 
         case FS_QUERY_VOLUME:
@@ -1705,7 +1705,7 @@ smb_trans2_query_fs(smb_request_t *request, const uint8_t *in, int in_len, uint8
             smb_put64(data, smb_filetime(SMB_FS_UNIX_TIME));
             smb_put32(data + 8, FS_SERIAL_NUMBER);
             smb_put32(data + 12, (uint32_t) length);
-            memcpy(data + 18, SMB_FS_SHARE_NAME, (size_t) length);
+            memcpy(data + 18, VSERVER_SHARE_NAME, (size_t) length);
             return 18 + length;
 
         case FS_QUERY_SIZE:
@@ -2119,7 +2119,7 @@ smb_called_name_ok(const uint8_t *name, int len)
     for (int i = 14; i >= 0 && decoded[i] == ' '; i--)
         decoded[i] = 0;
     decoded[15] = 0;
-    return !strcmp(decoded, NBNS_SERVER_NAME) || !strcmp(decoded, NBNS_WORKGROUP)
+    return !strcmp(decoded, VSERVER_SERVER_NAME) || !strcmp(decoded, VSERVER_DOMAIN_NAME)
         || !strcmp(decoded, "*SMBSERVER");
 }
 

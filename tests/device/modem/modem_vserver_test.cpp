@@ -160,7 +160,7 @@ protected:
     void SetUp() override {
         session = smb_session_create(nullptr);
         ASSERT_NE(session, nullptr);
-        bytes request = encode_name(NBNS_SERVER_NAME, 0x20);
+        bytes request = encode_name(VSERVER_SERVER_NAME, 0x20);
         bytes calling = encode_name("86BOX95", 0x00);
         request.insert(request.end(), calling.begin(), calling.end());
         bytes reply = feed(nbt(0x81, request));
@@ -259,7 +259,7 @@ TEST_F(Smb, RefusesOtherShares)
 
 TEST_F(Smb, RejectsATransactionWithoutATree)
 {
-    bytes reply = message(server_enum(1, 0xFFFFFFFFu, NBNS_WORKGROUP));
+    bytes reply = message(server_enum(1, 0xFFFFFFFFu, VSERVER_WORKGROUP_NAME));
     ASSERT_GE(reply.size(), 35u);
     EXPECT_EQ(reply[5], 2);
     EXPECT_EQ(get_le16(&reply[7]), 5);
@@ -280,15 +280,15 @@ rap_data(const bytes &reply)
 TEST_F(Smb, ServerEnumListsItself)
 {
     connect();
-    bytes reply = message(server_enum(1, 0xFFFFFFFFu, NBNS_WORKGROUP));
+    bytes reply = message(server_enum(1, 0xFFFFFFFFu, VSERVER_WORKGROUP_NAME));
     ASSERT_GT(reply.size(), 60u);
     EXPECT_EQ(reply[32], 10);
     EXPECT_EQ(get_le16(rap_params(reply)), 0);
     EXPECT_EQ(get_le16(rap_params(reply) + 4), 1);
-    EXPECT_STREQ(reinterpret_cast<const char *>(rap_data(reply)), NBNS_SERVER_NAME);
+    EXPECT_STREQ(reinterpret_cast<const char *>(rap_data(reply)), VSERVER_SERVER_NAME);
     EXPECT_EQ(rap_data(reply)[16], 4);
     uint32_t comment = uint32_t(get_le16(rap_data(reply) + 22));
-    EXPECT_STREQ(reinterpret_cast<const char *>(rap_data(reply)) + comment, "86Box");
+    EXPECT_STREQ(reinterpret_cast<const char *>(rap_data(reply)) + comment, VSERVER_SERVER_COMMENT);
 }
 
 TEST_F(Smb, DomainEnumListsTheWorkgroup)
@@ -297,7 +297,7 @@ TEST_F(Smb, DomainEnumListsTheWorkgroup)
     bytes reply = message(server_enum(1, 0x80000000u, ""));
     ASSERT_GT(reply.size(), 60u);
     EXPECT_EQ(get_le16(rap_params(reply) + 4), 1);
-    EXPECT_STREQ(reinterpret_cast<const char *>(rap_data(reply)), NBNS_WORKGROUP);
+    EXPECT_STREQ(reinterpret_cast<const char *>(rap_data(reply)), VSERVER_WORKGROUP_NAME);
 }
 
 TEST_F(Smb, OtherWorkgroupIsEmpty)
@@ -319,13 +319,13 @@ TEST_F(Smb, ShareEnumListsTheFolderAndIpc)
     put_le16(p, 1); put_le16(p, 1024);
     bytes reply = message(rap(p));
     EXPECT_EQ(get_le16(rap_params(reply) + 4), 3);
-    EXPECT_STREQ(reinterpret_cast<const char *>(rap_data(reply)), "SHARED");
+    EXPECT_STREQ(reinterpret_cast<const char *>(rap_data(reply)), VSERVER_SHARE_NAME);
     EXPECT_EQ(get_le16(rap_data(reply) + 14), 0);
-    EXPECT_STREQ(reinterpret_cast<const char *>(rap_data(reply) + 20), "NETLOGON");
-    EXPECT_STREQ(reinterpret_cast<const char *>(rap_data(reply) + 40), "IPC$");
+    EXPECT_STREQ(reinterpret_cast<const char *>(rap_data(reply) + 20), VSERVER_LOGON_SHARE_NAME);
+    EXPECT_STREQ(reinterpret_cast<const char *>(rap_data(reply) + 40), VSERVER_IPC_SHARE_NAME);
     EXPECT_EQ(get_le16(rap_data(reply) + 40 + 14), 3);
     EXPECT_STREQ(reinterpret_cast<const char *>(rap_data(reply) + get_le16(rap_data(reply) + 16)),
-                 "86Box shared folder");
+                 VSERVER_SHARE_REMARK);
 }
 
 TEST_F(Smb, UnknownRapCallIsRefused)
@@ -348,7 +348,7 @@ TEST_F(Smb, SmallBufferReportsMoreData)
     put_str(p, "B16BBDz");
     put_le16(p, 1); put_le16(p, 8);
     put_le16(p, 0xFFFF); put_le16(p, 0xFFFF);
-    put_str(p, NBNS_WORKGROUP);
+    put_str(p, VSERVER_WORKGROUP_NAME);
     bytes reply = message(rap(p));
     EXPECT_EQ(get_le16(rap_params(reply)), 234);
 }
@@ -360,11 +360,11 @@ TEST_F(Smb, ShareInfoNamesTheShare)
     put_le16(p, 1);
     put_str(p, "zWrLh");
     put_str(p, "B13BWz");
-    put_str(p, "SHARED");
+    put_str(p, VSERVER_SHARE_NAME);
     put_le16(p, 1); put_le16(p, 1024);
     bytes reply = message(rap(p));
     EXPECT_EQ(get_le16(rap_params(reply)), 0);
-    EXPECT_STREQ(reinterpret_cast<const char *>(rap_data(reply)), "SHARED");
+    EXPECT_STREQ(reinterpret_cast<const char *>(rap_data(reply)), VSERVER_SHARE_NAME);
 
     bytes q;
     put_le16(q, 1);
@@ -423,7 +423,7 @@ browser_request(uint8_t type, const bytes &frame)
     put_be16(d, uint16_t(68 + smb.size()));
     put_be16(d, 0);
     bytes source = encode_name("86BOX95", 0x00);
-    bytes destination = encode_name(NBNS_WORKGROUP, 0x1D);
+    bytes destination = encode_name(VSERVER_WORKGROUP_NAME, 0x1D);
     d.insert(d.end(), source.begin(), source.end());
     d.insert(d.end(), destination.begin(), destination.end());
     d.insert(d.end(), smb.begin(), smb.end());
@@ -463,7 +463,7 @@ TEST(Browser, AnswersGetBackupList)
     EXPECT_EQ(answer[0], 10);
     EXPECT_EQ(answer[1], 1);
     EXPECT_EQ(answer[2], 0xAA);
-    EXPECT_STREQ(reinterpret_cast<const char *>(&answer[6]), NBNS_SERVER_NAME);
+    EXPECT_STREQ(reinterpret_cast<const char *>(&answer[6]), VSERVER_SERVER_NAME);
     /* addressed to the requester */
     EXPECT_EQ(memcmp(reply + 14 + 34, request.data() + 14, 34), 0);
 }
@@ -487,7 +487,7 @@ TEST(Browser, AnnouncesTheServer)
     ASSERT_GT(n, 0);
     bytes frame = frame_of(reply, n);
     EXPECT_EQ(frame[0], 1);
-    EXPECT_STREQ(reinterpret_cast<const char *>(&frame[6]), NBNS_SERVER_NAME);
+    EXPECT_STREQ(reinterpret_cast<const char *>(&frame[6]), VSERVER_SERVER_NAME);
     EXPECT_EQ(get_le16(&frame[30]), 0xAA55);
 
     n = browser_announcement(server_ip, 1, reply, sizeof(reply));
@@ -535,9 +535,9 @@ TEST(Browser, AnswersALogonRequestOnTheClientsMailslot)
     ASSERT_GT(length, 0);
     std::string text(reply, reply + length);
     EXPECT_NE(text.find("\\MAILSLOT\\TEMP\\NETLOGON"), std::string::npos);
-    size_t at = text.find(std::string("\x06\x00\\\\" NBNS_SERVER_NAME, 13));
+    size_t at = text.find(std::string("\x06\x00\\\\" VSERVER_SERVER_NAME, 13));
     ASSERT_NE(at, std::string::npos);
-    EXPECT_EQ(get_le16(reply + at + 2 + strlen("\\\\" NBNS_SERVER_NAME) + 1), 0xFFFF);
+    EXPECT_EQ(get_le16(reply + at + 2 + strlen("\\\\" VSERVER_SERVER_NAME) + 1), 0xFFFF);
 }
 
 TEST(Browser, IgnoresBrokenLogonRequests)
@@ -617,12 +617,12 @@ TEST_F(Server, CompletesAFullBrowseConversation)
     uint32_t snd = handshake(1025);
     uint32_t seq = 1001;
 
-    bytes request = encode_name(NBNS_SERVER_NAME, 0x20);
+    bytes request = encode_name(VSERVER_SERVER_NAME, 0x20);
     bytes calling = encode_name("86BOX95", 0x00);
     request.insert(request.end(), calling.begin(), calling.end());
 
     for (const bytes &stream : { nbt(0x81, request), nbt(0, negotiate()), nbt(0, session_and_tree()),
-                                 nbt(0, server_enum(1, 0xFFFFFFFFu, NBNS_WORKGROUP)) }) {
+                                 nbt(0, server_enum(1, 0xFFFFFFFFu, VSERVER_WORKGROUP_NAME)) }) {
         sent.clear();
         send(tcp(1025, seq, snd, 0x18, stream));
         seq += uint32_t(stream.size());
@@ -635,7 +635,7 @@ TEST_F(Server, CompletesAFullBrowseConversation)
     }
 
     const bytes &last = sent[0];
-    EXPECT_NE(std::string(last.begin(), last.end()).find(NBNS_SERVER_NAME), std::string::npos);
+    EXPECT_NE(std::string(last.begin(), last.end()).find(VSERVER_SERVER_NAME), std::string::npos);
 
     sent.clear();
     send(tcp(1025, seq, snd, 0x11));
@@ -678,7 +678,7 @@ TEST_F(Server, CarriesAWholeFileOverSmallSegments)
         }
     };
 
-    bytes request = encode_name(NBNS_SERVER_NAME, 0x20);
+    bytes request = encode_name(VSERVER_SERVER_NAME, 0x20);
     bytes calling = encode_name("86BOX95", 0x00);
     request.insert(request.end(), calling.begin(), calling.end());
     exchange_message(nbt(0x81, request));
@@ -727,7 +727,7 @@ TEST_F(Server, CarriesAWholeFileOverSmallSegments)
 TEST_F(Server, RetransmitsUnacknowledgedData)
 {
     uint32_t snd = handshake(1025);
-    bytes request = encode_name(NBNS_SERVER_NAME, 0x20);
+    bytes request = encode_name(VSERVER_SERVER_NAME, 0x20);
     bytes calling = encode_name("86BOX95", 0x00);
     request.insert(request.end(), calling.begin(), calling.end());
     send(tcp(1025, 1001, snd, 0x18, nbt(0x81, request)));
@@ -744,7 +744,7 @@ TEST_F(Server, RetransmitsUnacknowledgedData)
 TEST_F(Server, GivesUpOnASilentPeer)
 {
     uint32_t snd = handshake(1025);
-    bytes request = encode_name(NBNS_SERVER_NAME, 0x20);
+    bytes request = encode_name(VSERVER_SERVER_NAME, 0x20);
     bytes calling = encode_name("86BOX95", 0x00);
     request.insert(request.end(), calling.begin(), calling.end());
     send(tcp(1025, 1001, snd, 0x18, nbt(0x81, request)));
@@ -844,7 +844,7 @@ TEST_F(Server, AnnouncesOnceTheGuestIsKnown)
 TEST_F(Server, ResolvesTheMasterBrowserName)
 {
     bytes msg = { 0x12, 0x34, 0x01, 0x10, 0, 1, 0, 0, 0, 0, 0, 0 };
-    bytes name = encode_name(NBNS_WORKGROUP, 0x1D);
+    bytes name = encode_name(VSERVER_WORKGROUP_NAME, 0x1D);
     msg.insert(msg.end(), name.begin(), name.end());
     put_be16(msg, 0x20); put_be16(msg, 1);
 
@@ -856,7 +856,7 @@ TEST_F(Server, ResolvesTheMasterBrowserName)
 TEST_F(Server, ResolvesTheLogonServerName)
 {
     bytes msg = { 0x12, 0x34, 0x01, 0x10, 0, 1, 0, 0, 0, 0, 0, 0 };
-    bytes name = encode_name(NBNS_WORKGROUP, 0x1C);
+    bytes name = encode_name(VSERVER_WORKGROUP_NAME, 0x1C);
     msg.insert(msg.end(), name.begin(), name.end());
     put_be16(msg, 0x20); put_be16(msg, 1);
 
@@ -868,7 +868,7 @@ TEST_F(Server, ResolvesTheLogonServerName)
 TEST_F(Server, ResolvesTheDomainMasterName)
 {
     bytes msg = { 0x12, 0x34, 0x01, 0x10, 0, 1, 0, 0, 0, 0, 0, 0 };
-    bytes name = encode_name(NBNS_WORKGROUP, 0x1B);
+    bytes name = encode_name(VSERVER_WORKGROUP_NAME, 0x1B);
     msg.insert(msg.end(), name.begin(), name.end());
     put_be16(msg, 0x20); put_be16(msg, 1);
 

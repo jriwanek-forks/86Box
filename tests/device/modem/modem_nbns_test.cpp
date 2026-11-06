@@ -88,13 +88,13 @@ protected:
 
 TEST_F(ModemNbns, ServerNameFitsInANetbiosName)
 {
-    EXPECT_LE(strlen(NBNS_SERVER_NAME), 15u);
+    EXPECT_LE(strlen(VSERVER_SERVER_NAME), 15u);
 }
 
 TEST_F(ModemNbns, ResolvesThePreRegisteredServerName)
 {
     for (uint8_t suffix : { 0x00, 0x03, 0x20 }) {
-        auto reply = ask(nbns, make_request(OP_QUERY, NBNS_SERVER_NAME, suffix));
+        auto reply = ask(nbns, make_request(OP_QUERY, VSERVER_SERVER_NAME, suffix));
         ASSERT_FALSE(reply.empty());
         EXPECT_EQ(flags_of(reply), 0x8580);
         EXPECT_EQ(reply[0], 0x12);
@@ -106,7 +106,7 @@ TEST_F(ModemNbns, ResolvesThePreRegisteredServerName)
 
 TEST_F(ModemNbns, WorkgroupResolvesAsBroadcastGroup)
 {
-    auto reply = ask(nbns, make_request(OP_QUERY, NBNS_WORKGROUP, 0x00));
+    auto reply = ask(nbns, make_request(OP_QUERY, VSERVER_WORKGROUP_NAME, 0x00));
     ASSERT_FALSE(reply.empty());
     EXPECT_EQ(flags_of(reply), 0x8580);
     EXPECT_NE(reply[first_address - 2] & 0x80, 0);
@@ -143,7 +143,7 @@ TEST_F(ModemNbns, SuffixesAreSeparateNames)
 
 TEST_F(ModemNbns, RefusesTheServerNameToTheGuest)
 {
-    auto reply = ask(nbns, make_with_address(OP_REGISTER, NBNS_SERVER_NAME, 0x20, 0x6000, guest_ip));
+    auto reply = ask(nbns, make_with_address(OP_REGISTER, VSERVER_SERVER_NAME, 0x20, 0x6000, guest_ip));
     ASSERT_FALSE(reply.empty());
     EXPECT_EQ(flags_of(reply), 0xAD86);
     EXPECT_EQ(address_at(reply, first_address), server_ip);
@@ -167,13 +167,13 @@ TEST_F(ModemNbns, ReRegistrationBySameOwnerSucceeds)
 
 TEST_F(ModemNbns, GuestCanJoinTheWorkgroup)
 {
-    EXPECT_EQ(flags_of(ask(nbns, make_with_address(OP_REGISTER, NBNS_WORKGROUP, 0x00, 0xE000, guest_ip))), 0xAD80);
-    EXPECT_EQ(flags_of(ask(nbns, make_with_address(OP_REGISTER, NBNS_WORKGROUP, 0x1E, 0xE000, guest_ip))), 0xAD80);
+    EXPECT_EQ(flags_of(ask(nbns, make_with_address(OP_REGISTER, VSERVER_WORKGROUP_NAME, 0x00, 0xE000, guest_ip))), 0xAD80);
+    EXPECT_EQ(flags_of(ask(nbns, make_with_address(OP_REGISTER, VSERVER_WORKGROUP_NAME, 0x1E, 0xE000, guest_ip))), 0xAD80);
 }
 
 TEST_F(ModemNbns, UniqueRegistrationOfAGroupNameIsRefused)
 {
-    EXPECT_EQ(flags_of(ask(nbns, make_with_address(OP_REGISTER, NBNS_WORKGROUP, 0x00, 0x6000, guest_ip))), 0xAD86);
+    EXPECT_EQ(flags_of(ask(nbns, make_with_address(OP_REGISTER, VSERVER_WORKGROUP_NAME, 0x00, 0x6000, guest_ip))), 0xAD86);
 }
 
 TEST_F(ModemNbns, RefreshIsAnsweredAsARegistration)
@@ -205,8 +205,8 @@ TEST_F(ModemNbns, ReleaseByAnotherAddressIsRefused)
 
 TEST_F(ModemNbns, ServerNameCannotBeReleased)
 {
-    EXPECT_EQ(flags_of(ask(nbns, make_with_address(OP_RELEASE, NBNS_SERVER_NAME, 0x20, 0x6000, guest_ip))), 0xB406);
-    EXPECT_EQ(flags_of(ask(nbns, make_request(OP_QUERY, NBNS_SERVER_NAME, 0x20))), 0x8580);
+    EXPECT_EQ(flags_of(ask(nbns, make_with_address(OP_RELEASE, VSERVER_SERVER_NAME, 0x20, 0x6000, guest_ip))), 0xB406);
+    EXPECT_EQ(flags_of(ask(nbns, make_request(OP_QUERY, VSERVER_SERVER_NAME, 0x20))), 0x8580);
 }
 
 TEST_F(ModemNbns, DomainGroupKeepsItsAddressList)
@@ -231,7 +231,7 @@ TEST_F(ModemNbns, NamesExpireAfterTheirTtl)
 
     nbns_tick(nbns);
     EXPECT_EQ(flags_of(ask(nbns, make_request(OP_QUERY, "WIN95", 0x00))), 0x8583);
-    EXPECT_EQ(flags_of(ask(nbns, make_request(OP_QUERY, NBNS_SERVER_NAME, 0x20))), 0x8580);
+    EXPECT_EQ(flags_of(ask(nbns, make_request(OP_QUERY, VSERVER_SERVER_NAME, 0x20))), 0x8580);
 }
 
 TEST_F(ModemNbns, NodeStatusListsTheServersNames)
@@ -242,7 +242,7 @@ TEST_F(ModemNbns, NodeStatusListsTheServersNames)
     EXPECT_EQ(flags_of(reply), 0x8400);
     EXPECT_EQ(reply[12 + 34 + 1], 0x21);
     EXPECT_EQ(reply[rdata], 5);
-    EXPECT_EQ(std::string(reinterpret_cast<const char *>(&reply[rdata + 1]), 9), NBNS_SERVER_NAME);
+    EXPECT_EQ(std::string(reinterpret_cast<const char *>(&reply[rdata + 1]), 9), VSERVER_SERVER_NAME);
 }
 
 TEST_F(ModemNbns, IgnoresMalformedMessages)
@@ -275,7 +275,7 @@ TEST_F(ModemNbns, SurvivesAFullTable)
         ask(nbns, make_with_address(OP_REGISTER, "NAME" + std::to_string(i), 0x00, 0x6000, guest_ip));
 
     EXPECT_EQ(flags_of(ask(nbns, make_with_address(OP_REGISTER, "LASTNAME", 0x00, 0x6000, guest_ip))), 0xAD85);
-    EXPECT_EQ(flags_of(ask(nbns, make_request(OP_QUERY, NBNS_SERVER_NAME, 0x20))), 0x8580);
+    EXPECT_EQ(flags_of(ask(nbns, make_request(OP_QUERY, VSERVER_SERVER_NAME, 0x20))), 0x8580);
 }
 
 static std::vector<uint8_t>
@@ -323,7 +323,7 @@ fold(uint32_t sum)
 
 TEST_F(ModemNbns, Ipv4WrapperBuildsAValidReply)
 {
-    auto    packet = wrap_ipv4(make_request(OP_QUERY, NBNS_SERVER_NAME, 0x20), server_ip, 137);
+    auto    packet = wrap_ipv4(make_request(OP_QUERY, VSERVER_SERVER_NAME, 0x20), server_ip, 137);
     uint8_t reply[NBNS_MAX_REPLY];
 
     int length = nbns_process_ipv4(nbns, packet.data(), static_cast<int>(packet.size()), reply, sizeof(reply));
@@ -345,7 +345,7 @@ TEST_F(ModemNbns, Ipv4WrapperBuildsAValidReply)
 
 TEST_F(ModemNbns, Ipv4WrapperLeavesOtherTrafficAlone)
 {
-    auto    msg = make_request(OP_QUERY, NBNS_SERVER_NAME, 0x20);
+    auto    msg = make_request(OP_QUERY, VSERVER_SERVER_NAME, 0x20);
     uint8_t reply[NBNS_MAX_REPLY];
 
     auto other_host = wrap_ipv4(msg, server_ip + 1, 137);

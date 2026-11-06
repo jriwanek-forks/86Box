@@ -422,8 +422,8 @@ pptp_call_start(pptp_t *pptp)
     /* Anything that widens the framing would have to be undone at this end of the serial line. */
     pptp->ppp->ppp_fcs_mode        = PPP_FCS_DISABLED;
     pptp->ppp->ppp_numbered_mode   = PPP_NUMBERED_DISABLED;
-    snprintf(pptp->ppp->username, sizeof(pptp->ppp->username), "%s", SMB_LOGON_USERNAME);
-    snprintf(pptp->ppp->password, sizeof(pptp->ppp->password), "%s", SMB_LOGON_PASSWORD);
+    snprintf(pptp->ppp->username, sizeof(pptp->ppp->username), "%s", VSERVER_LOGON_USERNAME);
+    snprintf(pptp->ppp->password, sizeof(pptp->ppp->password), "%s", VSERVER_LOGON_PASSWORD);
 
     if (pptp->netbeui) {
         pptp->nbf = nbf_init(pptp->log, pptp_nbf_output, pptp);
@@ -466,8 +466,8 @@ pptp_handle_start(pptp_t *pptp)
     pptp_put32(body + 8, PPTP_BEARER_BOTH);
     pptp_put16(body + 12, 1); /* channels */
     pptp_put16(body + 14, 1); /* firmware revision */
-    memcpy(body + 16, NBNS_SERVER_NAME, sizeof(NBNS_SERVER_NAME) - 1);
-    memcpy(body + 80, "86Box", 5);
+    memcpy(body + 16, VSERVER_SERVER_NAME, sizeof(VSERVER_SERVER_NAME) - 1);
+    memcpy(body + 80, VSERVER_PPTP_VENDOR_NAME, sizeof(VSERVER_PPTP_VENDOR_NAME) - 1);
     pptp->started = true;
     vserver_tunnel_send_control(pptp->outer, message, sizeof(message));
 }

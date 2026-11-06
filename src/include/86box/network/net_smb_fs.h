@@ -16,14 +16,11 @@
 #ifndef NETWORK_NET_SMB_FS_H
 #define NETWORK_NET_SMB_FS_H
 
+#include <86box/network/net_vserver_config.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#define SMB_FS_SHARE_NAME   "SHARED"
-#define SMB_FS_SHARE_REMARK "86Box shared folder"
-#define SMB_FS_LOGON_SHARE_NAME   "NETLOGON"
-#define SMB_FS_LOGON_SHARE_REMARK "Logon server share"
 
 #define SMB_FS_ATTR_READONLY  0x01
 #define SMB_FS_ATTR_VOLUME    0x08

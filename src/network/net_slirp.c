@@ -49,6 +49,7 @@
 #    include <signal.h>
 #endif
 #include <86box/net_event.h>
+#include <86box/network/net_vserver_config.h>
 #ifdef ENABLE_VSERVER_WINS
 #    include <stdbool.h>
 #    include <86box/log.h>
@@ -883,7 +884,7 @@ net_slirp_init(const netcard_t *card, const uint8_t *mac_addr, UNUSED(void *priv
         .vprefix_addr6         = prefix6,
         .vprefix_len           = 64,
         .vhost6                = host6,
-        .vhostname             = "86Box",
+        .vhostname             = VSERVER_SLIRP_HOSTNAME,
         .tftp_server_name      = NULL,
         .tftp_path             = NULL,
         .bootfile              = NULL,
@@ -995,7 +996,7 @@ net_slirp_init(const netcard_t *card, const uint8_t *mac_addr, UNUSED(void *priv
     /* The modem brings its own server, and carries it over PPP rather than Ethernet. */
     if (!card->internal_modem) {
         slirp->vserver_log = log_open("VSERVER");
-        slirp->vserver = vserver_eth_init(slirp->vserver_log, (ntohl(host.s_addr) & 0xFFFFFF00u) | NBNS_SERVER_HOST_ID,
+        slirp->vserver = vserver_eth_init(slirp->vserver_log, (ntohl(host.s_addr) & 0xFFFFFF00u) | VSERVER_SLIRP_HOST_ID,
 #    ifdef ENABLE_VSERVER_SMB
                                           true,
 #    else

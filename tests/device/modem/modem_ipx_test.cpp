@@ -129,7 +129,7 @@ protected:
     bytes init_data(uint16_t max_data = 1024) {
         bytes init;
         put_str(init, nb_name("GUEST", 0x00));
-        put_str(init, nb_name(NBNS_SERVER_NAME, 0x20));
+        put_str(init, nb_name(VSERVER_SERVER_NAME, 0x20));
         put_le16(init, max_data);
         put_le16(init, 0x1234);
         put_le16(init, 0x5678);
@@ -244,7 +244,7 @@ TEST_F(Ipx, IgnoresWhatIsNotForIt)
 {
     static const uint8_t other[6] = { 2, 0, 0, 0, 0, 9 };
 
-    EXPECT_FALSE(in(ipx_packet(4, other, 0x455, 0x455, name_frame(1, nb_name(NBNS_SERVER_NAME, 0x20)))));
+    EXPECT_FALSE(in(ipx_packet(4, other, 0x455, 0x455, name_frame(1, nb_name(VSERVER_SERVER_NAME, 0x20)))));
     EXPECT_FALSE(in(ipx_packet(4, server_node, 0x4000, 0x4000, { 1, 2, 3 })));
     EXPECT_FALSE(in({ 1, 2, 3 }));
     EXPECT_TRUE(sent.empty());
@@ -252,7 +252,7 @@ TEST_F(Ipx, IgnoresWhatIsNotForIt)
 
 TEST_F(Ipx, RefusesALengthLongerThanThePacket)
 {
-    bytes packet = ipx_packet(4, server_node, 0x455, 0x455, name_frame(1, nb_name(NBNS_SERVER_NAME, 0x20)));
+    bytes packet = ipx_packet(4, server_node, 0x455, 0x455, name_frame(1, nb_name(VSERVER_SERVER_NAME, 0x20)));
     packet[3] += 10;
     EXPECT_FALSE(in(packet));
 }
@@ -289,8 +289,8 @@ TEST_F(Ipx, IsSilentOnRipForOtherNetworks)
 
 TEST_F(Ipx, RecognisesItsNames)
 {
-    for (const std::string &name : { nb_name(NBNS_SERVER_NAME, 0x20), nb_name(NBNS_SERVER_NAME, 0x00),
-                                     nb_name(NBNS_WORKGROUP, 0x1C), nb_name(NBNS_WORKGROUP, 0x1D) }) {
+    for (const std::string &name : { nb_name(VSERVER_SERVER_NAME, 0x20), nb_name(VSERVER_SERVER_NAME, 0x00),
+                                     nb_name(VSERVER_WORKGROUP_NAME, 0x1C), nb_name(VSERVER_WORKGROUP_NAME, 0x1D) }) {
         sent.clear();
         EXPECT_TRUE(in(ipx_packet(20, everyone, 0x455, 0x455, name_frame(1, name))));
         ASSERT_EQ(sent.size(), 1u);
@@ -309,7 +309,7 @@ TEST_F(Ipx, RecognisesItsNames)
 
 TEST_F(Ipx, DefendsItsNames)
 {
-    in(ipx_packet(20, everyone, 0x455, 0x455, name_frame(3, nb_name(NBNS_SERVER_NAME, 0x20))));
+    in(ipx_packet(20, everyone, 0x455, 0x455, name_frame(3, nb_name(VSERVER_SERVER_NAME, 0x20))));
     ASSERT_EQ(sent.size(), 1u);
     EXPECT_EQ(payload(sent[0])[33], 4);
     sent.clear();
@@ -333,7 +333,7 @@ TEST_F(Ipx, AnswersASessionRequestAsTheDriverExpects)
     EXPECT_EQ(get_le16(p + 8), 38);
     EXPECT_EQ(get_le16(p + 12), 38);
     EXPECT_EQ(get_le16(p + 14), 1);
-    EXPECT_EQ(memcmp(p + 18, nb_name(NBNS_SERVER_NAME, 0x20).data(), 16), 0);
+    EXPECT_EQ(memcmp(p + 18, nb_name(VSERVER_SERVER_NAME, 0x20).data(), 16), 0);
     EXPECT_EQ(memcmp(p + 34, nb_name("GUEST", 0).data(), 16), 0);
     EXPECT_EQ(get_le16(p + 50), 1024);
     EXPECT_EQ(get_le16(p + 52), 0x1234);
@@ -353,7 +353,7 @@ TEST_F(Ipx, RefusesSessionsToOtherNames)
 {
     bytes init;
     put_str(init, nb_name("GUEST", 0));
-    put_str(init, nb_name(NBNS_WORKGROUP, 0x1D));
+    put_str(init, nb_name(VSERVER_WORKGROUP_NAME, 0x1D));
     init.resize(38, 0);
     in(ipx_packet(4, server_node, 0x455, 0x455, session_frame(0x40, 6, guest_conn, 0xFFFF, 0, 38, 0, 0, init)));
     EXPECT_TRUE(sent.empty());
@@ -531,7 +531,7 @@ TEST_F(Ipx, ResetForgetsSessions)
 TEST_F(Ipx, TakesDatagramsWithAndWithoutRoutes)
 {
     bytes datagram = { 0, 11 };
-    put_str(datagram, nb_name(NBNS_WORKGROUP, 0x1D));
+    put_str(datagram, nb_name(VSERVER_WORKGROUP_NAME, 0x1D));
     put_str(datagram, nb_name("GUEST", 0));
     datagram.resize(100, 0);
     EXPECT_TRUE(in(ipx_packet(4, server_node, 0x455, 0x455, datagram)));
@@ -551,7 +551,7 @@ TEST_F(Ipx, AnnouncesOverWhicheverTransportTheGuestUsed)
     EXPECT_EQ(get_be16(sent[0].data() + 16), 0x455);
     EXPECT_EQ(memcmp(sent[0].data() + 10, everyone, 6), 0);
     EXPECT_EQ(payload(sent[0])[33], 11);
-    EXPECT_EQ(memcmp(payload(sent[0]) + 34, nb_name(NBNS_WORKGROUP, 0x1D).data(), 16), 0);
+    EXPECT_EQ(memcmp(payload(sent[0]) + 34, nb_name(VSERVER_WORKGROUP_NAME, 0x1D).data(), 16), 0);
 }
 
 TEST_F(Ipx, FindsTheServerByDirectHostingName)
@@ -559,7 +559,7 @@ TEST_F(Ipx, FindsTheServerByDirectHostingName)
     bytes query(32, 0);
     query.insert(query.end(), { 0xF3, 1, 0x34, 0x12 });
     bytes name(16, ' ');
-    memcpy(name.data(), "86BOXHOST", 9);
+    memcpy(name.data(), VSERVER_SERVER_NAME, sizeof(VSERVER_SERVER_NAME) - 1);
     query.insert(query.end(), name.begin(), name.end());
     bytes source(16, ' ');
     memcpy(source.data(), "GUEST", 5);
@@ -572,7 +572,7 @@ TEST_F(Ipx, FindsTheServerByDirectHostingName)
     EXPECT_EQ(p[33], 1);
     EXPECT_EQ(get_le16(p + 34), 0x1234);
     EXPECT_EQ(memcmp(p + 36, name.data(), 16), 0);
-    EXPECT_EQ(memcmp(p + 52, "86BOXHOST", 9), 0);
+    EXPECT_EQ(memcmp(p + 52, VSERVER_SERVER_NAME, sizeof(VSERVER_SERVER_NAME) - 1), 0);
     EXPECT_EQ(get_be16(sent[0].data() + 16), 0x551);
 }
 

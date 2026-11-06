@@ -42,7 +42,7 @@ struct smb_fs_entry_t {
 };
 
 static const char readme[] =
-    "This is the 86Box modem shared folder.\r\n"
+    "This is the " VSERVER_SERVER_COMMENT " virtual server shared folder.\r\n"
     "\r\n"
     "It is read-only and built into the emulator. No host files are shared.\r\n"
     "DOCS\\PATTERN.TXT is a generated file for checking copies over the link.\r\n";

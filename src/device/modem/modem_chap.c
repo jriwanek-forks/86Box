@@ -55,6 +55,7 @@
 #include <stdlib.h>
 #include <86box/modem/modem_ppp.h>
 #include <86box/modem/modem_chap.h>
+#include <86box/network/net_vserver_config.h>
 #include <86box/modem/modem_crypto.h>
 #include <86box/modem/modem_mppe.h>
 #include <86box/log.h>
@@ -139,7 +140,7 @@ ppp_chap_send_challenge(ppp_ctx_t *ctx)
     memcpy(pkt + 5, ctx->chap_challenge, challenge_len);
 
     /* Append server name */
-    const char *name     = "86Box";
+    const char *name     = VSERVER_PPP_SERVER_NAME;
     int         name_len = (int) strlen(name);
     memcpy(pkt + 5 + challenge_len, name, name_len);
 

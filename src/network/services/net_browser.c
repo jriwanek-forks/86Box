@@ -120,7 +120,7 @@ dgm_build(uint32_t server_ip, uint8_t type, const char *mailslot, const uint8_t 
     reply[9]  = (uint8_t) BROWSER_PORT;
     reply[10] = (uint8_t) ((total - DGM_HEADER_LENGTH) >> 8);
     reply[11] = (uint8_t) (total - DGM_HEADER_LENGTH);
-    dgm_encode_name(reply + DGM_HEADER_LENGTH, NBNS_SERVER_NAME, 0x00);
+    dgm_encode_name(reply + DGM_HEADER_LENGTH, VSERVER_SERVER_NAME, 0x00);
     memcpy(reply + DGM_HEADER_LENGTH + DGM_NAME_LENGTH, destination, DGM_NAME_LENGTH);
 
     memcpy(smb, "\xFFSMB", 4);
@@ -144,13 +144,13 @@ dgm_build(uint32_t server_ip, uint8_t type, const char *mailslot, const uint8_t 
 static int
 browser_announcement_frame(uint8_t opcode, uint32_t type, uint8_t *frame)
 {
-    static const char comment[] = "86Box";
+    static const char comment[] = VSERVER_SERVER_COMMENT;
 
     memset(frame, 0, 32);
     frame[0] = opcode;
     frame[1] = 1;
     dgm_put_le32(frame + 2, BROWSE_PERIOD_MS);
-    memcpy(frame + 6, NBNS_SERVER_NAME, strlen(NBNS_SERVER_NAME));
+    memcpy(frame + 6, VSERVER_SERVER_NAME, strlen(VSERVER_SERVER_NAME));
     frame[22] = 4;
     frame[23] = 0;
     dgm_put_le32(frame + 24, type);
@@ -170,10 +170,10 @@ browser_announcement(uint32_t server_ip, int which, uint8_t *reply, int reply_ca
 
     if (which) {
         length = browser_announcement_frame(BROWSE_LOCAL_MASTER_ANNOUNCEMENT, BROWSE_SERVER_TYPE, frame);
-        dgm_encode_name(destination, NBNS_WORKGROUP, 0x1E);
+        dgm_encode_name(destination, VSERVER_WORKGROUP_NAME, 0x1E);
     } else {
         length = browser_announcement_frame(BROWSE_HOST_ANNOUNCEMENT, BROWSE_SERVER_TYPE, frame);
-        dgm_encode_name(destination, NBNS_WORKGROUP, 0x1D);
+        dgm_encode_name(destination, VSERVER_WORKGROUP_NAME, 0x1D);
     }
     return dgm_build(server_ip, DGM_DIRECT_GROUP, BROWSE_MAILSLOT, destination, frame, length, reply, reply_cap);
 }
@@ -241,8 +241,8 @@ netlogon_process(uint32_t server_ip, const uint8_t *msg, const uint8_t *frame, i
         return 0;
 
     dgm_put_le16(response, NETLOGON_RESPONSE);
-    length  = 2 + (int) sizeof("\\\\" NBNS_SERVER_NAME);
-    memcpy(response + 2, "\\\\" NBNS_SERVER_NAME, sizeof("\\\\" NBNS_SERVER_NAME));
+    length  = 2 + (int) sizeof("\\\\" VSERVER_SERVER_NAME);
+    memcpy(response + 2, "\\\\" VSERVER_SERVER_NAME, sizeof("\\\\" VSERVER_SERVER_NAME));
     dgm_put_le16(response + length, NETLOGON_NO_TOKEN);
     return dgm_build(server_ip, DGM_DIRECT_UNIQUE, strings[2], msg + DGM_HEADER_LENGTH, response, length + 2,
                      reply, cap);
@@ -272,9 +272,9 @@ browser_process(uint32_t server_ip, const uint8_t *msg, int len, uint8_t *reply,
         response[0] = BROWSE_BACKUP_LIST_RESPONSE;
         response[1] = 1;
         memcpy(response + 2, frame + 2, 4); /* the requester's token */
-        memcpy(response + 6, NBNS_SERVER_NAME, sizeof(NBNS_SERVER_NAME));
+        memcpy(response + 6, VSERVER_SERVER_NAME, sizeof(VSERVER_SERVER_NAME));
         return dgm_build(server_ip, DGM_DIRECT_UNIQUE, BROWSE_MAILSLOT, msg + DGM_HEADER_LENGTH, response,
-                         6 + (int) sizeof(NBNS_SERVER_NAME), reply, reply_cap);
+                         6 + (int) sizeof(VSERVER_SERVER_NAME), reply, reply_cap);
     }
 
     if (frame[0] == BROWSE_REQUEST_ELECTION) {
@@ -286,10 +286,10 @@ browser_process(uint32_t server_ip, const uint8_t *msg, int len, uint8_t *reply,
         election[1] = ELECTION_VERSION;
         dgm_put_le32(election + 2, ELECTION_CRITERIA);
         dgm_put_le32(election + 6, 0xFFFFFFFFu); /* uptime */
-        memcpy(election + 14, NBNS_SERVER_NAME, sizeof(NBNS_SERVER_NAME));
-        dgm_encode_name(destination, NBNS_WORKGROUP, 0x1E);
+        memcpy(election + 14, VSERVER_SERVER_NAME, sizeof(VSERVER_SERVER_NAME));
+        dgm_encode_name(destination, VSERVER_WORKGROUP_NAME, 0x1E);
         return dgm_build(server_ip, DGM_DIRECT_GROUP, BROWSE_MAILSLOT, destination, election,
-                         14 + (int) sizeof(NBNS_SERVER_NAME), reply, reply_cap);
+                         14 + (int) sizeof(VSERVER_SERVER_NAME), reply, reply_cap);
     }
 
     return 0;

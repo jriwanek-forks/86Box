@@ -16,15 +16,14 @@
 #ifndef NETWORK_NET_NBNS_H
 #define NETWORK_NET_NBNS_H
 
+#include <86box/network/net_vserver_config.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 #define NBNS_PORT           137
-#define NBNS_SERVER_NAME    "86BOXHOST"
-#define NBNS_WORKGROUP      "WORKGROUP"
 #define NBNS_MAX_REPLY      576  /* the largest datagram NBNS has to answer with */
-#define NBNS_SERVER_HOST_ID 4    /* last octet of the virtual server in SLiRP's /24 */
 
 typedef struct nbns_t nbns_t;
 

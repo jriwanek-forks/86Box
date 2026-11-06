@@ -16,15 +16,13 @@
 #ifndef NETWORK_NET_SMB_H
 #define NETWORK_NET_SMB_H
 
+#include <86box/network/net_vserver_config.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 #define SMB_MAX_OUTPUT 16384
-
-/* The one account the domain knows. Anyone else is a guest, which still lets them browse. */
-#define SMB_LOGON_USERNAME "86Box"
-#define SMB_LOGON_PASSWORD "86Box"
 
 typedef struct smb_session_t smb_session_t;
 

@@ -123,7 +123,7 @@ protected:
 
     uint8_t open_session() {
         link();
-        in(names_frame(0x0A, 0, 7, 0x1234, nb_name(NBNS_SERVER_NAME, 0x20), nb_name("86BOX95", 0)));
+        in(names_frame(0x0A, 0, 7, 0x1234, nb_name(VSERVER_SERVER_NAME, 0x20), nb_name("86BOX95", 0)));
         EXPECT_EQ(sent.size(), 1u);
         if (sent.empty())
             return 0;
@@ -183,26 +183,26 @@ protected:
 
 TEST_F(Nbf, AnswersQueriesForTheServerOnly)
 {
-    in(names_frame(0x0A, 0, 0, 0x55, nb_name(NBNS_SERVER_NAME, 0x20), nb_name("86BOX95", 0)));
+    in(names_frame(0x0A, 0, 0, 0x55, nb_name(VSERVER_SERVER_NAME, 0x20), nb_name("86BOX95", 0)));
     ASSERT_EQ(sent.size(), 1u);
     EXPECT_EQ(sent[0][2], 0x03);
     EXPECT_EQ(sent[0][3 + 4], 0x0E);
     EXPECT_EQ(sent[0][3 + 6], 0); /* a FIND.NAME takes no session */
     EXPECT_EQ(memcmp(&sent[0][3 + 12], nb_name("86BOX95", 0).data(), 16), 0);
-    EXPECT_EQ(memcmp(&sent[0][3 + 28], nb_name(NBNS_SERVER_NAME, 0x20).data(), 16), 0);
+    EXPECT_EQ(memcmp(&sent[0][3 + 28], nb_name(VSERVER_SERVER_NAME, 0x20).data(), 16), 0);
     sent.clear();
 
     in(names_frame(0x0A, 0, 5, 0x55, nb_name("SOMEONE", 0x20), nb_name("86BOX95", 0)));
     EXPECT_TRUE(sent.empty());
 
-    in(names_frame(0x0A, 0, 0, 0x55, nb_name(NBNS_WORKGROUP, 0x1C), nb_name("86BOX95", 0)));
+    in(names_frame(0x0A, 0, 0, 0x55, nb_name(VSERVER_WORKGROUP_NAME, 0x1C), nb_name("86BOX95", 0)));
     EXPECT_EQ(sent.size(), 1u);
 }
 
 TEST_F(Nbf, ARepeatedQueryKeepsItsSession)
 {
-    in(names_frame(0x0A, 0, 7, 0x55, nb_name(NBNS_SERVER_NAME, 0x20), nb_name("86BOX95", 0)));
-    in(names_frame(0x0A, 0, 7, 0x55, nb_name(NBNS_SERVER_NAME, 0x20), nb_name("86BOX95", 0)));
+    in(names_frame(0x0A, 0, 7, 0x55, nb_name(VSERVER_SERVER_NAME, 0x20), nb_name("86BOX95", 0)));
+    in(names_frame(0x0A, 0, 7, 0x55, nb_name(VSERVER_SERVER_NAME, 0x20), nb_name("86BOX95", 0)));
     ASSERT_EQ(sent.size(), 2u);
     EXPECT_EQ(sent[0][3 + 6], sent[1][3 + 6]);
 }
@@ -210,14 +210,14 @@ TEST_F(Nbf, ARepeatedQueryKeepsItsSession)
 TEST_F(Nbf, SessionsRunOutPolitely)
 {
     for (int i = 1; i <= 9; i++)
-        in(names_frame(0x0A, 0, uint16_t(i), 0x55, nb_name(NBNS_SERVER_NAME, 0x20), nb_name("86BOX95", 0)));
+        in(names_frame(0x0A, 0, uint16_t(i), 0x55, nb_name(VSERVER_SERVER_NAME, 0x20), nb_name("86BOX95", 0)));
     ASSERT_EQ(sent.size(), 9u);
     EXPECT_EQ(sent[8][3 + 6], 0xFF);
 }
 
 TEST_F(Nbf, DefendsItsNames)
 {
-    in(names_frame(0x01, 0, 0, 0x77, std::string(16, '\0'), nb_name(NBNS_SERVER_NAME, 0x20)));
+    in(names_frame(0x01, 0, 0, 0x77, std::string(16, '\0'), nb_name(VSERVER_SERVER_NAME, 0x20)));
     ASSERT_EQ(sent.size(), 1u);
     EXPECT_EQ(sent[0][3 + 4], 0x0D);
     EXPECT_EQ(get_le16(&sent[0][3 + 8]), 0x77);
@@ -564,15 +564,15 @@ TEST_F(Nbf, AnswersLogonDatagrams)
     frame.push_back(0);
     put_le16(frame, 0xFFFF); put_le16(frame, 0xFFFF);
 
-    in(names_frame(0x08, 0, 0, 0, nb_name(NBNS_WORKGROUP, 0x1C), nb_name("86BOX95", 0),
+    in(names_frame(0x08, 0, 0, 0, nb_name(VSERVER_WORKGROUP_NAME, 0x1C), nb_name("86BOX95", 0),
                    mailslot_write("\\MAILSLOT\\NET\\NETLOGON", frame)));
     ASSERT_EQ(sent.size(), 1u);
     EXPECT_EQ(sent[0][3 + 4], 0x08);
     EXPECT_EQ(memcmp(&sent[0][3 + 12], nb_name("86BOX95", 0).data(), 16), 0);
-    EXPECT_EQ(memcmp(&sent[0][3 + 28], nb_name(NBNS_SERVER_NAME, 0).data(), 16), 0);
+    EXPECT_EQ(memcmp(&sent[0][3 + 28], nb_name(VSERVER_SERVER_NAME, 0).data(), 16), 0);
     std::string text(sent[0].begin(), sent[0].end());
     EXPECT_NE(text.find("\\MAILSLOT\\TEMP\\NETLOGON"), std::string::npos);
-    EXPECT_NE(text.find("\\\\" NBNS_SERVER_NAME), std::string::npos);
+    EXPECT_NE(text.find("\\\\" VSERVER_SERVER_NAME), std::string::npos);
 }
 
 TEST_F(Nbf, AnnouncesOnceAGuestHasShownItself)
@@ -586,7 +586,7 @@ TEST_F(Nbf, AnnouncesOnceAGuestHasShownItself)
         nbf_tick(nbf);
     ASSERT_EQ(sent.size(), 2u);
     EXPECT_EQ(sent[0][3 + 4], 0x08);
-    EXPECT_EQ(memcmp(&sent[0][3 + 12], nb_name(NBNS_WORKGROUP, 0x1D).data(), 16), 0);
+    EXPECT_EQ(memcmp(&sent[0][3 + 12], nb_name(VSERVER_WORKGROUP_NAME, 0x1D).data(), 16), 0);
 }
 
 TEST_F(Nbf, IgnoresOtherServiceAccessPoints)

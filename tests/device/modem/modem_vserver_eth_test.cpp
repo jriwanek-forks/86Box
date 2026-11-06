@@ -106,7 +106,7 @@ TEST_F(VserverEth, AnswersArpForItsAddressOnly)
 
 TEST_F(VserverEth, AnswersBroadcastQueriesForItsNames)
 {
-    EXPECT_TRUE(in(ethernet(broadcast, 0x0800, udp(0x0A0002FF, 137, name_query(NBNS_SERVER_NAME, 0x20)))));
+    EXPECT_TRUE(in(ethernet(broadcast, 0x0800, udp(0x0A0002FF, 137, name_query(VSERVER_SERVER_NAME, 0x20)))));
     ASSERT_EQ(sent.size(), 1u);
     const bytes &r = sent[0];
     EXPECT_EQ(memcmp(r.data(), guest_mac, 6), 0);
@@ -114,7 +114,7 @@ TEST_F(VserverEth, AnswersBroadcastQueriesForItsNames)
     EXPECT_EQ(answer, server_ip);
     sent.clear();
 
-    EXPECT_TRUE(in(ethernet(broadcast, 0x0800, udp(0x0A0002FF, 137, name_query(NBNS_WORKGROUP, 0x1C)))));
+    EXPECT_TRUE(in(ethernet(broadcast, 0x0800, udp(0x0A0002FF, 137, name_query(VSERVER_WORKGROUP_NAME, 0x1C)))));
     EXPECT_EQ(sent.size(), 1u);
 }
 
@@ -123,7 +123,7 @@ TEST(VserverEthWithoutSmb, ContinuesAnsweringWinsQueries)
     std::vector<bytes> sent;
     vserver_eth_t *eth = vserver_eth_init(nullptr, server_ip, false, false, false, capture, &sent);
     ASSERT_NE(eth, nullptr);
-    bytes query = ethernet(broadcast, 0x0800, udp(0x0A0002FF, 137, name_query(NBNS_SERVER_NAME, 0x20)));
+    bytes query = ethernet(broadcast, 0x0800, udp(0x0A0002FF, 137, name_query(VSERVER_SERVER_NAME, 0x20)));
     EXPECT_TRUE(vserver_eth_input(eth, query.data(), int(query.size())));
     EXPECT_EQ(sent.size(), 1u);
     vserver_eth_close(eth);
@@ -132,7 +132,7 @@ TEST(VserverEthWithoutSmb, ContinuesAnsweringWinsQueries)
 TEST_F(VserverEth, StaysSilentForNamesItDoesNotOwn)
 {
     EXPECT_TRUE(in(ethernet(broadcast, 0x0800, udp(0x0A0002FF, 137, name_query("NOSUCHNAME", 0)))));
-    EXPECT_TRUE(in(ethernet(broadcast, 0x0800, udp(0x0A0002FF, 137, name_query(NBNS_WORKGROUP, 0)))));
+    EXPECT_TRUE(in(ethernet(broadcast, 0x0800, udp(0x0A0002FF, 137, name_query(VSERVER_WORKGROUP_NAME, 0)))));
     EXPECT_TRUE(sent.empty());
 }
 

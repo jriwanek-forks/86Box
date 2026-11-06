@@ -160,7 +160,7 @@ protected:
     void SetUp() override {
         session = smb_session_create(nullptr);
         ASSERT_NE(session, nullptr);
-        bytes request = encode_name(NBNS_SERVER_NAME, 0x20);
+        bytes request = encode_name(VSERVER_SERVER_NAME, 0x20);
         bytes calling = encode_name("CLIENT", 0);
         request.insert(request.end(), calling.begin(), calling.end());
         bytes in = nbt(0x81, request), out(SMB_MAX_OUTPUT);
@@ -393,7 +393,7 @@ TEST_F(SmbFiles, VolumeLabelSearch)
     bytes    r   = send(search(0x81, tid, 8, 0x08, "\\*.*"));
     ASSERT_EQ(get_le16(reply_word(r, 0)), 1);
     EXPECT_EQ(reply_bytes(r)[3 + 21], 0x08);
-    EXPECT_EQ(text(reply_bytes(r) + 3 + 30), "SHARED");
+    EXPECT_EQ(text(reply_bytes(r) + 3 + 30), VSERVER_SHARE_NAME);
 }
 
 TEST_F(SmbFiles, FindUniqueAndFindClose)
@@ -799,11 +799,11 @@ TEST_F(SmbFiles, QueryFilesystemLevels)
 
     r = send(query_fs(tid, 2));
     EXPECT_EQ(trans_data(r)[4], 6);
-    EXPECT_EQ(text(trans_data(r) + 5), "SHARED");
+    EXPECT_EQ(text(trans_data(r) + 5), VSERVER_SHARE_NAME);
 
     r = send(query_fs(tid, 0x102));
     EXPECT_EQ(get_le32(trans_data(r) + 12), 6u);
-    EXPECT_EQ(memcmp(trans_data(r) + 18, "SHARED", 6), 0);
+    EXPECT_EQ(memcmp(trans_data(r) + 18, VSERVER_SHARE_NAME, sizeof(VSERVER_SHARE_NAME) - 1), 0);
 
     EXPECT_EQ(get_le16(reply_word(send(query_fs(tid, 0x103)), 1)), 24);
     EXPECT_EQ(get_le32(trans_data(send(query_fs(tid, 0x104)))), 7u);
@@ -839,8 +839,8 @@ TEST_F(SmbFiles, NtNegotiateLayout)
     EXPECT_EQ(get_le32(w + 19), 0u); /* no Unicode and no NT SMBs: a Windows 9x server */
     EXPECT_EQ(w[33], 8);
     int bytes_length = get_le16(w + 34);
-    EXPECT_EQ(bytes_length, 8 + int(strlen(NBNS_WORKGROUP)) + 1);
-    EXPECT_EQ(text(w + 36 + 8), NBNS_WORKGROUP);
+    EXPECT_EQ(bytes_length, 8 + int(strlen(VSERVER_WORKGROUP_NAME)) + 1);
+    EXPECT_EQ(text(w + 36 + 8), VSERVER_WORKGROUP_NAME);
     EXPECT_EQ(r.size(), size_t(32 + 1 + 34 + 2 + bytes_length));
 }
 
@@ -1058,7 +1058,7 @@ nt_setup(const std::string &user, const bytes &oem, const bytes &wide)
     bytes b = oem;
     b.insert(b.end(), wide.begin(), wide.end());
     put_str(b, user);
-    put_str(b, "WORKGROUP");
+    put_str(b, VSERVER_DOMAIN_NAME);
     return smb(0x73, 0, { 0xFF, 0, 4356, 2, 1, 0, 0, uint16_t(oem.size()), uint16_t(wide.size()), 0, 0, 0, 0 }, b);
 }
 
@@ -1067,7 +1067,7 @@ lm_setup(const std::string &user, const bytes &oem)
 {
     bytes b = oem;
     put_str(b, user);
-    put_str(b, "WORKGROUP");
+    put_str(b, VSERVER_DOMAIN_NAME);
     return smb(0x73, 0, { 0xFF, 0, 4356, 2, 1, 0, 0, uint16_t(oem.size()), 0, 0 }, b);
 }
 
@@ -1105,32 +1105,32 @@ protected:
         expect_ok(r);
         EXPECT_EQ(get_le16(reply_word(r, 2)), expected_action);
         EXPECT_EQ(get_le16(&r[28]), 100);
-        return tree_connect("\\\\86BOXHOST\\IPC$");
+        return tree_connect("\\\\" VSERVER_SERVER_NAME "\\" VSERVER_IPC_SHARE_NAME);
     }
 };
 
 TEST_F(SmbLogon, Windows9xLogsOnWithTheLmResponse)
 {
     send(smb(0x72, 0, {}, dialects({ "NT LM 0.12" })));
-    uint16_t ipc = session_and_ipc(nt_setup("86BOX", lm_answer("86Box"), {}), 0);
+    uint16_t ipc = session_and_ipc(nt_setup("86BOX", lm_answer(VSERVER_LOGON_PASSWORD), {}), 0);
     bytes    r   = send(user_logon(ipc));
 
     expect_ok(r);
     EXPECT_EQ(get_le16(reply_word(r, 3)), 6); /* an error, a converter and a size */
     EXPECT_EQ(get_le16(trans_params(r)), 0);
     const uint8_t *d = trans_data(r);
-    EXPECT_EQ(text(d + 2), SMB_LOGON_USERNAME);
+    EXPECT_EQ(text(d + 2), VSERVER_LOGON_USERNAME);
     EXPECT_EQ(get_le16(d + 24), 1);
     EXPECT_EQ(get_le32(d + 46), 0xFFFFFFFFu);
     EXPECT_EQ(text(d + get_le32(d + 62)), "\\\\86BOXHOST");
-    EXPECT_EQ(text(d + get_le32(d + 66)), NBNS_WORKGROUP);
+    EXPECT_EQ(text(d + get_le32(d + 66)), VSERVER_WORKGROUP_NAME);
     EXPECT_EQ(text(d + get_le32(d + 70)), "");
 }
 
 TEST_F(SmbLogon, TheNtResponseAlsoProvesThePassword)
 {
     send(smb(0x72, 0, {}, dialects({ "NT LM 0.12" })));
-    uint16_t ipc = session_and_ipc(nt_setup("86box", bytes(24, 0), nt_answer("86Box")), 0);
+    uint16_t ipc = session_and_ipc(nt_setup("86box", bytes(24, 0), nt_answer(VSERVER_LOGON_PASSWORD)), 0);
     EXPECT_EQ(get_le16(trans_params(send(user_logon(ipc)))), 0);
 }
 
@@ -1169,18 +1169,18 @@ TEST_F(SmbLogon, GuestsCanStillBrowseAndRead)
 TEST_F(SmbLogon, AnotherUserWithTheRightPasswordIsAGuest)
 {
     send(smb(0x72, 0, {}, dialects({ "NT LM 0.12" })));
-    session_and_ipc(nt_setup("SOMEONE", lm_answer("86Box"), {}), 1);
+    session_and_ipc(nt_setup("SOMEONE", lm_answer(VSERVER_LOGON_PASSWORD), {}), 1);
 }
 
 TEST_F(SmbLogon, ClippedRequestsAreGuests)
 {
     send(smb(0x72, 0, {}, dialects({ "NT LM 0.12" })));
-    bytes setup = nt_setup("86BOX", lm_answer("86Box"), {});
+    bytes setup = nt_setup("86BOX", lm_answer(VSERVER_LOGON_PASSWORD), {});
     /* a password length running past the end of the message */
     setup[33 + 7 * 2] = 200;
     session_and_ipc(setup, 1);
     /* no terminator on the user name */
-    bytes b = lm_answer("86Box");
+    bytes b = lm_answer(VSERVER_LOGON_PASSWORD);
     b.insert(b.end(), { '8', '6' });
     session_and_ipc(smb(0x73, 0, { 0xFF, 0, 4356, 2, 1, 0, 0, 24, 0, 0, 0, 0, 0 }, b), 1);
 }
@@ -1188,7 +1188,7 @@ TEST_F(SmbLogon, ClippedRequestsAreGuests)
 TEST_F(SmbLogon, LogoffForgetsTheAccount)
 {
     send(smb(0x72, 0, {}, dialects({ "NT LM 0.12" })));
-    uint16_t ipc = session_and_ipc(nt_setup("86BOX", lm_answer("86Box"), {}), 0);
+    uint16_t ipc = session_and_ipc(nt_setup("86BOX", lm_answer(VSERVER_LOGON_PASSWORD), {}), 0);
     send(smb(0x74, ipc, { 0xFF, 0 }));
     ipc = tree_connect("\\\\86BOXHOST\\IPC$");
     EXPECT_EQ(get_le16(trans_params(send(user_logon(ipc)))), 5);
@@ -1197,7 +1197,8 @@ TEST_F(SmbLogon, LogoffForgetsTheAccount)
 TEST_F(SmbLogon, TheLogonShareIsEmptyAndSeparate)
 {
     send(smb(0x72, 0, {}, dialects({ "NT LM 0.12" })));
-    uint16_t logon = (send(nt_setup("86BOX", lm_answer("86Box"), {})), tree_connect("\\\\86BOXHOST\\NETLOGON"));
+    uint16_t logon = (send(nt_setup("86BOX", lm_answer(VSERVER_LOGON_PASSWORD), {})),
+                      tree_connect("\\\\" VSERVER_SERVER_NAME "\\" VSERVER_LOGON_SHARE_NAME));
 
     ASSERT_NE(logon, 0);
     expect_error(send(find_first(logon, 1, 8, "\\*")), ERRDOS, ERRbadfile);
@@ -1230,26 +1231,26 @@ account_list(uint16_t call, const std::string &user = "")
 TEST_F(SmbLogon, ListsTheAccountAndItsGroup)
 {
     send(smb(0x72, 0, {}, dialects({ "NT LM 0.12" })));
-    uint16_t ipc = session_and_ipc(nt_setup("86BOX", lm_answer("86Box"), {}), 0);
+    uint16_t ipc = session_and_ipc(nt_setup("86BOX", lm_answer(VSERVER_LOGON_PASSWORD), {}), 0);
 
     bytes r = send(rap_call(ipc, account_list(53)));
     EXPECT_EQ(get_le16(trans_params(r)), 0);
     EXPECT_EQ(get_le16(trans_params(r) + 4), 1);
     EXPECT_EQ(get_le16(reply_word(r, 1)), 21);
-    EXPECT_EQ(text(trans_data(r)), SMB_LOGON_USERNAME);
+    EXPECT_EQ(text(trans_data(r)), VSERVER_LOGON_USERNAME);
 
     r = send(rap_call(ipc, account_list(47)));
-    EXPECT_EQ(text(trans_data(r)), "Domain Users");
+    EXPECT_EQ(text(trans_data(r)), VSERVER_LOGON_GROUP_NAME);
 
     r = send(rap_call(ipc, account_list(59, "86BOX")));
     EXPECT_EQ(get_le16(trans_params(r) + 4), 1);
-    EXPECT_EQ(text(trans_data(r)), "Domain Users");
+    EXPECT_EQ(text(trans_data(r)), VSERVER_LOGON_GROUP_NAME);
 }
 
 TEST_F(SmbLogon, ASmallListBufferReportsMoreData)
 {
     send(smb(0x72, 0, {}, dialects({ "NT LM 0.12" })));
-    uint16_t ipc = session_and_ipc(nt_setup("86BOX", lm_answer("86Box"), {}), 0);
+    uint16_t ipc = session_and_ipc(nt_setup("86BOX", lm_answer(VSERVER_LOGON_PASSWORD), {}), 0);
     bytes    p;
     put_le16(p, 53);
     put_str(p, "WrLeh");
@@ -1298,7 +1299,7 @@ v2_answer(const std::string &password, const std::string &user, const std::strin
 TEST_F(SmbLogon, AcceptsLmv2)
 {
     send(smb(0x72, 0, {}, dialects({ "NT LM 0.12" })));
-    bytes answer = v2_answer("86Box", "86box", "WORKGROUP", { 1, 2, 3, 4, 5, 6, 7, 8 });
+    bytes answer = v2_answer(VSERVER_LOGON_PASSWORD, "86box", VSERVER_DOMAIN_NAME, { 1, 2, 3, 4, 5, 6, 7, 8 });
     ASSERT_EQ(answer.size(), 24u);
     uint16_t ipc = session_and_ipc(nt_setup("86box", answer, {}), 0);
     EXPECT_EQ(get_le16(trans_params(send(user_logon(ipc)))), 0);
@@ -1308,13 +1309,14 @@ TEST_F(SmbLogon, AcceptsNtlmv2)
 {
     send(smb(0x72, 0, {}, dialects({ "NT LM 0.12" })));
     bytes block(40, 0x5A);
-    session_and_ipc(nt_setup("86BOX", bytes(24, 0), v2_answer("86Box", "86BOX", "WORKGROUP", block)), 0);
+    session_and_ipc(nt_setup("86BOX", bytes(24, 0),
+                             v2_answer(VSERVER_LOGON_PASSWORD, "86BOX", VSERVER_DOMAIN_NAME, block)), 0);
 }
 
 TEST_F(SmbLogon, RefusesNtlmv2WithTheWrongPassword)
 {
     send(smb(0x72, 0, {}, dialects({ "NT LM 0.12" })));
     bytes block(40, 0x5A);
-    session_and_ipc(nt_setup("86BOX", v2_answer("WRONG", "86BOX", "WORKGROUP", { 1, 2, 3, 4, 5, 6, 7, 8 }),
-                             v2_answer("WRONG", "86BOX", "WORKGROUP", block)), 1);
+    session_and_ipc(nt_setup("86BOX", v2_answer("WRONG", "86BOX", VSERVER_DOMAIN_NAME, { 1, 2, 3, 4, 5, 6, 7, 8 }),
+                             v2_answer("WRONG", "86BOX", VSERVER_DOMAIN_NAME, block)), 1);
 }

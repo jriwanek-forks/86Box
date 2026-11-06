@@ -498,14 +498,14 @@ nbf_name_is_ours(const char *name)
     for (int suffix = 0; suffix < 3; suffix++) {
         static const uint8_t server[3] = { NBF_SUFFIX_SERVER, NBF_SUFFIX_CLIENT, 0x03 };
 
-        nbf_make_name(candidate, NBNS_SERVER_NAME, server[suffix]);
+        nbf_make_name(candidate, VSERVER_SERVER_NAME, server[suffix]);
         if (!memcmp(candidate, name, NBF_NAME_LENGTH))
             return true;
     }
     for (int suffix = 0; suffix < 3; suffix++) {
         static const uint8_t domain[3] = { 0x1B, 0x1C, 0x1D };
 
-        nbf_make_name(candidate, NBNS_WORKGROUP, domain[suffix]);
+        nbf_make_name(candidate, VSERVER_WORKGROUP_NAME, domain[suffix]);
         if (!memcmp(candidate, name, NBF_NAME_LENGTH))
             return true;
     }
@@ -517,7 +517,7 @@ nbf_name_accepts_sessions(const char *name)
 {
     char candidate[NBF_NAME_LENGTH];
 
-    nbf_make_name(candidate, NBNS_SERVER_NAME, NBF_SUFFIX_SERVER);
+    nbf_make_name(candidate, VSERVER_SERVER_NAME, NBF_SUFFIX_SERVER);
     return !memcmp(candidate, name, NBF_NAME_LENGTH);
 }
 
@@ -686,7 +686,7 @@ nbf_handle_session_init(nbf_t *nbf, nbf_session_t *session, const uint8_t *heade
             return;
         }
         /* The session layer the SMB code expects, as though over TCP. */
-        nbf_make_name(called, NBNS_SERVER_NAME, NBF_SUFFIX_SERVER);
+        nbf_make_name(called, VSERVER_SERVER_NAME, NBF_SUFFIX_SERVER);
         nbf_encode_name(request, called);
         nbf_encode_name(request + NBT_NAME_ENCODED, session->calling);
         session->state = SESSION_OPEN;

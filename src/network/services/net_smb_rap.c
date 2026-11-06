@@ -70,12 +70,7 @@ rap_log(void *priv, const char *fmt, ...)
 #define SERVER_TYPE               (SV_TYPE_WORKSTATION | SV_TYPE_SERVER | SV_TYPE_DOMAIN_CTRL | SV_TYPE_NT \
                                    | SV_TYPE_POTENTIAL_BROWSER | SV_TYPE_MASTER_BROWSER)
 
-#define SERVER_MAJOR   4
-#define SERVER_MINOR   0
-#define SERVER_COMMENT "86Box"
-
 #define RAP_ACCOUNT_LENGTH 21
-#define RAP_GROUP_NAME     "Domain Users"
 
 #define SHARE_NAME_LENGTH  13
 #define SHARE_ENTRY_LENGTH 20
@@ -89,9 +84,9 @@ typedef struct rap_share_t {
 } rap_share_t;
 
 static const rap_share_t rap_shares[] = {
-    { SMB_FS_SHARE_NAME,       SHARE_TYPE_DISK, SMB_FS_SHARE_REMARK       },
-    { SMB_FS_LOGON_SHARE_NAME, SHARE_TYPE_DISK, SMB_FS_LOGON_SHARE_REMARK },
-    { "IPC$",                  SHARE_TYPE_IPC,  "Remote IPC"              }
+    { VSERVER_SHARE_NAME,       SHARE_TYPE_DISK, VSERVER_SHARE_REMARK       },
+    { VSERVER_LOGON_SHARE_NAME, SHARE_TYPE_DISK, VSERVER_LOGON_SHARE_REMARK },
+    { VSERVER_IPC_SHARE_NAME,  SHARE_TYPE_IPC,  VSERVER_IPC_SHARE_REMARK }
 };
 
 #define RAP_SHARE_COUNT ((int) (sizeof(rap_shares) / sizeof(rap_shares[0])))
@@ -139,7 +134,7 @@ rap_server_enum(int level, int bufsize, uint32_t type, const char *domain, uint8
 {
     /* Windows asks for every type at once, which sets the domain bit as well. */
     bool        domains = (type & SV_TYPE_DOMAIN_ENUM) != 0 && type != 0xFFFFFFFFu;
-    const char *name    = domains ? NBNS_WORKGROUP : NBNS_SERVER_NAME;
+    const char *name    = domains ? VSERVER_DOMAIN_NAME : VSERVER_SERVER_NAME;
     uint32_t    entry   = domains ? (SV_TYPE_DOMAIN_ENUM | SV_TYPE_NT) : SERVER_TYPE;
     int         length  = 0;
     int         count   = 1;
@@ -151,11 +146,11 @@ rap_server_enum(int level, int bufsize, uint32_t type, const char *domain, uint8
     }
     if (!domains && !(type & SERVER_TYPE) && type != 0xFFFFFFFFu)
         count = 0;
-    if (!domains && domain[0] && strcmp(domain, NBNS_WORKGROUP) != 0)
+    if (!domains && domain[0] && strcmp(domain, VSERVER_DOMAIN_NAME) != 0)
         count = 0;
 
     if (count) {
-        int comment_length = (int) strlen(domains ? NBNS_SERVER_NAME : SERVER_COMMENT) + 1;
+        int comment_length = (int) strlen(domains ? VSERVER_SERVER_NAME : VSERVER_SERVER_COMMENT) + 1;
 
         if (bufsize < size + (level == 1 ? comment_length : 0)) {
             rap_put16(params, RAP_MORE_DATA);
@@ -166,10 +161,10 @@ rap_server_enum(int level, int bufsize, uint32_t type, const char *domain, uint8
         rap_put_name(data, name, 16);
         length = size;
         if (level == 1) {
-            data[16] = SERVER_MAJOR;
-            data[17] = SERVER_MINOR;
+            data[16] = VSERVER_SERVER_VERSION_MAJOR;
+            data[17] = VSERVER_SERVER_VERSION_MINOR;
             rap_put32(data + 18, entry);
-            rap_put_comment(data, &length, domains ? NBNS_SERVER_NAME : SERVER_COMMENT, data + 22);
+            rap_put_comment(data, &length, domains ? VSERVER_SERVER_NAME : VSERVER_SERVER_COMMENT, data + 22);
         }
     }
 
@@ -258,7 +253,7 @@ rap_server_info(int level, int bufsize, uint8_t *params, uint8_t *data)
     int length = 26;
 
     if (level == 0) {
-        rap_put_name(data, NBNS_SERVER_NAME, 16);
+        rap_put_name(data, VSERVER_SERVER_NAME, 16);
         rap_put16(params + 4, 16);
         return 16;
     }
@@ -266,15 +261,15 @@ rap_server_info(int level, int bufsize, uint8_t *params, uint8_t *data)
         rap_put16(params, RAP_INVALID_LEVEL);
         return 0;
     }
-    if (bufsize < length + (int) strlen(SERVER_COMMENT) + 1) {
+    if (bufsize < length + (int) strlen(VSERVER_SERVER_COMMENT) + 1) {
         rap_put16(params, RAP_MORE_DATA);
         return 0;
     }
-    rap_put_name(data, NBNS_SERVER_NAME, 16);
-    data[16] = SERVER_MAJOR;
-    data[17] = SERVER_MINOR;
+    rap_put_name(data, VSERVER_SERVER_NAME, 16);
+    data[16] = VSERVER_SERVER_VERSION_MAJOR;
+    data[17] = VSERVER_SERVER_VERSION_MINOR;
     rap_put32(data + 18, SERVER_TYPE);
-    rap_put_comment(data, &length, SERVER_COMMENT, data + 22);
+    rap_put_comment(data, &length, VSERVER_SERVER_COMMENT, data + 22);
     rap_put16(params + 4, (uint16_t) length);
     return length;
 }
@@ -293,13 +288,13 @@ rap_wksta_info(int level, int bufsize, uint8_t *params, uint8_t *data)
         return 0;
     }
     memset(data, 0, (size_t) length);
-    rap_put_comment(data, &length, NBNS_SERVER_NAME, data);
+    rap_put_comment(data, &length, VSERVER_SERVER_NAME, data);
     rap_put_comment(data, &length, "", data + 4);
-    rap_put_comment(data, &length, NBNS_WORKGROUP, data + 8);
-    data[12] = SERVER_MAJOR;
-    data[13] = SERVER_MINOR;
-    rap_put_comment(data, &length, NBNS_WORKGROUP, data + 14);
-    rap_put_comment(data, &length, "", data + 18);
+    rap_put_comment(data, &length, VSERVER_DOMAIN_NAME, data + 8);
+    data[12] = VSERVER_SERVER_VERSION_MAJOR;
+    data[13] = VSERVER_SERVER_VERSION_MINOR;
+    rap_put_comment(data, &length, VSERVER_DOMAIN_NAME, data + 14);
+    rap_put_comment(data, &length, VSERVER_OTHER_DOMAINS, data + 18);
     rap_put16(params + 4, (uint16_t) length);
     return length;
 }
@@ -323,14 +318,14 @@ rap_user_logon(bool authenticated, int bufsize, uint8_t *params, uint8_t *data)
     }
 
     memset(data, 0, FIXED_LENGTH);
-    memcpy(data + 2, SMB_LOGON_USERNAME, strlen(SMB_LOGON_USERNAME));
+    memcpy(data + 2, VSERVER_LOGON_USERNAME, strlen(VSERVER_LOGON_USERNAME));
     rap_put16(data + 24, 1);          /* an ordinary user */
     for (int at = 38; at <= 46; at += 4)
         rap_put32(data + at, (uint32_t) NEVER); /* last logoff, logoff and kickoff times */
     rap_put32(data + 58, (uint32_t) NEVER);     /* when the password must change */
-    rap_put_comment(data, &length, "\\\\" NBNS_SERVER_NAME, data + 62);
-    rap_put_comment(data, &length, NBNS_WORKGROUP, data + 66);
-    rap_put_comment(data, &length, "", data + 70); /* no logon script */
+    rap_put_comment(data, &length, "\\\\" VSERVER_SERVER_NAME, data + 62);
+    rap_put_comment(data, &length, VSERVER_DOMAIN_NAME, data + 66);
+    rap_put_comment(data, &length, VSERVER_LOGON_SCRIPT, data + 70);
     rap_put16(params + 4, (uint16_t) length);
     return length;
 }
@@ -414,12 +409,12 @@ smb_rap_dispatch(void *log, bool authenticated, const uint8_t *in, int in_len, u
         case RAP_NetUserEnum:
             if (pos + 4 > in_len)
                 break;
-            return rap_account_list(rap_get16(in + pos + 2), SMB_LOGON_USERNAME, params, data);
+            return rap_account_list(rap_get16(in + pos + 2), VSERVER_LOGON_USERNAME, params, data);
 
         case RAP_NetGroupEnum:
             if (pos + 4 > in_len)
                 break;
-            return rap_account_list(rap_get16(in + pos + 2), RAP_GROUP_NAME, params, data);
+            return rap_account_list(rap_get16(in + pos + 2), VSERVER_LOGON_GROUP_NAME, params, data);
 
         case RAP_NetUserGetGroups:
             {
@@ -430,7 +425,7 @@ smb_rap_dispatch(void *log, bool authenticated, const uint8_t *in, int in_len, u
                 pos += (int) strlen(name) + 1;
                 if (pos + 4 > in_len)
                     break;
-                return rap_account_list(rap_get16(in + pos + 2), RAP_GROUP_NAME, params, data);
+                return rap_account_list(rap_get16(in + pos + 2), VSERVER_LOGON_GROUP_NAME, params, data);
             }
 
         case RAP_NetWkstaUserLogon:

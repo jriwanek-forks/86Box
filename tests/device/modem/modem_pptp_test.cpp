@@ -7,6 +7,7 @@
 #include <gtest/gtest.h>
 #include <86box/modem/modem_ppp.h>
 #include <86box/modem/modem_pptp.h>
+#include <86box/network/net_vserver_config.h>
 #include <86box/network/net_vserver.h>
 
 typedef std::vector<uint8_t> bytes;
@@ -315,8 +316,8 @@ TEST_F(Pptp, AnswersTheStartOfAControlConnection)
     EXPECT_EQ(get16(&r[8]), 2);
     EXPECT_EQ(get16(&r[12]), 0x0100);
     EXPECT_EQ(r[14], 1);
-    EXPECT_EQ(memcmp(&r[28], "86BOXHOST", 9), 0);
-    EXPECT_EQ(memcmp(&r[92], "86Box", 5), 0);
+    EXPECT_EQ(memcmp(&r[28], VSERVER_SERVER_NAME, sizeof(VSERVER_SERVER_NAME) - 1), 0);
+    EXPECT_EQ(memcmp(&r[92], VSERVER_PPTP_VENDOR_NAME, sizeof(VSERVER_PPTP_VENDOR_NAME) - 1), 0);
 }
 
 TEST_F(Pptp, TakesAMessageInPieces)

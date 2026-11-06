@@ -624,11 +624,11 @@ nbns_init(void *log, uint32_t server_ip)
 
     nbns->log       = log;
     nbns->server_ip = server_ip;
-    nbns_add_permanent(nbns, NBNS_SERVER_NAME, NBNS_SUFFIX_WORKSTATION, false);
-    nbns_add_permanent(nbns, NBNS_SERVER_NAME, NBNS_SUFFIX_MESSENGER, false);
-    nbns_add_permanent(nbns, NBNS_SERVER_NAME, NBNS_SUFFIX_SERVER, false);
-    nbns_add_permanent(nbns, NBNS_WORKGROUP, NBNS_SUFFIX_WORKSTATION, true);
-    nbns_add_permanent(nbns, NBNS_WORKGROUP, NBNS_SUFFIX_BROWSER, true);
+    nbns_add_permanent(nbns, VSERVER_SERVER_NAME, NBNS_SUFFIX_WORKSTATION, false);
+    nbns_add_permanent(nbns, VSERVER_SERVER_NAME, NBNS_SUFFIX_MESSENGER, false);
+    nbns_add_permanent(nbns, VSERVER_SERVER_NAME, NBNS_SUFFIX_SERVER, false);
+    nbns_add_permanent(nbns, VSERVER_WORKGROUP_NAME, NBNS_SUFFIX_WORKSTATION, true);
+    nbns_add_permanent(nbns, VSERVER_WORKGROUP_NAME, NBNS_SUFFIX_BROWSER, true);
     return nbns;
 }
 
@@ -640,9 +640,9 @@ nbns_add_browser_names(nbns_t *nbns)
 
     if (!nbns)
         return;
-    nbns_add_permanent(nbns, NBNS_WORKGROUP, NBNS_SUFFIX_DOMAIN, true);
-    nbns_add_permanent(nbns, NBNS_WORKGROUP, NBNS_SUFFIX_DOMAIN_MASTER, false);
-    nbns_add_permanent(nbns, NBNS_WORKGROUP, NBNS_SUFFIX_MASTER_BROWSER, false);
+    nbns_add_permanent(nbns, VSERVER_WORKGROUP_NAME, NBNS_SUFFIX_DOMAIN, true);
+    nbns_add_permanent(nbns, VSERVER_WORKGROUP_NAME, NBNS_SUFFIX_DOMAIN_MASTER, false);
+    nbns_add_permanent(nbns, VSERVER_WORKGROUP_NAME, NBNS_SUFFIX_MASTER_BROWSER, false);
     nbns_add_permanent(nbns, msbrowse, NBNS_SUFFIX_MSBROWSE, true);
 }
 

@@ -2019,7 +2019,7 @@ modem_start_local_ip_connection(modem_t *modem)
 #endif
 #ifdef ENABLE_VSERVER_WINS
         if (!modem->ppp_wins1 && modem->card && modem->card->slirp_host_ip) {
-            const uint32_t wins_ip = (modem->card->slirp_host_ip & 0xFFFFFF00u) | NBNS_SERVER_HOST_ID;
+            const uint32_t wins_ip = (modem->card->slirp_host_ip & 0xFFFFFF00u) | VSERVER_SLIRP_HOST_ID;
 
             if (!modem->vserver) {
                 modem->vserver = vserver_init(modem->log, wins_ip, VSERVER_SMB_ENABLED,

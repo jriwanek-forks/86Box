@@ -280,14 +280,14 @@ nb_name_flags(const uint8_t *name)
     for (int i = 0; i < 3; i++) {
         static const uint8_t server[3] = { 0x00, 0x03, 0x20 };
 
-        nb_make_name(candidate, NBNS_SERVER_NAME, server[i]);
+        nb_make_name(candidate, VSERVER_SERVER_NAME, server[i]);
         if (!memcmp(candidate, name, NB_NAME_LENGTH))
             return NB_FLAG_IN_USE | NB_FLAG_REGISTERED;
     }
     for (int i = 0; i < 3; i++) {
         static const uint8_t domain[3] = { 0x1B, 0x1C, 0x1D };
 
-        nb_make_name(candidate, NBNS_WORKGROUP, domain[i]);
+        nb_make_name(candidate, VSERVER_WORKGROUP_NAME, domain[i]);
         if (!memcmp(candidate, name, NB_NAME_LENGTH))
             return NB_FLAG_IN_USE | NB_FLAG_REGISTERED | (domain[i] == 0x1C ? NB_FLAG_GROUP : 0);
     }
@@ -299,7 +299,7 @@ nb_name_accepts_sessions(const uint8_t *name)
 {
     char candidate[NB_NAME_LENGTH];
 
-    nb_make_name(candidate, NBNS_SERVER_NAME, 0x20);
+    nb_make_name(candidate, VSERVER_SERVER_NAME, 0x20);
     return !memcmp(candidate, name, NB_NAME_LENGTH);
 }
 
@@ -921,14 +921,14 @@ dh_handle_name(ipx_t *ipx, const ipx_address_t *from, const uint8_t *data, int l
     ipx->guest       = *from;
     if (data[IPX_ROUTES_LENGTH] != DH_QUERY && data[IPX_ROUTES_LENGTH] != DH_MAILSLOT_FIND)
         return;
-    if (!dh_name_is(data + IPX_ROUTES_LENGTH + 4, NBNS_SERVER_NAME)
-        && !dh_name_is(data + IPX_ROUTES_LENGTH + 4, NBNS_WORKGROUP))
+    if (!dh_name_is(data + IPX_ROUTES_LENGTH + 4, VSERVER_SERVER_NAME)
+        && !dh_name_is(data + IPX_ROUTES_LENGTH + 4, VSERVER_WORKGROUP_NAME))
         return;
 
     memcpy(frame, data, DH_HEADER);
     memset(frame, 0, IPX_ROUTES_LENGTH);
     frame[IPX_ROUTES_LENGTH] = data[IPX_ROUTES_LENGTH] == DH_QUERY ? DH_FOUND : DH_MAILSLOT_NAME;
-    nb_make_name(name, NBNS_SERVER_NAME, 0);
+    nb_make_name(name, VSERVER_SERVER_NAME, 0);
     memcpy(frame + IPX_ROUTES_LENGTH + 4 + NB_NAME_LENGTH, name, NB_NAME_LENGTH);
     ipx_send(ipx, IPX_TYPE_PEP, from, IPX_SOCKET_NAME, frame, sizeof(frame));
 }
