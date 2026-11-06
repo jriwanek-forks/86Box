@@ -1455,6 +1455,9 @@ modem_ras_log_event(void *priv, modem_ras_event_t event, uint8_t address, uint16
             modem_log(modem->log, "RAS: Invalid ETX 0x%02X (expected 0x%02X)\n",
                       (unsigned) actual, (unsigned) expected);
             break;
+        case MODEM_RAS_EVENT_INVALID_ESCAPE:
+            modem_log(modem->log, "RAS: Incomplete XON/XOFF escape sequence\n");
+            break;
         case MODEM_RAS_EVENT_BAD_CRC:
             modem_log(modem->log, "RAS: CRC mismatch for %u-byte frame (received 0x%04X, expected 0x%04X)\n",
                       (unsigned) length, (unsigned) actual, (unsigned) expected);

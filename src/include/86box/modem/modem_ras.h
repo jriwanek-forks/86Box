@@ -17,8 +17,12 @@ extern "C" {
 #define MODEM_RAS_MAX_PAYLOAD 1500
 #define MODEM_RAS_SYNC        0x16
 #define MODEM_RAS_ETX         0x03
+#define MODEM_RAS_ESCAPE      0x7D
+#define MODEM_RAS_ESCAPE_FLAG 0x20
 #define MODEM_RAS_BROADCAST   0x01
 #define MODEM_RAS_DESTINATION 0x02
+#define MODEM_RAS_XONXOFF_MASK ((1u << 0x11) | (1u << 0x13))
+#define MODEM_RAS_MAX_ENCODED_FRAME_SIZE (2 * (MODEM_RAS_MAX_PAYLOAD + 3) + 4)
 
 #define MODEM_RAS_FRAME_PROTOCOL       100
 #define MODEM_RAS_FRAME_CHALLENGE      101
@@ -44,6 +48,7 @@ typedef enum modem_ras_event_t {
     MODEM_RAS_EVENT_INVALID_ADDRESS,
     MODEM_RAS_EVENT_INVALID_LENGTH,
     MODEM_RAS_EVENT_INVALID_ETX,
+    MODEM_RAS_EVENT_INVALID_ESCAPE,
     MODEM_RAS_EVENT_BAD_CRC
 } modem_ras_event_t;
 typedef void (*modem_ras_event_callback_t)(void *priv, modem_ras_event_t event,
@@ -59,7 +64,8 @@ typedef enum modem_ras_rx_state_t {
     MODEM_RAS_RX_PAYLOAD,
     MODEM_RAS_RX_ETX,
     MODEM_RAS_RX_CRC_LOW,
-    MODEM_RAS_RX_CRC_HIGH
+    MODEM_RAS_RX_CRC_HIGH,
+    MODEM_RAS_RX_ESCAPED_BODY
 } modem_ras_rx_state_t;
 
 typedef enum modem_ras_session_state_t {
@@ -101,18 +107,31 @@ typedef struct modem_ras_decoder_t {
     uint16_t                   position;
     uint16_t                   crc;
     uint8_t                    received_crc_low;
+    bool                       escaped_frame;
+    bool                       escape_next;
+    uint16_t                   wire_length;
+    uint16_t                   wire_position;
+    uint8_t                    escaped_tail[3];
+    uint8_t                    escaped_tail_length;
+    uint32_t                   xon_xoff_mask;
     uint8_t                    payload[MODEM_RAS_MAX_PAYLOAD];
 } modem_ras_decoder_t;
 
 void modem_ras_decoder_init(modem_ras_decoder_t *decoder,
                             modem_ras_frame_callback_t callback,
                             modem_ras_event_callback_t event_callback, void *priv);
+void modem_ras_decoder_set_xon_xoff_mask(modem_ras_decoder_t *decoder, uint32_t mask);
 void modem_ras_rx_byte(modem_ras_decoder_t *decoder, uint8_t byte);
 
 bool modem_ras_encode_frame(uint8_t address, const uint8_t *payload, size_t length,
                             uint8_t *output, size_t output_capacity, size_t *output_length);
+bool modem_ras_encode_frame_xon_xoff(uint8_t address, const uint8_t *payload, size_t length,
+                                     uint32_t mask, uint8_t *output, size_t output_capacity,
+                                     size_t *output_length);
 bool modem_ras_send_nbf(modem_ras_serial_push_t serial_push, void *priv,
                         const uint8_t *frame, int length);
+bool modem_ras_send_nbf_xon_xoff(modem_ras_serial_push_t serial_push, void *priv,
+                                 const uint8_t *frame, int length, uint32_t mask);
 void modem_ras_session_init(modem_ras_session_t *session);
 /* Negotiates and authenticates a legacy RAS response using the configured credentials. */
 modem_ras_session_result_t modem_ras_session_process_message(

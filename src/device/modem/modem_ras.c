@@ -41,10 +41,31 @@ ras_crc_update(uint16_t crc, uint8_t byte)
 static void
 ras_rx_reset(modem_ras_decoder_t *decoder, uint8_t byte)
 {
-    decoder->state = (byte == MODEM_RAS_SYNC) ? MODEM_RAS_RX_ADDRESS : MODEM_RAS_RX_SYNC;
+    decoder->state = (byte == MODEM_RAS_SYNC || byte == (MODEM_RAS_SYNC | MODEM_RAS_ESCAPE_FLAG))
+                         ? MODEM_RAS_RX_ADDRESS
+                         : MODEM_RAS_RX_SYNC;
+    decoder->escaped_frame = byte == (MODEM_RAS_SYNC | MODEM_RAS_ESCAPE_FLAG);
+    decoder->escape_next = false;
     decoder->length = 0;
     decoder->position = 0;
     decoder->crc = 0;
+    decoder->wire_length = 0;
+    decoder->wire_position = 0;
+    decoder->escaped_tail_length = 0;
+}
+
+static void
+ras_rx_complete(modem_ras_decoder_t *decoder)
+{
+    decoder->state = MODEM_RAS_RX_SYNC;
+    decoder->escaped_frame = false;
+    decoder->escape_next = false;
+    decoder->length = 0;
+    decoder->position = 0;
+    decoder->crc = 0;
+    decoder->wire_length = 0;
+    decoder->wire_position = 0;
+    decoder->escaped_tail_length = 0;
 }
 
 void
@@ -59,6 +80,90 @@ modem_ras_decoder_init(modem_ras_decoder_t *decoder, modem_ras_frame_callback_t 
     decoder->event_callback = event_callback;
     decoder->priv = priv;
     decoder->state = MODEM_RAS_RX_SYNC;
+    decoder->xon_xoff_mask = MODEM_RAS_XONXOFF_MASK;
+}
+
+void
+modem_ras_decoder_set_xon_xoff_mask(modem_ras_decoder_t *decoder, uint32_t mask)
+{
+    if (decoder)
+        decoder->xon_xoff_mask = mask;
+}
+
+static void
+ras_rx_escaped_body_byte(modem_ras_decoder_t *decoder, uint8_t byte)
+{
+    uint8_t decoded;
+
+    decoder->wire_position++;
+    if (decoder->escape_next) {
+        decoded = byte ^ 0x20;
+        decoder->escape_next = false;
+    } else if (byte == MODEM_RAS_ESCAPE) {
+        decoder->escape_next = true;
+        if (decoder->wire_position == decoder->wire_length) {
+            if (decoder->event_callback)
+                decoder->event_callback(decoder->priv, MODEM_RAS_EVENT_INVALID_ESCAPE,
+                                        decoder->address, decoder->length, byte, 0);
+            ras_rx_complete(decoder);
+        }
+        return;
+    } else if (byte < 32 && (decoder->xon_xoff_mask & (1u << byte)))
+        return;
+    else
+        decoded = byte;
+
+    if (decoder->escaped_tail_length < sizeof(decoder->escaped_tail)) {
+        decoder->escaped_tail[decoder->escaped_tail_length++] = decoded;
+    } else {
+        if (decoder->position >= MODEM_RAS_MAX_PAYLOAD) {
+            if (decoder->event_callback)
+                decoder->event_callback(decoder->priv, MODEM_RAS_EVENT_INVALID_LENGTH,
+                                        decoder->address, decoder->length, decoder->position + 1,
+                                        MODEM_RAS_MAX_PAYLOAD);
+            ras_rx_complete(decoder);
+            return;
+        }
+        decoder->payload[decoder->position++] = decoder->escaped_tail[0];
+        decoder->crc = ras_crc_update(decoder->crc, decoder->escaped_tail[0]);
+        memmove(decoder->escaped_tail, decoder->escaped_tail + 1, 2);
+        decoder->escaped_tail[2] = decoded;
+    }
+
+    if (decoder->wire_position != decoder->wire_length)
+        return;
+
+    if (decoder->escape_next) {
+        if (decoder->event_callback)
+            decoder->event_callback(decoder->priv, MODEM_RAS_EVENT_INVALID_ESCAPE,
+                                    decoder->address, decoder->length, MODEM_RAS_ESCAPE, 0);
+    } else if (decoder->escaped_tail_length != sizeof(decoder->escaped_tail)) {
+        if (decoder->event_callback)
+            decoder->event_callback(decoder->priv, MODEM_RAS_EVENT_INVALID_LENGTH,
+                                    decoder->address, decoder->length,
+                                    decoder->escaped_tail_length, sizeof(decoder->escaped_tail));
+    } else if (decoder->escaped_tail[0] != MODEM_RAS_ETX) {
+        if (decoder->event_callback)
+            decoder->event_callback(decoder->priv, MODEM_RAS_EVENT_INVALID_ETX,
+                                    decoder->address, decoder->length,
+                                    decoder->escaped_tail[0], MODEM_RAS_ETX);
+    } else {
+        const uint16_t received_crc = (uint16_t) (decoder->escaped_tail[1]
+                                                  | ((uint16_t) decoder->escaped_tail[2] << 8));
+
+        if (received_crc == decoder->crc) {
+            if (decoder->event_callback)
+                decoder->event_callback(decoder->priv, MODEM_RAS_EVENT_FRAME_RECEIVED,
+                                        decoder->address, decoder->position, 0, 0);
+            if (decoder->callback)
+                decoder->callback(decoder->priv, decoder->address, decoder->payload,
+                                  decoder->position);
+        } else if (decoder->event_callback)
+            decoder->event_callback(decoder->priv, MODEM_RAS_EVENT_BAD_CRC,
+                                    decoder->address, decoder->position, received_crc,
+                                    decoder->crc);
+    }
+    ras_rx_complete(decoder);
 }
 
 void
@@ -71,40 +176,84 @@ modem_ras_rx_byte(modem_ras_decoder_t *decoder, uint8_t byte)
         case MODEM_RAS_RX_SYNC:
             if (byte == MODEM_RAS_SYNC)
                 decoder->state = MODEM_RAS_RX_ADDRESS;
+            else if (byte == (MODEM_RAS_SYNC | MODEM_RAS_ESCAPE_FLAG)) {
+                decoder->state = MODEM_RAS_RX_ADDRESS;
+                decoder->escaped_frame = true;
+            }
             break;
 
         case MODEM_RAS_RX_ADDRESS:
-            if (byte != MODEM_RAS_BROADCAST && byte != MODEM_RAS_DESTINATION) {
+        {
+            const uint8_t address = decoder->escaped_frame
+                                        ? (byte & (uint8_t) ~MODEM_RAS_ESCAPE_FLAG)
+                                        : byte;
+
+            if ((decoder->escaped_frame && !(byte & MODEM_RAS_ESCAPE_FLAG))
+                || (address != MODEM_RAS_BROADCAST && address != MODEM_RAS_DESTINATION)) {
                 if (decoder->event_callback)
                     decoder->event_callback(decoder->priv, MODEM_RAS_EVENT_INVALID_ADDRESS,
                                             byte, 0, byte, 0);
                 ras_rx_reset(decoder, byte);
                 break;
             }
-            decoder->address = byte;
-            decoder->crc = ras_crc_update(0, byte);
+            decoder->address = address;
+            decoder->crc = decoder->escaped_frame ? 0 : ras_crc_update(0, address);
             decoder->state = MODEM_RAS_RX_LENGTH_HIGH;
             break;
+        }
 
         case MODEM_RAS_RX_LENGTH_HIGH:
-            decoder->length = (uint16_t) byte << 8;
-            decoder->crc = ras_crc_update(decoder->crc, byte);
+            if (decoder->escaped_frame) {
+                if (!(byte & 0x80)) {
+                    if (decoder->event_callback)
+                        decoder->event_callback(decoder->priv, MODEM_RAS_EVENT_INVALID_LENGTH,
+                                                decoder->address, 0, byte, 0x80);
+                    ras_rx_reset(decoder, byte);
+                    break;
+                }
+                decoder->wire_length = (uint16_t) (byte & 0x7f) << 7;
+            } else {
+                decoder->length = (uint16_t) byte << 8;
+                decoder->crc = ras_crc_update(decoder->crc, byte);
+            }
             decoder->state = MODEM_RAS_RX_LENGTH_LOW;
             break;
 
         case MODEM_RAS_RX_LENGTH_LOW:
-            decoder->length |= byte;
-            decoder->crc = ras_crc_update(decoder->crc, byte);
-            if (!decoder->length || decoder->length > MODEM_RAS_MAX_PAYLOAD) {
-                if (decoder->event_callback)
-                    decoder->event_callback(decoder->priv, MODEM_RAS_EVENT_INVALID_LENGTH,
-                                            decoder->address, decoder->length, decoder->length,
-                                            MODEM_RAS_MAX_PAYLOAD);
-                ras_rx_reset(decoder, byte);
-                break;
+            if (decoder->escaped_frame) {
+                if (!(byte & 0x80)) {
+                    if (decoder->event_callback)
+                        decoder->event_callback(decoder->priv, MODEM_RAS_EVENT_INVALID_LENGTH,
+                                                decoder->address, 0, byte, 0x80);
+                    ras_rx_reset(decoder, byte);
+                    break;
+                }
+                decoder->wire_length |= byte & 0x7f;
+                if (decoder->wire_length < 4
+                    || decoder->wire_length > 2 * (MODEM_RAS_MAX_PAYLOAD + 3)) {
+                    if (decoder->event_callback)
+                        decoder->event_callback(decoder->priv, MODEM_RAS_EVENT_INVALID_LENGTH,
+                                                decoder->address, decoder->wire_length,
+                                                decoder->wire_length,
+                                                2 * (MODEM_RAS_MAX_PAYLOAD + 3));
+                    ras_rx_reset(decoder, byte);
+                    break;
+                }
+                decoder->state = MODEM_RAS_RX_ESCAPED_BODY;
+            } else {
+                decoder->length |= byte;
+                decoder->crc = ras_crc_update(decoder->crc, byte);
+                if (!decoder->length || decoder->length > MODEM_RAS_MAX_PAYLOAD) {
+                    if (decoder->event_callback)
+                        decoder->event_callback(decoder->priv, MODEM_RAS_EVENT_INVALID_LENGTH,
+                                                decoder->address, decoder->length, decoder->length,
+                                                MODEM_RAS_MAX_PAYLOAD);
+                    ras_rx_reset(decoder, byte);
+                    break;
+                }
+                decoder->position = 0;
+                decoder->state = MODEM_RAS_RX_PAYLOAD;
             }
-            decoder->position = 0;
-            decoder->state = MODEM_RAS_RX_PAYLOAD;
             break;
 
         case MODEM_RAS_RX_PAYLOAD:
@@ -147,12 +296,13 @@ modem_ras_rx_byte(modem_ras_decoder_t *decoder, uint8_t byte)
                 decoder->event_callback(decoder->priv, MODEM_RAS_EVENT_BAD_CRC,
                                         decoder->address, decoder->length, received_crc,
                                         decoder->crc);
-            decoder->state = MODEM_RAS_RX_SYNC;
-            decoder->length = 0;
-            decoder->position = 0;
-            decoder->crc = 0;
+            ras_rx_complete(decoder);
             break;
         }
+
+        case MODEM_RAS_RX_ESCAPED_BODY:
+            ras_rx_escaped_body_byte(decoder, byte);
+            break;
     }
 }
 
@@ -189,6 +339,65 @@ modem_ras_encode_frame(uint8_t address, const uint8_t *payload, size_t length,
     return true;
 }
 
+static bool
+ras_xon_xoff_escape(uint8_t byte, uint32_t mask)
+{
+    return byte == MODEM_RAS_ESCAPE || (byte < 32 && (mask & (1u << byte)));
+}
+
+bool
+modem_ras_encode_frame_xon_xoff(uint8_t address, const uint8_t *payload, size_t length,
+                                uint32_t mask, uint8_t *output, size_t output_capacity,
+                                size_t *output_length)
+{
+    uint16_t crc = 0;
+    size_t   body_length = 0;
+    size_t   frame_length;
+    size_t   position;
+
+    if (output_length)
+        *output_length = 0;
+    if ((address != MODEM_RAS_BROADCAST && address != MODEM_RAS_DESTINATION)
+        || !payload || !length || length > MODEM_RAS_MAX_PAYLOAD || !output || !output_length)
+        return false;
+
+    for (size_t i = 0; i < length; i++) {
+        crc = ras_crc_update(crc, payload[i]);
+        body_length += ras_xon_xoff_escape(payload[i], mask) ? 2 : 1;
+    }
+
+    const uint8_t trailer[] = {
+        MODEM_RAS_ETX,
+        (uint8_t) crc,
+        (uint8_t) (crc >> 8)
+    };
+    for (size_t i = 0; i < sizeof(trailer); i++)
+        body_length += ras_xon_xoff_escape(trailer[i], mask) ? 2 : 1;
+
+    frame_length = body_length + 4;
+    if (body_length > 0x3fff || output_capacity < frame_length)
+        return false;
+
+    output[0] = MODEM_RAS_SYNC | MODEM_RAS_ESCAPE_FLAG;
+    output[1] = address | MODEM_RAS_ESCAPE_FLAG;
+    output[2] = (uint8_t) (((body_length >> 7) & 0x7f) | 0x80);
+    output[3] = (uint8_t) ((body_length & 0x7f) | 0x80);
+    position = 4;
+    for (size_t i = 0; i < length; i++) {
+        if (ras_xon_xoff_escape(payload[i], mask))
+            output[position++] = MODEM_RAS_ESCAPE;
+        output[position++] = ras_xon_xoff_escape(payload[i], mask) ? payload[i] ^ 0x20 : payload[i];
+    }
+    for (size_t i = 0; i < sizeof(trailer); i++) {
+        if (ras_xon_xoff_escape(trailer[i], mask))
+            output[position++] = MODEM_RAS_ESCAPE;
+        output[position++] = ras_xon_xoff_escape(trailer[i], mask) ? trailer[i] ^ 0x20 : trailer[i];
+    }
+
+    *output_length = frame_length;
+    return true;
+}
+
 bool
 modem_ras_send_nbf(modem_ras_serial_push_t serial_push, void *priv,
                    const uint8_t *frame, int length)
@@ -199,6 +408,22 @@ modem_ras_send_nbf(modem_ras_serial_push_t serial_push, void *priv,
     if (!serial_push || !frame || length <= 0
         || !modem_ras_encode_frame(MODEM_RAS_DESTINATION, frame, (size_t) length,
                                    output, sizeof(output), &output_length))
+        return false;
+
+    serial_push(priv, output, (int) output_length);
+    return true;
+}
+
+bool
+modem_ras_send_nbf_xon_xoff(modem_ras_serial_push_t serial_push, void *priv,
+                            const uint8_t *frame, int length, uint32_t mask)
+{
+    uint8_t output[MODEM_RAS_MAX_ENCODED_FRAME_SIZE];
+    size_t  output_length;
+
+    if (!serial_push || !frame || length <= 0
+        || !modem_ras_encode_frame_xon_xoff(MODEM_RAS_DESTINATION, frame, (size_t) length,
+                                            mask, output, sizeof(output), &output_length))
         return false;
 
     serial_push(priv, output, (int) output_length);

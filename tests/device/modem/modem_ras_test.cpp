@@ -170,6 +170,17 @@ encode_ras_frame(uint8_t address, const std::vector<uint8_t> &payload)
     return output;
 }
 
+static std::vector<uint8_t>
+encode_ras_frame_xon_xoff(uint8_t address, const std::vector<uint8_t> &payload, uint32_t mask)
+{
+    std::vector<uint8_t> output(MODEM_RAS_MAX_ENCODED_FRAME_SIZE);
+    size_t output_length = 0;
+    EXPECT_TRUE(modem_ras_encode_frame_xon_xoff(address, payload.data(), payload.size(), mask,
+                                                output.data(), output.size(), &output_length));
+    output.resize(output_length);
+    return output;
+}
+
 TEST(ModemRas, EncodesTheDocumentedUncompressedFrameLayout)
 {
     const uint8_t payload[] = { 0xF0, 0xF0, 0x03 };
@@ -192,6 +203,67 @@ TEST(ModemRas, SendsNbfPayloadAsDestinationFrame)
     ASSERT_TRUE(modem_ras_send_nbf(capture_serial_bytes, &wire, payload.data(),
                                    (int) payload.size()));
     EXPECT_EQ(wire, encode_ras_frame(MODEM_RAS_DESTINATION, payload));
+}
+
+TEST(ModemRas, EncodesXonXoffFrameWithEscapedControlsAndSevenBitLength)
+{
+    const std::vector<uint8_t> payload = { 0x11, 0x13, 0x7D, 0x16 };
+    const auto wire = encode_ras_frame_xon_xoff(MODEM_RAS_DESTINATION, payload,
+                                                MODEM_RAS_XONXOFF_MASK);
+    const std::vector<uint8_t> expected = {
+        0x36, 0x22, 0x80, 0x8A, 0x7D, 0x31, 0x7D, 0x33, 0x7D, 0x5D,
+        0x16, 0x03, 0xD2, 0x7B
+    };
+
+    EXPECT_EQ(wire, expected);
+
+    std::vector<uint8_t> sent;
+    ASSERT_TRUE(modem_ras_send_nbf_xon_xoff(capture_serial_bytes, &sent, payload.data(),
+                                            (int) payload.size(), MODEM_RAS_XONXOFF_MASK));
+    EXPECT_EQ(sent, encode_ras_frame_xon_xoff(MODEM_RAS_DESTINATION, payload,
+                                              MODEM_RAS_XONXOFF_MASK));
+}
+
+TEST(ModemRas, DecodesXonXoffFrameAndRestoresEscapedPayload)
+{
+    const std::vector<uint8_t> payload = { 0x11, 0x13, 0x7D, 0x16, 0x03 };
+    const auto wire = encode_ras_frame_xon_xoff(MODEM_RAS_BROADCAST, payload,
+                                                MODEM_RAS_XONXOFF_MASK | (1u << 0x03));
+    ras_capture_t capture;
+    modem_ras_decoder_t decoder;
+    modem_ras_decoder_init(&decoder, capture_ras_frame, capture_ras_event, &capture);
+    modem_ras_decoder_set_xon_xoff_mask(&decoder,
+                                        MODEM_RAS_XONXOFF_MASK | (1u << 0x03));
+
+    for (uint8_t byte : wire)
+        modem_ras_rx_byte(&decoder, byte);
+
+    EXPECT_EQ(capture.frames, 1);
+    EXPECT_EQ(capture.address, MODEM_RAS_BROADCAST);
+    EXPECT_EQ(capture.payload, payload);
+    EXPECT_EQ(capture.events, std::vector<modem_ras_event_t> { MODEM_RAS_EVENT_FRAME_RECEIVED });
+}
+
+TEST(ModemRas, ReportsIncompleteXonXoffEscapeAndRecovers)
+{
+    const uint8_t malformed[] = { 0x36, 0x22, 0x80, 0x84, 0x55, 0x03, 0x00, 0x7D };
+    const std::vector<uint8_t> payload = { 0xF0, 0xF0, 0x03 };
+    const auto valid = encode_ras_frame(MODEM_RAS_DESTINATION, payload);
+    ras_capture_t capture;
+    modem_ras_decoder_t decoder;
+    modem_ras_decoder_init(&decoder, capture_ras_frame, capture_ras_event, &capture);
+
+    for (uint8_t byte : malformed)
+        modem_ras_rx_byte(&decoder, byte);
+    EXPECT_EQ(capture.events,
+              std::vector<modem_ras_event_t> { MODEM_RAS_EVENT_INVALID_ESCAPE });
+
+    for (uint8_t byte : valid)
+        modem_ras_rx_byte(&decoder, byte);
+    EXPECT_EQ(capture.frames, 1);
+    EXPECT_EQ(capture.payload, payload);
+    ASSERT_EQ(capture.events.size(), 2u);
+    EXPECT_EQ(capture.events.back(), MODEM_RAS_EVENT_FRAME_RECEIVED);
 }
 
 TEST(ModemRas, NegotiatesVersionAndIssuesChallenge)
