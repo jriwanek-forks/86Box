@@ -768,7 +768,8 @@ modem_ras_session_process_message(modem_ras_session_t *session, const uint8_t *m
                 return MODEM_RAS_SESSION_INVALID_MESSAGE;
             if (!send(send_priv, configuration_result, sizeof(configuration_result)))
                 return MODEM_RAS_SESSION_SEND_FAILURE;
-            /* Report an unknown speed using the NT server's failed-measurement value. */
+            ras_write_le32(link_speed_result + 1,
+                           ras_read_le32(message + MODEM_RAS_CONFIG_LINK_SPEED_OFFSET));
             if (supported && !send(send_priv, link_speed_result, sizeof(link_speed_result)))
                 return MODEM_RAS_SESSION_SEND_FAILURE;
 
