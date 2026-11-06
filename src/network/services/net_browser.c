@@ -33,8 +33,11 @@
 
 #define SMB_HEADER_LENGTH  32
 #define SMB_COM_TRANSACTION 0x25
+#define BROWSE_FRAME_HEADER_LENGTH 32
+#define BROWSE_COMMENT_MAX 43
 
 #define BROWSE_HOST_ANNOUNCEMENT    1
+#define BROWSE_ANNOUNCEMENT_REQUEST 2
 #define BROWSE_REQUEST_ELECTION     8
 #define BROWSE_BACKUP_LIST_REQUEST  9
 #define BROWSE_BACKUP_LIST_RESPONSE 10
@@ -48,7 +51,7 @@
 #define BROWSE_PERIOD_MS    60000u
 #define BROWSE_SERVER_TYPE  0x0005100Bu
 #define ELECTION_VERSION    1
-#define ELECTION_CRITERIA   0x20010FFFu /* NT Server beats anything a guest will claim */
+#define ELECTION_CRITERIA   0x20010F2Eu /* Preferred master, domain controller, and NetBIOS server */
 
 static void
 dgm_put_be32(uint8_t *p, uint32_t value)
@@ -146,26 +149,43 @@ static int
 browser_announcement_frame(uint8_t opcode, uint32_t type, uint8_t *frame)
 {
     static const char comment[] = VSERVER_SERVER_COMMENT;
+    size_t            name_length = strlen(VSERVER_SERVER_NAME);
+    size_t            comment_length = sizeof(comment);
 
-    memset(frame, 0, 32);
+    if (name_length > 15)
+        name_length = 15;
+    if (comment_length > BROWSE_COMMENT_MAX)
+        comment_length = BROWSE_COMMENT_MAX;
+
+    memset(frame, 0, BROWSE_FRAME_HEADER_LENGTH);
     frame[0] = opcode;
-    frame[1] = 1;
     dgm_put_le32(frame + 2, BROWSE_PERIOD_MS);
-    memcpy(frame + 6, VSERVER_SERVER_NAME, strlen(VSERVER_SERVER_NAME));
+    memcpy(frame + 6, VSERVER_SERVER_NAME, name_length);
     frame[22] = 4;
     frame[23] = 0;
     dgm_put_le32(frame + 24, type);
     frame[28] = 15;
     frame[29] = 1;
     dgm_put_le16(frame + 30, 0xAA55);
-    memcpy(frame + 32, comment, sizeof(comment));
-    return 32 + (int) sizeof(comment);
+    memcpy(frame + BROWSE_FRAME_HEADER_LENGTH, comment, comment_length);
+    frame[BROWSE_FRAME_HEADER_LENGTH + comment_length - 1] = 0;
+    return BROWSE_FRAME_HEADER_LENGTH + (int) comment_length;
+}
+
+static int
+browser_announcement_response(uint32_t server_ip, const uint8_t *request, uint8_t *reply, int reply_cap)
+{
+    uint8_t frame[BROWSE_FRAME_HEADER_LENGTH + BROWSE_COMMENT_MAX];
+    int     length = browser_announcement_frame(BROWSE_HOST_ANNOUNCEMENT, BROWSE_SERVER_TYPE, frame);
+
+    return dgm_build(server_ip, DGM_DIRECT_UNIQUE, BROWSE_MAILSLOT, request + DGM_HEADER_LENGTH, frame, length,
+                     reply, reply_cap);
 }
 
 int
 browser_announcement(uint32_t server_ip, int which, uint8_t *reply, int reply_cap)
 {
-    uint8_t frame[64];
+    uint8_t frame[BROWSE_FRAME_HEADER_LENGTH + BROWSE_COMMENT_MAX];
     uint8_t destination[DGM_NAME_LENGTH];
     int     length;
 
@@ -267,30 +287,48 @@ browser_process(uint32_t server_ip, const uint8_t *msg, int len, uint8_t *reply,
     if (netlogon)
         return netlogon_process(server_ip, msg, frame, frame_length, reply, reply_cap);
 
+    if (frame[0] == BROWSE_ANNOUNCEMENT_REQUEST) {
+        if (frame_length < 2 || frame[1] != 0)
+            return 0;
+        return browser_announcement_response(server_ip, msg, reply, reply_cap);
+    }
+
     if (frame[0] == BROWSE_BACKUP_LIST_REQUEST && frame_length >= 6) {
         uint8_t response[32];
 
         response[0] = BROWSE_BACKUP_LIST_RESPONSE;
-        response[1] = 1;
+        response[1] = 0;
         memcpy(response + 2, frame + 2, 4); /* the requester's token */
-        memcpy(response + 6, VSERVER_SERVER_NAME, sizeof(VSERVER_SERVER_NAME));
         return dgm_build(server_ip, DGM_DIRECT_UNIQUE, BROWSE_MAILSLOT, msg + DGM_HEADER_LENGTH, response,
-                         6 + (int) sizeof(VSERVER_SERVER_NAME), reply, reply_cap);
+                         6, reply, reply_cap);
     }
 
     if (frame[0] == BROWSE_REQUEST_ELECTION) {
         uint8_t election[32];
         uint8_t destination[DGM_NAME_LENGTH];
+        size_t  name_length = strlen(VSERVER_SERVER_NAME);
+        size_t  request_name_length;
+        size_t  available = frame_length > 14 ? (size_t) frame_length - 14 : 0;
 
+        if (frame_length < 15 || frame[1] != ELECTION_VERSION)
+            return 0;
+        if (available > 16)
+            available = 16;
+        request_name_length = strnlen((const char *) frame + 14, available);
+        if (request_name_length == available)
+            return 0;
+
+        if (name_length > 15)
+            name_length = 15;
         memset(election, 0, 14);
         election[0] = BROWSE_REQUEST_ELECTION;
         election[1] = ELECTION_VERSION;
         dgm_put_le32(election + 2, ELECTION_CRITERIA);
-        dgm_put_le32(election + 6, 0xFFFFFFFFu); /* uptime */
-        memcpy(election + 14, VSERVER_SERVER_NAME, sizeof(VSERVER_SERVER_NAME));
+        dgm_put_le32(election + 6, 0);
+        memcpy(election + 14, VSERVER_SERVER_NAME, name_length);
         dgm_encode_name(destination, VSERVER_WORKGROUP_NAME, 0x1E);
         return dgm_build(server_ip, DGM_DIRECT_GROUP, BROWSE_MAILSLOT, destination, election,
-                         14 + (int) sizeof(VSERVER_SERVER_NAME), reply, reply_cap);
+                         14 + (int) name_length + 1, reply, reply_cap);
     }
 
     return 0;

@@ -46,4 +46,13 @@ if(BUILD_TESTING)
     )
     target_link_libraries(network_queue_tests PRIVATE PkgConfig::NETWORK_TEST_SLIRP)
     add_test(NAME network_queue COMMAND network_queue_tests)
+
+    add_executable(slirp_dhcp_wins_tests
+        net_slirp_dhcp_test.c
+        ../../src/network/net_slirp_dhcp.c
+    )
+    target_include_directories(slirp_dhcp_wins_tests PRIVATE
+        ${PROJECT_SOURCE_DIR}/src/network
+    )
+    add_test(NAME slirp_dhcp_wins COMMAND slirp_dhcp_wins_tests)
 endif()

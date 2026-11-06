@@ -10,8 +10,8 @@
  *
  *          The server speaks IP, LLC and IPX, so all this adds is what a
  *          segment needs on top: an address of its own, answers to ARP, a
- *          guest's broadcast name queries, since SLiRP's DHCP can't announce
- *          WINS, and whichever of IPX's four framings the guest picked.
+ *          guest's broadcast name queries for clients that do not use WINS,
+ *          and whichever of IPX's four framings the guest picked.
  *
  * Authors: Jasmine Iwanek, <jriwanek@gmail.com>
  *

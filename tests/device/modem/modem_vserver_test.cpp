@@ -25,6 +25,9 @@ static void put_be32(bytes &b, uint32_t v) { put_be16(b, uint16_t(v >> 16)); put
 static void put_le16(bytes &b, uint16_t v) { b.push_back(uint8_t(v)); b.push_back(uint8_t(v >> 8)); }
 static void put_str(bytes &b, const std::string &s) { b.insert(b.end(), s.begin(), s.end()); b.push_back(0); }
 static uint16_t get_le16(const uint8_t *p) { return uint16_t(p[0] | (p[1] << 8)); }
+static uint32_t get_le32(const uint8_t *p) {
+    return uint32_t(p[0]) | (uint32_t(p[1]) << 8) | (uint32_t(p[2]) << 16) | (uint32_t(p[3]) << 24);
+}
 static uint32_t get_be32(const uint8_t *p) { return (uint32_t(p[0]) << 24) | (p[1] << 16) | (p[2] << 8) | p[3]; }
 static uint16_t get_be16(const uint8_t *p) { return uint16_t((p[0] << 8) | p[1]); }
 
@@ -144,10 +147,10 @@ rap(const bytes &params)
 }
 
 static bytes
-server_enum(uint16_t level, uint32_t type, const std::string &domain)
+server_enum(uint16_t level, uint32_t type, const std::string &domain, uint16_t api = 104)
 {
     bytes p;
-    put_le16(p, 104);
+    put_le16(p, api);
     put_str(p, "WrLehDz");
     put_str(p, "B16BBDz");
     put_le16(p, level); put_le16(p, 1024);
@@ -292,6 +295,15 @@ TEST_F(Smb, ServerEnumListsItself)
     EXPECT_STREQ(reinterpret_cast<const char *>(rap_data(reply)) + comment, VSERVER_SERVER_COMMENT);
 }
 
+TEST_F(Smb, ServerEnum3ListsItself)
+{
+    connect();
+    bytes reply = message(server_enum(1, 0xFFFFFFFFu, VSERVER_WORKGROUP_NAME, 215));
+    ASSERT_GT(reply.size(), 60u);
+    EXPECT_EQ(get_le16(rap_params(reply) + 4), 1);
+    EXPECT_STREQ(reinterpret_cast<const char *>(rap_data(reply)), VSERVER_SERVER_NAME);
+}
+
 TEST_F(Smb, DomainEnumListsTheWorkgroup)
 {
     connect();
@@ -401,7 +413,7 @@ TEST_F(Smb, KeepaliveGetsNoReply)
 }
 
 static bytes
-browser_request(uint8_t type, const bytes &frame)
+browser_request(uint8_t type, const bytes &frame, uint8_t destination_suffix = 0x1D)
 {
     static const char name[] = "\\MAILSLOT\\BROWSE";
     bytes smb = smb_header(0x25);
@@ -424,7 +436,7 @@ browser_request(uint8_t type, const bytes &frame)
     put_be16(d, uint16_t(68 + smb.size()));
     put_be16(d, 0);
     bytes source = encode_name("86BOX95", 0x00);
-    bytes destination = encode_name(VSERVER_WORKGROUP_NAME, 0x1D);
+    bytes destination = encode_name(VSERVER_WORKGROUP_NAME, destination_suffix);
     d.insert(d.end(), source.begin(), source.end());
     d.insert(d.end(), destination.begin(), destination.end());
     d.insert(d.end(), smb.begin(), smb.end());
@@ -460,24 +472,54 @@ TEST(Browser, AnswersGetBackupList)
     EXPECT_EQ(reply[0], 0x10);
     EXPECT_EQ(get_be16(reply + 10), n - 14);
     bytes answer = frame_of(reply, n);
-    ASSERT_GE(answer.size(), 7u);
+    ASSERT_EQ(answer.size(), 6u);
     EXPECT_EQ(answer[0], 10);
-    EXPECT_EQ(answer[1], 1);
+    EXPECT_EQ(answer[1], 0);
     EXPECT_EQ(answer[2], 0xAA);
-    EXPECT_STREQ(reinterpret_cast<const char *>(&answer[6]), VSERVER_SERVER_NAME);
+    EXPECT_EQ(get_be32(answer.data() + 2), 0xAABBCCDDu);
     /* addressed to the requester */
     EXPECT_EQ(memcmp(reply + 14 + 34, request.data() + 14, 34), 0);
+}
+
+TEST(Browser, AnswersAnnouncementRequestDirectly)
+{
+    uint8_t reply[1024];
+    bytes   request = browser_request(0x11, { 2, 0, 'C', 'L', 'I', 'E', 'N', 'T', 0 });
+
+    int n = browser_process(server_ip, request.data(), int(request.size()), reply, sizeof(reply));
+    ASSERT_GT(n, 0);
+    EXPECT_EQ(reply[0], 0x10);
+    EXPECT_EQ(memcmp(reply + 14 + 34, request.data() + 14, 34), 0);
+    bytes frame = frame_of(reply, n);
+    EXPECT_EQ(frame[0], 1);
+    EXPECT_EQ(frame[1], 0);
+
+    request = browser_request(0x11, { 2, 1 });
+    EXPECT_EQ(browser_process(server_ip, request.data(), int(request.size()), reply, sizeof(reply)), 0);
 }
 
 TEST(Browser, EntersElections)
 {
     uint8_t reply[1024];
-    bytes   request = browser_request(0x11, { 8, 1, 0, 0, 0, 1 });
+    bytes   election(14, 0);
+    election[0] = 8;
+    election[1] = 1;
+    election.insert(election.end(), VSERVER_SERVER_NAME, VSERVER_SERVER_NAME + strlen(VSERVER_SERVER_NAME) + 1);
+    bytes request = browser_request(0x11, election, 0x1E);
 
     int n = browser_process(server_ip, request.data(), int(request.size()), reply, sizeof(reply));
     ASSERT_GT(n, 0);
     bytes answer = frame_of(reply, n);
     EXPECT_EQ(answer[0], 8);
+    ASSERT_GE(answer.size(), 14u + sizeof(VSERVER_SERVER_NAME));
+    EXPECT_EQ(get_le32(answer.data() + 2), 0x20010F2Eu);
+    EXPECT_EQ(get_le32(answer.data() + 6), 0);
+    EXPECT_EQ(get_le32(answer.data() + 10), 0);
+    EXPECT_STREQ(reinterpret_cast<const char *>(answer.data() + 14), VSERVER_SERVER_NAME);
+
+    election.resize(14);
+    request = browser_request(0x11, election, 0x1E);
+    EXPECT_EQ(browser_process(server_ip, request.data(), int(request.size()), reply, sizeof(reply)), 0);
 }
 
 TEST(Browser, AnnouncesTheServer)
@@ -488,6 +530,7 @@ TEST(Browser, AnnouncesTheServer)
     ASSERT_GT(n, 0);
     bytes frame = frame_of(reply, n);
     EXPECT_EQ(frame[0], 1);
+    EXPECT_EQ(frame[1], 0);
     EXPECT_STREQ(reinterpret_cast<const char *>(&frame[6]), VSERVER_SERVER_NAME);
     EXPECT_EQ(get_le16(&frame[30]), 0xAA55);
 

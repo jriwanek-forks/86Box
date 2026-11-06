@@ -50,6 +50,7 @@
 #endif
 #include <86box/net_event.h>
 #include <86box/network/net_vserver_config.h>
+#include "net_slirp_dhcp.h"
 #ifdef ENABLE_VSERVER_WINS
 #    include <stdbool.h>
 #    include <86box/log.h>
@@ -84,6 +85,7 @@ typedef struct net_slirp_t {
 #ifdef ENABLE_VSERVER_WINS
     vserver_eth_t *vserver;    /* the virtual server, for network cards */
     void          *vserver_log;
+    uint32_t       vserver_ip;
     int64_t        vserver_ms; /* how far its clock has run */
 #endif
     uint32_t       pfd_len;
@@ -441,11 +443,19 @@ ssize_t
 net_slirp_send_packet(const void *qp, size_t pkt_len, void *opaque)
 {
     net_slirp_t *slirp = (net_slirp_t *) opaque;
+    size_t       frame_len = pkt_len;
 
-    slirp_log_packet_summary("from SLiRP", (const uint8_t *) qp, pkt_len);
+    if (pkt_len > NET_MAX_FRAME)
+        return -1;
 
     memcpy(slirp->pkt.data, (uint8_t *) qp, pkt_len);
-    slirp->pkt.len = pkt_len;
+#ifdef ENABLE_VSERVER_WINS
+    /* libslirp has no WINS DHCP setting, so add the options to its OFFER/ACK frames. */
+    if (slirp->vserver)
+        net_slirp_dhcp_add_wins_options(slirp->pkt.data, &frame_len, NET_MAX_FRAME, slirp->vserver_ip);
+#endif
+    slirp_log_packet_summary("from SLiRP", slirp->pkt.data, frame_len);
+    slirp->pkt.len = frame_len;
 
     if (!(net_cards_conf[slirp->card->card_num].link_state & NET_LINK_DOWN)) {
         if (slirp->during_tx || slirp->recv_on_tx) {
@@ -850,6 +860,10 @@ net_slirp_init(const netcard_t *card, const uint8_t *mac_addr, UNUSED(void *priv
     struct in_addr  mask       = { .s_addr = htonl(0xffffff00) };    /* 255.255.255.0 */
     struct in_addr  bind       = { .s_addr = htonl(0x00000000) };    /* 0.0.0.0 */
 
+#ifdef ENABLE_VSERVER_WINS
+    slirp->vserver_ip = (ntohl(net.s_addr) & 0xFFFFFF00u) | VSERVER_SLIRP_HOST_ID;
+#endif
+
     /* IPv6 is only switched on for the emulated modem, where PPP's IPv6CP can carry it.
        libslirp then answers router solicitations with a router advertisement for this
        prefix, so the guest can configure an address on its own. Other cards stay IPv4-only. */
@@ -996,7 +1010,7 @@ net_slirp_init(const netcard_t *card, const uint8_t *mac_addr, UNUSED(void *priv
     /* The modem brings its own server, and carries it over PPP rather than Ethernet. */
     if (!card->internal_modem) {
         slirp->vserver_log = log_open("VSERVER");
-        slirp->vserver = vserver_eth_init(slirp->vserver_log, (ntohl(host.s_addr) & 0xFFFFFF00u) | VSERVER_SLIRP_HOST_ID,
+        slirp->vserver = vserver_eth_init(slirp->vserver_log, slirp->vserver_ip,
 #    ifdef ENABLE_VSERVER_SMB
                                           true,
 #    else
