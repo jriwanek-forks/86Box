@@ -25,13 +25,15 @@ ras_rx_reset(modem_ras_decoder_t *decoder, uint8_t byte)
 }
 
 void
-modem_ras_decoder_init(modem_ras_decoder_t *decoder, modem_ras_frame_callback_t callback, void *priv)
+modem_ras_decoder_init(modem_ras_decoder_t *decoder, modem_ras_frame_callback_t callback,
+                       modem_ras_event_callback_t event_callback, void *priv)
 {
     if (!decoder)
         return;
 
     memset(decoder, 0, sizeof(*decoder));
     decoder->callback = callback;
+    decoder->event_callback = event_callback;
     decoder->priv = priv;
     decoder->state = MODEM_RAS_RX_SYNC;
 }
@@ -50,6 +52,9 @@ modem_ras_rx_byte(modem_ras_decoder_t *decoder, uint8_t byte)
 
         case MODEM_RAS_RX_ADDRESS:
             if (byte != MODEM_RAS_BROADCAST && byte != MODEM_RAS_DESTINATION) {
+                if (decoder->event_callback)
+                    decoder->event_callback(decoder->priv, MODEM_RAS_EVENT_INVALID_ADDRESS,
+                                            byte, 0, byte, 0);
                 ras_rx_reset(decoder, byte);
                 break;
             }
@@ -68,6 +73,10 @@ modem_ras_rx_byte(modem_ras_decoder_t *decoder, uint8_t byte)
             decoder->length |= byte;
             decoder->crc = ras_crc_update(decoder->crc, byte);
             if (!decoder->length || decoder->length > MODEM_RAS_MAX_PAYLOAD) {
+                if (decoder->event_callback)
+                    decoder->event_callback(decoder->priv, MODEM_RAS_EVENT_INVALID_LENGTH,
+                                            decoder->address, decoder->length, decoder->length,
+                                            MODEM_RAS_MAX_PAYLOAD);
                 ras_rx_reset(decoder, byte);
                 break;
             }
@@ -84,6 +93,10 @@ modem_ras_rx_byte(modem_ras_decoder_t *decoder, uint8_t byte)
 
         case MODEM_RAS_RX_ETX:
             if (byte != MODEM_RAS_ETX) {
+                if (decoder->event_callback)
+                    decoder->event_callback(decoder->priv, MODEM_RAS_EVENT_INVALID_ETX,
+                                            decoder->address, decoder->length, byte,
+                                            MODEM_RAS_ETX);
                 ras_rx_reset(decoder, byte);
                 break;
             }
@@ -97,15 +110,26 @@ modem_ras_rx_byte(modem_ras_decoder_t *decoder, uint8_t byte)
             break;
 
         case MODEM_RAS_RX_CRC_HIGH:
-            if ((((uint16_t) byte << 8) | decoder->received_crc_low) == decoder->crc
-                && decoder->callback)
-                decoder->callback(decoder->priv, decoder->address, decoder->payload,
-                                  decoder->length);
+        {
+            const uint16_t received_crc = ((uint16_t) byte << 8) | decoder->received_crc_low;
+
+            if (received_crc == decoder->crc) {
+                if (decoder->event_callback)
+                    decoder->event_callback(decoder->priv, MODEM_RAS_EVENT_FRAME_RECEIVED,
+                                            decoder->address, decoder->length, 0, 0);
+                if (decoder->callback)
+                    decoder->callback(decoder->priv, decoder->address, decoder->payload,
+                                      decoder->length);
+            } else if (decoder->event_callback)
+                decoder->event_callback(decoder->priv, MODEM_RAS_EVENT_BAD_CRC,
+                                        decoder->address, decoder->length, received_crc,
+                                        decoder->crc);
             decoder->state = MODEM_RAS_RX_SYNC;
             decoder->length = 0;
             decoder->position = 0;
             decoder->crc = 0;
             break;
+        }
     }
 }
 

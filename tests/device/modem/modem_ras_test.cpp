@@ -8,6 +8,10 @@ struct ras_capture_t {
     int                    frames = 0;
     uint8_t                address = 0;
     std::vector<uint8_t>   payload;
+    std::vector<modem_ras_event_t> events;
+    uint16_t               event_length = 0;
+    uint16_t               event_actual = 0;
+    uint16_t               event_expected = 0;
 };
 
 static void
@@ -17,6 +21,17 @@ capture_ras_frame(void *priv, uint8_t address, const uint8_t *payload, size_t le
     capture->frames++;
     capture->address = address;
     capture->payload.assign(payload, payload + length);
+}
+
+static void
+capture_ras_event(void *priv, modem_ras_event_t event, uint8_t, uint16_t length,
+                  uint16_t actual, uint16_t expected)
+{
+    auto *capture = static_cast<ras_capture_t *>(priv);
+    capture->events.push_back(event);
+    capture->event_length = length;
+    capture->event_actual = actual;
+    capture->event_expected = expected;
 }
 
 static void
@@ -67,7 +82,7 @@ TEST(ModemRas, DecodesByteByByteAndPreservesPayloadBytes)
     const auto wire = encode_ras_frame(MODEM_RAS_BROADCAST, payload);
     ras_capture_t capture;
     modem_ras_decoder_t decoder;
-    modem_ras_decoder_init(&decoder, capture_ras_frame, &capture);
+    modem_ras_decoder_init(&decoder, capture_ras_frame, capture_ras_event, &capture);
 
     for (uint8_t byte : wire)
         modem_ras_rx_byte(&decoder, byte);
@@ -75,6 +90,7 @@ TEST(ModemRas, DecodesByteByByteAndPreservesPayloadBytes)
     EXPECT_EQ(capture.frames, 1);
     EXPECT_EQ(capture.address, MODEM_RAS_BROADCAST);
     EXPECT_EQ(capture.payload, payload);
+    EXPECT_EQ(capture.events, std::vector<modem_ras_event_t> { MODEM_RAS_EVENT_FRAME_RECEIVED });
 }
 
 TEST(ModemRas, DropsBadCrcAndAcceptsFollowingFrame)
@@ -85,31 +101,50 @@ TEST(ModemRas, DropsBadCrcAndAcceptsFollowingFrame)
     const auto valid = encode_ras_frame(MODEM_RAS_DESTINATION, payload);
     ras_capture_t capture;
     modem_ras_decoder_t decoder;
-    modem_ras_decoder_init(&decoder, capture_ras_frame, &capture);
+    modem_ras_decoder_init(&decoder, capture_ras_frame, capture_ras_event, &capture);
 
     for (uint8_t byte : invalid)
         modem_ras_rx_byte(&decoder, byte);
     EXPECT_EQ(capture.frames, 0);
+    ASSERT_EQ(capture.events.size(), 1);
+    EXPECT_EQ(capture.events[0], MODEM_RAS_EVENT_BAD_CRC);
+    EXPECT_EQ(capture.event_length, static_cast<uint16_t>(payload.size()));
+    EXPECT_NE(capture.event_actual, capture.event_expected);
 
     for (uint8_t byte : valid)
         modem_ras_rx_byte(&decoder, byte);
     EXPECT_EQ(capture.frames, 1);
     EXPECT_EQ(capture.payload, payload);
+    ASSERT_EQ(capture.events.size(), 2);
+    EXPECT_EQ(capture.events[1], MODEM_RAS_EVENT_FRAME_RECEIVED);
 }
 
-TEST(ModemRas, RejectsInvalidAddressAndOversizedPayload)
+TEST(ModemRas, ReportsInvalidAddressLengthAndEtx)
 {
     const uint8_t invalid_address[] = { 0x16, 0x22 };
     const uint8_t oversized_length[] = { 0x16, 0x02, 0x05, 0xDD };
+    auto invalid_etx = encode_ras_frame(MODEM_RAS_DESTINATION, { 0xF0, 0xF0, 0x03 });
+    invalid_etx[7] = 0x04;
     ras_capture_t capture;
     modem_ras_decoder_t decoder;
-    modem_ras_decoder_init(&decoder, capture_ras_frame, &capture);
+    modem_ras_decoder_init(&decoder, capture_ras_frame, capture_ras_event, &capture);
 
     for (uint8_t byte : invalid_address)
         modem_ras_rx_byte(&decoder, byte);
     for (uint8_t byte : oversized_length)
         modem_ras_rx_byte(&decoder, byte);
     EXPECT_EQ(capture.frames, 0);
+    ASSERT_EQ(capture.events.size(), 2);
+    EXPECT_EQ(capture.event_actual, 0x05DD);
+    EXPECT_EQ(capture.event_expected, MODEM_RAS_MAX_PAYLOAD);
+
+    for (uint8_t byte : invalid_etx)
+        modem_ras_rx_byte(&decoder, byte);
+    EXPECT_EQ(capture.frames, 0);
+    ASSERT_EQ(capture.events.size(), 3);
+    EXPECT_EQ(capture.events[0], MODEM_RAS_EVENT_INVALID_ADDRESS);
+    EXPECT_EQ(capture.events[1], MODEM_RAS_EVENT_INVALID_LENGTH);
+    EXPECT_EQ(capture.events[2], MODEM_RAS_EVENT_INVALID_ETX);
 }
 
 TEST(ModemRas, EnforcesPayloadAndOutputCapacityLimits)

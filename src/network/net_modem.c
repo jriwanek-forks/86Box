@@ -1332,12 +1332,52 @@ modem_ras_network_send_nbf(void *priv, uint8_t address, const uint8_t *frame, si
 {
     modem_t *modem = (modem_t *) priv;
 
-    (void) address;
-    if (modem->nbf && length <= MODEM_RAS_MAX_PAYLOAD) {
-        nbf_set_max_frame(modem->nbf, MODEM_RAS_MAX_PAYLOAD);
-        nbf_input(modem->nbf, frame, (int) length);
+    if (!modem->nbf || length > MODEM_RAS_MAX_PAYLOAD || length < 3) {
+        modem_log(modem->log, "RAS: Dropping LLC payload of %u bytes (address 0x%02X)\n",
+                  (unsigned) length, (unsigned) address);
+        return;
+    }
+
+    modem_log(modem->log, "RAS: Dispatching LLC DSAP=0x%02X SSAP=0x%02X control=0x%02X\n",
+              (unsigned) frame[0], (unsigned) frame[1], (unsigned) frame[2]);
+    nbf_set_max_frame(modem->nbf, MODEM_RAS_MAX_PAYLOAD);
+    nbf_input(modem->nbf, frame, (int) length);
+}
+
+#ifdef ENABLE_MODEM_LOG
+static void
+modem_ras_log_event(void *priv, modem_ras_event_t event, uint8_t address, uint16_t length,
+                    uint16_t actual, uint16_t expected)
+{
+    modem_t *modem = (modem_t *) priv;
+
+    switch (event) {
+        case MODEM_RAS_EVENT_FRAME_RECEIVED:
+            modem_log(modem->log, "RAS: Received %s frame, %u bytes\n",
+                      address == MODEM_RAS_BROADCAST ? "broadcast" : "destination",
+                      (unsigned) length);
+            break;
+        case MODEM_RAS_EVENT_INVALID_ADDRESS:
+            modem_log(modem->log, "RAS: Unsupported SOH/control byte 0x%02X\n",
+                      (unsigned) address);
+            break;
+        case MODEM_RAS_EVENT_INVALID_LENGTH:
+            modem_log(modem->log, "RAS: Invalid frame length %u (maximum %u)\n",
+                      (unsigned) actual, (unsigned) expected);
+            break;
+        case MODEM_RAS_EVENT_INVALID_ETX:
+            modem_log(modem->log, "RAS: Invalid ETX 0x%02X (expected 0x%02X)\n",
+                      (unsigned) actual, (unsigned) expected);
+            break;
+        case MODEM_RAS_EVENT_BAD_CRC:
+            modem_log(modem->log, "RAS: CRC mismatch for %u-byte frame (received 0x%04X, expected 0x%04X)\n",
+                      (unsigned) length, (unsigned) actual, (unsigned) expected);
+            break;
     }
 }
+#else
+#    define modem_ras_log_event NULL
+#endif
 
 static void
 modem_nbf_output(void *priv, const uint8_t *frame, int len)
@@ -1346,9 +1386,15 @@ modem_nbf_output(void *priv, const uint8_t *frame, int len)
 
     if (modem->ppp_ctx)
         ppp_wrap_nbf(modem->ppp_ctx, frame, len);
-    else if (modem->ras_active
-             && !modem_ras_send_nbf(modem_ppp_serial_push, modem, frame, len))
-        modem_log(modem->log, "Failed to encode outgoing RAS NetBEUI frame (%d bytes)\n", len);
+    else if (modem->ras_active) {
+        if (len >= 3)
+            modem_log(modem->log, "RAS: Sending NetBEUI frame, %d bytes (LLC %02X/%02X/%02X)\n",
+                      len, (unsigned) frame[0], (unsigned) frame[1], (unsigned) frame[2]);
+        else
+            modem_log(modem->log, "RAS: Sending NetBEUI frame, %d bytes\n", len);
+        if (!modem_ras_send_nbf(modem_ppp_serial_push, modem, frame, len))
+            modem_log(modem->log, "RAS: Failed to encode outgoing NetBEUI frame (%d bytes)\n", len);
+    }
 }
 #endif
 
@@ -1846,8 +1892,10 @@ modem_idle_impl(modem_t *modem)
         modem->ppp_ctx = NULL;
     }
     modem->ppp_active = false;
+    if (modem->ras_active)
+        modem_log(modem->log, "RAS: Link closed\n");
     modem->ras_active = false;
-    modem_ras_decoder_init(&modem->ras_decoder, NULL, NULL);
+    modem_ras_decoder_init(&modem->ras_decoder, NULL, NULL, NULL);
 
     /* Clean up SLIP auth state */
     if (modem->slip_auth_ctx) {
@@ -1991,8 +2039,10 @@ modem_start_local_ip_connection(modem_t *modem)
             return;
         }
         nbf_reset(modem->nbf);
-        modem_ras_decoder_init(&modem->ras_decoder, modem_ras_network_send_nbf, modem);
+        modem_ras_decoder_init(&modem->ras_decoder, modem_ras_network_send_nbf,
+                               modem_ras_log_event, modem);
         modem->ras_active = true;
+        modem_log(modem->log, "RAS: Down-level NetBEUI data link active; payloads are not logged\n");
 #else
         modem_log(modem->log, "RAS requires NetBEUI support\n");
         modem_enter_idle_state(modem);

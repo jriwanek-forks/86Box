@@ -22,6 +22,16 @@ extern "C" {
 
 typedef void (*modem_ras_frame_callback_t)(void *priv, uint8_t address,
                                            const uint8_t *payload, size_t length);
+typedef enum modem_ras_event_t {
+    MODEM_RAS_EVENT_FRAME_RECEIVED,
+    MODEM_RAS_EVENT_INVALID_ADDRESS,
+    MODEM_RAS_EVENT_INVALID_LENGTH,
+    MODEM_RAS_EVENT_INVALID_ETX,
+    MODEM_RAS_EVENT_BAD_CRC
+} modem_ras_event_t;
+typedef void (*modem_ras_event_callback_t)(void *priv, modem_ras_event_t event,
+                                           uint8_t address, uint16_t length,
+                                           uint16_t actual, uint16_t expected);
 typedef void (*modem_ras_serial_push_t)(void *priv, const uint8_t *data, int length);
 
 typedef enum modem_ras_rx_state_t {
@@ -37,6 +47,7 @@ typedef enum modem_ras_rx_state_t {
 
 typedef struct modem_ras_decoder_t {
     modem_ras_frame_callback_t callback;
+    modem_ras_event_callback_t event_callback;
     void                      *priv;
     modem_ras_rx_state_t       state;
     uint8_t                    address;
@@ -48,7 +59,8 @@ typedef struct modem_ras_decoder_t {
 } modem_ras_decoder_t;
 
 void modem_ras_decoder_init(modem_ras_decoder_t *decoder,
-                            modem_ras_frame_callback_t callback, void *priv);
+                            modem_ras_frame_callback_t callback,
+                            modem_ras_event_callback_t event_callback, void *priv);
 void modem_ras_rx_byte(modem_ras_decoder_t *decoder, uint8_t byte);
 
 bool modem_ras_encode_frame(uint8_t address, const uint8_t *payload, size_t length,
