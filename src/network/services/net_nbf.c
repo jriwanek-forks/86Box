@@ -798,7 +798,7 @@ nbf_ras_session_deliver(nbf_t *nbf, nbf_session_t *session, const uint8_t *data,
             break;
         case MODEM_RAS_SESSION_CONFIGURATION_ACCEPTED:
             nbf_log(nbf->log,
-                    "RAS: NetBIOS-only configuration accepted; type 108 and zero-speed type 113 sent\n");
+                    "RAS: NetBIOS-only configuration accepted; type 108 and type 113 sent\n");
             break;
         case MODEM_RAS_SESSION_CONFIGURATION_REJECTED:
             nbf_log(nbf->log, "RAS: Requested IP/IPX projection is unsupported; failure result sent\n");

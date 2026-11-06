@@ -363,7 +363,7 @@ TEST(ModemRas, AcceptsConfiguredCredentialsAndIgnoresBytesAfterUsernameTerminato
     EXPECT_EQ(capture.messages[3][25], 0x00);
     EXPECT_EQ(capture.messages[3][26], 0x65);
     EXPECT_EQ(capture.messages[4],
-              (std::vector<uint8_t> { MODEM_RAS_FRAME_LINK_SPEED, 0x00, 0xE1, 0, 0 }));
+              (std::vector<uint8_t> { MODEM_RAS_FRAME_LINK_SPEED, 10, 0, 0, 0 }));
     EXPECT_EQ(session.state, MODEM_RAS_SESSION_CONFIGURED);
     EXPECT_EQ(modem_ras_session_process_message(&session, configuration_request.data(),
                                                 configuration_request.size(), "86Box", "86Box",
