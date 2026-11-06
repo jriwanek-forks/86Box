@@ -92,6 +92,7 @@ if(BUILD_TESTING)
     )
     add_modem_test(modem_nbf_tests modem_nbf_test.cpp
         ../../../src/network/services/net_nbf.c
+        ../../../src/device/modem/modem_ras.c
         ../../../src/network/services/net_browser.c
         ../../../src/network/services/net_smb.c
         ../../../src/network/services/net_smb_fs.c

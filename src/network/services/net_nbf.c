@@ -316,12 +316,13 @@ llc_send_info(nbf_t *nbf, const uint8_t *header, int header_length, const uint8_
 }
 
 static void
-nbf_drop_sessions(nbf_t *nbf)
+nbf_drop_sessions(nbf_t *nbf, bool preserve_named)
 {
     for (int i = 0; i < NBF_MAX_SESSIONS; i++) {
         nbf_session_t *session = &nbf->sessions[i];
 
-        if (session->state != SESSION_FREE) {
+        if (session->state != SESSION_FREE
+            && !(preserve_named && session->state == SESSION_NAMED)) {
             if (session->smb)
                 smb_session_close(session->smb);
             session->smb   = NULL;
@@ -333,7 +334,7 @@ nbf_drop_sessions(nbf_t *nbf)
 }
 
 static void
-llc_reset(nbf_t *nbf)
+llc_reset(nbf_t *nbf, bool preserve_named)
 {
     nbf->linked        = false;
     nbf->remote_busy   = false;
@@ -345,7 +346,7 @@ llc_reset(nbf_t *nbf)
     nbf->retries       = 0;
     nbf->control_head  = 0;
     nbf->control_count = 0;
-    nbf_drop_sessions(nbf);
+    nbf_drop_sessions(nbf, preserve_named);
 }
 
 /* Accepts an acknowledgement. Returns false if it covers something never sent. */
@@ -817,8 +818,12 @@ nbf_handle_session_frame(nbf_t *nbf, const uint8_t *header, const uint8_t *data,
         return;
 
     if (!session) {
-        if (command != NBF_SESSION_END)
+        if (command != NBF_SESSION_END) {
+            nbf_log(nbf->log,
+                    "NBF: Rejecting session command 0x%02X for unknown local session %u\n",
+                    (unsigned) command, (unsigned) header[12]);
             nbf_queue_control(nbf, NBF_SESSION_END, 0, 1, 0, header[13], header[12]);
+        }
         return;
     }
 
@@ -994,20 +999,20 @@ nbf_input(nbf_t *nbf, const uint8_t *frame, int len)
             break;
 
         case LLC_SABME:
-            llc_reset(nbf);
+            llc_reset(nbf, true);
             nbf->linked = true;
             llc_send_unnumbered(nbf, (uint8_t) (LLC_UA | (control & LLC_POLL)), true, NULL, 0);
             nbf_log(nbf->log, "NBF: LLC connection up\n");
             break;
 
         case LLC_DISC:
-            llc_reset(nbf);
+            llc_reset(nbf, false);
             llc_send_unnumbered(nbf, (uint8_t) (LLC_UA | (control & LLC_POLL)), true, NULL, 0);
             nbf_log(nbf->log, "NBF: LLC connection closed\n");
             break;
 
         case LLC_DM:
-            llc_reset(nbf);
+            llc_reset(nbf, false);
             break;
 
         case LLC_XID:
@@ -1032,7 +1037,7 @@ nbf_tick(nbf_t *nbf)
     if (nbf->ack_timer && --nbf->ack_timer == 0) {
         if (++nbf->retries > LLC_MAX_RETRIES) {
             nbf_log(nbf->log, "NBF: Nothing acknowledged; dropping the LLC connection\n");
-            llc_reset(nbf);
+            llc_reset(nbf, false);
             llc_send_unnumbered(nbf, LLC_DM | LLC_POLL, true, NULL, 0);
         } else {
             llc_retransmit(nbf);
@@ -1066,7 +1071,7 @@ nbf_reset(nbf_t *nbf)
 {
     if (!nbf)
         return;
-    llc_reset(nbf);
+    llc_reset(nbf, false);
     nbf->guest_seen  = false;
     nbf->announce_ms = NBF_ANNOUNCE_PERIOD_MS - NBF_ANNOUNCE_FIRST_MS;
 }
@@ -1091,6 +1096,6 @@ nbf_close(nbf_t *nbf)
 {
     if (!nbf)
         return;
-    nbf_drop_sessions(nbf);
+    nbf_drop_sessions(nbf, false);
     free(nbf);
 }

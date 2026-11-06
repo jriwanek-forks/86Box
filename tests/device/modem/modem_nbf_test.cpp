@@ -13,6 +13,16 @@
 
 typedef std::vector<uint8_t> bytes;
 
+extern "C" bool
+ppp_random_bytes(uint8_t *buffer, uint8_t length)
+{
+    if (!buffer)
+        return false;
+    for (uint8_t i = 0; i < length; i++)
+        buffer[i] = uint8_t(i + 1);
+    return true;
+}
+
 static void put_le16(bytes &b, uint16_t v) { b.push_back(uint8_t(v)); b.push_back(uint8_t(v >> 8)); }
 static void put_str(bytes &b, const std::string &s) { b.insert(b.end(), s.begin(), s.end()); b.push_back(0); }
 static uint16_t get_le16(const uint8_t *p) { return uint16_t(p[0] | (p[1] << 8)); }
@@ -198,6 +208,54 @@ TEST_F(Nbf, AnswersQueriesForTheServerOnly)
 
     in(names_frame(0x0A, 0, 0, 0x55, nb_name(VSERVER_WORKGROUP_NAME, 0x1C), nb_name("86BOX95", 0)));
     EXPECT_EQ(sent.size(), 1u);
+}
+
+TEST_F(Nbf, NameQueryBeforeLlcConnectKeepsItsRasSession)
+{
+    in(names_frame(0x0A, 0, 7, 0x1234, nb_name("DIALIN_GATEWAY", 0x20),
+                   nb_name("86BOX95", 0)));
+    ASSERT_EQ(sent.size(), 1u);
+    const uint8_t server = sent[0][3 + 6];
+    ASSERT_NE(server, 0);
+    sent.clear();
+
+    link();
+    info(session_header(0x19, 0x81, 1024, 0x2345, 0x2222, server, 7));
+    ASSERT_EQ(received.size(), 1u);
+    EXPECT_EQ(received[0][4], 0x17);
+    EXPECT_EQ(get_le16(&received[0][8]), 0x2222);
+    EXPECT_EQ(received[0][12], 7);
+    EXPECT_EQ(received[0][13], server);
+
+    bytes protocol(13, 0);
+    protocol[0] = 100;
+    protocol[1] = 20;
+    bytes message = session_header(0x16, 0, 0, 0, 0x3456, server, 7);
+    message.insert(message.end(), protocol.begin(), protocol.end());
+    received.clear();
+    info(message);
+
+    bool got_protocol_response = false;
+    bool got_challenge = false;
+    for (const bytes &frame : received) {
+        if (frame.size() < 14 || (frame[4] != 0x15 && frame[4] != 0x16))
+            continue;
+        size_t offset = 14;
+        while (offset + 4 <= frame.size()) {
+            const size_t message_length = (size_t(frame[offset + 1]) << 16)
+                                          | (size_t(frame[offset + 2]) << 8)
+                                          | size_t(frame[offset + 3]);
+            if (offset + 4 + message_length > frame.size())
+                break;
+            if (message_length) {
+                got_protocol_response |= frame[offset + 4] == 100;
+                got_challenge |= frame[offset + 4] == 101;
+            }
+            offset += 4 + message_length;
+        }
+    }
+    EXPECT_TRUE(got_protocol_response);
+    EXPECT_TRUE(got_challenge);
 }
 
 TEST_F(Nbf, ARepeatedQueryKeepsItsSession)
