@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <86box/network/net_vserver_config.h>
 #include <86box/log.h>
 #include <86box/network/net_browser.h>
 #include <86box/network/net_nbf.h>

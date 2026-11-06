@@ -16,8 +16,6 @@
 #ifndef NETWORK_NET_NBNS_H
 #define NETWORK_NET_NBNS_H
 
-#include <86box/network/net_vserver_config.h>
-
 #ifdef __cplusplus
 extern "C" {
 #endif

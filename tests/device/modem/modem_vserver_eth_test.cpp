@@ -3,6 +3,7 @@
 #include <cstring>
 #include <vector>
 #include <gtest/gtest.h>
+#include <86box/network/net_vserver_config.h>
 #include <86box/network/net_nbns.h>
 #include <86box/network/net_vserver_eth.h>
 

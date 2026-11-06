@@ -20,6 +20,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
+#include <86box/network/net_vserver_config.h>
 #include <86box/network/net_nbns.h>
 #include <86box/network/net_browser.h>
 

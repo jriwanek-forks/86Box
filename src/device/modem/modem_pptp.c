@@ -36,6 +36,7 @@
 #include <86box/modem/modem_nbfcp.h>
 #include <86box/network/net_nbns.h>
 #include <86box/modem/modem_pptp.h>
+#include <86box/network/net_vserver_config.h>
 #include <86box/network/net_smb.h>
 
 #ifdef ENABLE_MODEM_LOG

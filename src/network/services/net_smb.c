@@ -26,6 +26,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <86box/network/net_vserver_config.h>
 #include <86box/log.h>
 #include <86box/modem/modem_crypto.h>
 #include <86box/network/net_nbns.h>

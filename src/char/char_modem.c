@@ -35,6 +35,7 @@
 #include <86box/char.h>
 #include <86box/plat.h>
 #include <86box/network.h>
+#include <86box/network/net_vserver_config.h>
 #include <86box/log.h>
 #include <86box/version.h>
 #include <86box/plat_unused.h>

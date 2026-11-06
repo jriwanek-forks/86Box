@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <gtest/gtest.h>
+#include <86box/network/net_vserver_config.h>
 #include <86box/network/net_nbns.h>
 
 static const uint32_t server_ip = 0x0A000204;

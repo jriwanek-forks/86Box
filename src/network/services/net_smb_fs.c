@@ -22,6 +22,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <86box/network/net_vserver_config.h>
 #include <86box/network/net_smb_fs.h>
 
 #define PATTERN_LINE_LENGTH 35 /* "86Box SMB test pattern line 00000\r\n" */

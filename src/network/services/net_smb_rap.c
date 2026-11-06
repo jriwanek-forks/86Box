@@ -19,6 +19,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <86box/network/net_vserver_config.h>
 #include <86box/log.h>
 #include <86box/network/net_nbns.h>
 #include <86box/network/net_smb.h>

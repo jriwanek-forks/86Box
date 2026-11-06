@@ -16,8 +16,6 @@
 #ifndef NETWORK_NET_SMB_FS_H
 #define NETWORK_NET_SMB_FS_H
 
-#include <86box/network/net_vserver_config.h>
-
 #ifdef __cplusplus
 extern "C" {
 #endif
