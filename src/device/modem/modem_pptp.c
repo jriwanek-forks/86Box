@@ -398,7 +398,7 @@ pptp_call_start(pptp_t *pptp)
     pptp->escaped      = false;
     pptp->frame_length = 0;
 
-    pptp->server = vserver_init(pptp->log, PPTP_SERVER_IP, true, pptp_server_output, pptp);
+    pptp->server = vserver_init(pptp->log, PPTP_SERVER_IP, true, true, false, false, pptp_server_output, pptp);
     if (pptp->server)
         pptp->ppp = ppp_init(pptp, pptp->log, pptp_serial_push, pptp_ppp_send_ip);
     if (!pptp->ppp) {

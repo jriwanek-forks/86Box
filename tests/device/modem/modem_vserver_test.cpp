@@ -609,7 +609,7 @@ TEST(Browser, IgnoresOtherMailslotsAndJunk)
 class Server : public ::testing::Test {
 protected:
     void SetUp() override {
-        server = vserver_init(nullptr, server_ip, true, capture, &sent);
+        server = vserver_init(nullptr, server_ip, true, true, false, false, capture, &sent);
         ASSERT_NE(server, nullptr);
     }
     void TearDown() override { vserver_close(server); }
@@ -924,7 +924,7 @@ TEST_F(Server, ResolvesTheDomainMasterName)
 TEST(ServerWithoutSmb, StillKeepsNameBroadcasts)
 {
     std::vector<bytes> sent;
-    vserver_t *server = vserver_init(nullptr, server_ip, false, capture, &sent);
+    vserver_t *server = vserver_init(nullptr, server_ip, true, false, false, false, capture, &sent);
     ASSERT_NE(server, nullptr);
 
     bytes bcast = udp(0x0AFFFFFF, 137, { 1, 2, 3 });
@@ -936,7 +936,7 @@ TEST(ServerWithoutSmb, StillKeepsNameBroadcasts)
 TEST(ServerWithoutSmb, OnlyAnswersNames)
 {
     std::vector<bytes> sent;
-    vserver_t *server = vserver_init(nullptr, server_ip, false, capture, &sent);
+    vserver_t *server = vserver_init(nullptr, server_ip, false, false, false, false, capture, &sent);
     ASSERT_NE(server, nullptr);
 
     bytes syn = tcp(1025, 1000, 0, 0x02);

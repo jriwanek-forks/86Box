@@ -156,6 +156,18 @@ if(BUILD_TESTING)
         ../../../src/network/services/net_smb_rap.c
         ../../../src/device/modem/modem_crypto.c
     )
+    add_modem_test(modem_file_services_tests modem_file_services_test.cpp
+        ../../../src/network/services/net_vserver.c
+        ../../../src/network/services/net_nbns.c
+        ../../../src/network/services/net_browser.c
+        ../../../src/network/services/net_smb.c
+        ../../../src/network/services/net_smb_fs.c
+        ../../../src/network/services/net_smb_rap.c
+        ../../../src/network/services/net_ftp.c
+        ../../../src/network/services/net_tftp.c
+        ../../../src/device/modem/modem_crypto.c
+    )
+    target_compile_definitions(modem_file_services_tests PRIVATE ENABLE_VSERVER_FTP ENABLE_VSERVER_TFTP)
     add_modem_test(modem_cslip_tests modem_cslip_test.cpp
         ../../../src/device/modem/modem_cslip.c
     )

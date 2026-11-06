@@ -25,7 +25,8 @@ typedef struct vserver_t vserver_t;
 /* Called with each IPv4 packet the server wants to send to the guest. */
 typedef void (*vserver_output_t)(void *priv, const uint8_t *ip_pkt, int len);
 
-vserver_t *vserver_init(void *log, uint32_t server_ip, bool smb, vserver_output_t output, void *priv);
+vserver_t *vserver_init(void *log, uint32_t server_ip, bool wins, bool smb, bool ftp, bool tftp,
+                        vserver_output_t output, void *priv);
 void       vserver_close(vserver_t *server);
 
 /* Answers name queries broadcast on the segment, for guests that don't know about WINS. */

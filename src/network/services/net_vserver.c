@@ -30,6 +30,13 @@
 #include <86box/network/net_nbns.h>
 #include <86box/network/net_smb.h>
 #include <86box/network/net_vserver.h>
+#include <86box/network/net_vserver_config.h>
+#ifdef ENABLE_VSERVER_FTP
+#    include "net_ftp.h"
+#endif
+#ifdef ENABLE_VSERVER_TFTP
+#    include "net_tftp.h"
+#endif
 
 #ifdef ENABLE_MODEM_LOG
 extern uint8_t modem_do_log;
@@ -70,6 +77,10 @@ vserver_log(void *priv, const char *fmt, ...)
 #define TCP_TX_BUFFER       32768
 #define TCP_RETRANSMIT_MS   1500
 #define TCP_MAX_RETRIES     8
+#define FTP_CONTROL_PORT    21
+#define FTP_ACTIVE_PORT     20
+#define FTP_PASSIVE_BASE    49152
+#define FTP_PASSIVE_PORTS   TCP_MAX_CONNECTIONS
 
 #define SMB_PORT 139
 #define VSERVER_MAX_GRE 1480 /* what fits in one IP packet on a 1500 byte link */
@@ -79,6 +90,7 @@ vserver_log(void *priv, const char *fmt, ...)
 
 typedef enum {
     TCP_CLOSED = 0,
+    TCP_SYN_SENT,
     TCP_SYN_RECEIVED,
     TCP_ESTABLISHED,
     TCP_CLOSING
@@ -90,6 +102,7 @@ typedef struct tcp_connection_t {
     uint16_t       peer_port;
     uint16_t       port;     /* which of the server's it arrived on */
     bool           tunnel;   /* the tunnel's control connection, rather than SMB */
+    bool           close_after_tx;
     uint16_t       mss;
     uint32_t       peer_window;
     uint32_t       snd_una;  /* sequence number of tx[0] */
@@ -97,9 +110,18 @@ typedef struct tcp_connection_t {
     int            tx_len;
     int            tx_sent;
     bool           fin_sent;
+    bool           ftp_transfer_complete;
     uint32_t       retransmit_ms;
     int            retries;
     smb_session_t *session;
+#ifdef ENABLE_VSERVER_FTP
+    vserver_ftp_session_t *ftp;
+    struct tcp_connection_t *ftp_control;
+    struct tcp_connection_t *ftp_data;
+    uint16_t                ftp_passive_port;
+    bool                    ftp_transfer_active;
+    bool                    ftp_active_data;
+#endif
     uint8_t        tx[TCP_TX_BUFFER];
 } tcp_connection_t;
 
@@ -107,10 +129,16 @@ struct vserver_t {
     bool              answer_broadcasts;
     void            *log;
     uint32_t         server_ip;
+    bool             wins;
     bool             smb;
+    bool             ftp;
+    bool             tftp;
     vserver_output_t output;
     void            *priv;
     nbns_t          *nbns;
+#ifdef ENABLE_VSERVER_TFTP
+    vserver_tftp_t  *tftp_server;
+#endif
     uint16_t         ip_id;
     uint32_t         guest_ip;
     uint32_t         announce_ms;
@@ -207,6 +235,14 @@ vs_send_udp(vserver_t *server, uint32_t destination, uint16_t source_port, uint1
     vs_send_ip(server, packet, IP_PROTOCOL_UDP, destination, total);
 }
 
+#ifdef ENABLE_VSERVER_TFTP
+static void
+vs_tftp_output(void *priv, uint32_t destination, uint16_t source_port, uint16_t port, const uint8_t *data, int length)
+{
+    vs_send_udp((vserver_t *) priv, destination, source_port, port, data, length);
+}
+#endif
+
 static void
 tcp_send(vserver_t *server, uint32_t destination, uint16_t source_port, uint16_t port, uint32_t seq,
          uint32_t ack, uint8_t flags, const uint8_t *data, int length, bool mss_option)
@@ -236,9 +272,49 @@ tcp_send(vserver_t *server, uint32_t destination, uint16_t source_port, uint16_t
     vs_send_ip(server, packet, IP_PROTOCOL_TCP, destination, total);
 }
 
+static void tcp_flush(vserver_t *server, tcp_connection_t *connection);
+
 static void
 tcp_close_connection(vserver_t *server, tcp_connection_t *connection)
 {
+#ifdef ENABLE_VSERVER_FTP
+    if (connection->ftp) {
+        for (int i = 0; i < TCP_MAX_CONNECTIONS; i++) {
+            tcp_connection_t *data = &server->connections[i];
+
+            if (data->ftp_control == connection) {
+                data->ftp_control = NULL;
+                data->state = TCP_CLOSED;
+            }
+        }
+        vserver_ftp_session_close(connection->ftp);
+        connection->ftp = NULL;
+    }
+    if (connection->ftp_control) {
+        tcp_connection_t *control = connection->ftp_control;
+
+        if (control->ftp && control->state != TCP_CLOSED) {
+            uint8_t reply[64];
+            int     length;
+
+            if (connection->ftp_transfer_active || vserver_ftp_transfer_pending(control->ftp))
+                length = vserver_ftp_finish_transfer(control->ftp, connection->ftp_transfer_complete, reply,
+                                                     sizeof(reply));
+            else {
+                vserver_ftp_data_closed(control->ftp);
+                length = 0;
+            }
+            if (length > 0 && length <= TCP_TX_BUFFER - control->tx_len) {
+                memcpy(control->tx + control->tx_len, reply, (size_t) length);
+                control->tx_len += length;
+                tcp_flush(server, control);
+            }
+            if (control->ftp_data == connection)
+                control->ftp_data = NULL;
+        }
+        connection->ftp_control = NULL;
+    }
+#endif
     if (connection->tunnel)
         server->tunnel->control_closed(server->tunnel_priv);
     connection->tunnel = false;
@@ -272,17 +348,147 @@ tcp_flush(vserver_t *server, tcp_connection_t *connection)
     }
 }
 
+#ifdef ENABLE_VSERVER_FTP
+static uint16_t
+tcp_ftp_allocate_port(vserver_t *server)
+{
+    for (int port = 0; port < FTP_PASSIVE_PORTS; port++) {
+        uint16_t candidate = (uint16_t) (FTP_PASSIVE_BASE + port);
+        bool     used = false;
+
+        for (int i = 0; i < TCP_MAX_CONNECTIONS; i++) {
+            const tcp_connection_t *connection = &server->connections[i];
+
+            if (connection->state != TCP_CLOSED && connection->ftp_passive_port == candidate) {
+                used = true;
+                break;
+            }
+        }
+        if (!used)
+            return candidate;
+    }
+    return 0;
+}
+
 static tcp_connection_t *
-tcp_find(vserver_t *server, uint32_t ip, uint16_t port)
+tcp_ftp_passive_owner(vserver_t *server, uint16_t port)
+{
+    for (int i = 0; i < TCP_MAX_CONNECTIONS; i++) {
+        tcp_connection_t *connection = &server->connections[i];
+
+        if (connection->state != TCP_CLOSED && connection->ftp && connection->ftp_passive_port == port
+            && !connection->ftp_data && vserver_ftp_passive_enabled(connection->ftp))
+            return connection;
+    }
+    return NULL;
+}
+
+static void
+tcp_ftp_start_transfer(vserver_t *server, tcp_connection_t *control)
+{
+    tcp_connection_t *data = control->ftp_data;
+    const uint8_t    *file;
+    int               length;
+
+    if (!data || !control->ftp || control->tx_sent < control->tx_len || data->state != TCP_ESTABLISHED
+        || data->ftp_transfer_active
+        || !vserver_ftp_start_transfer(control->ftp, &file, &length))
+        return;
+    if (length < 0 || length > TCP_TX_BUFFER) {
+        vserver_ftp_data_closed(control->ftp);
+        return;
+    }
+    memcpy(data->tx, file, (size_t) length);
+    data->tx_len = length;
+    data->ftp_transfer_active = true;
+    data->close_after_tx = true;
+    tcp_flush(server, data);
+}
+
+static void
+tcp_ftp_start_active(vserver_t *server, tcp_connection_t *control)
+{
+    tcp_connection_t *data = NULL;
+    uint32_t          client_ip;
+    uint16_t          client_port;
+
+    if (!control->ftp || control->ftp_data || !vserver_ftp_transfer_pending(control->ftp)
+        || !vserver_ftp_active_target(control->ftp, &client_ip, &client_port))
+        return;
+    for (int i = 0; i < TCP_MAX_CONNECTIONS; i++) {
+        if (server->connections[i].state == TCP_CLOSED) {
+            data = &server->connections[i];
+            break;
+        }
+    }
+    if (!data) {
+        uint8_t reply[64];
+        int     length = vserver_ftp_finish_transfer(control->ftp, false, reply, sizeof(reply));
+
+        if (length > 0 && length <= TCP_TX_BUFFER - control->tx_len) {
+            memcpy(control->tx + control->tx_len, reply, (size_t) length);
+            control->tx_len += length;
+            tcp_flush(server, control);
+        }
+        return;
+    }
+
+    data->session = NULL;
+    data->ftp = NULL;
+    data->ftp_control = control;
+    data->ftp_data = NULL;
+    data->ftp_passive_port = 0;
+    data->ftp_transfer_active = false;
+    data->ftp_active_data = true;
+    data->tunnel = false;
+    data->close_after_tx = false;
+    data->mss = TCP_DEFAULT_MSS;
+    data->peer_window = 0;
+    data->snd_una = server->iss;
+    data->rcv_nxt = 0;
+    data->tx_len = 0;
+    data->tx_sent = 0;
+    data->fin_sent = false;
+    data->ftp_transfer_complete = false;
+    data->retries = 0;
+    data->retransmit_ms = 0;
+    data->peer_ip = client_ip;
+    data->peer_port = client_port;
+    data->port = FTP_ACTIVE_PORT;
+    data->state = TCP_SYN_SENT;
+    control->ftp_data = data;
+    server->iss += 64000;
+    tcp_send(server, client_ip, FTP_ACTIVE_PORT, client_port, data->snd_una, 0, TCP_SYN, NULL, 0, true);
+}
+#endif
+
+static tcp_connection_t *
+tcp_find(vserver_t *server, uint32_t ip, uint16_t port, uint16_t local_port)
 {
     for (int i = 0; i < TCP_MAX_CONNECTIONS; i++) {
         tcp_connection_t *connection = &server->connections[i];
 
         if (connection->state != TCP_CLOSED && connection->peer_ip == ip
-            && connection->peer_port == port)
+            && connection->peer_port == port && connection->port == local_port)
             return connection;
     }
     return NULL;
+}
+
+static bool
+tcp_listens(vserver_t *server, uint16_t port)
+{
+    if (server->smb && port == SMB_PORT)
+        return true;
+    if (server->tunnel && port == server->tunnel_port)
+        return true;
+#ifdef ENABLE_VSERVER_FTP
+    if (server->ftp && port == FTP_CONTROL_PORT)
+        return true;
+    if (tcp_ftp_passive_owner(server, port))
+        return true;
+#endif
+    return false;
 }
 
 static tcp_connection_t *
@@ -300,7 +506,10 @@ tcp_accept(vserver_t *server, uint32_t ip, uint16_t local_port, uint16_t port, u
            const uint8_t *tcp, int header)
 {
     tcp_connection_t *connection = NULL;
-    bool              tunnel     = local_port != SMB_PORT;
+    bool              tunnel     = server->tunnel && local_port == server->tunnel_port;
+#ifdef ENABLE_VSERVER_FTP
+    tcp_connection_t *ftp_control = local_port == FTP_CONTROL_PORT ? NULL : tcp_ftp_passive_owner(server, local_port);
+#endif
 
     for (int i = 0; i < TCP_MAX_CONNECTIONS && !connection; i++) {
         if (server->connections[i].state == TCP_CLOSED)
@@ -312,11 +521,35 @@ tcp_accept(vserver_t *server, uint32_t ip, uint16_t local_port, uint16_t port, u
         return;
     }
 
-    if (!tunnel) {
+    connection->session = NULL;
+#ifdef ENABLE_VSERVER_FTP
+    connection->ftp = NULL;
+    connection->ftp_control = NULL;
+    connection->ftp_data = NULL;
+    connection->ftp_passive_port = 0;
+    connection->ftp_transfer_active = false;
+    connection->ftp_active_data = false;
+#endif
+    if (local_port == SMB_PORT) {
         connection->session = smb_session_create(server->log);
         if (!connection->session)
             return;
     }
+#ifdef ENABLE_VSERVER_FTP
+    if (server->ftp && local_port == FTP_CONTROL_PORT) {
+        connection->ftp = vserver_ftp_session_create();
+        connection->ftp_passive_port = tcp_ftp_allocate_port(server);
+        if (!connection->ftp) {
+            vserver_ftp_session_close(connection->ftp);
+            connection->ftp = NULL;
+            tcp_send(server, ip, local_port, port, 0, seq + 1, TCP_RST | TCP_ACK, NULL, 0, false);
+            return;
+        }
+    } else if (ftp_control) {
+        connection->ftp_control = ftp_control;
+        ftp_control->ftp_data = connection;
+    }
+#endif
     if (tunnel)
         server->tunnel_peer = ip;
     connection->tunnel      = tunnel;
@@ -331,6 +564,8 @@ tcp_accept(vserver_t *server, uint32_t ip, uint16_t local_port, uint16_t port, u
     connection->tx_len      = 0;
     connection->tx_sent     = 0;
     connection->fin_sent    = false;
+    connection->close_after_tx = false;
+    connection->ftp_transfer_complete = false;
     connection->retries     = 0;
     connection->retransmit_ms = 0;
     server->iss += 64000;
@@ -380,6 +615,9 @@ tcp_input(vserver_t *server, uint32_t ip, const uint8_t *tcp, int length)
     uint16_t          window;
     int               payload;
     tcp_connection_t *connection;
+#ifdef ENABLE_VSERVER_FTP
+    bool established = false;
+#endif
 
     if (length < TCP_HEADER_LENGTH)
         return;
@@ -395,14 +633,14 @@ tcp_input(vserver_t *server, uint32_t ip, const uint8_t *tcp, int length)
     payload = length - header;
 
     if (flags & TCP_RST) {
-        connection = tcp_find(server, ip, source);
+        connection = tcp_find(server, ip, source, destination);
         if (connection)
             tcp_close_connection(server, connection);
         return;
     }
 
-    connection = tcp_find(server, ip, source);
-    if ((destination != SMB_PORT && !(server->tunnel && destination == server->tunnel_port)) || !server->smb) {
+    connection = tcp_find(server, ip, source, destination);
+    if (!connection && !tcp_listens(server, destination)) {
         tcp_send(server, ip, destination, source, ack, seq + (uint32_t) payload + ((flags & TCP_SYN) ? 1 : 0),
                  TCP_RST | TCP_ACK, NULL, 0, false);
         return;
@@ -417,11 +655,19 @@ tcp_input(vserver_t *server, uint32_t ip, const uint8_t *tcp, int length)
         return;
     }
 
-    if (flags & TCP_SYN) { /* our SYN-ACK was lost */
+    if (flags & TCP_SYN) {
         if (connection->state == TCP_SYN_RECEIVED)
             tcp_send(server, ip, destination, source, connection->snd_una, connection->rcv_nxt,
                      TCP_SYN | TCP_ACK, NULL, 0, true);
-        return;
+        else if (connection->state == TCP_SYN_SENT && (flags & TCP_ACK) && ack == connection->snd_una + 1) {
+            connection->snd_una = ack;
+            connection->rcv_nxt = seq + 1;
+            connection->state = TCP_ESTABLISHED;
+#ifdef ENABLE_VSERVER_FTP
+            established = true;
+#endif
+        } else
+            return;
     }
 
     connection->peer_window = window;
@@ -431,6 +677,9 @@ tcp_input(vserver_t *server, uint32_t ip, const uint8_t *tcp, int length)
             if (ack == connection->snd_una + 1) {
                 connection->snd_una = ack;
                 connection->state   = TCP_ESTABLISHED;
+#ifdef ENABLE_VSERVER_FTP
+                established = true;
+#endif
             }
         } else {
             int acked = (int) (ack - connection->snd_una);
@@ -446,11 +695,36 @@ tcp_input(vserver_t *server, uint32_t ip, const uint8_t *tcp, int length)
             }
             if (connection->state == TCP_CLOSING && connection->fin_sent && !connection->tx_len
                 && ack == connection->snd_una + 1) {
+#ifdef ENABLE_VSERVER_FTP
+                if (connection->ftp_control && connection->ftp_transfer_active)
+                    connection->ftp_transfer_complete = true;
+#endif
                 tcp_close_connection(server, connection);
                 return;
             }
         }
     }
+
+#ifdef ENABLE_VSERVER_FTP
+    if (established) {
+        if (connection->ftp) {
+            uint8_t greeting[128];
+            int     greeting_length = vserver_ftp_greeting(greeting, sizeof(greeting));
+
+            if (greeting_length < 0 || greeting_length > TCP_TX_BUFFER - connection->tx_len) {
+                tcp_close_connection(server, connection);
+                return;
+            }
+            memcpy(connection->tx + connection->tx_len, greeting, (size_t) greeting_length);
+            connection->tx_len += greeting_length;
+        } else if (connection->ftp_control) {
+            if (connection->ftp_active_data)
+                tcp_send(server, ip, destination, source, connection->snd_una, connection->rcv_nxt,
+                         TCP_ACK, NULL, 0, false);
+            tcp_ftp_start_transfer(server, connection->ftp_control);
+        }
+    }
+#endif
 
     if (connection->state == TCP_ESTABLISHED && payload > 0) {
         if (seq == connection->rcv_nxt) {
@@ -466,6 +740,20 @@ tcp_input(vserver_t *server, uint32_t ip, const uint8_t *tcp, int length)
                     tcp_start_close(server, connection);
                     return;
                 }
+#ifdef ENABLE_VSERVER_FTP
+            } else if (connection->ftp) {
+                bool close_after_reply;
+
+                written = vserver_ftp_input(connection->ftp, server->server_ip, connection->peer_ip,
+                                            connection->ftp_passive_port, tcp + header, payload, out, sizeof(out),
+                                            &close_after_reply);
+                if (close_after_reply)
+                    connection->close_after_tx = true;
+#endif
+#ifdef ENABLE_VSERVER_FTP
+            } else if (connection->ftp_control) {
+                written = 0;
+#endif
             } else {
                 written = smb_session_input(connection->session, tcp + header, payload, out, sizeof(out));
             }
@@ -477,6 +765,8 @@ tcp_input(vserver_t *server, uint32_t ip, const uint8_t *tcp, int length)
             }
             memcpy(connection->tx + connection->tx_len, out, (size_t) written);
             connection->tx_len += written;
+#ifdef ENABLE_VSERVER_FTP
+#endif
         }
         if (connection->tx_sent == connection->tx_len)
             tcp_send(server, ip, destination, source, connection->snd_una + (uint32_t) connection->tx_len,
@@ -484,6 +774,17 @@ tcp_input(vserver_t *server, uint32_t ip, const uint8_t *tcp, int length)
     }
 
     tcp_flush(server, connection);
+
+#ifdef ENABLE_VSERVER_FTP
+    if (connection->ftp) {
+        tcp_ftp_start_transfer(server, connection);
+        tcp_ftp_start_active(server, connection);
+    }
+    if (connection->close_after_tx && connection->state == TCP_ESTABLISHED && !connection->tx_len) {
+        connection->close_after_tx = false;
+        tcp_start_close(server, connection);
+    }
+#endif
 
     if ((flags & TCP_FIN) && connection->state == TCP_ESTABLISHED
         && seq + (uint32_t) payload == connection->rcv_nxt) {
@@ -500,8 +801,8 @@ tcp_tick(vserver_t *server)
 {
     for (int i = 0; i < TCP_MAX_CONNECTIONS; i++) {
         tcp_connection_t *connection = &server->connections[i];
-        bool              waiting    = connection->state == TCP_SYN_RECEIVED || connection->tx_sent > 0
-                       || connection->state == TCP_CLOSING;
+        bool              waiting    = connection->state == TCP_SYN_SENT || connection->state == TCP_SYN_RECEIVED
+                       || connection->tx_sent > 0 || connection->state == TCP_CLOSING;
 
         if (connection->state == TCP_CLOSED || !waiting)
             continue;
@@ -514,7 +815,10 @@ tcp_tick(vserver_t *server)
             continue;
         }
 
-        if (connection->state == TCP_SYN_RECEIVED) {
+        if (connection->state == TCP_SYN_SENT) {
+            tcp_send(server, connection->peer_ip, connection->port, connection->peer_port, connection->snd_una,
+                     connection->rcv_nxt, TCP_SYN, NULL, 0, true);
+        } else if (connection->state == TCP_SYN_RECEIVED) {
             tcp_send(server, connection->peer_ip, connection->port, connection->peer_port, connection->snd_una,
                      connection->rcv_nxt, TCP_SYN | TCP_ACK, NULL, 0, true);
         } else if (connection->tx_sent > 0) {
@@ -574,13 +878,15 @@ vserver_process_ipv4(vserver_t *server, const uint8_t *ip_pkt, int len)
     if (!server || !ip_pkt)
         return false;
 
-    result = nbns_process_ipv4(server->nbns, ip_pkt, len, reply, sizeof(reply));
-    if (result >= 0) {
-        if (result > 0)
-            server->output(server->priv, reply, result);
-        if (len >= 16)
-            server->guest_ip = vs_get32(ip_pkt + 12);
-        return true;
+    if (server->wins && server->nbns) {
+        result = nbns_process_ipv4(server->nbns, ip_pkt, len, reply, sizeof(reply));
+        if (result >= 0) {
+            if (result > 0)
+                server->output(server->priv, reply, result);
+            if (len >= 16)
+                server->guest_ip = vs_get32(ip_pkt + 12);
+            return true;
+        }
     }
 
     if (len < IP_HEADER_LENGTH || (ip_pkt[0] >> 4) != 4)
@@ -599,18 +905,16 @@ vserver_process_ipv4(vserver_t *server, const uint8_t *ip_pkt, int len)
        otherwise leave through SLiRP, onto the host's network. */
     if (protocol == IP_PROTOCOL_UDP && total - header >= UDP_HEADER_LENGTH
         && vs_get16(ip_pkt + header + 2) == NBNS_PORT && vs_is_broadcast(server, destination)) {
-        if (server->answer_broadcasts) {
+        if (server->wins && server->answer_broadcasts) {
             result = nbns_process_broadcast(server->nbns, ip_pkt, len, reply, sizeof(reply));
             if (result > 0)
                 server->output(server->priv, reply, result);
         }
-        return true;
+        if (server->wins)
+            return true;
     }
 
-    if (!server->smb)
-        return false;
-
-    if (protocol == IP_PROTOCOL_UDP && total - header >= UDP_HEADER_LENGTH
+    if (server->smb && protocol == IP_PROTOCOL_UDP && total - header >= UDP_HEADER_LENGTH
         && vs_get16(ip_pkt + header + 2) == BROWSER_PORT
         && (destination == server->server_ip || vs_is_broadcast(server, destination))) {
         server->guest_ip = source;
@@ -621,6 +925,21 @@ vserver_process_ipv4(vserver_t *server, const uint8_t *ip_pkt, int len)
 
     if (destination != server->server_ip)
         return false;
+
+    if (!server->smb && !server->ftp && !server->tftp && !server->tunnel)
+        return false;
+
+#ifdef ENABLE_VSERVER_TFTP
+    if (protocol == IP_PROTOCOL_UDP && server->tftp && total - header >= UDP_HEADER_LENGTH) {
+        const uint8_t *udp = ip_pkt + header;
+        uint16_t       udp_length = vs_get16(udp + 4);
+
+        if (udp_length >= UDP_HEADER_LENGTH && udp_length <= total - header
+            && vserver_tftp_input(server->tftp_server, source, vs_get16(udp), vs_get16(udp + 2),
+                                  udp + UDP_HEADER_LENGTH, udp_length - UDP_HEADER_LENGTH))
+            return true;
+    }
+#endif
 
     if (protocol == IP_PROTOCOL_TCP) {
         tcp_input(server, source, ip_pkt + header, total - header);
@@ -683,11 +1002,16 @@ vserver_tick(vserver_t *server)
 {
     if (!server)
         return;
-    nbns_tick(server->nbns);
+    if (server->wins && server->nbns)
+        nbns_tick(server->nbns);
+    if (server->smb || server->ftp)
+        tcp_tick(server);
+#ifdef ENABLE_VSERVER_TFTP
+    if (server->tftp)
+        vserver_tftp_tick(server->tftp_server);
+#endif
     if (!server->smb)
         return;
-
-    tcp_tick(server);
     if (server->tunnel)
         server->tunnel->tick(server->tunnel_priv);
 
@@ -705,7 +1029,8 @@ vserver_tick(vserver_t *server)
 }
 
 vserver_t *
-vserver_init(void *log, uint32_t server_ip, bool smb, vserver_output_t output, void *priv)
+vserver_init(void *log, uint32_t server_ip, bool wins, bool smb, bool ftp, bool tftp, vserver_output_t output,
+             void *priv)
 {
     vserver_t *server = (vserver_t *) calloc(1, sizeof(vserver_t));
 
@@ -713,19 +1038,34 @@ vserver_init(void *log, uint32_t server_ip, bool smb, vserver_output_t output, v
         return NULL;
     server->log         = log;
     server->server_ip   = server_ip;
+    server->wins        = wins || smb;
     server->smb         = smb;
+    server->ftp         = ftp;
+    server->tftp        = tftp;
     server->output      = output;
     server->priv        = priv;
     server->iss         = 0x10000000u;
     server->max_mss     = TCP_OUR_MSS;
     server->announce_ms = ANNOUNCE_PERIOD_MS - ANNOUNCE_FIRST_MS;
-    server->nbns        = nbns_init(log, server_ip);
-    if (!server->nbns) {
-        free(server);
-        return NULL;
+    if (server->wins) {
+        server->nbns = nbns_init(log, server_ip);
+        if (!server->nbns) {
+            free(server);
+            return NULL;
+        }
     }
-    if (smb)
+    if (server->smb)
         nbns_add_browser_names(server->nbns);
+#ifdef ENABLE_VSERVER_TFTP
+    if (server->tftp) {
+        server->tftp_server = vserver_tftp_create(vs_tftp_output, server);
+        if (!server->tftp_server) {
+            nbns_close(server->nbns);
+            free(server);
+            return NULL;
+        }
+    }
+#endif
     return server;
 }
 
@@ -736,8 +1076,15 @@ vserver_close(vserver_t *server)
         return;
     if (server->tunnel)
         server->tunnel->close(server->tunnel_priv);
-    for (int i = 0; i < TCP_MAX_CONNECTIONS; i++)
+    for (int i = 0; i < TCP_MAX_CONNECTIONS; i++) {
         smb_session_close(server->connections[i].session);
+#ifdef ENABLE_VSERVER_FTP
+        vserver_ftp_session_close(server->connections[i].ftp);
+#endif
+    }
+#ifdef ENABLE_VSERVER_TFTP
+    vserver_tftp_close(server->tftp_server);
+#endif
     nbns_close(server->nbns);
     free(server);
 }

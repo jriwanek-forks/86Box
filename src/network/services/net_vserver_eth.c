@@ -238,8 +238,8 @@ vserver_eth_tick(vserver_eth_t *eth)
 }
 
 vserver_eth_t *
-vserver_eth_init(void *log, uint32_t server_ip, bool smb, bool netbeui, bool ipx, vserver_eth_output_t output,
-                 void *priv)
+vserver_eth_init(void *log, uint32_t server_ip, bool wins, bool smb, bool ftp, bool tftp, bool netbeui, bool ipx,
+                 vserver_eth_output_t output, void *priv)
 {
     vserver_eth_t *eth = (vserver_eth_t *) calloc(1, sizeof(vserver_eth_t));
 
@@ -257,12 +257,13 @@ vserver_eth_init(void *log, uint32_t server_ip, bool smb, bool netbeui, bool ipx
     eth->address[4] = (uint8_t) (server_ip >> 8);
     eth->address[5] = (uint8_t) server_ip;
 
-    eth->server = vserver_init(log, server_ip, smb, eth_ip_output, eth);
+    eth->server = vserver_init(log, server_ip, wins, smb, ftp, tftp, eth_ip_output, eth);
     if (!eth->server) {
         free(eth);
         return NULL;
     }
-    vserver_answer_broadcasts(eth->server);
+    if (wins)
+        vserver_answer_broadcasts(eth->server);
     if (netbeui)
         eth->nbf = nbf_init(log, eth_llc_output, eth);
     if (ipx)

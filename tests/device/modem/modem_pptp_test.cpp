@@ -91,7 +91,7 @@ control(uint16_t type, const bytes &body, size_t length)
 class Pptp : public ::testing::Test {
 protected:
     void SetUp() override {
-        server = vserver_init(nullptr, server_ip, true, capture, &sent);
+        server = vserver_init(nullptr, server_ip, true, true, false, false, capture, &sent);
         ASSERT_NE(server, nullptr);
         ASSERT_TRUE(pptp_attach(server, nullptr, false, false));
     }
@@ -293,7 +293,7 @@ protected:
 TEST(PptpOff, Port1723IsClosedUntilAttached)
 {
     std::vector<bytes> sent;
-    vserver_t *server = vserver_init(nullptr, server_ip, true, capture, &sent);
+    vserver_t *server = vserver_init(nullptr, server_ip, true, true, false, false, capture, &sent);
     bytes syn = tcp_segment(1024, PPTP_PORT, 100, 0, 0x02);
     vserver_process_ipv4(server, syn.data(), int(syn.size()));
     ASSERT_EQ(sent.size(), 1u);

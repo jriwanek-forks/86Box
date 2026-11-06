@@ -44,7 +44,7 @@
 #    include <arpa/inet.h>
 #endif
 #include <86box/modem/modem_ppp.h>
-#ifdef ENABLE_VSERVER_WINS
+#ifdef ENABLE_VSERVER
 #    include <86box/network/net_nbns.h>
 #    include <86box/network/net_vserver.h>
 #    ifdef ENABLE_VSERVER_NETBEUI
@@ -523,7 +523,7 @@ typedef struct modem_t {
     char             password[64];
     uint32_t         ppp_wins1;
     uint32_t         ppp_wins2;
-#ifdef ENABLE_VSERVER_WINS
+#ifdef ENABLE_VSERVER
     vserver_t       *vserver;            /* the virtual server, kept between calls */
 #    ifdef ENABLE_VSERVER_NETBEUI
     nbf_t           *nbf;                /* the server's NetBEUI side, kept between calls */
@@ -1246,11 +1246,26 @@ modem_ppp_serial_push(void *priv, const uint8_t *data, int len)
     fifo8_push_all(&modem->rx_data, (uint8_t *) data, (uint32_t) len);
 }
 
-#ifdef ENABLE_VSERVER_WINS
+#ifdef ENABLE_VSERVER
+#    ifdef ENABLE_VSERVER_WINS
+#        define VSERVER_WINS_ENABLED true
+#    else
+#        define VSERVER_WINS_ENABLED false
+#    endif
 #    ifdef ENABLE_VSERVER_SMB
 #        define VSERVER_SMB_ENABLED true
 #    else
 #        define VSERVER_SMB_ENABLED false
+#    endif
+#    ifdef ENABLE_VSERVER_FTP
+#        define VSERVER_FTP_ENABLED true
+#    else
+#        define VSERVER_FTP_ENABLED false
+#    endif
+#    ifdef ENABLE_VSERVER_TFTP
+#        define VSERVER_TFTP_ENABLED true
+#    else
+#        define VSERVER_TFTP_ENABLED false
 #    endif
 
 /* Packets from the virtual server reach the guest like any others from the network. */
@@ -1275,7 +1290,7 @@ modem_ppp_network_send_ip(void *priv, const uint8_t *ip_pkt, int len)
 
     modem_debug_log_ipv4(modem->log, "PPP modem->network", ip_pkt, len);
 
-#ifdef ENABLE_VSERVER_WINS
+#ifdef ENABLE_VSERVER
     if (vserver_process_ipv4(modem->vserver, ip_pkt, len)) {
         free(buf);
         return;
@@ -1994,19 +2009,28 @@ modem_start_local_ip_connection(modem_t *modem)
 #if 0
         modem_apply_network_wins(modem->ppp_ctx, modem->card);
 #endif
-#ifdef ENABLE_VSERVER_WINS
-        if (!modem->ppp_wins1 && modem->card && modem->card->slirp_host_ip) {
+#ifdef ENABLE_VSERVER
+        if (modem->card && modem->card->slirp_host_ip) {
             const uint32_t wins_ip = (modem->card->slirp_host_ip & 0xFFFFFF00u) | VSERVER_SLIRP_HOST_ID;
 
+#    ifdef ENABLE_VSERVER_WINS
+            if (!modem->ppp_wins1) {
+#    endif
             if (!modem->vserver) {
-                modem->vserver = vserver_init(modem->log, wins_ip, VSERVER_SMB_ENABLED,
-                                              modem_vserver_output, modem);
+                modem->vserver = vserver_init(modem->log, wins_ip, VSERVER_WINS_ENABLED, VSERVER_SMB_ENABLED,
+                                              VSERVER_FTP_ENABLED, VSERVER_TFTP_ENABLED, modem_vserver_output, modem);
 #ifdef ENABLE_VSERVER_PPTP
-                pptp_attach(modem->vserver, modem->log, MODEM_PPTP_NETBEUI, MODEM_PPTP_IPX);
+                if (modem->vserver)
+                    pptp_attach(modem->vserver, modem->log, MODEM_PPTP_NETBEUI, MODEM_PPTP_IPX);
 #endif
             }
+#    ifdef ENABLE_VSERVER_WINS
             if (modem->vserver)
                 modem->ppp_ctx->wins1 = wins_ip;
+#    endif
+#    ifdef ENABLE_VSERVER_WINS
+            }
+#    endif
         }
 #endif
         modem->ppp_ctx->ipcp_dns_wins_mode = (uint8_t) modem->ipcp_dns_wins_mode;
@@ -3805,7 +3829,7 @@ modem_cmdpause_timer_callback(void *priv)
         }
     }
 
-#ifdef ENABLE_VSERVER_WINS
+#ifdef ENABLE_VSERVER
     vserver_tick(modem->vserver);
 #endif
 #ifdef ENABLE_VSERVER_NETBEUI
@@ -4314,7 +4338,7 @@ modem_close(void *priv)
     sound_in_remove_handler(modem_voice_capture, modem);
     sound_remove_handler(modem_voice_playback, modem);
 
-#ifdef ENABLE_VSERVER_WINS
+#ifdef ENABLE_VSERVER
     vserver_close(modem->vserver);
     modem->vserver = NULL;
 #endif

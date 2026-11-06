@@ -138,6 +138,8 @@ option(ENABLE_VSERVER_SMB "Enable SMB in the virtual network server (implies ENA
 option(ENABLE_VSERVER_NETBEUI "Enable NetBEUI access to the virtual server over PPP and Ethernet (implies ENABLE_VSERVER_SMB)" ON)
 option(ENABLE_VSERVER_IPX "Enable IPX access to the virtual server over PPP and Ethernet (implies ENABLE_VSERVER_SMB)" ON)
 option(ENABLE_VSERVER_PPTP "Enable the virtual server's PPTP VPN endpoint (implies ENABLE_VSERVER_SMB)" ON)
+option(ENABLE_VSERVER_FTP "Enable the read-only FTP server in the virtual network server" OFF)
+option(ENABLE_VSERVER_TFTP "Enable the read-only TFTP server in the virtual network server" OFF)
 option(ENABLE_MODEM_RAW_CAPTURE "Log every byte of raw modem-to-modem calls (requires ENABLE_MODEM_LOG)" OFF)
 if(ENABLE_MODEM_DEBUG AND NOT ENABLE_MODEM_LOG)
     message(FATAL_ERROR "ENABLE_MODEM_DEBUG requires ENABLE_MODEM_LOG")

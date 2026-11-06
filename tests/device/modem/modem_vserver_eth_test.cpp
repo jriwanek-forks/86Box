@@ -73,7 +73,7 @@ name_query(const char *name, uint8_t suffix)
 class VserverEth : public ::testing::Test {
 protected:
     void SetUp() override {
-        eth = vserver_eth_init(nullptr, server_ip, true, true, true, capture, &sent);
+        eth = vserver_eth_init(nullptr, server_ip, true, true, false, false, true, true, capture, &sent);
         ASSERT_NE(eth, nullptr);
     }
     void TearDown() override { vserver_eth_close(eth); }
@@ -122,7 +122,8 @@ TEST_F(VserverEth, AnswersBroadcastQueriesForItsNames)
 TEST(VserverEthWithoutSmb, ContinuesAnsweringWinsQueries)
 {
     std::vector<bytes> sent;
-    vserver_eth_t *eth = vserver_eth_init(nullptr, server_ip, false, false, false, capture, &sent);
+    vserver_eth_t *eth = vserver_eth_init(nullptr, server_ip, false, false, false, false, false, false, capture,
+                                          &sent);
     ASSERT_NE(eth, nullptr);
     bytes query = ethernet(broadcast, 0x0800, udp(0x0A0002FF, 137, name_query(VSERVER_SERVER_NAME, 0x20)));
     EXPECT_TRUE(vserver_eth_input(eth, query.data(), int(query.size())));
@@ -178,7 +179,7 @@ TEST_F(VserverEth, IgnoresNetBeuiForOtherStationsAndOtherSaps)
 TEST(VserverEthWithoutNetbeui, LeavesLlcAlone)
 {
     std::vector<bytes> sent;
-    vserver_eth_t *eth = vserver_eth_init(nullptr, server_ip, true, false, false, capture, &sent);
+    vserver_eth_t *eth = vserver_eth_init(nullptr, server_ip, true, true, false, false, false, false, capture, &sent);
     bytes frame = ethernet(server_mac, 3, { 0xF0, 0xF0, 0x7F });
     EXPECT_FALSE(vserver_eth_input(eth, frame.data(), int(frame.size())));
     vserver_eth_close(eth);
@@ -233,7 +234,7 @@ TEST_F(VserverEth, AnswersIpxInTheFramingItWasAskedIn)
 TEST(VserverEthWithoutIpx, LeavesIpxAlone)
 {
     std::vector<bytes> sent;
-    vserver_eth_t *eth = vserver_eth_init(nullptr, server_ip, true, true, false, capture, &sent);
+    vserver_eth_t *eth = vserver_eth_init(nullptr, server_ip, true, true, false, false, true, false, capture, &sent);
     bytes frame = ethernet(broadcast, 0x8137, rip_request());
     EXPECT_FALSE(vserver_eth_input(eth, frame.data(), int(frame.size())));
     vserver_eth_close(eth);

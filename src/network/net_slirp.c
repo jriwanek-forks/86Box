@@ -51,14 +51,16 @@
 #include <86box/net_event.h>
 #include <86box/network/net_vserver_config.h>
 #include "net_slirp_dhcp.h"
-#ifdef ENABLE_VSERVER_WINS
+#ifdef ENABLE_VSERVER
 #    include <stdbool.h>
 #    include <86box/log.h>
-#    include <86box/network/net_nbns.h>
 #    include <86box/network/net_vserver_eth.h>
 #    ifdef ENABLE_VSERVER_PPTP
 #        include <86box/modem/modem_pptp.h>
 #    endif
+#endif
+#ifdef ENABLE_VSERVER_WINS
+#    include <86box/network/net_nbns.h>
 #endif
 
 #define SLIRP_PKT_BATCH NET_QUEUE_LEN
@@ -82,7 +84,7 @@ typedef struct net_slirp_t {
     netpkt_t       pkt_tx_v[SLIRP_PKT_BATCH];
     int            during_tx;
     int            recv_on_tx;
-#ifdef ENABLE_VSERVER_WINS
+#ifdef ENABLE_VSERVER
     vserver_eth_t *vserver;    /* the virtual server, for network cards */
     void          *vserver_log;
     uint32_t       vserver_ip;
@@ -636,7 +638,7 @@ net_slirp_in(net_slirp_t *slirp, uint8_t *pkt, int pkt_len)
     if (!slirp)
         return;
 
-#ifdef ENABLE_VSERVER_WINS
+#ifdef ENABLE_VSERVER
     if (vserver_eth_input(slirp->vserver, pkt, pkt_len))
         return;
 #endif
@@ -646,7 +648,7 @@ net_slirp_in(net_slirp_t *slirp, uint8_t *pkt, int pkt_len)
     slirp_input(slirp->slirp, (const uint8_t *) pkt, pkt_len);
 }
 
-#ifdef ENABLE_VSERVER_WINS
+#ifdef ENABLE_VSERVER
 #    define VSERVER_POLL_MS 100
 
 static void
@@ -726,7 +728,7 @@ net_slirp_thread(void *priv)
 #    endif
         if (timeout < 0)
             timeout = INFINITE;
-#    ifdef ENABLE_VSERVER_WINS
+#    ifdef ENABLE_VSERVER
         if (slirp->vserver && timeout > VSERVER_POLL_MS)
             timeout = VSERVER_POLL_MS;
 #    endif
@@ -753,7 +755,7 @@ net_slirp_thread(void *priv)
                 slirp_pollfds_poll(slirp->slirp, ret == WAIT_FAILED, net_slirp_get_revents, slirp);
                 break;
         }
-#    ifdef ENABLE_VSERVER_WINS
+#    ifdef ENABLE_VSERVER
         net_slirp_vserver_tick(slirp);
 #    endif
         if (run)
@@ -785,7 +787,7 @@ net_slirp_thread(void *priv)
         slirp_pollfds_fill(slirp->slirp, &timeout, net_slirp_add_poll, slirp);
 #    endif
 
-#    ifdef ENABLE_VSERVER_WINS
+#    ifdef ENABLE_VSERVER
         if (slirp->vserver && timeout > VSERVER_POLL_MS)
             timeout = VSERVER_POLL_MS;
 #    endif
@@ -810,7 +812,7 @@ net_slirp_thread(void *priv)
             }
             slirp->during_tx = 0;
         }
-#    ifdef ENABLE_VSERVER_WINS
+#    ifdef ENABLE_VSERVER
         net_slirp_vserver_tick(slirp);
 #    endif
         net_slirp_rx_deferred_packets(slirp);
@@ -860,7 +862,7 @@ net_slirp_init(const netcard_t *card, const uint8_t *mac_addr, UNUSED(void *priv
     struct in_addr  mask       = { .s_addr = htonl(0xffffff00) };    /* 255.255.255.0 */
     struct in_addr  bind       = { .s_addr = htonl(0x00000000) };    /* 0.0.0.0 */
 
-#ifdef ENABLE_VSERVER_WINS
+#ifdef ENABLE_VSERVER
     slirp->vserver_ip = (ntohl(net.s_addr) & 0xFFFFFF00u) | VSERVER_SLIRP_HOST_ID;
 #endif
 
@@ -1006,12 +1008,27 @@ net_slirp_init(const netcard_t *card, const uint8_t *mac_addr, UNUSED(void *priv
         slirp_input(slirp->slirp, (const uint8_t *) &arphdr, sizeof(struct arphdr_local));
     }
 
-#ifdef ENABLE_VSERVER_WINS
+#ifdef ENABLE_VSERVER
     /* The modem brings its own server, and carries it over PPP rather than Ethernet. */
     if (!card->internal_modem) {
         slirp->vserver_log = log_open("VSERVER");
         slirp->vserver = vserver_eth_init(slirp->vserver_log, slirp->vserver_ip,
+#    ifdef ENABLE_VSERVER_WINS
+                                          true,
+#    else
+                                          false,
+#    endif
 #    ifdef ENABLE_VSERVER_SMB
+                                          true,
+#    else
+                                          false,
+#    endif
+#    ifdef ENABLE_VSERVER_FTP
+                                          true,
+#    else
+                                          false,
+#    endif
+#    ifdef ENABLE_VSERVER_TFTP
                                           true,
 #    else
                                           false,
@@ -1070,7 +1087,7 @@ net_slirp_close(void *priv)
     net_event_close(&slirp->stop_event);
     net_event_close(&slirp->tx_event);
     net_event_close(&slirp->rx_event);
-#ifdef ENABLE_VSERVER_WINS
+#ifdef ENABLE_VSERVER
     vserver_eth_close(slirp->vserver);
     if (slirp->vserver_log)
         log_close(slirp->vserver_log);

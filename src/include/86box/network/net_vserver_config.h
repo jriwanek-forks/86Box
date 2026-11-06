@@ -39,4 +39,12 @@
 #define VSERVER_IPC_SHARE_NAME "IPC$"
 #define VSERVER_IPC_SHARE_REMARK "Remote IPC"
 
+#define VSERVER_FTP_TEST_FILE_NAME "ftp-test.txt"
+#define VSERVER_FTP_TEST_FILE_CONTENT "86Box read-only FTP test file.\r\n"
+#ifndef VSERVER_TFTP_BOOT_FILE_NAME
+#    define VSERVER_TFTP_BOOT_FILE_NAME "tftp-test.txt"
+#endif
+#define VSERVER_TFTP_TEST_FILE_NAME VSERVER_TFTP_BOOT_FILE_NAME
+#define VSERVER_TFTP_TEST_FILE_CONTENT "86Box read-only TFTP test file.\r\n"
+
 #endif /* NETWORK_NET_VSERVER_CONFIG_H */
