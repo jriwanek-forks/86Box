@@ -212,6 +212,7 @@ TEST_F(Nbf, AnswersQueriesForTheServerOnly)
 
 TEST_F(Nbf, NameQueryBeforeLlcConnectKeepsItsRasSession)
 {
+    ASSERT_TRUE(nbf_set_ras_credentials(nbf, "86Box", "86Box"));
     in(names_frame(0x0A, 0, 7, 0x1234, nb_name("DIALIN_GATEWAY", 0x20),
                    nb_name("86BOX95", 0)));
     ASSERT_EQ(sent.size(), 1u);
@@ -255,6 +256,35 @@ TEST_F(Nbf, NameQueryBeforeLlcConnectKeepsItsRasSession)
             got_challenge |= frame[14] == 101;
     }
     EXPECT_TRUE(got_challenge);
+
+    uint16_t challenge_correlator = 0;
+    for (const bytes &frame : received) {
+        if (frame.size() > 14 && (frame[4] == 0x15 || frame[4] == 0x16)
+            && frame[14] == 101) {
+            challenge_correlator = get_le16(&frame[10]);
+            break;
+        }
+    }
+    ASSERT_NE(challenge_correlator, 0);
+
+    received.clear();
+    info(session_header(0x14, 0, 0, challenge_correlator, 0, server, 7));
+    bytes response(333, 0);
+    response[0] = 109;
+    std::memcpy(response.data() + 1, "86Box", 5);
+    bytes auth_message = session_header(0x16, 0, 0, 0, 0x4567, server, 7);
+    auth_message.insert(auth_message.end(), response.begin(), response.end());
+    received.clear();
+    info(auth_message);
+
+    bool got_authentication_rejection = false;
+    for (const bytes &frame : received) {
+        if (frame.size() >= 17 && (frame[4] == 0x15 || frame[4] == 0x16)
+            && frame[14] == 104) {
+            got_authentication_rejection = frame[15] == 0x00 && frame[16] == 0x62;
+        }
+    }
+    EXPECT_TRUE(got_authentication_rejection);
 }
 
 TEST_F(Nbf, ARepeatedQueryKeepsItsSession)

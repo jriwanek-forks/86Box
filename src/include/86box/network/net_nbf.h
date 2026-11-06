@@ -17,6 +17,8 @@
 #ifndef NETWORK_NET_NBF_H
 #define NETWORK_NET_NBF_H
 
+#include <stdbool.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -33,6 +35,9 @@ void   nbf_close(nbf_t *nbf);
 
 /* Sets the largest LLC frame the link can carry towards the guest. */
 void nbf_set_max_frame(nbf_t *nbf, int length);
+
+/* Sets the credentials checked by legacy RAS sessions. */
+bool nbf_set_ras_credentials(nbf_t *nbf, const char *username, const char *password);
 
 /* Forgets every connection, for when the link carrying them starts again. */
 void nbf_reset(nbf_t *nbf);

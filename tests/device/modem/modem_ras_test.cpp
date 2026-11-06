@@ -1,7 +1,10 @@
 #include <cstddef>
 #include <cstdint>
+#include <algorithm>
+#include <cstring>
 #include <gtest/gtest.h>
 #include <vector>
+#include <86box/modem/modem_crypto.h>
 #include <86box/modem/modem_ras.h>
 
 struct ras_capture_t {
@@ -68,6 +71,62 @@ fail_ras_challenge(uint8_t *, uint8_t)
 }
 
 static std::vector<uint8_t>
+make_ras_response_20(const char *username, const char *password,
+                     bool include_username_padding = false, bool use_nt_response = false)
+{
+    constexpr size_t username_offset = 1;
+    constexpr size_t username_length = 257;
+    constexpr size_t lm_response_offset = 274;
+    constexpr size_t nt_response_offset = 298;
+    constexpr size_t use_nt_response_offset = 322;
+    const uint8_t challenge[MODEM_RAS_CHALLENGE_LENGTH] = { 0, 1, 2, 3, 4, 5, 6, 7 };
+    const uint8_t magic[8] = { 'K', 'G', 'S', '!', '@', '#', '$', '%' };
+    uint8_t upper_password[14] = {};
+    uint8_t password_hash[16];
+    uint8_t padded_hash[21] = {};
+    std::vector<uint8_t> message(333, 0);
+
+    message[0] = MODEM_RAS_FRAME_RESPONSE_20;
+    std::memcpy(message.data() + username_offset, username,
+                std::min(std::strlen(username), username_length - 1));
+    if (include_username_padding) {
+        const size_t terminator = username_offset + std::strlen(username);
+        message[terminator + 1] = 0x41;
+        message[terminator + 2] = 0x42;
+    }
+
+    if (use_nt_response) {
+        uint8_t unicode_password[128] = {};
+        const size_t password_length = std::min(std::strlen(password), sizeof(unicode_password) / 2);
+        for (size_t i = 0; i < password_length; i++) {
+            unicode_password[i * 2] = static_cast<uint8_t>(password[i]);
+            unicode_password[i * 2 + 1] = 0;
+        }
+        modem_md4(unicode_password, password_length * 2, password_hash);
+        message[use_nt_response_offset] = 1;
+        std::memcpy(padded_hash, password_hash, sizeof(password_hash));
+        for (size_t i = 0; i < 3; i++)
+            modem_des_encrypt_block(padded_hash + i * 7, challenge,
+                                    message.data() + nt_response_offset + i * 8);
+    } else {
+        const size_t password_length = std::min(std::strlen(password), sizeof(upper_password));
+        for (size_t i = 0; i < password_length; i++) {
+            uint8_t value = static_cast<uint8_t>(password[i]);
+            if (value >= 'a' && value <= 'z')
+                value = static_cast<uint8_t>(value - 'a' + 'A');
+            upper_password[i] = value;
+        }
+        modem_des_encrypt_block(upper_password, magic, password_hash);
+        modem_des_encrypt_block(upper_password + 7, magic, password_hash + 8);
+        std::memcpy(padded_hash, password_hash, sizeof(password_hash));
+        for (size_t i = 0; i < 3; i++)
+            modem_des_encrypt_block(padded_hash + i * 7, challenge,
+                                    message.data() + lm_response_offset + i * 8);
+    }
+    return message;
+}
+
+static std::vector<uint8_t>
 encode_ras_frame(uint8_t address, const std::vector<uint8_t> &payload)
 {
     std::vector<uint8_t> output(payload.size() + 7);
@@ -110,7 +169,7 @@ TEST(ModemRas, NegotiatesVersionAndIssuesChallenge)
     modem_ras_session_init(&session);
 
     EXPECT_EQ(modem_ras_session_process_message(&session, protocol_request,
-                                                sizeof(protocol_request), capture_ras_message,
+                                                sizeof(protocol_request), "", "", capture_ras_message,
                                                 &capture, fill_ras_challenge),
               MODEM_RAS_SESSION_PROTOCOL_NEGOTIATED);
     ASSERT_EQ(capture.messages.size(), 2);
@@ -135,7 +194,7 @@ TEST(ModemRas, AcceptsZeroPaddedWindows95ProtocolMessage)
     modem_ras_session_init(&session);
 
     EXPECT_EQ(modem_ras_session_process_message(&session, protocol_request.data(),
-                                                protocol_request.size(), capture_ras_message,
+                                                protocol_request.size(), "", "", capture_ras_message,
                                                 &capture, fill_ras_challenge),
               MODEM_RAS_SESSION_PROTOCOL_NEGOTIATED);
     ASSERT_EQ(capture.messages.size(), 2);
@@ -155,13 +214,110 @@ TEST(ModemRas, RejectsNonzeroProtocolPadding)
     modem_ras_session_init(&session);
 
     EXPECT_EQ(modem_ras_session_process_message(&session, protocol_request.data(),
-                                                protocol_request.size(), capture_ras_message,
+                                                protocol_request.size(), "", "", capture_ras_message,
                                                 &capture, fill_ras_challenge),
               MODEM_RAS_SESSION_INVALID_MESSAGE);
     EXPECT_TRUE(capture.messages.empty());
 }
 
-TEST(ModemRas, RejectsChallengeResponseWithoutAuthenticating)
+TEST(ModemRas, AcceptsConfiguredCredentialsAndIgnoresBytesAfterUsernameTerminator)
+{
+    const uint8_t protocol_request[13] = { MODEM_RAS_FRAME_PROTOCOL, 20, 0 };
+    const std::vector<uint8_t> challenge_response =
+        make_ras_response_20("86Box", "86Box", true);
+    modem_ras_session_t session;
+    ras_message_capture_t capture;
+    modem_ras_session_init(&session);
+
+    ASSERT_EQ(modem_ras_session_process_message(&session, protocol_request,
+                                                sizeof(protocol_request), "86Box", "86Box",
+                                                capture_ras_message,
+                                                &capture, fill_ras_challenge),
+              MODEM_RAS_SESSION_PROTOCOL_NEGOTIATED);
+    EXPECT_EQ(modem_ras_session_process_message(&session, challenge_response.data(),
+                                                challenge_response.size(), "86Box", "86Box",
+                                                capture_ras_message,
+                                                &capture, fill_ras_challenge),
+              MODEM_RAS_SESSION_AUTHENTICATED_RESULT);
+    ASSERT_EQ(capture.messages.size(), 3);
+    EXPECT_EQ(capture.messages[2],
+              (std::vector<uint8_t> { MODEM_RAS_FRAME_RESULT, 0x00, 0x61 }));
+    EXPECT_EQ(session.state, MODEM_RAS_SESSION_AUTHENTICATED);
+    EXPECT_EQ(modem_ras_session_process_message(&session, challenge_response.data(),
+                                                challenge_response.size(), "86Box", "86Box",
+                                                capture_ras_message, &capture, fill_ras_challenge),
+              MODEM_RAS_SESSION_POST_AUTH_UNIMPLEMENTED);
+}
+
+TEST(ModemRas, RejectsResponseWhenConfiguredCredentialsDoNotMatch)
+{
+    const uint8_t protocol_request[13] = { MODEM_RAS_FRAME_PROTOCOL, 20, 0 };
+    const std::vector<uint8_t> challenge_response =
+        make_ras_response_20("86Box", "86Box");
+    modem_ras_session_t session;
+    ras_message_capture_t capture;
+    modem_ras_session_init(&session);
+
+    ASSERT_EQ(modem_ras_session_process_message(&session, protocol_request,
+                                                sizeof(protocol_request), "wrong", "wrong",
+                                                capture_ras_message,
+                                                &capture, fill_ras_challenge),
+              MODEM_RAS_SESSION_PROTOCOL_NEGOTIATED);
+    EXPECT_EQ(modem_ras_session_process_message(&session, challenge_response.data(),
+                                                challenge_response.size(), "wrong", "wrong",
+                                                capture_ras_message,
+                                                &capture, fill_ras_challenge),
+              MODEM_RAS_SESSION_AUTH_REJECTED);
+    EXPECT_EQ(capture.messages.back(),
+              (std::vector<uint8_t> { MODEM_RAS_FRAME_RESULT, 0x00, 0x62 }));
+}
+
+TEST(ModemRas, AcceptsNtResponseWhenSelected)
+{
+    const uint8_t protocol_request[13] = { MODEM_RAS_FRAME_PROTOCOL, 20, 0 };
+    const std::vector<uint8_t> challenge_response =
+        make_ras_response_20("86Box", "86Box", false, true);
+    modem_ras_session_t session;
+    ras_message_capture_t capture;
+    modem_ras_session_init(&session);
+
+    ASSERT_EQ(modem_ras_session_process_message(&session, protocol_request,
+                                                sizeof(protocol_request), "86Box", "86Box",
+                                                capture_ras_message, &capture,
+                                                fill_ras_challenge),
+              MODEM_RAS_SESSION_PROTOCOL_NEGOTIATED);
+    EXPECT_EQ(modem_ras_session_process_message(&session, challenge_response.data(),
+                                                challenge_response.size(), "86Box", "86Box",
+                                                capture_ras_message, &capture,
+                                                fill_ras_challenge),
+              MODEM_RAS_SESSION_AUTHENTICATED_RESULT);
+}
+
+TEST(ModemRas, AcceptsLegacyLmResponse)
+{
+    const uint8_t protocol_request[13] = { MODEM_RAS_FRAME_PROTOCOL, 20, 0 };
+    const std::vector<uint8_t> response_20 = make_ras_response_20("86Box", "86Box");
+    std::vector<uint8_t> response_10(46, 0);
+    modem_ras_session_t session;
+    ras_message_capture_t capture;
+    modem_ras_session_init(&session);
+
+    response_10[0] = MODEM_RAS_FRAME_RESPONSE;
+    std::memcpy(response_10.data() + 1, "86Box", 5);
+    std::memcpy(response_10.data() + 22, response_20.data() + 274, 24);
+    ASSERT_EQ(modem_ras_session_process_message(&session, protocol_request,
+                                                sizeof(protocol_request), "86Box", "86Box",
+                                                capture_ras_message, &capture,
+                                                fill_ras_challenge),
+              MODEM_RAS_SESSION_PROTOCOL_NEGOTIATED);
+    EXPECT_EQ(modem_ras_session_process_message(&session, response_10.data(),
+                                                response_10.size(), "86Box", "86Box",
+                                                capture_ras_message, &capture,
+                                                fill_ras_challenge),
+              MODEM_RAS_SESSION_AUTHENTICATED_RESULT);
+}
+
+TEST(ModemRas, RejectsMalformedResponse)
 {
     const uint8_t protocol_request[13] = { MODEM_RAS_FRAME_PROTOCOL, 20, 0 };
     const uint8_t challenge_response[] = { MODEM_RAS_FRAME_RESPONSE_20 };
@@ -170,17 +326,16 @@ TEST(ModemRas, RejectsChallengeResponseWithoutAuthenticating)
     modem_ras_session_init(&session);
 
     ASSERT_EQ(modem_ras_session_process_message(&session, protocol_request,
-                                                sizeof(protocol_request), capture_ras_message,
-                                                &capture, fill_ras_challenge),
+                                                sizeof(protocol_request), "", "",
+                                                capture_ras_message, &capture,
+                                                fill_ras_challenge),
               MODEM_RAS_SESSION_PROTOCOL_NEGOTIATED);
     EXPECT_EQ(modem_ras_session_process_message(&session, challenge_response,
-                                                sizeof(challenge_response), capture_ras_message,
-                                                &capture, fill_ras_challenge),
-              MODEM_RAS_SESSION_AUTH_REJECTED);
-    ASSERT_EQ(capture.messages.size(), 3);
-    EXPECT_EQ(capture.messages[2],
-              (std::vector<uint8_t> { MODEM_RAS_FRAME_RESULT, 0x00, 0x62 }));
-    EXPECT_EQ(session.state, MODEM_RAS_SESSION_REJECTED);
+                                                sizeof(challenge_response), "", "",
+                                                capture_ras_message, &capture,
+                                                fill_ras_challenge),
+              MODEM_RAS_SESSION_INVALID_MESSAGE);
+    EXPECT_EQ(capture.messages.size(), 2u);
 }
 
 TEST(ModemRas, DecodesByteByByteAndPreservesPayloadBytes)

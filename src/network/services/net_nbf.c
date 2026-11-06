@@ -183,6 +183,8 @@ struct nbf_t {
     int           control_count;
 
     int           max_data;    /* how much a data frame can carry on this link */
+    char          ras_username[MODEM_RAS_CREDENTIAL_LENGTH];
+    char          ras_password[MODEM_RAS_CREDENTIAL_LENGTH];
     bool          guest_seen;
     int           announce_ms;
     int           next_session;
@@ -781,14 +783,23 @@ nbf_ras_session_deliver(nbf_t *nbf, nbf_session_t *session, const uint8_t *data,
     nbf_log(nbf->log, "RAS: DIALIN_GATEWAY received message type %u, %d bytes\n",
             (unsigned) message_type, length);
     result = modem_ras_session_process_message(&session->ras, data, (size_t) length,
+                                               nbf->ras_username, nbf->ras_password,
                                                nbf_ras_send_message, &context, ppp_random_bytes);
     switch (result) {
         case MODEM_RAS_SESSION_PROTOCOL_NEGOTIATED:
             nbf_log(nbf->log, "RAS: Client version %u negotiated; challenge sent\n",
                     (unsigned) session->ras.client_version);
             break;
+        case MODEM_RAS_SESSION_AUTHENTICATED_RESULT:
+            nbf_log(nbf->log, "RAS: Configured credentials accepted; authentication succeeded\n");
+            break;
         case MODEM_RAS_SESSION_AUTH_REJECTED:
-            nbf_log(nbf->log, "RAS: Authentication is not implemented; response rejected\n");
+            nbf_log(nbf->log, "RAS: Configured credentials did not match; authentication rejected\n");
+            break;
+        case MODEM_RAS_SESSION_POST_AUTH_UNIMPLEMENTED:
+            nbf_log(nbf->log, "RAS: Authentication succeeded; post-authentication setup is not implemented\n");
+            nbf_queue_control(nbf, NBF_SESSION_END, 0, 1, 0, session->remote, session->local);
+            session->ending = true;
             break;
         case MODEM_RAS_SESSION_INVALID_MESSAGE:
             nbf_log(nbf->log, "RAS: Unexpected or malformed DIALIN_GATEWAY message; ending session\n");
@@ -1064,6 +1075,26 @@ nbf_set_max_frame(nbf_t *nbf, int length)
 
     if (nbf && data > 0)
         nbf->max_data = data < NBF_MAX_DATA ? data : NBF_MAX_DATA;
+}
+
+bool
+nbf_set_ras_credentials(nbf_t *nbf, const char *username, const char *password)
+{
+    size_t username_length;
+    size_t password_length;
+
+    if (!nbf || !username || !password)
+        return false;
+
+    username_length = strlen(username);
+    password_length = strlen(password);
+    if (username_length >= sizeof(nbf->ras_username)
+        || password_length >= sizeof(nbf->ras_password))
+        return false;
+
+    memcpy(nbf->ras_username, username, username_length + 1);
+    memcpy(nbf->ras_password, password, password_length + 1);
+    return true;
 }
 
 void

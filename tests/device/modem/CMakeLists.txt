@@ -58,6 +58,7 @@ if(BUILD_TESTING)
 
     add_modem_test(modem_ras_tests modem_ras_test.cpp
         ../../../src/device/modem/modem_ras.c
+        ../../../src/device/modem/modem_crypto.c
     )
 
     add_modem_test(modem_mppp_tests modem_mppp_test.cpp

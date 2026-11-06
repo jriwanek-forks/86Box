@@ -2118,6 +2118,12 @@ modem_start_local_ip_connection(modem_t *modem)
             modem_send_res(modem, ResNOCARRIER);
             return;
         }
+        if (!nbf_set_ras_credentials(modem->nbf, modem->username, modem->password)) {
+            modem_log(modem->log, "RAS credential configuration failed\n");
+            modem_enter_idle_state(modem);
+            modem_send_res(modem, ResNOCARRIER);
+            return;
+        }
         nbf_reset(modem->nbf);
         modem_ras_decoder_init(&modem->ras_decoder, modem_ras_network_send_nbf,
                                modem_ras_log_event, modem);
