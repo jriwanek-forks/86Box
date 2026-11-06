@@ -6,7 +6,7 @@
  *
  *          This file is part of the 86Box distribution.
  *
- *          IPX for the emulated modem's virtual server. Two things carry SMB
+ *          IPX for the virtual server. Two things carry SMB
  *          over IPX, and which one a guest uses depends on how it was set up:
  *
  *          - Direct hosting, the default on Windows 95 and Windows for
@@ -31,10 +31,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <86box/log.h>
-#include <86box/modem/modem_browser.h>
-#include <86box/modem/modem_ipx.h>
-#include <86box/modem/modem_nbns.h>
-#include <86box/modem/modem_smb.h>
+#include <86box/network/net_browser.h>
+#include <86box/network/net_ipx.h>
+#include <86box/network/net_nbns.h>
+#include <86box/network/net_smb.h>
 
 #ifdef ENABLE_MODEM_LOG
 extern uint8_t modem_do_log;

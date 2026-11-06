@@ -52,8 +52,8 @@
 #ifdef ENABLE_MODEM_SMB
 #    include <stdbool.h>
 #    include <86box/log.h>
-#    include <86box/modem/modem_nbns.h>
-#    include <86box/modem/modem_vserver_eth.h>
+#    include <86box/network/net_nbns.h>
+#    include <86box/network/net_vserver_eth.h>
 #    ifdef ENABLE_MODEM_PPTP
 #        include <86box/modem/modem_pptp.h>
 #    endif

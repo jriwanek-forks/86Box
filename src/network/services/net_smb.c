@@ -6,7 +6,7 @@
  *
  *          This file is part of the 86Box distribution.
  *
- *          SMB1 server for the emulated modem's virtual server: the NetBIOS
+ *          SMB1 server for the virtual server: the NetBIOS
  *          session layer, share-level security, IPC$ and one read-only folder.
  *
  *          The server negotiates everything from the core protocol to NT LM
@@ -28,10 +28,10 @@
 #include <time.h>
 #include <86box/log.h>
 #include <86box/modem/modem_crypto.h>
-#include <86box/modem/modem_nbns.h>
-#include <86box/modem/modem_smb.h>
-#include <86box/modem/modem_smb_fs.h>
-#include <86box/modem/modem_smb_rap.h>
+#include <86box/network/net_nbns.h>
+#include <86box/network/net_smb.h>
+#include <86box/network/net_smb_fs.h>
+#include <86box/network/net_smb_rap.h>
 
 #ifdef ENABLE_MODEM_LOG
 extern uint8_t modem_do_log;

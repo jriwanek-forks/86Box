@@ -44,14 +44,14 @@
 #endif
 #include <86box/modem/modem_ppp.h>
 #ifdef ENABLE_MODEM_WINS
-#    include <86box/modem/modem_nbns.h>
-#    include <86box/modem/modem_vserver.h>
+#    include <86box/network/net_nbns.h>
+#    include <86box/network/net_vserver.h>
 #    ifdef ENABLE_MODEM_NETBEUI
-#        include <86box/modem/modem_nbf.h>
+#        include <86box/network/net_nbf.h>
 #        include <86box/modem/modem_nbfcp.h>
 #    endif
 #    ifdef ENABLE_MODEM_IPX
-#        include <86box/modem/modem_ipx.h>
+#        include <86box/network/net_ipx.h>
 #        include <86box/modem/modem_ipxcp.h>
 #    endif
 #    ifdef ENABLE_MODEM_PPTP

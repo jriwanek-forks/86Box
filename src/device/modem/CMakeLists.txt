@@ -25,24 +25,15 @@ target_sources(dev PRIVATE
     modem_mppe.c
     modem_eap.c
     modem_ipcp.c
-    modem_ipx.c
     modem_ipxcp.c
     modem_ipv6cp.c
-    modem_nbf.c
     modem_nbfcp.c
-    modem_nbns.c
     modem_cslip.c
     modem_mppp.c
     modem_slip.c
     modem_slip_auth.c
-    modem_smb.c
-    modem_smb_fs.c
-    modem_smb_rap.c
     modem_sound.c
     modem_voice.c
-    modem_browser.c
-    modem_vserver.c
-    modem_vserver_eth.c
 )
 
 if(ENABLE_MODEM_LOG)

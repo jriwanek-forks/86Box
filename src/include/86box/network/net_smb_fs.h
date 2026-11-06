@@ -6,15 +6,15 @@
  *
  *          This file is part of the 86Box distribution.
  *
- *          The read-only folder served by the emulated modem's virtual
- *          server. Everything here is built in, so nothing touches the host.
+ *          The read-only folder served by the virtual network server.
+ *          Everything here is built in, so nothing touches the host.
  *
  * Authors: Jasmine Iwanek, <jriwanek@gmail.com>
  *
  *          Copyright 2026 Jasmine Iwanek.
  */
-#ifndef MODEM_SMB_FS_H
-#define MODEM_SMB_FS_H
+#ifndef NETWORK_NET_SMB_FS_H
+#define NETWORK_NET_SMB_FS_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -63,4 +63,4 @@ bool smb_fs_match(const char *pattern, const char *name);
 }
 #endif
 
-#endif /* MODEM_SMB_FS_H */
+#endif /* NETWORK_NET_SMB_FS_H */

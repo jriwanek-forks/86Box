@@ -6,8 +6,8 @@
  *
  *          This file is part of the 86Box distribution.
  *
- *          NetBIOS datagrams and the browser protocol for the emulated
- *          modem's virtual server. RFC 1002 section 4.4, [MS-BRWS].
+ *          NetBIOS datagrams and the browser protocol for the virtual
+ *          network server. RFC 1002 section 4.4, [MS-BRWS].
  *
  *          The server stays the master browser of its workgroup, so a guest
  *          always has somebody to ask for the browse list.
@@ -20,8 +20,8 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
-#include <86box/modem/modem_nbns.h>
-#include <86box/modem/modem_browser.h>
+#include <86box/network/net_nbns.h>
+#include <86box/network/net_browser.h>
 
 #define DGM_DIRECT_UNIQUE 0x10
 #define DGM_DIRECT_GROUP  0x11

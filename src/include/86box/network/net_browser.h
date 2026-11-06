@@ -6,15 +6,15 @@
  *
  *          This file is part of the 86Box distribution.
  *
- *          NetBIOS datagrams and the browser protocol for the emulated
- *          modem's virtual server. RFC 1002 section 4.4, [MS-BRWS].
+ *          NetBIOS datagrams and the browser protocol for the virtual
+ *          network server. RFC 1002 section 4.4, [MS-BRWS].
  *
  * Authors: Jasmine Iwanek, <jriwanek@gmail.com>
  *
  *          Copyright 2026 Jasmine Iwanek.
  */
-#ifndef MODEM_BROWSER_H
-#define MODEM_BROWSER_H
+#ifndef NETWORK_NET_BROWSER_H
+#define NETWORK_NET_BROWSER_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -34,4 +34,4 @@ int browser_announcement(uint32_t server_ip, int which, uint8_t *reply, int repl
 }
 #endif
 
-#endif /* MODEM_BROWSER_H */
+#endif /* NETWORK_NET_BROWSER_H */

@@ -7,7 +7,7 @@
  *          This file is part of the 86Box distribution.
  *
  *          NetBIOS name server (NBNS, known to Windows as WINS) for the
- *          emulated modem's virtual server. RFC 1001, RFC 1002.
+ *          virtual server. RFC 1001, RFC 1002.
  *
  *          The name logic knows nothing about PPP or SLiRP: it takes a
  *          message and returns a reply, so other transports can reuse it.
@@ -27,7 +27,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <86box/log.h>
-#include <86box/modem/modem_nbns.h>
+#include <86box/network/net_nbns.h>
 
 #ifdef ENABLE_MODEM_LOG
 extern uint8_t modem_do_log;

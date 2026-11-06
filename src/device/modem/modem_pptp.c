@@ -30,13 +30,13 @@
 #include <string.h>
 #include <86box/log.h>
 #include <86box/modem/modem_ppp.h>
-#include <86box/modem/modem_ipx.h>
+#include <86box/network/net_ipx.h>
 #include <86box/modem/modem_ipxcp.h>
-#include <86box/modem/modem_nbf.h>
+#include <86box/network/net_nbf.h>
 #include <86box/modem/modem_nbfcp.h>
-#include <86box/modem/modem_nbns.h>
+#include <86box/network/net_nbns.h>
 #include <86box/modem/modem_pptp.h>
-#include <86box/modem/modem_smb.h>
+#include <86box/network/net_smb.h>
 
 #ifdef ENABLE_MODEM_LOG
 extern uint8_t modem_do_log;

@@ -3,10 +3,10 @@
 #include <string>
 #include <vector>
 #include <gtest/gtest.h>
-#include <86box/modem/modem_browser.h>
-#include <86box/modem/modem_nbns.h>
-#include <86box/modem/modem_smb.h>
-#include <86box/modem/modem_vserver.h>
+#include <86box/network/net_browser.h>
+#include <86box/network/net_nbns.h>
+#include <86box/network/net_smb.h>
+#include <86box/network/net_vserver.h>
 
 static const uint32_t server_ip = 0x0A000204;
 static const uint32_t guest_ip  = 0x0A00020F;

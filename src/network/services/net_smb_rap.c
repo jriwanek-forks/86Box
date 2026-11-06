@@ -6,8 +6,8 @@
  *
  *          This file is part of the 86Box distribution.
  *
- *          The RAP calls behind browse and share lists, for the emulated
- *          modem's virtual server.
+ *          The RAP calls behind browse and share lists for the virtual
+ *          network server.
  *
  * Authors: Jasmine Iwanek, <jriwanek@gmail.com>
  *
@@ -20,10 +20,10 @@
 #include <stdio.h>
 #include <string.h>
 #include <86box/log.h>
-#include <86box/modem/modem_nbns.h>
-#include <86box/modem/modem_smb.h>
-#include <86box/modem/modem_smb_fs.h>
-#include <86box/modem/modem_smb_rap.h>
+#include <86box/network/net_nbns.h>
+#include <86box/network/net_smb.h>
+#include <86box/network/net_smb_fs.h>
+#include <86box/network/net_smb_rap.h>
 
 #ifdef ENABLE_MODEM_LOG
 extern uint8_t modem_do_log;

@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 #include <gtest/gtest.h>
-#include <86box/modem/modem_nbns.h>
+#include <86box/network/net_nbns.h>
 
 static const uint32_t server_ip = 0x0A000204;
 static const uint32_t guest_ip  = 0x0A00020F;

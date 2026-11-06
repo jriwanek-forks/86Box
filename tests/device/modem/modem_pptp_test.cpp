@@ -7,7 +7,7 @@
 #include <gtest/gtest.h>
 #include <86box/modem/modem_ppp.h>
 #include <86box/modem/modem_pptp.h>
-#include <86box/modem/modem_vserver.h>
+#include <86box/network/net_vserver.h>
 
 typedef std::vector<uint8_t> bytes;
 

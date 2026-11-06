@@ -6,15 +6,15 @@
  *
  *          This file is part of the 86Box distribution.
  *
- *          SMB1 server for the emulated modem's virtual server: core, LAN
+ *          SMB1 server for the virtual server: core, LAN
  *          Manager and NT LM dialects, a browse list and one read-only folder.
  *
  * Authors: Jasmine Iwanek, <jriwanek@gmail.com>
  *
  *          Copyright 2026 Jasmine Iwanek.
  */
-#ifndef MODEM_SMB_H
-#define MODEM_SMB_H
+#ifndef NETWORK_NET_SMB_H
+#define NETWORK_NET_SMB_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -43,4 +43,4 @@ int smb_session_input(smb_session_t *session, const uint8_t *data, int len, uint
 }
 #endif
 
-#endif /* MODEM_SMB_H */
+#endif /* NETWORK_NET_SMB_H */

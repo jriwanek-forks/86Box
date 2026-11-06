@@ -7,14 +7,14 @@
  *          This file is part of the 86Box distribution.
  *
  *          NetBIOS name server (NBNS, known to Windows as WINS) for the
- *          emulated modem's virtual server. RFC 1001, RFC 1002.
+ *          virtual server. RFC 1001, RFC 1002.
  *
  * Authors: Jasmine Iwanek, <jriwanek@gmail.com>
  *
  *          Copyright 2026 Jasmine Iwanek.
  */
-#ifndef MODEM_NBNS_H
-#define MODEM_NBNS_H
+#ifndef NETWORK_NET_NBNS_H
+#define NETWORK_NET_NBNS_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -57,4 +57,4 @@ int nbns_process_broadcast(nbns_t *nbns, const uint8_t *ip_pkt, int len,
 }
 #endif
 
-#endif /* MODEM_NBNS_H */
+#endif /* NETWORK_NET_NBNS_H */

@@ -6,7 +6,7 @@
  *
  *          This file is part of the 86Box distribution.
  *
- *          NetBEUI for the emulated modem's virtual server: the NetBIOS
+ *          NetBEUI for the virtual server: the NetBIOS
  *          Frames protocol and the IEEE 802.2 LLC connection beneath it.
  *
  *          Name lookups and datagrams travel in unnumbered frames. Everything
@@ -26,10 +26,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <86box/log.h>
-#include <86box/modem/modem_browser.h>
-#include <86box/modem/modem_nbf.h>
-#include <86box/modem/modem_nbns.h>
-#include <86box/modem/modem_smb.h>
+#include <86box/network/net_browser.h>
+#include <86box/network/net_nbf.h>
+#include <86box/network/net_nbns.h>
+#include <86box/network/net_smb.h>
 
 #ifdef ENABLE_MODEM_LOG
 extern uint8_t modem_do_log;

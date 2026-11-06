@@ -6,17 +6,16 @@
  *
  *          This file is part of the 86Box distribution.
  *
- *          Puts the virtual server on an Ethernet segment, so guests with a
- *          network card can reach it as they can over the modem.
+ *          Adapts the virtual server to Ethernet frames for network guests.
  *
  * Authors: Jasmine Iwanek, <jriwanek@gmail.com>
  *
  *          Copyright 2026 Jasmine Iwanek.
  */
-#ifndef MODEM_VSERVER_ETH_H
-#define MODEM_VSERVER_ETH_H
+#ifndef NETWORK_NET_VSERVER_ETH_H
+#define NETWORK_NET_VSERVER_ETH_H
 
-#include <86box/modem/modem_vserver.h>
+#include <86box/network/net_vserver.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -45,4 +44,4 @@ void vserver_eth_tick(vserver_eth_t *server);
 }
 #endif
 
-#endif /* MODEM_VSERVER_ETH_H */
+#endif /* NETWORK_NET_VSERVER_ETH_H */

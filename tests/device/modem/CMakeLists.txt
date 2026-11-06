@@ -84,36 +84,36 @@ if(BUILD_TESTING)
         ../../../src/device/modem/modem_ipcp.c
     )
     add_modem_test(modem_nbns_tests modem_nbns_test.cpp
-        ../../../src/device/modem/modem_nbns.c
+        ../../../src/network/services/net_nbns.c
     )
     add_modem_test(modem_nbf_tests modem_nbf_test.cpp
-        ../../../src/device/modem/modem_nbf.c
-        ../../../src/device/modem/modem_browser.c
-        ../../../src/device/modem/modem_smb.c
-        ../../../src/device/modem/modem_smb_fs.c
-        ../../../src/device/modem/modem_smb_rap.c
+        ../../../src/network/services/net_nbf.c
+        ../../../src/network/services/net_browser.c
+        ../../../src/network/services/net_smb.c
+        ../../../src/network/services/net_smb_fs.c
+        ../../../src/network/services/net_smb_rap.c
         ../../../src/device/modem/modem_crypto.c
     )
     add_modem_test(modem_ipx_tests modem_ipx_test.cpp
-        ../../../src/device/modem/modem_ipx.c
-        ../../../src/device/modem/modem_browser.c
-        ../../../src/device/modem/modem_smb.c
-        ../../../src/device/modem/modem_smb_fs.c
-        ../../../src/device/modem/modem_smb_rap.c
+        ../../../src/network/services/net_ipx.c
+        ../../../src/network/services/net_browser.c
+        ../../../src/network/services/net_smb.c
+        ../../../src/network/services/net_smb_fs.c
+        ../../../src/network/services/net_smb_rap.c
         ../../../src/device/modem/modem_crypto.c
     )
     add_modem_test(modem_pptp_tests modem_pptp_test.cpp
         ../../../src/device/modem/modem_pptp.c
-        ../../../src/device/modem/modem_vserver.c
-        ../../../src/device/modem/modem_nbns.c
-        ../../../src/device/modem/modem_nbf.c
+        ../../../src/network/services/net_vserver.c
+        ../../../src/network/services/net_nbns.c
+        ../../../src/network/services/net_nbf.c
         ../../../src/device/modem/modem_nbfcp.c
-        ../../../src/device/modem/modem_ipx.c
+        ../../../src/network/services/net_ipx.c
         ../../../src/device/modem/modem_ipxcp.c
-        ../../../src/device/modem/modem_browser.c
-        ../../../src/device/modem/modem_smb.c
-        ../../../src/device/modem/modem_smb_fs.c
-        ../../../src/device/modem/modem_smb_rap.c
+        ../../../src/network/services/net_browser.c
+        ../../../src/network/services/net_smb.c
+        ../../../src/network/services/net_smb_fs.c
+        ../../../src/network/services/net_smb_rap.c
         ../../../src/device/modem/modem_ppp.c
         ../../../src/device/modem/modem_pap.c
         ../../../src/device/modem/modem_chap.c
@@ -130,30 +130,30 @@ if(BUILD_TESTING)
     )
     target_link_libraries(modem_pptp_tests PRIVATE ZLIB::ZLIB)
     add_modem_test(modem_vserver_eth_tests modem_vserver_eth_test.cpp
-        ../../../src/device/modem/modem_vserver_eth.c
-        ../../../src/device/modem/modem_ipx.c
-        ../../../src/device/modem/modem_vserver.c
-        ../../../src/device/modem/modem_nbns.c
-        ../../../src/device/modem/modem_nbf.c
-        ../../../src/device/modem/modem_browser.c
-        ../../../src/device/modem/modem_smb.c
-        ../../../src/device/modem/modem_smb_fs.c
-        ../../../src/device/modem/modem_smb_rap.c
+        ../../../src/network/services/net_vserver_eth.c
+        ../../../src/network/services/net_ipx.c
+        ../../../src/network/services/net_vserver.c
+        ../../../src/network/services/net_nbns.c
+        ../../../src/network/services/net_nbf.c
+        ../../../src/network/services/net_browser.c
+        ../../../src/network/services/net_smb.c
+        ../../../src/network/services/net_smb_fs.c
+        ../../../src/network/services/net_smb_rap.c
         ../../../src/device/modem/modem_crypto.c
     )
     add_modem_test(modem_smb_tests modem_smb_test.cpp
-        ../../../src/device/modem/modem_smb.c
-        ../../../src/device/modem/modem_smb_fs.c
-        ../../../src/device/modem/modem_smb_rap.c
+        ../../../src/network/services/net_smb.c
+        ../../../src/network/services/net_smb_fs.c
+        ../../../src/network/services/net_smb_rap.c
         ../../../src/device/modem/modem_crypto.c
     )
     add_modem_test(modem_vserver_tests modem_vserver_test.cpp
-        ../../../src/device/modem/modem_vserver.c
-        ../../../src/device/modem/modem_nbns.c
-        ../../../src/device/modem/modem_browser.c
-        ../../../src/device/modem/modem_smb.c
-        ../../../src/device/modem/modem_smb_fs.c
-        ../../../src/device/modem/modem_smb_rap.c
+        ../../../src/network/services/net_vserver.c
+        ../../../src/network/services/net_nbns.c
+        ../../../src/network/services/net_browser.c
+        ../../../src/network/services/net_smb.c
+        ../../../src/network/services/net_smb_fs.c
+        ../../../src/network/services/net_smb_rap.c
         ../../../src/device/modem/modem_crypto.c
     )
     add_modem_test(modem_cslip_tests modem_cslip_test.cpp

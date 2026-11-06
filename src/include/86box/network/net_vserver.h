@@ -6,16 +6,15 @@
  *
  *          This file is part of the 86Box distribution.
  *
- *          The emulated modem's virtual server: one address inside SLiRP's
- *          network that answers NBNS itself and, optionally, the browser
- *          and an SMB service over a small TCP endpoint.
+ *          A virtual IPv4 server for SLiRP and modem links. It answers
+ *          NBNS itself and, optionally, the browser and SMB over TCP.
  *
  * Authors: Jasmine Iwanek, <jriwanek@gmail.com>
  *
  *          Copyright 2026 Jasmine Iwanek.
  */
-#ifndef MODEM_VSERVER_H
-#define MODEM_VSERVER_H
+#ifndef NETWORK_NET_VSERVER_H
+#define NETWORK_NET_VSERVER_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -58,4 +57,4 @@ bool vserver_process_ipv4(vserver_t *server, const uint8_t *ip_pkt, int len);
 }
 #endif
 
-#endif /* MODEM_VSERVER_H */
+#endif /* NETWORK_NET_VSERVER_H */

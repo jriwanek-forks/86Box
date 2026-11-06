@@ -3,8 +3,8 @@
 #include <cstring>
 #include <vector>
 #include <gtest/gtest.h>
-#include <86box/modem/modem_nbns.h>
-#include <86box/modem/modem_vserver_eth.h>
+#include <86box/network/net_nbns.h>
+#include <86box/network/net_vserver_eth.h>
 
 typedef std::vector<uint8_t> bytes;
 

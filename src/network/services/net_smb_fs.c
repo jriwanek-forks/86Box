@@ -6,12 +6,12 @@
  *
  *          This file is part of the 86Box distribution.
  *
- *          The read-only folder served by the emulated modem's virtual
- *          server. Everything here is built in, so nothing touches the host.
+ *          The read-only folder served by the virtual network server.
+ *          Everything here is built in, so nothing touches the host.
  *
  *          PATTERN.TXT is generated, and every line carries its own number,
  *          so a copy made by a guest can be checked for dropped or reordered
- *          data across the modem link.
+ *          data across the link.
  *
  * Authors: Jasmine Iwanek, <jriwanek@gmail.com>
  *
@@ -22,7 +22,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-#include <86box/modem/modem_smb_fs.h>
+#include <86box/network/net_smb_fs.h>
 
 #define PATTERN_LINE_LENGTH 35 /* "86Box SMB test pattern line 00000\r\n" */
 #define PATTERN_LINES       1024

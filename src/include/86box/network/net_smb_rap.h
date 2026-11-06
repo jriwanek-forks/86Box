@@ -6,15 +6,15 @@
  *
  *          This file is part of the 86Box distribution.
  *
- *          The RAP calls behind browse and share lists, for the emulated
- *          modem's virtual server.
+ *          The RAP calls behind browse and share lists for the virtual
+ *          network server.
  *
  * Authors: Jasmine Iwanek, <jriwanek@gmail.com>
  *
  *          Copyright 2026 Jasmine Iwanek.
  */
-#ifndef MODEM_SMB_RAP_H
-#define MODEM_SMB_RAP_H
+#ifndef NETWORK_NET_SMB_RAP_H
+#define NETWORK_NET_SMB_RAP_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -34,4 +34,4 @@ int smb_rap_dispatch(void *log, bool authenticated, const uint8_t *in, int in_le
 }
 #endif
 
-#endif /* MODEM_SMB_RAP_H */
+#endif /* NETWORK_NET_SMB_RAP_H */

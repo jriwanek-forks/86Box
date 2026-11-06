@@ -11,7 +11,7 @@
 extern "C" {
 #include <86box/modem/modem_ipv6cp.h>
 #include <86box/modem/modem_nbfcp.h>
-#include <86box/modem/modem_ipx.h>
+#include <86box/network/net_ipx.h>
 #include <86box/modem/modem_ipxcp.h>
 }
 

@@ -6,8 +6,7 @@
  *
  *          This file is part of the 86Box distribution.
  *
- *          Puts the virtual server on an Ethernet segment, so guests with a
- *          network card can reach it as they can over the modem.
+ *          Adapts the virtual server to Ethernet frames for network guests.
  *
  *          The server speaks IP, LLC and IPX, so all this adds is what a
  *          segment needs on top: an address of its own, answers to ARP, a
@@ -23,10 +22,10 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include <86box/modem/modem_ipx.h>
-#include <86box/modem/modem_nbf.h>
-#include <86box/modem/modem_vserver.h>
-#include <86box/modem/modem_vserver_eth.h>
+#include <86box/network/net_ipx.h>
+#include <86box/network/net_nbf.h>
+#include <86box/network/net_vserver.h>
+#include <86box/network/net_vserver_eth.h>
 
 #define ETH_HEADER_LENGTH 14
 #define ETH_MIN_FRAME     60

@@ -6,7 +6,7 @@
  *
  *          This file is part of the 86Box distribution.
  *
- *          NetBEUI for the emulated modem's virtual server: the NetBIOS
+ *          NetBEUI for the virtual server: the NetBIOS
  *          Frames protocol and the IEEE 802.2 LLC connection beneath it.
  *          It works on LLC frames, so it doesn't mind what carries them.
  *
@@ -14,8 +14,8 @@
  *
  *          Copyright 2026 Jasmine Iwanek.
  */
-#ifndef MODEM_NBF_H
-#define MODEM_NBF_H
+#ifndef NETWORK_NET_NBF_H
+#define NETWORK_NET_NBF_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -47,4 +47,4 @@ void nbf_tick(nbf_t *nbf);
 }
 #endif
 
-#endif /* MODEM_NBF_H */
+#endif /* NETWORK_NET_NBF_H */

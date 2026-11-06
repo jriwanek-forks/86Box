@@ -6,7 +6,7 @@
  *
  *          This file is part of the 86Box distribution.
  *
- *          IPX for the emulated modem's virtual server: NetBIOS over IPX,
+ *          IPX for the virtual server: NetBIOS over IPX,
  *          and SMB hosted directly on IPX as NWLink clients do by default.
  *          It works on IPX packets, so it doesn't mind what carries them.
  *
@@ -14,8 +14,8 @@
  *
  *          Copyright 2026 Jasmine Iwanek.
  */
-#ifndef MODEM_IPX_H
-#define MODEM_IPX_H
+#ifndef NETWORK_NET_IPX_H
+#define NETWORK_NET_IPX_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -50,4 +50,4 @@ void ipx_tick(ipx_t *ipx);
 }
 #endif
 
-#endif /* MODEM_IPX_H */
+#endif /* NETWORK_NET_IPX_H */

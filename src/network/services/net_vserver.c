@@ -6,8 +6,8 @@
  *
  *          This file is part of the 86Box distribution.
  *
- *          The emulated modem's virtual server: one address inside SLiRP's
- *          network. Packets for it are answered here and never reach SLiRP.
+ *          A virtual IPv4 server for SLiRP and modem links. Packets for it
+ *          are answered here instead of being forwarded.
  *
  *          SLiRP's guest forwarding gives no connect or close events and runs
  *          on another thread, so TCP is ended here instead. The link to the
@@ -26,10 +26,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <86box/log.h>
-#include <86box/modem/modem_browser.h>
-#include <86box/modem/modem_nbns.h>
-#include <86box/modem/modem_smb.h>
-#include <86box/modem/modem_vserver.h>
+#include <86box/network/net_browser.h>
+#include <86box/network/net_nbns.h>
+#include <86box/network/net_smb.h>
+#include <86box/network/net_vserver.h>
 
 #ifdef ENABLE_MODEM_LOG
 extern uint8_t modem_do_log;
@@ -542,7 +542,7 @@ vs_echo_reply(vserver_t *server, uint32_t destination, const uint8_t *icmp, int 
     vs_send_ip(server, packet, IP_PROTOCOL_ICMP, destination, length);
 }
 
-/* A guest only has the modem link, so nobody else can hear what it broadcasts. */
+/* Treat the guest's broadcast queries as belonging to this virtual server. */
 static bool
 vs_is_broadcast(const vserver_t *server, uint32_t address)
 {

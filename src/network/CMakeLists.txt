@@ -93,6 +93,7 @@ if (UNIX AND NOT APPLE) # Support for TAP on Linux and BSD, supposedly.
 endif()
 
 add_library(net OBJECT ${net_sources})
+add_subdirectory(services)
 find_package(ZLIB REQUIRED)
 target_link_libraries(86Box ZLIB::ZLIB)
 

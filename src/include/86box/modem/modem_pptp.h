@@ -16,7 +16,7 @@
 #ifndef MODEM_PPTP_H
 #define MODEM_PPTP_H
 
-#include <86box/modem/modem_vserver.h>
+#include <86box/network/net_vserver.h>
 
 #ifdef __cplusplus
 extern "C" {

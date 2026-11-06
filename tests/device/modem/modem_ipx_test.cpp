@@ -6,10 +6,10 @@
 #include <string>
 #include <vector>
 #include <gtest/gtest.h>
-#include <86box/modem/modem_ipx.h>
-#include <86box/modem/modem_nbns.h>
-#include <86box/modem/modem_smb.h>
-#include <86box/modem/modem_smb_fs.h>
+#include <86box/network/net_ipx.h>
+#include <86box/network/net_nbns.h>
+#include <86box/network/net_smb.h>
+#include <86box/network/net_smb_fs.h>
 
 typedef std::vector<uint8_t> bytes;
 
