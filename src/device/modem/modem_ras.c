@@ -181,3 +181,79 @@ modem_ras_send_nbf(modem_ras_serial_push_t serial_push, void *priv,
     serial_push(priv, output, (int) output_length);
     return true;
 }
+
+static uint16_t
+ras_read_le16(const uint8_t *data)
+{
+    return (uint16_t) (data[0] | ((uint16_t) data[1] << 8));
+}
+
+static void
+ras_write_le16(uint8_t *data, uint16_t value)
+{
+    data[0] = (uint8_t) value;
+    data[1] = (uint8_t) (value >> 8);
+}
+
+void
+modem_ras_session_init(modem_ras_session_t *session)
+{
+    if (session)
+        memset(session, 0, sizeof(*session));
+}
+
+modem_ras_session_result_t
+modem_ras_session_process_message(modem_ras_session_t *session, const uint8_t *message,
+                                  size_t length, modem_ras_message_send_t send,
+                                  void *send_priv, modem_ras_random_bytes_t random_bytes)
+{
+    if (!session || !message || !send)
+        return MODEM_RAS_SESSION_INVALID_MESSAGE;
+
+    switch (session->state) {
+        case MODEM_RAS_SESSION_WAIT_PROTOCOL:
+        {
+            uint8_t protocol_response[13] = { MODEM_RAS_FRAME_PROTOCOL };
+            uint8_t challenge_frame[1 + MODEM_RAS_CHALLENGE_LENGTH] = { MODEM_RAS_FRAME_CHALLENGE };
+
+            if (length != sizeof(protocol_response) || message[0] != MODEM_RAS_FRAME_PROTOCOL)
+                return MODEM_RAS_SESSION_INVALID_MESSAGE;
+            if (!random_bytes)
+                return MODEM_RAS_SESSION_RANDOM_FAILURE;
+
+            session->client_version = ras_read_le16(message + 1);
+            ras_write_le16(protocol_response + 1, MODEM_RAS_PROTOCOL_VERSION_20);
+            if (!send(send_priv, protocol_response, sizeof(protocol_response)))
+                return MODEM_RAS_SESSION_SEND_FAILURE;
+            if (!random_bytes(session->challenge, sizeof(session->challenge)))
+                return MODEM_RAS_SESSION_RANDOM_FAILURE;
+
+            memcpy(challenge_frame + 1, session->challenge, sizeof(session->challenge));
+            if (!send(send_priv, challenge_frame, sizeof(challenge_frame)))
+                return MODEM_RAS_SESSION_SEND_FAILURE;
+
+            session->state = MODEM_RAS_SESSION_WAIT_RESPONSE;
+            return MODEM_RAS_SESSION_PROTOCOL_NEGOTIATED;
+        }
+
+        case MODEM_RAS_SESSION_WAIT_RESPONSE:
+        {
+            uint8_t result_frame[3] = { MODEM_RAS_FRAME_RESULT };
+
+            if (!length || (message[0] != MODEM_RAS_FRAME_RESPONSE
+                            && message[0] != MODEM_RAS_FRAME_RESPONSE_20))
+                return MODEM_RAS_SESSION_INVALID_MESSAGE;
+            ras_write_le16(result_frame + 1, MODEM_RAS_RESULT_NOT_AUTHENTICATED);
+            if (!send(send_priv, result_frame, sizeof(result_frame)))
+                return MODEM_RAS_SESSION_SEND_FAILURE;
+
+            session->state = MODEM_RAS_SESSION_REJECTED;
+            return MODEM_RAS_SESSION_AUTH_REJECTED;
+        }
+
+        case MODEM_RAS_SESSION_REJECTED:
+            return MODEM_RAS_SESSION_INVALID_MESSAGE;
+    }
+
+    return MODEM_RAS_SESSION_INVALID_MESSAGE;
+}

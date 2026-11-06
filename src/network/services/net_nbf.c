@@ -31,6 +31,8 @@
 #include <86box/network/net_nbf.h>
 #include <86box/network/net_nbns.h>
 #include <86box/network/net_smb.h>
+#include <86box/modem/modem_ppp.h>
+#include <86box/modem/modem_ras.h>
 
 #ifdef ENABLE_MODEM_LOG
 extern uint8_t modem_do_log;
@@ -109,6 +111,7 @@ nbf_log(void *priv, const char *fmt, ...)
 #define NBT_HEADER_LENGTH  4
 #define NBT_SESSION_REQUEST 0x81
 #define NBT_MESSAGE        0x00
+#define NBF_RAS_GATEWAY_NAME "DIALIN_GATEWAY"
 
 #define DGM_HEADER_LENGTH  14
 #define DGM_DIRECT_GROUP   0x11
@@ -124,13 +127,20 @@ typedef enum {
     SESSION_OPEN
 } session_state_t;
 
+typedef enum {
+    SESSION_SERVICE_SMB,
+    SESSION_SERVICE_RAS
+} session_service_t;
+
 typedef struct nbf_session_t {
     session_state_t state;
+    session_service_t service;
     uint8_t         local;      /* our session number, which is this slot's index plus one */
     uint8_t         remote;
     uint16_t        max_send;
     uint16_t        corr_ours;  /* the correlator the next frame of ours asks about */
     smb_session_t  *smb;
+    modem_ras_session_t ras;
     char            calling[NBF_NAME_LENGTH];
 
     int             rx_len;
@@ -312,9 +322,12 @@ nbf_drop_sessions(nbf_t *nbf)
         nbf_session_t *session = &nbf->sessions[i];
 
         if (session->state != SESSION_FREE) {
-            smb_session_close(session->smb);
+            if (session->smb)
+                smb_session_close(session->smb);
             session->smb   = NULL;
             session->state = SESSION_FREE;
+            session->service = SESSION_SERVICE_SMB;
+            modem_ras_session_init(&session->ras);
         }
     }
 }
@@ -392,9 +405,12 @@ nbf_queue_control(nbf_t *nbf, uint8_t command, uint8_t data1, uint16_t data2, ui
 static void
 nbf_session_close(nbf_session_t *session)
 {
-    smb_session_close(session->smb);
+    if (session->smb)
+        smb_session_close(session->smb);
     session->smb   = NULL;
     session->state = SESSION_FREE;
+    session->service = SESSION_SERVICE_SMB;
+    modem_ras_session_init(&session->ras);
 }
 
 static int
@@ -482,6 +498,40 @@ nbf_session_deliver(nbf_t *nbf, nbf_session_t *session, const uint8_t *data, int
     session->tx_len += written;
 }
 
+static bool
+nbf_session_queue_message(nbf_session_t *session, const uint8_t *data, size_t length)
+{
+    size_t offset;
+
+    if (!session || !data || length > NBF_MAX_MESSAGE)
+        return false;
+    if (session->tx_pos == session->tx_len && !session->wait_ack)
+        session->tx_len = session->tx_pos = 0;
+    if ((size_t) session->tx_len + NBT_HEADER_LENGTH + length > sizeof(session->tx))
+        return false;
+
+    offset = (size_t) session->tx_len;
+    session->tx[offset] = NBT_MESSAGE;
+    session->tx[offset + 1] = (uint8_t) (length >> 16);
+    session->tx[offset + 2] = (uint8_t) (length >> 8);
+    session->tx[offset + 3] = (uint8_t) length;
+    memcpy(session->tx + offset + NBT_HEADER_LENGTH, data, length);
+    session->tx_len += (int) (NBT_HEADER_LENGTH + length);
+    return true;
+}
+
+typedef struct nbf_ras_send_context_t {
+    nbf_session_t *session;
+} nbf_ras_send_context_t;
+
+static bool
+nbf_ras_send_message(void *priv, const uint8_t *message, size_t length)
+{
+    nbf_ras_send_context_t *context = (nbf_ras_send_context_t *) priv;
+
+    return nbf_session_queue_message(context->session, message, length);
+}
+
 static nbf_session_t *
 nbf_find_session(nbf_t *nbf, uint8_t local)
 {
@@ -492,9 +542,21 @@ nbf_find_session(nbf_t *nbf, uint8_t local)
 
 /* A name counts as ours when the server, or a group it speaks for, answers to it. */
 static bool
+nbf_name_is_ras_gateway(const char *name)
+{
+    char candidate[NBF_NAME_LENGTH];
+
+    nbf_make_name(candidate, NBF_RAS_GATEWAY_NAME, NBF_SUFFIX_SERVER);
+    return !memcmp(candidate, name, NBF_NAME_LENGTH);
+}
+
+static bool
 nbf_name_is_ours(const char *name)
 {
     char candidate[NBF_NAME_LENGTH];
+
+    if (nbf_name_is_ras_gateway(name))
+        return true;
 
     for (int suffix = 0; suffix < 3; suffix++) {
         static const uint8_t server[3] = { NBF_SUFFIX_SERVER, NBF_SUFFIX_CLIENT, 0x03 };
@@ -519,7 +581,7 @@ nbf_name_accepts_sessions(const char *name)
     char candidate[NBF_NAME_LENGTH];
 
     nbf_make_name(candidate, VSERVER_SERVER_NAME, NBF_SUFFIX_SERVER);
-    return !memcmp(candidate, name, NBF_NAME_LENGTH);
+    return !memcmp(candidate, name, NBF_NAME_LENGTH) || nbf_name_is_ras_gateway(name);
 }
 
 static nbf_session_t *
@@ -558,6 +620,8 @@ nbf_handle_name_query(nbf_t *nbf, const uint8_t *header)
             local = 0xFF; /* listening, but out of resources */
         } else {
             session->state  = SESSION_NAMED;
+            session->service = nbf_name_is_ras_gateway(name)
+                                   ? SESSION_SERVICE_RAS : SESSION_SERVICE_SMB;
             session->remote = remote;
             session->local  = (uint8_t) (session - nbf->sessions + 1);
             memcpy(session->calling, caller, NBF_NAME_LENGTH);
@@ -680,23 +744,67 @@ nbf_handle_session_init(nbf_t *nbf, nbf_session_t *session, const uint8_t *heade
     session->tx_started = session->wait_ack = session->wait_continue = session->ending = false;
 
     if (session->state == SESSION_NAMED) {
-        session->smb = smb_session_create(nbf->log);
-        if (!session->smb) {
-            session->state = SESSION_FREE;
-            nbf_queue_control(nbf, NBF_SESSION_END, 0, 1, 0, header[13], header[12]);
-            return;
+        if (session->service == SESSION_SERVICE_RAS) {
+            modem_ras_session_init(&session->ras);
+            session->state = SESSION_OPEN;
+            nbf_log(nbf->log, "RAS: DIALIN_GATEWAY session %d opened to remote session %d\n",
+                    session->local, session->remote);
+        } else {
+            session->smb = smb_session_create(nbf->log);
+            if (!session->smb) {
+                session->state = SESSION_FREE;
+                nbf_queue_control(nbf, NBF_SESSION_END, 0, 1, 0, header[13], header[12]);
+                return;
+            }
+            /* The session layer the SMB code expects, as though over TCP. */
+            nbf_make_name(called, VSERVER_SERVER_NAME, NBF_SUFFIX_SERVER);
+            nbf_encode_name(request, called);
+            nbf_encode_name(request + NBT_NAME_ENCODED, session->calling);
+            session->state = SESSION_OPEN;
+            nbf_session_deliver(nbf, session, request, sizeof(request), NBT_SESSION_REQUEST);
+            session->tx_len = session->tx_pos = 0;
         }
-        /* The session layer the SMB code expects, as though over TCP. */
-        nbf_make_name(called, VSERVER_SERVER_NAME, NBF_SUFFIX_SERVER);
-        nbf_encode_name(request, called);
-        nbf_encode_name(request + NBT_NAME_ENCODED, session->calling);
-        session->state = SESSION_OPEN;
-        nbf_session_deliver(nbf, session, request, sizeof(request), NBT_SESSION_REQUEST);
-        session->tx_len = session->tx_pos = 0;
     }
     nbf_queue_control(nbf, NBF_SESSION_CONFIRM, NBF_VERSION_2, NBF_MAX_DATA, nbf_get16(header + 10),
                       session->remote, session->local);
     nbf_log(nbf->log, "NBF: Session %d open to remote session %d\n", session->local, session->remote);
+}
+
+static void
+nbf_ras_session_deliver(nbf_t *nbf, nbf_session_t *session, const uint8_t *data, int length)
+{
+    nbf_ras_send_context_t context = { session };
+    modem_ras_session_result_t result;
+    uint8_t                    message_type = length > 0 ? data[0] : 0;
+
+    nbf_log(nbf->log, "RAS: DIALIN_GATEWAY received message type %u, %d bytes\n",
+            (unsigned) message_type, length);
+    result = modem_ras_session_process_message(&session->ras, data, (size_t) length,
+                                               nbf_ras_send_message, &context, ppp_random_bytes);
+    switch (result) {
+        case MODEM_RAS_SESSION_PROTOCOL_NEGOTIATED:
+            nbf_log(nbf->log, "RAS: Client version %u negotiated; challenge sent\n",
+                    (unsigned) session->ras.client_version);
+            break;
+        case MODEM_RAS_SESSION_AUTH_REJECTED:
+            nbf_log(nbf->log, "RAS: Authentication is not implemented; response rejected\n");
+            break;
+        case MODEM_RAS_SESSION_INVALID_MESSAGE:
+            nbf_log(nbf->log, "RAS: Unexpected or malformed DIALIN_GATEWAY message; ending session\n");
+            nbf_queue_control(nbf, NBF_SESSION_END, 0, 1, 0, session->remote, session->local);
+            session->ending = true;
+            break;
+        case MODEM_RAS_SESSION_RANDOM_FAILURE:
+            nbf_log(nbf->log, "RAS: Secure challenge generation failed; ending session\n");
+            nbf_queue_control(nbf, NBF_SESSION_END, 0, 1, 0, session->remote, session->local);
+            session->ending = true;
+            break;
+        case MODEM_RAS_SESSION_SEND_FAILURE:
+            nbf_log(nbf->log, "RAS: Could not queue DIALIN_GATEWAY response; ending session\n");
+            nbf_queue_control(nbf, NBF_SESSION_END, 0, 1, 0, session->remote, session->local);
+            session->ending = true;
+            break;
+    }
 }
 
 static void
@@ -738,7 +846,10 @@ nbf_handle_session_frame(nbf_t *nbf, const uint8_t *header, const uint8_t *data,
             } else {
                 nbf_queue_control(nbf, NBF_DATA_ACK, 0, 0, nbf_get16(header + 10), session->remote,
                                   session->local);
-                nbf_session_deliver(nbf, session, session->rx, session->rx_len, NBT_MESSAGE);
+                if (session->service == SESSION_SERVICE_RAS)
+                    nbf_ras_session_deliver(nbf, session, session->rx, session->rx_len);
+                else
+                    nbf_session_deliver(nbf, session, session->rx, session->rx_len, NBT_MESSAGE);
                 session->rx_len = 0;
             }
             break;

@@ -1327,6 +1327,31 @@ modem_ppp_network_send_nbf(void *priv, const uint8_t *frame, int len)
     nbf_input(modem->nbf, frame, len);
 }
 
+#ifdef ENABLE_MODEM_LOG
+static void
+modem_ras_log_payload(modem_t *modem, const char *direction, const uint8_t *payload, size_t length)
+{
+    static const char digits[] = "0123456789ABCDEF";
+    char              hex[129];
+
+    for (size_t offset = 0; offset < length; offset += 64) {
+        size_t chunk = length - offset;
+        if (chunk > 64)
+            chunk = 64;
+
+        for (size_t i = 0; i < chunk; i++) {
+            hex[i * 2] = digits[payload[offset + i] >> 4];
+            hex[i * 2 + 1] = digits[payload[offset + i] & 0x0F];
+        }
+        hex[chunk * 2] = '\0';
+        modem_log(modem->log, "RAS: %s payload [%u-%u/%u]: %s\n", direction,
+                  (unsigned) offset, (unsigned) (offset + chunk - 1), (unsigned) length, hex);
+    }
+}
+#else
+#    define modem_ras_log_payload(modem, direction, payload, length) ((void) 0)
+#endif
+
 static void
 modem_ras_network_send_nbf(void *priv, uint8_t address, const uint8_t *frame, size_t length)
 {
@@ -1340,6 +1365,7 @@ modem_ras_network_send_nbf(void *priv, uint8_t address, const uint8_t *frame, si
 
     modem_log(modem->log, "RAS: Dispatching LLC DSAP=0x%02X SSAP=0x%02X control=0x%02X\n",
               (unsigned) frame[0], (unsigned) frame[1], (unsigned) frame[2]);
+    modem_ras_log_payload(modem, "RX", frame, length);
     nbf_set_max_frame(modem->nbf, MODEM_RAS_MAX_PAYLOAD);
     nbf_input(modem->nbf, frame, (int) length);
 }
@@ -1387,6 +1413,8 @@ modem_nbf_output(void *priv, const uint8_t *frame, int len)
     if (modem->ppp_ctx)
         ppp_wrap_nbf(modem->ppp_ctx, frame, len);
     else if (modem->ras_active) {
+        if (len > 0)
+            modem_ras_log_payload(modem, "TX", frame, (size_t) len);
         if (len >= 3)
             modem_log(modem->log, "RAS: Sending NetBEUI frame, %d bytes (LLC %02X/%02X/%02X)\n",
                       len, (unsigned) frame[0], (unsigned) frame[1], (unsigned) frame[2]);
