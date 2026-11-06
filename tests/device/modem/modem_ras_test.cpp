@@ -227,8 +227,10 @@ TEST(ModemRas, EncodesXonXoffFrameWithEscapedControlsAndSevenBitLength)
 TEST(ModemRas, DecodesXonXoffFrameAndRestoresEscapedPayload)
 {
     const std::vector<uint8_t> payload = { 0x11, 0x13, 0x7D, 0x16, 0x03 };
-    const auto wire = encode_ras_frame_xon_xoff(MODEM_RAS_BROADCAST, payload,
-                                                MODEM_RAS_XONXOFF_MASK | (1u << 0x03));
+    auto wire = encode_ras_frame_xon_xoff(MODEM_RAS_BROADCAST, payload,
+                                          MODEM_RAS_XONXOFF_MASK | (1u << 0x03));
+    wire.insert(wire.begin() + 4, 0x11);
+    wire[3] = static_cast<uint8_t>(0x80 | (wire.size() - 4));
     ras_capture_t capture;
     modem_ras_decoder_t decoder;
     modem_ras_decoder_init(&decoder, capture_ras_frame, capture_ras_event, &capture);
