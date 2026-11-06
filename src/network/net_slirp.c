@@ -51,6 +51,7 @@
 #include <86box/net_event.h>
 #include <86box/network/net_vserver_config.h>
 #include "net_slirp_dhcp.h"
+#include "net_slirp_rarp.h"
 #ifdef ENABLE_VSERVER
 #    include <stdbool.h>
 #    include <86box/log.h>
@@ -646,6 +647,18 @@ net_slirp_in(net_slirp_t *slirp, uint8_t *pkt, int pkt_len)
 {
     if (!slirp)
         return;
+
+    uint8_t rarp_reply[42];
+    uint8_t server_mac[6] = {
+        0x52, 0x52, (uint8_t) (slirp->card->slirp_host_ip >> 24), (uint8_t) (slirp->card->slirp_host_ip >> 16),
+        (uint8_t) (slirp->card->slirp_host_ip >> 8), (uint8_t) slirp->card->slirp_host_ip
+    };
+    size_t rarp_reply_length;
+    if (net_slirp_rarp_reply(pkt, (size_t) pkt_len, slirp->mac_addr, slirp->card->slirp_dhcp_ip, server_mac,
+                             slirp->card->slirp_host_ip, rarp_reply, sizeof(rarp_reply), &rarp_reply_length)) {
+        net_slirp_send_packet(rarp_reply, rarp_reply_length, slirp);
+        return;
+    }
 
     size_t frame_len = (size_t) pkt_len;
     if (net_slirp_dhcp_prepare_bootp_request(pkt, &frame_len, NET_MAX_FRAME))

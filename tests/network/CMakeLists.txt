@@ -55,4 +55,13 @@ if(BUILD_TESTING)
         ${PROJECT_SOURCE_DIR}/src/network
     )
     add_test(NAME slirp_dhcp_wins COMMAND slirp_dhcp_wins_tests)
+
+    add_executable(slirp_rarp_tests
+        net_slirp_rarp_test.c
+        ../../src/network/net_slirp_rarp.c
+    )
+    target_include_directories(slirp_rarp_tests PRIVATE
+        ${PROJECT_SOURCE_DIR}/src/network
+    )
+    add_test(NAME slirp_rarp COMMAND slirp_rarp_tests)
 endif()

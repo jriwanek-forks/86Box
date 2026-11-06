@@ -20,6 +20,7 @@ list(APPEND net_sources
     net_pcap.c
     net_slirp.c
     net_slirp_dhcp.c
+    net_slirp_rarp.c
     net_switch.c
     net_dp8390.c
     net_lance.c
