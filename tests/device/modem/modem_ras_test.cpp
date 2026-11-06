@@ -355,12 +355,15 @@ TEST(ModemRas, AcceptsConfiguredCredentialsAndIgnoresBytesAfterUsernameTerminato
                                                 configuration_request.size(), "86Box", "86Box",
                                                 capture_ras_message, &capture, fill_ras_challenge),
               MODEM_RAS_SESSION_CONFIGURATION_ACCEPTED);
-    ASSERT_EQ(capture.messages.back().size(), 53u);
-    EXPECT_EQ(capture.messages.back()[0], MODEM_RAS_FRAME_CONFIGURATION_RESULT);
-    EXPECT_EQ(capture.messages.back()[1], 0x00);
-    EXPECT_EQ(capture.messages.back()[2], 0x7C);
-    EXPECT_EQ(capture.messages.back()[25], 0x00);
-    EXPECT_EQ(capture.messages.back()[26], 0x65);
+    ASSERT_EQ(capture.messages.size(), 5u);
+    ASSERT_EQ(capture.messages[3].size(), 53u);
+    EXPECT_EQ(capture.messages[3][0], MODEM_RAS_FRAME_CONFIGURATION_RESULT);
+    EXPECT_EQ(capture.messages[3][1], 0x00);
+    EXPECT_EQ(capture.messages[3][2], 0x7C);
+    EXPECT_EQ(capture.messages[3][25], 0x00);
+    EXPECT_EQ(capture.messages[3][26], 0x65);
+    EXPECT_EQ(capture.messages[4],
+              (std::vector<uint8_t> { MODEM_RAS_FRAME_LINK_SPEED, 0, 0, 0, 0 }));
     EXPECT_EQ(session.state, MODEM_RAS_SESSION_CONFIGURED);
     EXPECT_EQ(modem_ras_session_process_message(&session, configuration_request.data(),
                                                 configuration_request.size(), "86Box", "86Box",
