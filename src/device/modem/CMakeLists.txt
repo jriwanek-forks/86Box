@@ -16,6 +16,7 @@ target_sources(dev PRIVATE
     modem_getline.c
     modem_crypto.c
     modem_ppp.c
+    modem_ras.c
     modem_pptp.c
     modem_lapb.c
     modem_pap.c

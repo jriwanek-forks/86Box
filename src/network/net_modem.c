@@ -44,6 +44,7 @@
 #    include <arpa/inet.h>
 #endif
 #include <86box/modem/modem_ppp.h>
+#include <86box/modem/modem_ras.h>
 #ifdef ENABLE_VSERVER
 #    include <86box/network/net_nbns.h>
 #    include <86box/network/net_vserver.h>
@@ -317,7 +318,7 @@ modem_connection_type_name(int type)
         case MODEM_TYPE_PPP:   return "PPP";
         case MODEM_TYPE_TCPIP: return "TCP/IP";
         case MODEM_TYPE_CSLIP: return "CSLIP";
-        case MODEM_TYPE_RAS:   return "Microsoft RAS";
+        case MODEM_TYPE_RAS:   return "WFW 3.11 / NT 3.1 RAS";
         default:               return "Unknown";
     }
 }
@@ -428,6 +429,8 @@ typedef struct modem_t {
     int              connection_type;  /* MODEM_TYPE_SLIP, MODEM_TYPE_PPP, etc. */
     bool             ppp_active;       /* Currently in PPP mode */
     ppp_ctx_t       *ppp_ctx;          /* PPP context (when in PPP mode) */
+    bool             ras_active;       /* Currently in down-level RAS mode */
+    modem_ras_decoder_t ras_decoder;
     cslip_ctx_t     *cslip_ctx;        /* CSLIP context (when VJ compression enabled) */
     bool             cslip_enabled;    /* CSLIP VJ compression active */
 
@@ -1325,12 +1328,27 @@ modem_ppp_network_send_nbf(void *priv, const uint8_t *frame, int len)
 }
 
 static void
+modem_ras_network_send_nbf(void *priv, uint8_t address, const uint8_t *frame, size_t length)
+{
+    modem_t *modem = (modem_t *) priv;
+
+    (void) address;
+    if (modem->nbf && length <= MODEM_RAS_MAX_PAYLOAD) {
+        nbf_set_max_frame(modem->nbf, MODEM_RAS_MAX_PAYLOAD);
+        nbf_input(modem->nbf, frame, (int) length);
+    }
+}
+
+static void
 modem_nbf_output(void *priv, const uint8_t *frame, int len)
 {
     modem_t *modem = (modem_t *) priv;
 
     if (modem->ppp_ctx)
         ppp_wrap_nbf(modem->ppp_ctx, frame, len);
+    else if (modem->ras_active
+             && !modem_ras_send_nbf(modem_ppp_serial_push, modem, frame, len))
+        modem_log(modem->log, "Failed to encode outgoing RAS NetBEUI frame (%d bytes)\n", len);
 }
 #endif
 
@@ -1541,6 +1559,11 @@ modem_data_mode_process_byte(modem_t *modem, uint8_t data)
     if (modem->ppp_active && modem->ppp_ctx) {
         ppp_rx_byte(modem->ppp_ctx, data);
         modem_ppp_check_dead(modem);
+        return;
+    }
+
+    if (modem->ras_active) {
+        modem_ras_rx_byte(&modem->ras_decoder, data);
         return;
     }
 
@@ -1823,6 +1846,8 @@ modem_idle_impl(modem_t *modem)
         modem->ppp_ctx = NULL;
     }
     modem->ppp_active = false;
+    modem->ras_active = false;
+    modem_ras_decoder_init(&modem->ras_decoder, NULL, NULL);
 
     /* Clean up SLIP auth state */
     if (modem->slip_auth_ctx) {
@@ -1954,8 +1979,29 @@ modem_start_local_ip_connection(modem_t *modem)
     /* Do not carry queued serial data over from a previous IP session. */
     fifo8_reset(&modem->rx_data);
 
-    if (modem->connection_type == MODEM_TYPE_PPP
-        || modem->connection_type == MODEM_TYPE_RAS) {
+    if (modem->connection_type == MODEM_TYPE_RAS) {
+        modem->tcpIpMode = false;
+#ifdef ENABLE_VSERVER_NETBEUI
+        if (!modem->nbf)
+            modem->nbf = nbf_init(modem->log, modem_nbf_output, modem);
+        if (!modem->nbf) {
+            modem_log(modem->log, "RAS NetBEUI initialization failed\n");
+            modem_enter_idle_state(modem);
+            modem_send_res(modem, ResNOCARRIER);
+            return;
+        }
+        nbf_reset(modem->nbf);
+        modem_ras_decoder_init(&modem->ras_decoder, modem_ras_network_send_nbf, modem);
+        modem->ras_active = true;
+#else
+        modem_log(modem->log, "RAS requires NetBEUI support\n");
+        modem_enter_idle_state(modem);
+        modem_send_res(modem, ResNOCARRIER);
+#endif
+        return;
+    }
+
+    if (modem->connection_type == MODEM_TYPE_PPP) {
         /* PPP mode */
         modem->ppp_active = true;
         modem->tcpIpMode  = false;
@@ -3847,7 +3893,8 @@ modem_cmdpause_timer_callback(void *priv)
     vserver_tick(modem->vserver);
 #endif
 #ifdef ENABLE_VSERVER_NETBEUI
-    if (modem->ppp_active && modem->ppp_ctx && ppp_nbf_ready(modem->ppp_ctx))
+    if (modem->ras_active
+        || (modem->ppp_active && modem->ppp_ctx && ppp_nbf_ready(modem->ppp_ctx)))
         nbf_tick(modem->nbf);
 #endif
 #ifdef ENABLE_VSERVER_IPX
@@ -4531,9 +4578,7 @@ static const device_config_t modem_config[] = {
             { .description = "PPP",                              .value = MODEM_TYPE_PPP },
             { .description = "SLIP",                             .value = MODEM_TYPE_SLIP },
             { .description = "CSLIP",                            .value = MODEM_TYPE_CSLIP },
-#if 0
-            { .description = "Microsoft RAS (NT 4.0 SP3)",       .value = MODEM_TYPE_RAS },
-#endif
+            { .description = "Microsoft RAS (WFW 3.11 / NT 3.1)", .value = MODEM_TYPE_RAS },
             { .description = "" }
         },
         .bios           = { { 0 } }

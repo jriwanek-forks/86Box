@@ -56,6 +56,10 @@ if(BUILD_TESTING)
         target_link_libraries(modem_ppp_tests PRIVATE bcrypt)
     endif()
 
+    add_modem_test(modem_ras_tests modem_ras_test.cpp
+        ../../../src/device/modem/modem_ras.c
+    )
+
     add_modem_test(modem_mppp_tests modem_mppp_test.cpp
         ../../../src/device/modem/modem_mppp.c
     )
