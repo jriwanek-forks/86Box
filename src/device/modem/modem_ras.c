@@ -17,6 +17,17 @@
 #define MODEM_RAS_RESPONSE_20_NT_OFFSET          298
 #define MODEM_RAS_RESPONSE_20_USE_NT_OFFSET      322
 #define MODEM_RAS_RESPONSE_20_LENGTH             326
+#define MODEM_RAS_CONFIG_REQUEST_LENGTH          333
+#define MODEM_RAS_CONFIG_RESULT_LENGTH           53
+#define MODEM_RAS_CONFIG_MAX_SEND_OFFSET         19
+#define MODEM_RAS_CONFIG_MAX_RECV_OFFSET         23
+#define MODEM_RAS_CONFIG_LINK_SPEED_OFFSET       27
+#define MODEM_RAS_CONFIG_NB_PROJECT_OFFSET       31
+#define MODEM_RAS_CONFIG_NB_NAME_COUNT_OFFSET   35
+#define MODEM_RAS_CONFIG_IP_PROJECT_OFFSET       325
+#define MODEM_RAS_CONFIG_IPX_PROJECT_OFFSET      329
+#define MODEM_RAS_MAX_FRAME_SIZE                 1514
+#define MODEM_RAS_MAX_PROJECTED_NAMES            16
 
 static uint16_t
 ras_crc_update(uint16_t crc, uint8_t byte)
@@ -214,6 +225,21 @@ ras_read_le32(const uint8_t *data)
          | ((uint32_t) data[2] << 16) | ((uint32_t) data[3] << 24);
 }
 
+static void
+ras_write_le32(uint8_t *data, uint32_t value)
+{
+    data[0] = (uint8_t) value;
+    data[1] = (uint8_t) (value >> 8);
+    data[2] = (uint8_t) (value >> 16);
+    data[3] = (uint8_t) (value >> 24);
+}
+
+static uint32_t
+ras_min_frame_size(uint32_t requested)
+{
+    return requested < MODEM_RAS_MAX_FRAME_SIZE ? requested : MODEM_RAS_MAX_FRAME_SIZE;
+}
+
 static bool
 ras_zero_padding(const uint8_t *data, size_t start, size_t length)
 {
@@ -382,6 +408,54 @@ ras_response_matches_credentials(const modem_ras_response_view_t *view,
     return matches;
 }
 
+static bool
+ras_build_configuration_result(const uint8_t *message, size_t length,
+                               uint8_t result[MODEM_RAS_CONFIG_RESULT_LENGTH],
+                               bool *supported)
+{
+    uint32_t default_callback;
+    uint32_t nb_project;
+    uint32_t ip_project;
+    uint32_t ipx_project;
+    uint32_t name_count;
+
+    if (!message || !result || !supported || length != MODEM_RAS_CONFIG_REQUEST_LENGTH
+        || message[0] != MODEM_RAS_FRAME_CONFIGURATION_REQUEST
+        || ras_read_le32(message + 1) != MODEM_RAS_PROTOCOL_VERSION_20)
+        return false;
+
+    default_callback = ras_read_le32(message + 5);
+    nb_project = ras_read_le32(message + MODEM_RAS_CONFIG_NB_PROJECT_OFFSET);
+    name_count = ras_read_le16(message + MODEM_RAS_CONFIG_NB_NAME_COUNT_OFFSET);
+    ip_project = ras_read_le32(message + MODEM_RAS_CONFIG_IP_PROJECT_OFFSET);
+    ipx_project = ras_read_le32(message + MODEM_RAS_CONFIG_IPX_PROJECT_OFFSET);
+    if (default_callback > 1 || nb_project > 1 || ip_project > 1 || ipx_project > 1
+        || name_count > MODEM_RAS_MAX_PROJECTED_NAMES)
+        return false;
+
+    *supported = nb_project != 0 && ip_project == 0 && ipx_project == 0;
+    memset(result, 0, MODEM_RAS_CONFIG_RESULT_LENGTH);
+    result[0] = MODEM_RAS_FRAME_CONFIGURATION_RESULT;
+    ras_write_le32(result + 1, *supported ? MODEM_RAS_RESULT_CONFIGURATION_SUCCESS
+                                         : MODEM_RAS_RESULT_PROJECTIONS_FAILED);
+
+    /* No compression is supported; negotiate frame sizes and the reported link speed. */
+    ras_write_le32(result + 13,
+                   ras_min_frame_size(ras_read_le32(message + MODEM_RAS_CONFIG_MAX_SEND_OFFSET)));
+    ras_write_le32(result + 17,
+                   ras_min_frame_size(ras_read_le32(message + MODEM_RAS_CONFIG_MAX_RECV_OFFSET)));
+    ras_write_le32(result + 21,
+                   ras_read_le32(message + MODEM_RAS_CONFIG_LINK_SPEED_OFFSET));
+    ras_write_le32(result + 25, nb_project ? MODEM_RAS_RESULT_NAMES_ADDED
+                                          : MODEM_RAS_RESULT_PROJECTIONS_FAILED);
+    if (ip_project)
+        ras_write_le32(result + 45, MODEM_RAS_RESULT_PROJECTIONS_FAILED);
+    if (ipx_project)
+        ras_write_le32(result + 49, MODEM_RAS_RESULT_PROJECTIONS_FAILED);
+
+    return true;
+}
+
 void
 modem_ras_session_init(modem_ras_session_t *session)
 {
@@ -460,7 +534,23 @@ modem_ras_session_process_message(modem_ras_session_t *session, const uint8_t *m
         }
 
         case MODEM_RAS_SESSION_AUTHENTICATED:
-            return MODEM_RAS_SESSION_POST_AUTH_UNIMPLEMENTED;
+        {
+            uint8_t configuration_result[MODEM_RAS_CONFIG_RESULT_LENGTH];
+            bool    supported;
+
+            if (!ras_build_configuration_result(message, length, configuration_result, &supported))
+                return MODEM_RAS_SESSION_INVALID_MESSAGE;
+            if (!send(send_priv, configuration_result, sizeof(configuration_result)))
+                return MODEM_RAS_SESSION_SEND_FAILURE;
+
+            session->state = supported ? MODEM_RAS_SESSION_CONFIGURED
+                                       : MODEM_RAS_SESSION_REJECTED;
+            return supported ? MODEM_RAS_SESSION_CONFIGURATION_ACCEPTED
+                             : MODEM_RAS_SESSION_CONFIGURATION_REJECTED;
+        }
+
+        case MODEM_RAS_SESSION_CONFIGURED:
+            return MODEM_RAS_SESSION_POST_CONFIGURATION_UNIMPLEMENTED;
 
         case MODEM_RAS_SESSION_REJECTED:
             return MODEM_RAS_SESSION_INVALID_MESSAGE;

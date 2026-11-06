@@ -796,8 +796,14 @@ nbf_ras_session_deliver(nbf_t *nbf, nbf_session_t *session, const uint8_t *data,
         case MODEM_RAS_SESSION_AUTH_REJECTED:
             nbf_log(nbf->log, "RAS: Configured credentials did not match; authentication rejected\n");
             break;
-        case MODEM_RAS_SESSION_POST_AUTH_UNIMPLEMENTED:
-            nbf_log(nbf->log, "RAS: Authentication succeeded; post-authentication setup is not implemented\n");
+        case MODEM_RAS_SESSION_CONFIGURATION_ACCEPTED:
+            nbf_log(nbf->log, "RAS: NetBIOS-only configuration accepted; result sent\n");
+            break;
+        case MODEM_RAS_SESSION_CONFIGURATION_REJECTED:
+            nbf_log(nbf->log, "RAS: Requested IP/IPX projection is unsupported; failure result sent\n");
+            break;
+        case MODEM_RAS_SESSION_POST_CONFIGURATION_UNIMPLEMENTED:
+            nbf_log(nbf->log, "RAS: Configuration accepted; further RAS messages are not implemented\n");
             nbf_queue_control(nbf, NBF_SESSION_END, 0, 1, 0, session->remote, session->local);
             session->ending = true;
             break;
