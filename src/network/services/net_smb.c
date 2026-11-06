@@ -566,9 +566,11 @@ smb_tree_connect(smb_session_t *session, const char *path, smb_tree_t *type)
         *type = SMB_TREE_IPC;
     else if (!strcmp(last, VSERVER_SHARE_NAME))
         *type = SMB_TREE_SHARE;
-    else if (!strcmp(last, VSERVER_LOGON_SHARE_NAME))
+    else if (!strcmp(last, VSERVER_LOGON_SHARE_NAME)) {
+        if (!session->authenticated)
+            return SMB_FAIL(SMB_ERRDOS, SMB_ERRnoaccess);
         *type = SMB_TREE_LOGON;
-    else
+    } else
         return SMB_FAIL(SMB_ERRSRV, SMB_ERRinvnetname);
 
     for (int i = 0; i < SMB_MAX_TREES; i++) {

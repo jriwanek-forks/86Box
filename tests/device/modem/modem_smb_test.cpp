@@ -1160,11 +1160,19 @@ TEST_F(SmbLogon, AWrongPasswordIsAGuestWhoCannotLogOn)
     EXPECT_EQ(get_le16(reply_word(r, 1)), 0);
 }
 
-TEST_F(SmbLogon, GuestsCanStillBrowseAndRead)
+TEST_F(SmbLogon, GuestsCanReadSharedAndUseIpcButNotConnectToNetlogon)
 {
     send(smb(0x72, 0, {}, dialects({ "NT LM 0.12" })));
     uint16_t share = (send(nt_setup("SOMEONE", { 0 }, {})), tree_connect());
+    ASSERT_NE(share, 0);
     expect_ok(send(find_first(share, 1, 8, "\\*")));
+
+    bytes netlogon = { 0 };
+    put_str(netlogon, "\\\\" VSERVER_SERVER_NAME "\\" VSERVER_LOGON_SHARE_NAME);
+    put_str(netlogon, "?????");
+    expect_error(send(smb(0x75, 0, { 0xFF, 0, 0, 1 }, netlogon)), ERRDOS, ERRnoaccess);
+
+    EXPECT_NE(tree_connect("\\\\" VSERVER_SERVER_NAME "\\" VSERVER_IPC_SHARE_NAME), 0);
 }
 
 TEST_F(SmbLogon, AnotherUserWithTheRightPasswordIsAGuest)
