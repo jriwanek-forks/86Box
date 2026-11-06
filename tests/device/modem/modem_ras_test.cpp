@@ -125,6 +125,42 @@ TEST(ModemRas, NegotiatesVersionAndIssuesChallenge)
     EXPECT_EQ(session.state, MODEM_RAS_SESSION_WAIT_RESPONSE);
 }
 
+TEST(ModemRas, AcceptsZeroPaddedWindows95ProtocolMessage)
+{
+    std::vector<uint8_t> protocol_request(333, 0);
+    protocol_request[0] = MODEM_RAS_FRAME_PROTOCOL;
+    protocol_request[1] = 20;
+    modem_ras_session_t session;
+    ras_message_capture_t capture;
+    modem_ras_session_init(&session);
+
+    EXPECT_EQ(modem_ras_session_process_message(&session, protocol_request.data(),
+                                                protocol_request.size(), capture_ras_message,
+                                                &capture, fill_ras_challenge),
+              MODEM_RAS_SESSION_PROTOCOL_NEGOTIATED);
+    ASSERT_EQ(capture.messages.size(), 2);
+    EXPECT_EQ(capture.messages[0],
+              (std::vector<uint8_t> { MODEM_RAS_FRAME_PROTOCOL, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }));
+    EXPECT_EQ(capture.messages[1][0], MODEM_RAS_FRAME_CHALLENGE);
+}
+
+TEST(ModemRas, RejectsNonzeroProtocolPadding)
+{
+    std::vector<uint8_t> protocol_request(333, 0);
+    protocol_request[0] = MODEM_RAS_FRAME_PROTOCOL;
+    protocol_request[1] = 20;
+    protocol_request.back() = 1;
+    modem_ras_session_t session;
+    ras_message_capture_t capture;
+    modem_ras_session_init(&session);
+
+    EXPECT_EQ(modem_ras_session_process_message(&session, protocol_request.data(),
+                                                protocol_request.size(), capture_ras_message,
+                                                &capture, fill_ras_challenge),
+              MODEM_RAS_SESSION_INVALID_MESSAGE);
+    EXPECT_TRUE(capture.messages.empty());
+}
+
 TEST(ModemRas, RejectsChallengeResponseWithoutAuthenticating)
 {
     const uint8_t protocol_request[13] = { MODEM_RAS_FRAME_PROTOCOL, 20, 0 };

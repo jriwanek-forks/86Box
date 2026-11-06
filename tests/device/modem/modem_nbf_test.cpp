@@ -227,7 +227,7 @@ TEST_F(Nbf, NameQueryBeforeLlcConnectKeepsItsRasSession)
     EXPECT_EQ(received[0][12], 7);
     EXPECT_EQ(received[0][13], server);
 
-    bytes protocol(13, 0);
+    bytes protocol(333, 0);
     protocol[0] = 100;
     protocol[1] = 20;
     bytes message = session_header(0x16, 0, 0, 0, 0x3456, server, 7);
@@ -235,26 +235,25 @@ TEST_F(Nbf, NameQueryBeforeLlcConnectKeepsItsRasSession)
     received.clear();
     info(message);
 
-    bool got_protocol_response = false;
-    bool got_challenge = false;
+    bool     got_protocol_response = false;
+    uint16_t protocol_correlator = 0;
     for (const bytes &frame : received) {
-        if (frame.size() < 14 || (frame[4] != 0x15 && frame[4] != 0x16))
+        if (frame.size() <= 14 || (frame[4] != 0x15 && frame[4] != 0x16))
             continue;
-        size_t offset = 14;
-        while (offset + 4 <= frame.size()) {
-            const size_t message_length = (size_t(frame[offset + 1]) << 16)
-                                          | (size_t(frame[offset + 2]) << 8)
-                                          | size_t(frame[offset + 3]);
-            if (offset + 4 + message_length > frame.size())
-                break;
-            if (message_length) {
-                got_protocol_response |= frame[offset + 4] == 100;
-                got_challenge |= frame[offset + 4] == 101;
-            }
-            offset += 4 + message_length;
+        if (frame[14] == 100) {
+            got_protocol_response = true;
+            protocol_correlator = get_le16(&frame[10]);
         }
     }
     EXPECT_TRUE(got_protocol_response);
+
+    received.clear();
+    info(session_header(0x14, 0, 0, protocol_correlator, 0, server, 7));
+    bool got_challenge = false;
+    for (const bytes &frame : received) {
+        if (frame.size() > 14 && (frame[4] == 0x15 || frame[4] == 0x16))
+            got_challenge |= frame[14] == 101;
+    }
     EXPECT_TRUE(got_challenge);
 }
 

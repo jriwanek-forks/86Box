@@ -6,6 +6,9 @@
 #include <string.h>
 #include <86box/modem/modem_ras.h>
 
+#define MODEM_RAS_PROTOCOL_MESSAGE_LENGTH        13
+#define MODEM_RAS_PADDED_PROTOCOL_MESSAGE_LENGTH 333
+
 static uint16_t
 ras_crc_update(uint16_t crc, uint8_t byte)
 {
@@ -213,11 +216,17 @@ modem_ras_session_process_message(modem_ras_session_t *session, const uint8_t *m
     switch (session->state) {
         case MODEM_RAS_SESSION_WAIT_PROTOCOL:
         {
-            uint8_t protocol_response[13] = { MODEM_RAS_FRAME_PROTOCOL };
+            uint8_t protocol_response[MODEM_RAS_PROTOCOL_MESSAGE_LENGTH] = { MODEM_RAS_FRAME_PROTOCOL };
             uint8_t challenge_frame[1 + MODEM_RAS_CHALLENGE_LENGTH] = { MODEM_RAS_FRAME_CHALLENGE };
 
-            if (length != sizeof(protocol_response) || message[0] != MODEM_RAS_FRAME_PROTOCOL)
+            if ((length != sizeof(protocol_response)
+                 && length != MODEM_RAS_PADDED_PROTOCOL_MESSAGE_LENGTH)
+                || message[0] != MODEM_RAS_FRAME_PROTOCOL)
                 return MODEM_RAS_SESSION_INVALID_MESSAGE;
+            for (size_t i = sizeof(protocol_response); i < length; i++) {
+                if (message[i] != 0)
+                    return MODEM_RAS_SESSION_INVALID_MESSAGE;
+            }
             if (!random_bytes)
                 return MODEM_RAS_SESSION_RANDOM_FAILURE;
 
