@@ -447,6 +447,9 @@ typedef struct modem_t {
     ppp_ctx_t       *ppp_ctx;          /* PPP context (when in PPP mode) */
     bool             ras_active;       /* Currently in down-level RAS mode */
     modem_ras_decoder_t ras_decoder;
+    uint8_t          ras_rx_trace[32];
+    uint8_t          ras_rx_trace_length;
+    uint32_t         ras_rx_trace_start_ms;
     cslip_ctx_t     *cslip_ctx;        /* CSLIP context (when VJ compression enabled) */
     bool             cslip_enabled;    /* CSLIP VJ compression active */
 
@@ -1340,9 +1343,73 @@ modem_ras_log_payload(modem_t *modem, const char *direction, const uint8_t *payl
                   (unsigned) offset, (unsigned) (offset + chunk - 1), (unsigned) length, hex);
     }
 }
+
+static void
+modem_ras_log_wire(modem_t *modem, const char *direction, const uint8_t *wire, size_t length)
+{
+    static const char digits[] = "0123456789ABCDEF";
+    char              hex[129];
+    uint32_t          timestamp = plat_get_ticks();
+
+    for (size_t offset = 0; offset < length; offset += 64) {
+        size_t chunk = length - offset;
+        if (chunk > 64)
+            chunk = 64;
+
+        for (size_t i = 0; i < chunk; i++) {
+            hex[i * 2] = digits[wire[offset + i] >> 4];
+            hex[i * 2 + 1] = digits[wire[offset + i] & 0x0F];
+        }
+        hex[chunk * 2] = '\0';
+        modem_log(modem->log, "RAS: %s raw wire t=%u ms [%u-%u/%u]: %s\n", direction,
+                  (unsigned) timestamp, (unsigned) offset, (unsigned) (offset + chunk - 1),
+                  (unsigned) length, hex);
+    }
+}
+
+static void
+modem_ras_flush_rx_trace(modem_t *modem)
+{
+    static const char digits[] = "0123456789ABCDEF";
+    char              hex[sizeof(modem->ras_rx_trace) * 2 + 1];
+    const size_t      length = modem->ras_rx_trace_length;
+
+    if (!length)
+        return;
+
+    for (size_t i = 0; i < length; i++) {
+        hex[i * 2] = digits[modem->ras_rx_trace[i] >> 4];
+        hex[i * 2 + 1] = digits[modem->ras_rx_trace[i] & 0x0F];
+    }
+    hex[length * 2] = '\0';
+    modem_log(modem->log, "RAS: RX raw wire t=%u..%u ms [%u bytes]: %s\n",
+              (unsigned) modem->ras_rx_trace_start_ms, (unsigned) plat_get_ticks(),
+              (unsigned) length, hex);
+    modem->ras_rx_trace_length = 0;
+}
+
+static void
+modem_ras_trace_rx_byte(modem_t *modem, uint8_t byte)
+{
+    if (!modem->ras_rx_trace_length)
+        modem->ras_rx_trace_start_ms = plat_get_ticks();
+    modem->ras_rx_trace[modem->ras_rx_trace_length++] = byte;
+    if (modem->ras_rx_trace_length == sizeof(modem->ras_rx_trace))
+        modem_ras_flush_rx_trace(modem);
+}
 #else
 #    define modem_ras_log_payload(modem, direction, payload, length) ((void) 0)
+#    define modem_ras_log_wire(modem, direction, wire, length) ((void) 0)
+#    define modem_ras_flush_rx_trace(modem) ((void) 0)
+#    define modem_ras_trace_rx_byte(modem, byte) ((void) 0)
 #endif
+
+static void
+modem_ras_serial_push(void *priv, const uint8_t *data, int length)
+{
+    modem_ras_log_wire((modem_t *) priv, "TX", data, (size_t) length);
+    modem_ppp_serial_push(priv, data, length);
+}
 
 static void
 modem_ras_network_send_nbf(void *priv, uint8_t address, const uint8_t *frame, size_t length)
@@ -1369,6 +1436,7 @@ modem_ras_log_event(void *priv, modem_ras_event_t event, uint8_t address, uint16
 {
     modem_t *modem = (modem_t *) priv;
 
+    modem_ras_flush_rx_trace(modem);
     switch (event) {
         case MODEM_RAS_EVENT_FRAME_RECEIVED:
             modem_log(modem->log, "RAS: Received %s frame, %u bytes\n",
@@ -1412,10 +1480,15 @@ modem_nbf_output(void *priv, const uint8_t *frame, int len)
                       len, (unsigned) frame[0], (unsigned) frame[1], (unsigned) frame[2]);
         else
             modem_log(modem->log, "RAS: Sending NetBEUI frame, %d bytes\n", len);
-        if (!modem_ras_send_nbf(modem_ppp_serial_push, modem, frame, len))
+        if (!modem_ras_send_nbf(modem_ras_serial_push, modem, frame, len))
             modem_log(modem->log, "RAS: Failed to encode outgoing NetBEUI frame (%d bytes)\n", len);
     }
 }
+#endif
+
+#ifndef ENABLE_VSERVER_NETBEUI
+#    define modem_ras_flush_rx_trace(modem) ((void) 0)
+#    define modem_ras_trace_rx_byte(modem, byte) ((void) 0)
 #endif
 
 #ifdef ENABLE_VSERVER_IPX
@@ -1629,6 +1702,7 @@ modem_data_mode_process_byte(modem_t *modem, uint8_t data)
     }
 
     if (modem->ras_active) {
+        modem_ras_trace_rx_byte(modem, data);
         modem_ras_rx_byte(&modem->ras_decoder, data);
         return;
     }
@@ -1901,8 +1975,10 @@ modem_idle_impl(modem_t *modem)
         modem->ppp_ctx = NULL;
     }
     modem->ppp_active = false;
-    if (modem->ras_active)
-        modem_log(modem->log, "RAS: Link closed\n");
+    if (modem->ras_active) {
+        modem_ras_flush_rx_trace(modem);
+        modem_log(modem->log, "RAS: Link closed at t=%u ms\n", (unsigned) plat_get_ticks());
+    }
     modem->ras_active = false;
     modem_ras_decoder_init(&modem->ras_decoder, NULL, NULL, NULL);
 
@@ -2045,8 +2121,10 @@ modem_start_local_ip_connection(modem_t *modem)
         nbf_reset(modem->nbf);
         modem_ras_decoder_init(&modem->ras_decoder, modem_ras_network_send_nbf,
                                modem_ras_log_event, modem);
+        modem->ras_rx_trace_length = 0;
         modem->ras_active = true;
-        modem_log(modem->log, "RAS: Down-level NetBEUI data link active; waiting for frames (payload logging enabled)\n");
+        modem_log(modem->log, "RAS: Down-level NetBEUI data link active at t=%u ms; waiting for frames\n",
+                  (unsigned) plat_get_ticks());
 #else
         modem_log(modem->log, "RAS requires NetBEUI support\n");
         modem_enter_idle_state(modem);
@@ -3535,16 +3613,28 @@ modem_dtr_callback_timer(void *priv)
     if (dev->connected) {
         switch (dev->dtrmode) {
             case 1:
-                modem_log(dev->log, "DTR dropped, returning to command mode (dtrmode = %i)\n", dev->dtrmode);
+                if (dev->ras_active)
+                    modem_log(dev->log, "RAS: DTR dropped at t=%u ms, returning to command mode (dtrmode = %i)\n",
+                              (unsigned) plat_get_ticks(), dev->dtrmode);
+                else
+                    modem_log(dev->log, "DTR dropped, returning to command mode (dtrmode = %i)\n", dev->dtrmode);
                 dev->mode = MODEM_MODE_COMMAND;
                 break;
             case 2:
-                modem_log(dev->log, "DTR dropped, hanging up (dtrmode = %i)\n", dev->dtrmode);
+                if (dev->ras_active)
+                    modem_log(dev->log, "RAS: DTR dropped at t=%u ms, hanging up (dtrmode = %i)\n",
+                              (unsigned) plat_get_ticks(), dev->dtrmode);
+                else
+                    modem_log(dev->log, "DTR dropped, hanging up (dtrmode = %i)\n", dev->dtrmode);
                 modem_send_res(dev, ResNOCARRIER);
                 modem_enter_idle_state(dev);
                 break;
             case 3:
-                modem_log(dev->log, "DTR dropped, resetting modem (dtrmode = %i)\n", dev->dtrmode);
+                if (dev->ras_active)
+                    modem_log(dev->log, "RAS: DTR dropped at t=%u ms, resetting modem (dtrmode = %i)\n",
+                              (unsigned) plat_get_ticks(), dev->dtrmode);
+                else
+                    modem_log(dev->log, "DTR dropped, resetting modem (dtrmode = %i)\n", dev->dtrmode);
                 modem_send_res(dev, ResNOCARRIER);
                 modem_reset(dev);
                 break;
@@ -3586,6 +3676,9 @@ modem_char_control(uint32_t flags, void *priv)
     modem->char_rts = !!(flags & CHAR_COM_RTS);
     if (modem->dtrstate == dtr)
         return;
+    if (modem->ras_active)
+        modem_log(modem->log, "RAS: DTR %s at t=%u ms\n", dtr ? "asserted" : "deasserted",
+                  (unsigned) plat_get_ticks());
     modem->dtrstate = dtr;
     if (dtr)
         timer_disable(&modem->dtr_timer);
