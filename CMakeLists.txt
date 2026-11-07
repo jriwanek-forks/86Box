@@ -142,7 +142,7 @@ option(ENABLE_VSERVER_FTP "Enable the read-only FTP server in the virtual networ
 option(ENABLE_VSERVER_TFTP "Enable the read-only TFTP server in the virtual network server" OFF)
 option(ENABLE_VSERVER_RARP "Enable RARP replies for the SLiRP guest network adapter" ON)
 option(ENABLE_VSERVER_BOOTP "Enable legacy BOOTP client compatibility in SLiRP DHCP" ON)
-option(ENABLE_MODEM_RAW_CAPTURE "Log every byte of raw modem-to-modem calls (requires ENABLE_MODEM_LOG)" OFF)
+option(ENABLE_MODEM_RAW_CAPTURE "Log every byte of raw modem-to-modem calls (requires ENABLE_MODEM_LOG)" ON)
 if(ENABLE_MODEM_DEBUG AND NOT ENABLE_MODEM_LOG)
     message(FATAL_ERROR "ENABLE_MODEM_DEBUG requires ENABLE_MODEM_LOG")
 endif()
