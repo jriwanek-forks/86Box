@@ -84,6 +84,7 @@ add_library(dev OBJECT
     serial_accent.c
     serial_ast_fourport.c
     serial_boca.c
+    serial_hub6.c
     serial_cd1400.c
     serial_multiport.c
     serial_host.c
