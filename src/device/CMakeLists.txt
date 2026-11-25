@@ -86,6 +86,7 @@ add_library(dev OBJECT
     serial_boca.c
     serial_hub6.c
     serial_cd1400.c
+    serial_exar_st16c554.c
     serial_multiport.c
     serial_host.c
     serial_i8251.c
