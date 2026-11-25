@@ -363,6 +363,9 @@ extern void      scn26x1_set_irq(void *priv, int irq_mask);
 /* A CD1400 is a four-channel UART. The surrounding board supplies its I/O
    decode and combines the chip's receive/transmit/modem service requests. */
 extern serial_endpoint_t *cd1400_endpoint(void *priv, int channel);
+extern void     *cd1400_create(void);
+extern void      cd1400_destroy(void *priv);
+extern void      cd1400_set_irq_callback(void *priv, void (*callback)(void *), void *opaque);
 extern uint8_t   cd1400_read(uint16_t addr, void *priv);
 extern void      cd1400_write(uint16_t addr, uint8_t val, void *priv);
 extern uint8_t   cd1400_service_request(void *priv);

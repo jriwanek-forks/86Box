@@ -107,6 +107,8 @@ typedef struct cd1400_s {
     uint8_t current_rx, current_tx, current_modem;
     uint8_t ack_type;
     uint8_t ack_channel;
+    void (*irq_callback)(void *);
+    void *irq_opaque;
     cd1400_channel_t channel[CD1400_CHANNELS];
 } cd1400_t;
 
@@ -187,6 +189,7 @@ cd1400_backend_changed(void *priv)
 static void
 cd1400_update_requests(cd1400_t *dev)
 {
+    uint8_t old_service = dev->service;
     dev->service = 0;
     dev->current_rx = dev->current_tx = dev->current_modem = 0xff;
     for (unsigned i = 0; i < CD1400_CHANNELS; i++) {
@@ -207,6 +210,8 @@ cd1400_update_requests(cd1400_t *dev)
     if (dev->current_rx != 0xff) dev->service |= SVRR_RX;
     if (dev->current_tx != 0xff) dev->service |= SVRR_TX;
     if (dev->current_modem != 0xff) dev->service |= SVRR_MODEM;
+    if ((old_service != dev->service) && dev->irq_callback != NULL)
+        dev->irq_callback(dev->irq_opaque);
 }
 
 static int
@@ -473,11 +478,12 @@ cd1400_write(uint16_t addr, uint8_t val, void *priv)
     }
 }
 
-static void *
-cd1400_init(const device_t *info)
+void *
+cd1400_create(void)
 {
     cd1400_t *dev = (cd1400_t *) calloc(1, sizeof(cd1400_t));
-    (void) info;
+    if (dev == NULL)
+        return NULL;
     for (unsigned i = 0; i < CD1400_CHANNELS; i++) {
         cd1400_channel_t *ch = &dev->channel[i];
         ch->owner = dev;
@@ -502,8 +508,18 @@ cd1400_init(const device_t *info)
     return dev;
 }
 
-static void
-cd1400_close(void *priv)
+void
+cd1400_set_irq_callback(void *priv, void (*callback)(void *), void *opaque)
+{
+    cd1400_t *dev = (cd1400_t *) priv;
+    if (dev == NULL)
+        return;
+    dev->irq_callback = callback;
+    dev->irq_opaque = opaque;
+}
+
+void
+cd1400_destroy(void *priv)
 {
     cd1400_t *dev = (cd1400_t *) priv;
     if (dev == NULL)
@@ -514,6 +530,19 @@ cd1400_close(void *priv)
         serial_endpoint_detach(&dev->channel[i].endpoint);
     }
     free(priv);
+}
+
+static void *
+cd1400_init(const device_t *info)
+{
+    (void) info;
+    return cd1400_create();
+}
+
+static void
+cd1400_close(void *priv)
+{
+    cd1400_destroy(priv);
 }
 
 static void
@@ -664,7 +693,7 @@ cd1400_service_ack(void *priv, uint8_t service_type)
         return 0xff;
     dev->ack_type = service_type;
     dev->ack_channel = channel;
-    return (uint8_t) ((channel << 3) | ack);
+    return (uint8_t) ((dev->channel[channel].reg[REG_LIVR] & 0xf8) | ack);
 }
 
 const device_t cd1400_device = {
