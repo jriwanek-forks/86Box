@@ -29,9 +29,13 @@ public:
 
     int  changed();
     int  pcmciaCard(int s) const; /* the PC Card chosen for socket s now */
+    int  multiportSerialChannels() const;
 
     void restore();
     void save(int soft);
+
+signals:
+    void multiportSerialChannelsChanged(int channelCount);
 
 public slots:
     void onCurrentMachineChanged(int machineId);

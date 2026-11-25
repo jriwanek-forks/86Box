@@ -5,23 +5,30 @@
 
 typedef struct multiport_serial_entry_s {
     const device_t *device;
+    uint8_t channels;
 } multiport_serial_entry_t;
 
 /* Append supported boards here; IDs are persisted in configs by name. */
 static const multiport_serial_entry_t devices[] = {
-    { NULL },
-    { &stallion_easyio_device },
-    { &ast_fourport_device },
-    { &accent_async_device },
-    { &boca_serial_device },
-    { &hub6_serial_device },
-    { &exar_st16c554_device }
+    { NULL, 0 },
+    { &stallion_easyio_device, 8 },
+    { &ast_fourport_device, 4 },
+    { &accent_async_device, 2 },
+    { &boca_serial_device, 16 },
+    { &hub6_serial_device, 12 },
+    { &exar_st16c554_device, 4 }
 };
 
 int
 multiport_serial_count(void)
 {
     return (int) (sizeof(devices) / sizeof(devices[0])) - 1;
+}
+
+int
+multiport_serial_get_channel_count(int id)
+{
+    return (id > 0 && id <= multiport_serial_count()) ? devices[id].channels : 0;
 }
 
 const device_t *

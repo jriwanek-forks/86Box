@@ -526,6 +526,13 @@ SettingsOtherPeripherals::pcmciaCard(int s) const
     return pcmcia->socketCard(s);
 }
 
+int
+SettingsOtherPeripherals::multiportSerialChannels() const
+{
+    return (machine_has_bus(machineId, MACHINE_BUS_ISA) > 0) ?
+               multiport_serial_get_channel_count(ui->comboBoxMultiportSerial->currentData().toInt()) : 0;
+}
+
 void
 SettingsOtherPeripherals::restore()
 {
@@ -790,6 +797,8 @@ SettingsOtherPeripherals::on_comboBoxMultiportSerial_currentIndexChanged(int ind
     const device_t *device = multiport_serial_get_device(id);
     ui->pushButtonConfigureMultiportSerial->setEnabled((machine_has_bus(machineId, MACHINE_BUS_ISA) > 0) &&
                                                        device && device->config);
+    emit multiportSerialChannelsChanged((machine_has_bus(machineId, MACHINE_BUS_ISA) > 0) ?
+                                            multiport_serial_get_channel_count(id) : 0);
 }
 
 void

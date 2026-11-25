@@ -3,6 +3,7 @@
 
 /* Registry of ISA multiport serial adapters offered in the peripheral UI. */
 extern int                multiport_serial_count(void);
+extern int                multiport_serial_get_channel_count(int id);
 #ifdef EMU_DEVICE_H
 extern const device_t    *multiport_serial_get_device(int id);
 extern const device_t     stallion_easyio_device;

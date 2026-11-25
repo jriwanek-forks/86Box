@@ -7,6 +7,7 @@
 #define MULTIPORT_SERIAL_MAX_UI 16
 
 class QComboBox;
+class QLabel;
 class QPushButton;
 
 namespace Ui {
@@ -33,6 +34,7 @@ public:
 
 public slots:
     void onCurrentMachineChanged(int machineId);
+    void onMultiportSerialChannelsChanged(int channelCount);
 
 signals:
     /* The USB card choice changed which USB devices the machine can take. */
@@ -92,6 +94,7 @@ private:
     SettingsCompleter *scLpt[4];
     SettingsCompleter *scCom[SERIAL_MAX_UI];
     QComboBox        *multiportSerialDevice[MULTIPORT_SERIAL_MAX_UI] = {};
+    QLabel           *multiportSerialLabel[MULTIPORT_SERIAL_MAX_UI] = {};
     QPushButton      *multiportSerialConfigure[MULTIPORT_SERIAL_MAX_UI] = {};
     SettingsCompleter *scMultiport[MULTIPORT_SERIAL_MAX_UI] = {};
     int               multiport_device_cfg_changed[MULTIPORT_SERIAL_MAX_UI] = {};

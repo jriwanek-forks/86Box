@@ -30,6 +30,7 @@ extern "C" {
 #include <86box/scsi_device.h>
 #include <86box/scsi_tape.h>
 #include <86box/serial.h>
+#include <86box/multiport_serial.h>
 #include <86box/char.h>
 #include <86box/mem.h>
 #include <86box/usb.h>
@@ -114,12 +115,12 @@ SettingsPorts::SettingsPorts(QWidget *parent)
     for (int i = 0; i < MULTIPORT_SERIAL_MAX_UI; i++) {
         const int row = 5 + (i % 8);
         const int column = (i / 8) * 3;
-        auto *label = new QLabel(tr("Multiport %1:").arg(i + 1), this);
+        multiportSerialLabel[i] = new QLabel(tr("Multiport %1:").arg(i + 1), this);
         multiportSerialDevice[i] = new QComboBox(this);
         multiportSerialDevice[i]->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
         multiportSerialDevice[i]->setMaxVisibleItems(30);
         multiportSerialConfigure[i] = new QPushButton(tr("Configure"), this);
-        ui->gridLayoutCom->addWidget(label, row, column);
+        ui->gridLayoutCom->addWidget(multiportSerialLabel[i], row, column);
         ui->gridLayoutCom->addWidget(multiportSerialDevice[i], row, column + 1);
         ui->gridLayoutCom->addWidget(multiportSerialConfigure[i], row, column + 2);
         scMultiport[i] = new SettingsCompleter(multiportSerialDevice[i], nullptr);
@@ -216,6 +217,20 @@ SettingsPorts::updateMultiportPortControls(int i)
     comboBox->setEnabled(comboBox->model()->rowCount() > 1
                          && !port_used_by_network_or_mouse(false, SERIAL_MULTIPORT_PORT(i)));
     buttonCfg->setEnabled(device_has_config(char_get_device(device)));
+}
+
+void
+SettingsPorts::onMultiportSerialChannelsChanged(int channelCount)
+{
+    channelCount = qBound(0, channelCount, MULTIPORT_SERIAL_MAX_UI);
+    for (int i = 0; i < MULTIPORT_SERIAL_MAX_UI; i++) {
+        const bool visible = i < channelCount;
+        multiportSerialLabel[i]->setVisible(visible);
+        multiportSerialDevice[i]->setVisible(visible);
+        multiportSerialConfigure[i]->setVisible(visible);
+        if (visible)
+            updateMultiportPortControls(i);
+    }
 }
 
 int
@@ -502,6 +517,8 @@ SettingsPorts::onCurrentMachineChanged(int machineId)
         multiportSerialDevice[i]->setCurrentIndex(multiportSelectedRows[i]);
         updateMultiportPortControls(i);
     }
+    onMultiportSerialChannelsChanged((machine_has_bus(machineId, MACHINE_BUS_ISA) > 0) ?
+                                         multiport_serial_get_channel_count(multiport_serial_type) : 0);
 
     // USB card: a selection updates the hub list and the other pages, so the
     // signals are blocked while the list is rebuilt, and only the final

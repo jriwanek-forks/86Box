@@ -210,6 +210,11 @@ Settings::ensurePage(int index)
                 placePage(PAGE_PORTS, ports);
                 connect(machine, &SettingsMachine::currentMachineChanged, ports,
                         &SettingsPorts::onCurrentMachineChanged);
+                if (otherPeripherals != nullptr) {
+                    connect(otherPeripherals, &SettingsOtherPeripherals::multiportSerialChannelsChanged,
+                            ports, &SettingsPorts::onMultiportSerialChannelsChanged);
+                    ports->onMultiportSerialChannelsChanged(otherPeripherals->multiportSerialChannels());
+                }
                 /* A USB card gives the machine a USB bus, so a change of card
                    refreshes the pages that list USB devices. */
                 connect(ports, &SettingsPorts::usbBusChanged, this, [this](int id) {
@@ -341,6 +346,11 @@ Settings::ensurePage(int index)
                 placePage(PAGE_OTHER, otherPeripherals);
                 connect(machine, &SettingsMachine::currentMachineChanged, otherPeripherals,
                         &SettingsOtherPeripherals::onCurrentMachineChanged);
+                if (ports != nullptr) {
+                    connect(otherPeripherals, &SettingsOtherPeripherals::multiportSerialChannelsChanged,
+                            ports, &SettingsPorts::onMultiportSerialChannelsChanged);
+                    ports->onMultiportSerialChannelsChanged(otherPeripherals->multiportSerialChannels());
+                }
                 if (machineId != ::machine)
                     otherPeripherals->onCurrentMachineChanged(machineId);
             }
