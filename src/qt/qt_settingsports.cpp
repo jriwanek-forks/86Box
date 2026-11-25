@@ -54,6 +54,8 @@ extern "C" {
 #include <QLabel>
 #include <QComboBox>
 #include <QPushButton>
+#include <QScrollArea>
+#include <QVBoxLayout>
 
 static int
 configured_port(const device_t *device, int instance)
@@ -112,17 +114,26 @@ SettingsPorts::SettingsPorts(QWidget *parent)
         com_device_cfg_changed[i] = 0;
     }
 
+    auto *multiportScroll = new QScrollArea(this);
+    multiportScroll->setWidgetResizable(true);
+    multiportScroll->setMinimumHeight(160);
+    multiportScroll->setMaximumHeight(280);
+    auto *multiportContents = new QWidget(multiportScroll);
+    auto *multiportLayout = new QGridLayout(multiportContents);
+    multiportScroll->setWidget(multiportContents);
+    ui->verticalLayoutSerial->addWidget(multiportScroll);
+
     for (int i = 0; i < MULTIPORT_SERIAL_MAX_UI; i++) {
-        const int row = 5 + (i % 8);
-        const int column = (i / 8) * 3;
+        const int row = i % 16;
+        const int column = (i / 16) * 3;
         multiportSerialLabel[i] = new QLabel(tr("Multiport %1:").arg(i + 1), this);
         multiportSerialDevice[i] = new QComboBox(this);
         multiportSerialDevice[i]->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
         multiportSerialDevice[i]->setMaxVisibleItems(30);
         multiportSerialConfigure[i] = new QPushButton(tr("Configure"), this);
-        ui->gridLayoutCom->addWidget(multiportSerialLabel[i], row, column);
-        ui->gridLayoutCom->addWidget(multiportSerialDevice[i], row, column + 1);
-        ui->gridLayoutCom->addWidget(multiportSerialConfigure[i], row, column + 2);
+        multiportLayout->addWidget(multiportSerialLabel[i], row, column);
+        multiportLayout->addWidget(multiportSerialDevice[i], row, column + 1);
+        multiportLayout->addWidget(multiportSerialConfigure[i], row, column + 2);
         scMultiport[i] = new SettingsCompleter(multiportSerialDevice[i], nullptr);
         connect(multiportSerialDevice[i], qOverload<int>(&QComboBox::currentIndexChanged), this, [this, i](int index) {
             if (index >= 0)

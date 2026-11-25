@@ -4,7 +4,7 @@
 #include <QWidget>
 
 #define SERIAL_MAX_UI 4
-#define MULTIPORT_SERIAL_MAX_UI 16
+#define MULTIPORT_SERIAL_MAX_UI 32
 
 class QComboBox;
 class QLabel;

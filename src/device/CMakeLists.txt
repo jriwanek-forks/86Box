@@ -93,6 +93,9 @@ add_library(dev OBJECT
     serial_ns8250.c
     serial_scn26x1.c
     serial_stallion.c
+    serial_cyclades.c
+    serial_moxa_smartio.c
+    serial_stallion_ech.c
     softpower_ibm5140.c
     smbus_ali7101.c
     smbus_piix4.c

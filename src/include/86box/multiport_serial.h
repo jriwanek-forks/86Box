@@ -12,6 +12,14 @@ extern const device_t     accent_async_device;
 extern const device_t     boca_serial_device;
 extern const device_t     hub6_serial_device;
 extern const device_t     exar_st16c554_device;
+extern const device_t     cyclades_cyclomy_device;
+extern const device_t     moxa_c168_isa_device;
+extern const device_t     moxa_c104_isa_device;
+extern const device_t     moxa_ci104j_isa_device;
+extern const device_t     moxa_c102_isa_device;
+extern const device_t     moxa_ci132_isa_device;
+extern const device_t     moxa_ci134_isa_device;
+extern const device_t     stallion_ech_device;
 #endif
 extern const char         *multiport_serial_get_name(int id);
 extern const char         *multiport_serial_get_internal_name(int id);

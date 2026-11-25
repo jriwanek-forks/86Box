@@ -37,7 +37,7 @@
 #define SERIAL_16950         8
 
 #define SERIAL_FIFO_SIZE 16
-#define SERIAL_MULTIPORT_CHANNELS 16
+#define SERIAL_MULTIPORT_CHANNELS 32
 #define SERIAL_MULTIPORT_PORT_BASE 8
 #define SERIAL_MULTIPORT_PORT(channel) (SERIAL_MULTIPORT_PORT_BASE + (channel))
 
@@ -54,6 +54,14 @@
     { .description = "Multiport 11", .value = 18 }, { .description = "Multiport 12", .value = 19 }, \
     { .description = "Multiport 13", .value = 20 }, { .description = "Multiport 14", .value = 21 }, \
     { .description = "Multiport 15", .value = 22 }, { .description = "Multiport 16", .value = 23 }, \
+    { .description = "Multiport 17", .value = 24 }, { .description = "Multiport 18", .value = 25 }, \
+    { .description = "Multiport 19", .value = 26 }, { .description = "Multiport 20", .value = 27 }, \
+    { .description = "Multiport 21", .value = 28 }, { .description = "Multiport 22", .value = 29 }, \
+    { .description = "Multiport 23", .value = 30 }, { .description = "Multiport 24", .value = 31 }, \
+    { .description = "Multiport 25", .value = 32 }, { .description = "Multiport 26", .value = 33 }, \
+    { .description = "Multiport 27", .value = 34 }, { .description = "Multiport 28", .value = 35 }, \
+    { .description = "Multiport 29", .value = 36 }, { .description = "Multiport 30", .value = 37 }, \
+    { .description = "Multiport 31", .value = 38 }, { .description = "Multiport 32", .value = 39 }, \
     { .description = "" }
 
 /* Default settings for the standard ports. */

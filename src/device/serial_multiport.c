@@ -16,7 +16,15 @@ static const multiport_serial_entry_t devices[] = {
     { &accent_async_device, 2 },
     { &boca_serial_device, 16 },
     { &hub6_serial_device, 12 },
-    { &exar_st16c554_device, 4 }
+    { &exar_st16c554_device, 4 },
+    { &cyclades_cyclomy_device, 32 },
+    { &moxa_c168_isa_device, 8 },
+    { &moxa_c104_isa_device, 4 },
+    { &moxa_ci104j_isa_device, 4 },
+    { &moxa_c102_isa_device, 4 },
+    { &moxa_ci132_isa_device, 4 },
+    { &moxa_ci134_isa_device, 4 },
+    { &stallion_ech_device, 32 }
 };
 
 int
