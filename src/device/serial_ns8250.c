@@ -121,6 +121,13 @@ serial_transmit_period(serial_t *dev)
 void
 serial_do_irq(serial_t *dev, int set)
 {
+    if (dev->board_owned) {
+        if ((set || (dev->irq_state != !!set)) && dev->board_irq_callback != NULL)
+            dev->board_irq_callback(dev->board_irq_priv, !!set);
+        dev->irq_state = !!set;
+        return;
+    }
+
     if (dev->irq != 0xff) {
         if (set || (dev->irq_state != !!set))
             picint_common(1 << dev->irq, !!(dev->type >= SERIAL_16450), set, &dev->irq_state);
@@ -168,7 +175,7 @@ serial_update_ints(serial_t *dev)
         }
     }
 
-    serial_do_irq(dev, !(dev->iir & 0x01) && ((dev->mctrl & 8) || dev->irq_direct));
+    serial_do_irq(dev, !(dev->iir & 0x01) && ((dev->mctrl & dev->irq_mctrl_mask) || dev->irq_direct));
 
     /* Every change of the LSR but the FIFOs' comes through here. */
     serial_lsr_changed(dev);
@@ -750,7 +757,7 @@ serial_write(uint16_t addr, uint8_t val, void *priv)
                     dev->ep.be->rcr(dev->ep.be->priv);
                 }
             }
-            if (!(val & 8) && (dev->mctrl & 8) && !dev->irq_direct)
+            if (!(val & dev->irq_mctrl_mask) && (dev->mctrl & dev->irq_mctrl_mask) && !dev->irq_direct)
                 serial_do_irq(dev, 0);
             if ((dev->ep.be != NULL) && (dev->ep.be->dtr != NULL) && ((val ^ dev->mctrl) & 1))
                 dev->ep.be->dtr(dev->ep.be->priv, val & 1);
@@ -942,7 +949,7 @@ serial_remove(serial_t *dev)
     if (dev == NULL)
         return;
 
-    if (!com_ports[dev->inst].enabled)
+    if (!dev->board_owned && (dev->inst < SERIAL_MAX) && !com_ports[dev->inst].enabled)
         return;
 
     if (!dev->base_address)
@@ -975,12 +982,12 @@ serial_set_irq_line(serial_t *dev, uint8_t irq)
 void
 serial_setup(serial_t *dev, uint16_t addr, uint8_t irq)
 {
-    serial_log("Adding serial port %i at %04X...\n", dev->inst, addr);
-
     if (dev == NULL)
         return;
 
-    if (!com_ports[dev->inst].enabled)
+    serial_log("Adding serial port %i at %04X...\n", dev->inst, addr);
+
+    if (!dev->board_owned && (dev->inst >= SERIAL_MAX || !com_ports[dev->inst].enabled))
         return;
     if (dev->base_address != 0x0000)
         serial_remove(dev);
@@ -1139,7 +1146,19 @@ serial_close(void *priv)
 {
     serial_t *dev = (serial_t *) priv;
 
-    if (serial_has_device(dev) || com_ports[dev->inst].char_port.type) {
+    if (dev->board_owned) {
+        serial_remove(dev);
+        timer_disable(&dev->transmit_timer);
+        timer_disable(&dev->timeout_timer);
+        timer_disable(&dev->receive_timer);
+        serial_endpoint_detach(&dev->ep);
+        fifo_close(dev->rcvr_fifo);
+        fifo_close(dev->xmit_fifo);
+        free(dev);
+        return;
+    }
+
+    if (dev->board_owned || serial_has_device(dev) || com_ports[dev->inst].char_port.type) {
         serial_endpoint_detach(&dev->ep);
         fifo_close(dev->rcvr_fifo);
     }
@@ -1204,6 +1223,7 @@ serial_init(const device_t *info)
     if (com_ports[next_inst].enabled || (info->local & 0xFFF00000)) {
         serial_log("Adding serial port %i...\n", next_inst);
         dev->type = info->local;
+        dev->irq_mctrl_mask = 0x08;
 
         serial_endpoint_init(&dev->ep, dev, &serial_chip_ops);
         dev->ep.on_attach = serial_backend_changed;
@@ -1268,6 +1288,64 @@ serial_init(const device_t *info)
         next_inst++;
 
     return dev;
+}
+
+serial_t *
+serial_create_board_uart(uint8_t type, uint8_t irq_mctrl_mask,
+                         void (*irq_callback)(void *, int), void *priv)
+{
+    serial_t *dev = (serial_t *) calloc(1, sizeof(serial_t));
+    if (dev == NULL)
+        return NULL;
+
+    dev->inst = 0xff;
+    dev->type = type;
+    dev->irq_mctrl_mask = irq_mctrl_mask;
+    dev->board_owned = 1;
+    dev->board_irq_callback = irq_callback;
+    dev->board_irq_priv = priv;
+    dev->irq = 0xff;
+    serial_endpoint_init(&dev->ep, dev, &serial_chip_ops);
+    dev->ep.on_attach = serial_backend_changed;
+    dev->ep.serial = dev;
+
+    dev->dlab = 96;
+    dev->fcr = 0x06;
+    dev->clock_src = 1843200.0;
+    timer_add(&dev->transmit_timer, serial_transmit_timer, dev, 0);
+    timer_add(&dev->timeout_timer, serial_timeout_timer, dev, 0);
+    timer_add(&dev->receive_timer, serial_receive_timer, dev, 0);
+    serial_transmit_period(dev);
+    serial_update_speed(dev);
+
+    dev->rcvr_fifo = fifo64_init();
+    fifo_set_priv(dev->rcvr_fifo, dev);
+    fifo_set_d_empty_evt(dev->rcvr_fifo, serial_rcvr_d_empty_evt);
+    fifo_set_d_overrun_evt(dev->rcvr_fifo, serial_rcvr_d_overrun_evt);
+    fifo_set_d_ready_evt(dev->rcvr_fifo, serial_rcvr_d_ready_evt);
+    fifo_reset_evt(dev->rcvr_fifo);
+    fifo_set_len(dev->rcvr_fifo, 16);
+    dev->xmit_fifo = fifo64_init();
+    fifo_set_priv(dev->xmit_fifo, dev);
+    fifo_set_d_empty_evt(dev->xmit_fifo, serial_xmit_d_empty_evt);
+    fifo_reset_evt(dev->xmit_fifo);
+    fifo_set_len(dev->xmit_fifo, 16);
+    serial_reset_port(dev);
+    return dev;
+}
+
+void
+serial_destroy_board_uart(serial_t *dev)
+{
+    if (dev != NULL)
+        serial_close(dev);
+}
+
+void
+serial_reset_board_uart(serial_t *dev)
+{
+    if (dev != NULL)
+        serial_reset(dev);
 }
 
 void

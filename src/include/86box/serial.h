@@ -207,6 +207,10 @@ typedef struct serial_s {
     uint8_t msr_set;
     uint8_t irq_state;
     uint8_t irq_direct; /* The interrupt output goes straight to the IRQ, not through OUT2. */
+    uint8_t board_owned; /* The UART belongs to a card rather than a COM slot. */
+    uint8_t irq_mctrl_mask;
+    void (*board_irq_callback)(void *priv, int active);
+    void *board_irq_priv;
 
     uint16_t dlab;
     uint16_t base_address;
@@ -312,6 +316,10 @@ extern void      serial_set_irq_direct(serial_t *dev, int direct);
 extern void      serial_write_fifo(serial_t *dev, uint8_t dat);
 extern void      serial_set_next_inst(int ni);
 extern void      serial_standalone_init(void);
+extern serial_t *serial_create_board_uart(uint8_t type, uint8_t irq_mctrl_mask,
+                                          void (*irq_callback)(void *, int), void *priv);
+extern void      serial_destroy_board_uart(serial_t *dev);
+extern void      serial_reset_board_uart(serial_t *dev);
 extern void      serial_set_clock_src(serial_t *dev, double clock_src);
 extern void      serial_set_split_rx(serial_t *dev, int baud);
 extern void      serial_set_type(serial_t *dev, uint8_t type);
