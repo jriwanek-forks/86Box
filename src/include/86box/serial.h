@@ -357,6 +357,18 @@ extern void      scn26x1_write(uint16_t addr, uint8_t val, void *priv);
 extern void      scn26x1_set_irq(void *priv, int irq_mask);
 
 /* ------------------------------------------------------------------------ */
+/* Cirrus Logic CL-CD1400                                                    */
+/* ------------------------------------------------------------------------ */
+
+/* A CD1400 is a four-channel UART. The surrounding board supplies its I/O
+   decode and combines the chip's receive/transmit/modem service requests. */
+extern serial_endpoint_t *cd1400_endpoint(void *priv, int channel);
+extern uint8_t   cd1400_read(uint16_t addr, void *priv);
+extern void      cd1400_write(uint16_t addr, uint8_t val, void *priv);
+extern uint8_t   cd1400_service_request(void *priv);
+extern uint8_t   cd1400_service_ack(void *priv, uint8_t service_type);
+
+/* ------------------------------------------------------------------------ */
 /* Device declarations                                                      */
 /* ------------------------------------------------------------------------ */
 
@@ -370,5 +382,6 @@ extern const device_t ns16850_device;
 extern const device_t ns16950_device;
 extern const device_t scn2661b_device;
 extern const device_t scn2661c_device;
+extern const device_t cd1400_device;
 
 #endif /*EMU_SERIAL_H*/
