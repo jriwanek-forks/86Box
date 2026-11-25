@@ -38,7 +38,7 @@ ser_port_t com_ports[SERIAL_MAX] = { 0 };
 /* A device can claim a COM or multiport channel before its UART is present;
    park its callbacks until the chip endpoint registers. */
 static serial_device_t pending[SERIAL_MAX];
-static ser_port_t multiport_ports[SERIAL_MULTIPORT_CHANNELS];
+ser_port_t multiport_com_ports[SERIAL_MULTIPORT_CHANNELS] = { 0 };
 static serial_device_t multiport_pending[SERIAL_MULTIPORT_CHANNELS];
 
 static int
@@ -61,7 +61,7 @@ serial_get_port(int port, serial_device_t **sd)
     int channel = port - SERIAL_MULTIPORT_PORT_BASE;
     if ((channel >= 0) && (channel < SERIAL_MULTIPORT_CHANNELS)) {
         *sd = &multiport_pending[channel];
-        return &multiport_ports[channel];
+        return &multiport_com_ports[channel];
     }
 
     return NULL;
@@ -175,7 +175,7 @@ serial_multiport_register_endpoint(uint8_t channel, serial_endpoint_t *ep, seria
     if ((channel >= SERIAL_MULTIPORT_CHANNELS) || (ep == NULL))
         return;
 
-    ser_port_t *port = &multiport_ports[channel];
+    ser_port_t *port = &multiport_com_ports[channel];
     if ((port->ep != NULL) && (port->ep != ep))
         serial_endpoint_detach(port->ep);
     port->ep = ep;
@@ -189,7 +189,7 @@ serial_multiport_unregister_endpoint(uint8_t channel, serial_endpoint_t *ep)
     if ((channel >= SERIAL_MULTIPORT_CHANNELS) || (ep == NULL))
         return;
 
-    ser_port_t *port = &multiport_ports[channel];
+    ser_port_t *port = &multiport_com_ports[channel];
     if (port->ep != ep)
         return;
     serial_endpoint_detach(port->ep);
@@ -324,6 +324,24 @@ serial_devices_init(void)
         }
 #endif
     }
+
+    for (uint8_t i = 0; i < SERIAL_MULTIPORT_CHANNELS; i++) {
+        ser_port_t *port = &multiport_com_ports[i];
+        if (port->ep == NULL)
+            continue;
+        serial_endpoint_attach_chardev(port->ep, NULL);
+        memset(&port->char_port, 0, sizeof(port->char_port));
+#ifndef IS_TEST
+        if (port->device) {
+            port->char_port.type = CHAR_PORT_COM;
+            snprintf(port->char_port.name, sizeof(port->char_port.name), "Multiport %i", i + 1);
+            const device_t *device = char_get_device(port->device);
+            char_init(&port->char_port, device, SERIAL_MAX + i + 1);
+            serial_endpoint_attach_chardev(port->ep, &port->char_port);
+            port->hotunplug = (device->flags & DEVICE_HOTPLUG_OUT) ? CHAR_PORT_HOTUNPLUG : CHAR_PORT_NOHOTUNPLUG;
+        }
+#endif
+    }
 }
 
 void
@@ -343,6 +361,17 @@ serial_devices_close(int hotplug)
         serial_endpoint_detach(com_ports[i].ep);
         memset(&com_ports[i].char_port, 0, sizeof(char_port_t));
     }
+
+    for (uint8_t i = 0; i < SERIAL_MULTIPORT_CHANNELS; i++) {
+        ser_port_t *port = &multiport_com_ports[i];
+        if (hotplug && (port->hotunplug >= CHAR_PORT_NOHOTUNPLUG))
+            continue;
+        memset(&multiport_pending[i], 0, sizeof(serial_device_t));
+        if (port->ep != NULL)
+            serial_endpoint_detach(port->ep);
+        port->hotunplug = CHAR_PORT_DETACHED;
+        memset(&port->char_port, 0, sizeof(port->char_port));
+    }
 }
 
 void
@@ -355,6 +384,10 @@ serial_devices_reset(void)
     for (uint8_t i = 0; i < SERIAL_MAX; i++) {
         if (com_ports[i].hotunplug < CHAR_PORT_NOHOTUNPLUG)
             device_close_by_flags_inst(DEVICE_COM | DEVICE_HOTPLUG_OUT, i + 1);
+    }
+    for (uint8_t i = 0; i < SERIAL_MULTIPORT_CHANNELS; i++) {
+        if (multiport_com_ports[i].hotunplug < CHAR_PORT_NOHOTUNPLUG)
+            device_close_by_flags_inst(DEVICE_COM | DEVICE_HOTPLUG_OUT, SERIAL_MAX + i + 1);
     }
 #endif
 
@@ -395,7 +428,7 @@ serial_port_detach(ser_port_t *port)
         return;
 
     for (uint8_t i = 0; i < SERIAL_MULTIPORT_CHANNELS; i++) {
-        if (port == &multiport_ports[i]) {
+        if (port == &multiport_com_ports[i]) {
             if (port->ep != NULL)
                 serial_endpoint_detach(port->ep);
             memset(&multiport_pending[i], 0, sizeof(multiport_pending[i]));

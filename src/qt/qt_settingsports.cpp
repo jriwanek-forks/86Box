@@ -49,6 +49,10 @@ extern "C" {
 
 #include <QSignalBlocker>
 #include <QStandardItem>
+#include <QGridLayout>
+#include <QLabel>
+#include <QComboBox>
+#include <QPushButton>
 
 static int
 configured_port(const device_t *device, int instance)
@@ -107,6 +111,29 @@ SettingsPorts::SettingsPorts(QWidget *parent)
         com_device_cfg_changed[i] = 0;
     }
 
+    for (int i = 0; i < MULTIPORT_SERIAL_MAX_UI; i++) {
+        const int row = 5 + (i % 8);
+        const int column = (i / 8) * 3;
+        auto *label = new QLabel(tr("Multiport %1:").arg(i + 1), this);
+        multiportSerialDevice[i] = new QComboBox(this);
+        multiportSerialDevice[i]->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+        multiportSerialDevice[i]->setMaxVisibleItems(30);
+        multiportSerialConfigure[i] = new QPushButton(tr("Configure"), this);
+        ui->gridLayoutCom->addWidget(label, row, column);
+        ui->gridLayoutCom->addWidget(multiportSerialDevice[i], row, column + 1);
+        ui->gridLayoutCom->addWidget(multiportSerialConfigure[i], row, column + 2);
+        scMultiport[i] = new SettingsCompleter(multiportSerialDevice[i], nullptr);
+        connect(multiportSerialDevice[i], qOverload<int>(&QComboBox::currentIndexChanged), this, [this, i](int index) {
+            if (index >= 0)
+                updateMultiportPortControls(i);
+        });
+        connect(multiportSerialConfigure[i], &QPushButton::clicked, this, [this, i]() {
+            const int deviceId = multiportSerialDevice[i]->currentData().toInt();
+            const device_t *device = char_get_device(deviceId);
+            multiport_device_cfg_changed[i] |= DeviceConfig::ConfigureDevice(device, SERIAL_MAX + i + 1);
+        });
+    }
+
     onCurrentMachineChanged(machine);
 }
 
@@ -116,6 +143,8 @@ SettingsPorts::~SettingsPorts()
         delete scLpt[i];
     for (int i = 0; i < SERIAL_MAX_UI; i++)
         delete scCom[i];
+    for (int i = 0; i < MULTIPORT_SERIAL_MAX_UI; i++)
+        delete scMultiport[i];
 
     /* The card picked in the dialog no longer applies once it closes; the
        saved usb_card_type decides which machines have a USB bus again. */
@@ -174,6 +203,21 @@ SettingsPorts::updateComPortControls(int i)
     }
 }
 
+void
+SettingsPorts::updateMultiportPortControls(int i)
+{
+    if ((i < 0) || (i >= MULTIPORT_SERIAL_MAX_UI))
+        return;
+    auto *comboBox = multiportSerialDevice[i];
+    auto *buttonCfg = multiportSerialConfigure[i];
+    if (!comboBox || !buttonCfg)
+        return;
+    const int device = comboBox->currentData().toInt();
+    comboBox->setEnabled(comboBox->model()->rowCount() > 1
+                         && !port_used_by_network_or_mouse(false, SERIAL_MULTIPORT_PORT(i)));
+    buttonCfg->setEnabled(device_has_config(char_get_device(device)));
+}
+
 int
 SettingsPorts::changed()
 {
@@ -223,6 +267,15 @@ SettingsPorts::changed()
         }
     }
 
+    for (int i = 0; i < MULTIPORT_SERIAL_MAX_UI; i++) {
+        const int device = multiportSerialDevice[i]->currentData().toInt();
+        int device_changed = multiport_device_cfg_changed[i] | (multiport_com_ports[i].device != device);
+        if ((multiport_com_ports[i].hotunplug >= CHAR_PORT_NOHOTUNPLUG) || !(char_get_device(device)->flags & DEVICE_HOTPLUG_IN))
+            has_changed |= device_changed;
+        else
+            soft_changed |= device_changed;
+    }
+
     return has_changed ? (SETTINGS_CHANGED | SETTINGS_REQUIRE_HARD_RESET) :
                          (soft_changed ? SETTINGS_CHANGED : 0);
 }
@@ -252,6 +305,9 @@ SettingsPorts::save(int soft)
         if (checkBox != NULL)
             com_ports[i].enabled = checkBox->isChecked() ? 1 : 0;
     }
+
+    for (int i = 0; i < MULTIPORT_SERIAL_MAX_UI; i++)
+        multiport_com_ports[i].device = multiportSerialDevice[i]->currentData().toInt();
 
     if (soft)
         return;
@@ -416,6 +472,35 @@ SettingsPorts::onCurrentMachineChanged(int machineId)
             checkBox->setChecked(com_ports[i].enabled > 0);
         if (cbox[i] != NULL)
             updateComPortControls(i);
+    }
+
+    QAbstractItemModel *multiportModels[MULTIPORT_SERIAL_MAX_UI] = {};
+    int multiportRemoveRows[MULTIPORT_SERIAL_MAX_UI] = {};
+    int multiportSelectedRows[MULTIPORT_SERIAL_MAX_UI] = {};
+    for (int i = 0; i < MULTIPORT_SERIAL_MAX_UI; i++) {
+        scMultiport[i]->removeRows();
+        multiportModels[i] = multiportSerialDevice[i]->model();
+        multiportRemoveRows[i] = multiportModels[i]->rowCount();
+    }
+
+    std::vector<Models::Batch> multiportRows(multiportModels, multiportModels + MULTIPORT_SERIAL_MAX_UI);
+    for (const auto &device : chars) {
+        if ((device.dev->flags & DEVICE_COM) && device.available && device_is_valid(device.dev, machineId)) {
+            for (int i = 0; i < MULTIPORT_SERIAL_MAX_UI; i++) {
+                const int row = multiportRows[i].add(device.name, device.id);
+                scMultiport[i]->addDevice(nullptr, device.name);
+                if (device.id == multiport_com_ports[i].device)
+                    multiportSelectedRows[i] = row - multiportRemoveRows[i];
+            }
+        }
+    }
+
+    for (int i = 0; i < MULTIPORT_SERIAL_MAX_UI; i++) {
+        multiportRows[i].commit();
+        multiportModels[i]->removeRows(0, multiportRemoveRows[i]);
+        multiportSerialDevice[i]->setCurrentIndex(-1);
+        multiportSerialDevice[i]->setCurrentIndex(multiportSelectedRows[i]);
+        updateMultiportPortControls(i);
     }
 
     // USB card: a selection updates the hub list and the other pages, so the

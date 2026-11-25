@@ -1375,6 +1375,12 @@ load_ports(void)
         com_ports[c].device = config_known(char_get_from_internal_name(p, DEVICE_COM), STRING_UNSUPPORTED_SERIAL, p);
     }
 
+    for (int c = 0; c < SERIAL_MULTIPORT_CHANNELS; c++) {
+        sprintf(temp, "multiport_serial%d_device", c + 1);
+        p = ini_section_get_string(cat, temp, "none");
+        multiport_com_ports[c].device = config_known(char_get_from_internal_name(p, DEVICE_COM), STRING_UNSUPPORTED_SERIAL, p);
+    }
+
     for (int c = 0; c < PARALLEL_MAX; c++) {
         sprintf(temp, "lpt%d_enabled", c + 1);
         lpt_ports[c].enabled = !!ini_section_get_int(cat, temp, (c == 0) ? 1 : 0);
@@ -4321,6 +4327,14 @@ save_ports(void)
             ini_section_delete_var(cat, temp);
         else
             ini_section_set_string(cat, temp, char_get_device(com_ports[c].device)->internal_name);
+    }
+
+    for (int c = 0; c < SERIAL_MULTIPORT_CHANNELS; c++) {
+        sprintf(temp, "multiport_serial%d_device", c + 1);
+        if (multiport_com_ports[c].device == 0)
+            ini_section_delete_var(cat, temp);
+        else
+            ini_section_set_string(cat, temp, char_get_device(multiport_com_ports[c].device)->internal_name);
     }
 
     for (int c = 0; c < PARALLEL_MAX; c++) {

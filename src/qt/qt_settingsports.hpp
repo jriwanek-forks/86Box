@@ -4,6 +4,10 @@
 #include <QWidget>
 
 #define SERIAL_MAX_UI 4
+#define MULTIPORT_SERIAL_MAX_UI 16
+
+class QComboBox;
+class QPushButton;
 
 namespace Ui {
 class SettingsPorts;
@@ -78,6 +82,7 @@ private:
     void updateLptPortTracking(int i);
     void updateLptPortControls(int i);
     void updateComPortControls(int i);
+    void updateMultiportPortControls(int i);
     void updateUsbHubList();
     void updateUsbMsdList();
 
@@ -86,6 +91,10 @@ private:
 
     SettingsCompleter *scLpt[4];
     SettingsCompleter *scCom[SERIAL_MAX_UI];
+    QComboBox        *multiportSerialDevice[MULTIPORT_SERIAL_MAX_UI] = {};
+    QPushButton      *multiportSerialConfigure[MULTIPORT_SERIAL_MAX_UI] = {};
+    SettingsCompleter *scMultiport[MULTIPORT_SERIAL_MAX_UI] = {};
+    int               multiport_device_cfg_changed[MULTIPORT_SERIAL_MAX_UI] = {};
 };
 
 #endif // QT_SETTINGSPORTS_HPP

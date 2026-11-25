@@ -282,6 +282,7 @@ typedef struct ser_port_s {
 } ser_port_t;
 
 extern ser_port_t com_ports[SERIAL_MAX];
+extern ser_port_t multiport_com_ports[SERIAL_MULTIPORT_CHANNELS];
 
 /* Storage for an in-machine device's callbacks; owned by serial_host.c. */
 extern void serial_device_attach(int port);
