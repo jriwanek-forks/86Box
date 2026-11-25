@@ -536,6 +536,10 @@ fifo_init(int len)
 
     if (len == 64)
         fifo = calloc(1, sizeof(fifo64_t));
+    else if (len == 128)
+        fifo = calloc(1, sizeof(fifo128_t));
+    else if (len == 32)
+        fifo = calloc(1, sizeof(fifo32_t));
     else if (len == 16)
         fifo = calloc(1, sizeof(fifo16_t));
     else {

@@ -35,6 +35,7 @@
 #define SERIAL_16750         6
 #define SERIAL_16850         7
 #define SERIAL_16950         8
+#define SERIAL_16650V2       9
 
 #define SERIAL_FIFO_SIZE 16
 #define SERIAL_MULTIPORT_CHANNELS 32
@@ -217,6 +218,11 @@ typedef struct serial_s {
     uint8_t int_status;
     uint8_t scratch;
     uint8_t fcr;
+    uint8_t efr;
+    uint8_t fifo_size;
+    uint8_t acr;
+    uint8_t icr_index;
+    uint8_t icr[16];
     uint8_t irq;
     uint8_t type;
     uint8_t inst;
@@ -420,6 +426,7 @@ extern const device_t ns8250_device;
 extern const device_t ns16450_device;
 extern const device_t ns16550_device;
 extern const device_t ns16650_device;
+extern const device_t ns16650v2_device;
 extern const device_t ns16750_device;
 extern const device_t ns16850_device;
 extern const device_t ns16950_device;

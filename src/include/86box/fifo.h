@@ -37,7 +37,7 @@
         void  (*d_full_evt)(void *);    \
         void  (*d_ready_evt)(void *);   \
                                         \
-        uint8_t tag[64];                \
+        uint8_t tag[128];                \
         uint8_t buf[size];              \
     } fifo## size ##_t;
 
@@ -46,8 +46,14 @@ FIFO()
 FIFO(16)
 #define fifo16_init() fifo_init(16)
 
+FIFO(32)
+#define fifo32_init() fifo_init(32)
+
 FIFO(64)
 #define fifo64_init() fifo_init(64)
+
+FIFO(128)
+#define fifo128_init() fifo_init(128)
 
 extern int        fifo_get_count(void *priv);
 extern int        fifo_get_remaining(void *priv);
