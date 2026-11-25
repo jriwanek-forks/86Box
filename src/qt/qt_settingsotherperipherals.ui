@@ -89,6 +89,28 @@
             </item>
            </layout>
           </item>
+
+          <item row="5" column="0">
+           <layout class="QHBoxLayout" name="horizontalLayoutMultiportSerial">
+            <item>
+             <widget class="QLabel" name="labelMultiportSerial">
+              <property name="text">
+               <string>Multiport serial adapter:</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QComboBox" name="comboBoxMultiportSerial"/>
+            </item>
+            <item>
+             <widget class="QPushButton" name="pushButtonConfigureMultiportSerial">
+              <property name="text">
+               <string>Configure</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
           <item row="1">
            <layout class="QHBoxLayout" name="horizontalLayoutIBPC">
             <item>
@@ -661,6 +683,8 @@
   <tabstop>pushButtonConfigureKeyCard</tabstop>
   <tabstop>checkBoxSoftPower</tabstop>
   <tabstop>pushButtonConfigureSoftPower</tabstop>
+   <tabstop>comboBoxMultiportSerial</tabstop>
+   <tabstop>pushButtonConfigureMultiportSerial</tabstop>
   <tabstop>comboBoxMemExpCard1</tabstop>
   <tabstop>pushButtonConfigureMemExpCard1</tabstop>
   <tabstop>comboBoxMemExpCard2</tabstop>

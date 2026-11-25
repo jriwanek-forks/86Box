@@ -82,6 +82,7 @@ add_library(dev OBJECT
     radisys_config.c
     serial_backend.c
     serial_cd1400.c
+    serial_multiport.c
     serial_host.c
     serial_i8251.c
     serial_ns8250.c

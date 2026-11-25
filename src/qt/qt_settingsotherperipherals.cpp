@@ -42,6 +42,7 @@ extern "C" {
 #include <86box/isartc.h>
 #include <86box/unittester.h>
 #include <86box/softpower.h>
+#include <86box/multiport_serial.h>
 #include <86box/novell_cardkey.h>
 #ifdef USE_VFIO
 #    include <86box/ini.h>
@@ -335,6 +336,7 @@ SettingsOtherPeripherals::onCurrentMachineChanged(int machineId)
     ui->pushButtonConfigureKeyCard->setEnabled(novell_keycard_enabled > 0);
     ui->checkBoxSoftPower->setEnabled(machineHasIsa && !nativeSoftPower);
     ui->pushButtonConfigureSoftPower->setEnabled(machineHasIsa && !nativeSoftPower && softpower_card_enabled);
+    ui->comboBoxMultiportSerial->setEnabled(machineHasIsa);
 
     ui->checkBoxISABugger->setChecked((machineHasIsa && (bugger_enabled > 0)) ? true : false);
     ui->checkBoxPOSTCard->setChecked(postcard_enabled > 0 ? true : false);
@@ -342,6 +344,17 @@ SettingsOtherPeripherals::onCurrentMachineChanged(int machineId)
     ui->checkBoxKeyCard->setChecked((machineHasIsa && (novell_keycard_enabled > 0)) ? true : false);
     /* Native power hardware must not overwrite the optional card preference. */
     ui->checkBoxSoftPower->setChecked(nativeSoftPower || (machineHasIsa && softpower_card_enabled));
+    ui->comboBoxMultiportSerial->clear();
+    ui->comboBoxMultiportSerial->addItem(tr("None"), 0);
+    for (int id = 1; id <= multiport_serial_count(); id++) {
+        const device_t *device = multiport_serial_get_device(id);
+        if (device_is_valid(device, machineId) || id == multiport_serial_type)
+            ui->comboBoxMultiportSerial->addItem(QString::fromUtf8(multiport_serial_get_name(id)), id);
+    }
+    ui->comboBoxMultiportSerial->setCurrentIndex(ui->comboBoxMultiportSerial->findData(multiport_serial_type));
+    ui->pushButtonConfigureMultiportSerial->setEnabled(machineHasIsa && multiport_serial_type != 0 &&
+                                                       multiport_serial_get_device(multiport_serial_type) &&
+                                                       multiport_serial_get_device(multiport_serial_type)->config);
 
     scRTC->removeRows();
     ui->comboBoxRTC->clear();
@@ -476,6 +489,8 @@ SettingsOtherPeripherals::changed()
     has_changed |= softpower_cfg_changed;
     has_changed |= (novell_keycard_enabled != (ui->checkBoxKeyCard->isChecked() ? 1 : 0));
     has_changed |= novell_keycard_cfg_changed;
+    has_changed |= (multiport_serial_type != ui->comboBoxMultiportSerial->currentData().toInt());
+    has_changed |= multiport_serial_cfg_changed;
 
     /* Memory expansion boards (shared slots; active family by machine). */
     {
@@ -530,6 +545,7 @@ SettingsOtherPeripherals::save(int soft)
     unittester_enabled     = ui->checkBoxUnitTester->isChecked() ? 1 : 0;
     softpower_enabled      = softpower_card_enabled ? 1 : 0;
     novell_keycard_enabled = ui->checkBoxKeyCard->isChecked() ? 1 : 0;
+    multiport_serial_type = ui->comboBoxMultiportSerial->currentData().toInt();
 
     /* Memory expansion boards (shared slots; write the active family and
        clear the inactive one, matching the single-UI layout). */
@@ -765,6 +781,23 @@ void
 SettingsOtherPeripherals::on_pushButtonConfigureKeyCard_clicked()
 {
     novell_keycard_cfg_changed |= DeviceConfig::ConfigureDevice(&novell_keycard_device);
+}
+
+void
+SettingsOtherPeripherals::on_comboBoxMultiportSerial_currentIndexChanged(int index)
+{
+    const int id = ui->comboBoxMultiportSerial->itemData(index).toInt();
+    const device_t *device = multiport_serial_get_device(id);
+    ui->pushButtonConfigureMultiportSerial->setEnabled((machine_has_bus(machineId, MACHINE_BUS_ISA) > 0) &&
+                                                       device && device->config);
+}
+
+void
+SettingsOtherPeripherals::on_pushButtonConfigureMultiportSerial_clicked()
+{
+    const device_t *device = multiport_serial_get_device(ui->comboBoxMultiportSerial->currentData().toInt());
+    if (device)
+        multiport_serial_cfg_changed |= DeviceConfig::ConfigureDevice(device);
 }
 
 #ifdef USE_VFIO

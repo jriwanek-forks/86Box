@@ -1,0 +1,51 @@
+#include <stdint.h>
+#include <string.h>
+#include <86box/device.h>
+#include <86box/multiport_serial.h>
+
+typedef struct multiport_serial_entry_s {
+    const device_t *device;
+} multiport_serial_entry_t;
+
+/* Append supported boards here; IDs are persisted in configs by name. */
+static const multiport_serial_entry_t devices[] = {
+    { NULL },
+    { &stallion_easyio_device }
+};
+
+int
+multiport_serial_count(void)
+{
+    return (int) (sizeof(devices) / sizeof(devices[0])) - 1;
+}
+
+const device_t *
+multiport_serial_get_device(int id)
+{
+    return (id > 0 && id <= multiport_serial_count()) ? devices[id].device : NULL;
+}
+
+const char *
+multiport_serial_get_name(int id)
+{
+    const device_t *device = multiport_serial_get_device(id);
+    return device ? device->name : NULL;
+}
+
+const char *
+multiport_serial_get_internal_name(int id)
+{
+    const device_t *device = multiport_serial_get_device(id);
+    return device ? device->internal_name : NULL;
+}
+
+int
+multiport_serial_get_from_internal_name(const char *name)
+{
+    if (!name)
+        return 0;
+    for (int id = 1; id <= multiport_serial_count(); id++)
+        if (!strcmp(name, devices[id].device->internal_name))
+            return id;
+    return 0;
+}

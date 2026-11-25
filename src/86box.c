@@ -73,6 +73,7 @@
 #include <86box/isamem.h>
 #include <86box/isarom.h>
 #include <86box/isartc.h>
+#include <86box/multiport_serial.h>
 #include <86box/pcmcia.h>
 #include <86box/lpt.h>
 #include <86box/serial.h>
@@ -187,6 +188,7 @@ int      novell_keycard_enabled                 = 0;              /* (C) enable 
 int      postcard_enabled                       = 0;              /* (C) enable POST card */
 int      unittester_enabled                     = 0;              /* (C) enable unit tester device */
 int      softpower_enabled                      = 0;              /* (C) enable PC Convertible-style soft power card */
+int      multiport_serial_type                  = 0;              /* selected ISA multiport serial adapter */
 int      gameport_type[GAMEPORT_MAX]            = { 0, 0 };       /* (C) enable gameports */
 int      mcamem_type[MCAMEM_MAX]                = { 0, 0, 0, 0 }; /* (C) enable MCA mem cards */
 int      isamem_type[ISAMEM_MAX]                = { 0, 0, 0, 0 }; /* (C) enable ISA mem cards */
@@ -2112,6 +2114,8 @@ pc_reset_hard_init(void)
 
     if (novell_keycard_enabled)
         device_add(&novell_keycard_device);
+    if (multiport_serial_type && machine_has_bus(machine, MACHINE_BUS_ISA))
+        device_add(multiport_serial_get_device(multiport_serial_type));
 
     if (IS_ARCH(machine, MACHINE_BUS_PCI) ||
         IS_ARCH(machine, MACHINE_BUS_AGP) ||

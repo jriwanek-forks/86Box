@@ -58,6 +58,7 @@
 #include <86box/isamem.h>
 #include <86box/isarom.h>
 #include <86box/isartc.h>
+#include <86box/multiport_serial.h>
 #include <86box/pcmcia.h>
 #include <86box/lpt.h>
 #include <86box/serial.h>
@@ -2931,6 +2932,11 @@ load_other_peripherals(void)
     unittester_enabled     = !!ini_section_get_int(cat, "unittester_enabled", 0);
     novell_keycard_enabled = !!ini_section_get_int(cat, "novell_keycard_enabled", 0);
     softpower_enabled      = !!ini_section_get_int(cat, "softpower_enabled", 0);
+    p = ini_section_get_string(cat, "multiport_serial_type", "none");
+    multiport_serial_type = multiport_serial_get_from_internal_name(p);
+    /* Migrate configs saved while the first adapter had a dedicated checkbox. */
+    if (!multiport_serial_type && ini_section_get_int(cat, "stallion_easyio_enabled", 0))
+        multiport_serial_type = 1;
 
     if (!bugger_enabled)
         ini_section_delete_var(cat, "bugger_enabled");
@@ -4689,6 +4695,12 @@ save_other_peripherals(void)
         ini_section_delete_var(cat, "softpower_enabled");
     else
         ini_section_set_int(cat, "softpower_enabled", softpower_enabled);
+    ini_section_delete_var(cat, "stallion_easyio_enabled");
+    if (!multiport_serial_type)
+        ini_section_delete_var(cat, "multiport_serial_type");
+    else
+        ini_section_set_string(cat, "multiport_serial_type",
+                               multiport_serial_get_internal_name(multiport_serial_type));
 
     // MCA RAM Boards
     for (uint8_t c = 0; c < MCAMEM_MAX; c++) {
