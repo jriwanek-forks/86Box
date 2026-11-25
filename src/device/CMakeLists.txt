@@ -81,6 +81,7 @@ add_library(dev OBJECT
     phoenix_486_jumper.c
     radisys_config.c
     serial_backend.c
+    serial_ast_fourport.c
     serial_boca.c
     serial_cd1400.c
     serial_multiport.c
