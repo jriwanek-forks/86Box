@@ -86,6 +86,7 @@ add_library(dev OBJECT
     serial_i8251.c
     serial_ns8250.c
     serial_scn26x1.c
+    serial_stallion.c
     softpower_ibm5140.c
     smbus_ali7101.c
     smbus_piix4.c
