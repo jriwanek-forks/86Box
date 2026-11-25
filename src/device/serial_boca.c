@@ -11,6 +11,7 @@
 #define BOCA_BASE 0x100
 
 typedef struct boca_serial_s {
+    uint8_t port_count;
     uint16_t irq_pending;
     serial_t *uart[BOCA_PORTS];
 } boca_serial_t;
@@ -36,11 +37,12 @@ static void *
 boca_serial_init(const device_t *info)
 {
     boca_serial_t *card = (boca_serial_t *) calloc(1, sizeof(*card));
-    (void) info;
     if (card == NULL)
         return NULL;
 
-    for (unsigned i = 0; i < BOCA_PORTS; i++) {
+    card->port_count = (info->local == 4 || info->local == 8) ? (uint8_t) info->local : BOCA_PORTS;
+
+    for (unsigned i = 0; i < card->port_count; i++) {
         card->uart[i] = serial_create_board_uart(SERIAL_16550, 0x08, i, boca_uart_irq,
                                                   (void *) ((uintptr_t) card | i));
         if (card->uart[i] == NULL) {
@@ -61,7 +63,7 @@ boca_serial_close(void *priv)
     if (card == NULL)
         return;
     picintc(1u << BOCA_IRQ);
-    for (unsigned i = 0; i < BOCA_PORTS; i++)
+    for (unsigned i = 0; i < card->port_count; i++)
         serial_destroy_board_uart(card->uart[i]);
     free(card);
 }
@@ -71,21 +73,26 @@ boca_serial_reset(void *priv)
 {
     boca_serial_t *card = (boca_serial_t *) priv;
     card->irq_pending = 0;
-    for (unsigned i = 0; i < BOCA_PORTS; i++)
+    for (unsigned i = 0; i < card->port_count; i++)
         serial_reset_board_uart(card->uart[i]);
     picintc(1u << BOCA_IRQ);
 }
 
-const device_t boca_serial_device = {
-    .name = "Boca BB2016 16-port ISA serial adapter",
-    .internal_name = "boca_bb2016",
-    .flags = DEVICE_ISA16,
-    .local = 0,
-    .init = boca_serial_init,
-    .close = boca_serial_close,
-    .reset = boca_serial_reset,
-    .available = NULL,
-    .speed_changed = NULL,
-    .force_redraw = NULL,
-    .config = NULL
-};
+#define BOCA_DEVICE(symbol, display, internal, ports) \
+const device_t symbol = { \
+    .name = display, \
+    .internal_name = internal, \
+    .flags = DEVICE_ISA16, \
+    .local = ports, \
+    .init = boca_serial_init, \
+    .close = boca_serial_close, \
+    .reset = boca_serial_reset, \
+    .available = NULL, \
+    .speed_changed = NULL, \
+    .force_redraw = NULL, \
+    .config = NULL \
+}
+
+BOCA_DEVICE(boca_bb1004_device, "Boca BB-1004 ISA serial adapter (4-port)", "boca_bb1004", 4);
+BOCA_DEVICE(boca_bb1008_device, "Boca BB-1008 ISA serial adapter (8-port)", "boca_bb1008", 8);
+BOCA_DEVICE(boca_serial_device, "Boca BB-2016 ISA serial adapter (16-port)", "boca_bb2016", 16);

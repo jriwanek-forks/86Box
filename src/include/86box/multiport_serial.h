@@ -10,6 +10,8 @@ extern const device_t     stallion_easyio_device;
 extern const device_t     ast_fourport_device;
 extern const device_t     accent_async_device;
 extern const device_t     boca_serial_device;
+extern const device_t     boca_bb1004_device;
+extern const device_t     boca_bb1008_device;
 extern const device_t     hub6_serial_device;
 extern const device_t     exar_st16c554_device;
 extern const device_t     cyclades_cyclomy_device;
