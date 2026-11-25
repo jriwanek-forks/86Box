@@ -169,6 +169,8 @@ stallion_init(const device_t *info)
         int chip = port >> 2;
         cd1400_write(0x68, (uint8_t) (port << 3), dev->cd1400[chip]);
         cd1400_write(0x18, (uint8_t) (port << 3), dev->cd1400[chip]);
+        serial_multiport_register_endpoint((uint8_t) port,
+                                           cd1400_endpoint(dev->cd1400[chip], port & 3), NULL);
     }
 
     io_sethandler(dev->base, EIO_BANK_SIZE, stallion_read, NULL, NULL,
@@ -185,6 +187,9 @@ stallion_close(void *priv)
     io_removehandler(dev->base, EIO_BANK_SIZE, stallion_read, NULL, NULL,
                      stallion_write, NULL, NULL, dev);
     picintc(1u << dev->irq);
+    for (int port = 0; port < EIO_PORTS; port++)
+        serial_multiport_unregister_endpoint((uint8_t) port,
+                                             cd1400_endpoint(dev->cd1400[port >> 2], port & 3));
     cd1400_destroy(dev->cd1400[0]);
     cd1400_destroy(dev->cd1400[1]);
     free(dev);

@@ -37,6 +37,24 @@
 #define SERIAL_16950         8
 
 #define SERIAL_FIFO_SIZE 16
+#define SERIAL_MULTIPORT_CHANNELS 16
+#define SERIAL_MULTIPORT_PORT_BASE 8
+#define SERIAL_MULTIPORT_PORT(channel) (SERIAL_MULTIPORT_PORT_BASE + (channel))
+
+#define SERIAL_PORT_CONFIG_SELECTIONS                                                \
+    { .description = "COM1", .value = 0 }, { .description = "COM2", .value = 1 }, \
+    { .description = "COM3", .value = 2 }, { .description = "COM4", .value = 3 }, \
+    { .description = "COM5", .value = 4 }, { .description = "COM6", .value = 5 }, \
+    { .description = "COM7", .value = 6 }, { .description = "COM8", .value = 7 }, \
+    { .description = "Multiport 1", .value = 8 }, { .description = "Multiport 2", .value = 9 }, \
+    { .description = "Multiport 3", .value = 10 }, { .description = "Multiport 4", .value = 11 }, \
+    { .description = "Multiport 5", .value = 12 }, { .description = "Multiport 6", .value = 13 }, \
+    { .description = "Multiport 7", .value = 14 }, { .description = "Multiport 8", .value = 15 }, \
+    { .description = "Multiport 9", .value = 16 }, { .description = "Multiport 10", .value = 17 }, \
+    { .description = "Multiport 11", .value = 18 }, { .description = "Multiport 12", .value = 19 }, \
+    { .description = "Multiport 13", .value = 20 }, { .description = "Multiport 14", .value = 21 }, \
+    { .description = "Multiport 15", .value = 22 }, { .description = "Multiport 16", .value = 23 }, \
+    { .description = "" }
 
 /* Default settings for the standard ports. */
 #define COM1_ADDR 0x03f8
@@ -209,6 +227,7 @@ typedef struct serial_s {
     uint8_t irq_direct; /* The interrupt output goes straight to the IRQ, not through OUT2. */
     uint8_t board_owned; /* The UART belongs to a card rather than a COM slot. */
     uint8_t irq_mctrl_mask;
+    uint8_t board_channel;
     void (*board_irq_callback)(void *priv, int active);
     void *board_irq_priv;
 
@@ -316,10 +335,14 @@ extern void      serial_set_irq_direct(serial_t *dev, int direct);
 extern void      serial_write_fifo(serial_t *dev, uint8_t dat);
 extern void      serial_set_next_inst(int ni);
 extern void      serial_standalone_init(void);
-extern serial_t *serial_create_board_uart(uint8_t type, uint8_t irq_mctrl_mask,
+extern serial_t *serial_create_board_uart(uint8_t type, uint8_t irq_mctrl_mask, uint8_t channel,
                                           void (*irq_callback)(void *, int), void *priv);
 extern void      serial_destroy_board_uart(serial_t *dev);
 extern void      serial_reset_board_uart(serial_t *dev);
+extern void      serial_multiport_register_uart(uint8_t channel, serial_t *dev);
+extern void      serial_multiport_unregister_uart(uint8_t channel, serial_t *dev);
+extern void      serial_multiport_register_endpoint(uint8_t channel, serial_endpoint_t *ep, serial_t *serial);
+extern void      serial_multiport_unregister_endpoint(uint8_t channel, serial_endpoint_t *ep);
 extern void      serial_set_clock_src(serial_t *dev, double clock_src);
 extern void      serial_set_split_rx(serial_t *dev, int baud);
 extern void      serial_set_type(serial_t *dev, uint8_t type);

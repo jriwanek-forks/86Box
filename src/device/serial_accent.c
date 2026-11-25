@@ -41,7 +41,7 @@ accent_async_init(const device_t *info)
         return NULL;
 
     for (unsigned i = 0; i < ACCENT_PORTS; i++) {
-        card->uart[i] = serial_create_board_uart(SERIAL_8250, 0x08, accent_uart_irq,
+        card->uart[i] = serial_create_board_uart(SERIAL_8250, 0x08, i, accent_uart_irq,
                                                   (void *) ((uintptr_t) card | i));
         if (card->uart[i] == NULL) {
             while (i > 0)

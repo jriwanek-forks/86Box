@@ -15,8 +15,8 @@
  *          The seam itself lives next to it: a serial_endpoint_t is the
  *          chip's end of the connection, and everything that hands a chip
  *          a backend goes through it. A COM port is a table entry pointing
- *          at an endpoint; a board that carries its own chip keeps the
- *          endpoint and never touches com_ports[].
+ *          at an endpoint; a board that carries its own chip registers its
+ *          endpoint in the virtual multiport channel table.
  *
  * Authors: WNT50
  *
@@ -35,10 +35,37 @@
 #include <86box/serial.h>
 
 ser_port_t com_ports[SERIAL_MAX] = { 0 };
-/* A device can claim a COM port before the chip is plugged into it; park its
-   callbacks here until the chip shows up. Only COM ports need this: a board
-   that carries its own chip already holds the endpoint. */
+/* A device can claim a COM or multiport channel before its UART is present;
+   park its callbacks until the chip endpoint registers. */
 static serial_device_t pending[SERIAL_MAX];
+static ser_port_t multiport_ports[SERIAL_MULTIPORT_CHANNELS];
+static serial_device_t multiport_pending[SERIAL_MULTIPORT_CHANNELS];
+
+static int
+serial_pending_has_callbacks(const serial_device_t *sd)
+{
+    return (sd->rcr_callback != NULL) || (sd->dev_write != NULL) ||
+           (sd->dtr_callback != NULL) || (sd->lcr_callback != NULL) ||
+           (sd->transmit_period_callback != NULL) || (sd->control_callback != NULL) ||
+           (sd->format_callback != NULL);
+}
+
+static ser_port_t *
+serial_get_port(int port, serial_device_t **sd)
+{
+    if ((port >= 0) && (port < SERIAL_MAX)) {
+        *sd = &pending[port];
+        return &com_ports[port];
+    }
+
+    int channel = port - SERIAL_MULTIPORT_PORT_BASE;
+    if ((channel >= 0) && (channel < SERIAL_MULTIPORT_CHANNELS)) {
+        *sd = &multiport_pending[channel];
+        return &multiport_ports[channel];
+    }
+
+    return NULL;
+}
 
 /* ---- the seam ---------------------------------------------------------- */
 
@@ -131,23 +158,59 @@ serial_endpoint_get_line(serial_endpoint_t *ep, uint32_t line)
 void
 serial_device_attach(int port)
 {
-    ser_port_t *sp;
-
-    if ((port < 0) || (port >= SERIAL_MAX))
+    serial_device_t *sd = NULL;
+    ser_port_t *sp = serial_get_port(port, &sd);
+    if (sp == NULL)
         return;
-
-    sp = &com_ports[port];
-
     if (sp->ep == NULL)
         return;
+    if (!serial_pending_has_callbacks(sd))
+        return;
+    serial_endpoint_attach_device(sp->ep, sd);
+}
 
-    if ((pending[port].rcr_callback == NULL) && (pending[port].dev_write == NULL) &&
-        (pending[port].dtr_callback == NULL) && (pending[port].lcr_callback == NULL) &&
-        (pending[port].transmit_period_callback == NULL) && (pending[port].control_callback == NULL) &&
-        (pending[port].format_callback == NULL))
+void
+serial_multiport_register_endpoint(uint8_t channel, serial_endpoint_t *ep, serial_t *serial)
+{
+    if ((channel >= SERIAL_MULTIPORT_CHANNELS) || (ep == NULL))
         return;
 
-    serial_endpoint_attach_device(sp->ep, &pending[port]);
+    ser_port_t *port = &multiport_ports[channel];
+    if ((port->ep != NULL) && (port->ep != ep))
+        serial_endpoint_detach(port->ep);
+    port->ep = ep;
+    port->serial = serial;
+    serial_device_attach(SERIAL_MULTIPORT_PORT(channel));
+}
+
+void
+serial_multiport_unregister_endpoint(uint8_t channel, serial_endpoint_t *ep)
+{
+    if ((channel >= SERIAL_MULTIPORT_CHANNELS) || (ep == NULL))
+        return;
+
+    ser_port_t *port = &multiport_ports[channel];
+    if (port->ep != ep)
+        return;
+    serial_endpoint_detach(port->ep);
+    port->ep = NULL;
+    port->serial = NULL;
+    port->hotunplug = serial_pending_has_callbacks(&multiport_pending[channel]) ?
+                          CHAR_PORT_NOHOTUNPLUG : CHAR_PORT_DETACHED;
+}
+
+void
+serial_multiport_register_uart(uint8_t channel, serial_t *dev)
+{
+    if (dev != NULL)
+        serial_multiport_register_endpoint(channel, &dev->ep, dev);
+}
+
+void
+serial_multiport_unregister_uart(uint8_t channel, serial_t *dev)
+{
+    if (dev != NULL)
+        serial_multiport_unregister_endpoint(channel, &dev->ep);
 }
 
 ser_port_t *
@@ -158,17 +221,17 @@ serial_attach_ex(int port,
                  void (*lcr_callback)(struct serial_s *serial, void *priv, uint8_t data_bits),
                  void *priv)
 {
-    if ((port < 0) || (port >= SERIAL_MAX))
+    serial_device_t *sd = NULL;
+    ser_port_t *sp = serial_get_port(port, &sd);
+    if (sp == NULL)
         return NULL;
 
     /* Make sure this port becomes non-hotunpluggable if a hotunpluggable dropdown
        device and a non-hotunpluggable external device are both trying to claim it. */
-    uint8_t hotunplug         = com_ports[port].hotunplug;
-    com_ports[port].hotunplug = CHAR_PORT_NOHOTUNPLUG;
+    uint8_t hotunplug = sp->hotunplug;
+    sp->hotunplug = CHAR_PORT_NOHOTUNPLUG;
     if (hotunplug != CHAR_PORT_DETACHED)
         return NULL;
-
-    serial_device_t *sd = &pending[port];
 
     sd->transmit_period_callback = transmit_period_callback;
     sd->lcr_callback             = lcr_callback;
@@ -181,7 +244,7 @@ serial_attach_ex(int port,
 
     serial_device_attach(port);
 
-    return (com_ports[port].ep != NULL) ? &com_ports[port] : NULL;
+    return ((port >= SERIAL_MULTIPORT_PORT_BASE) || (sp->ep != NULL)) ? sp : NULL;
 }
 
 ser_port_t *
@@ -203,17 +266,17 @@ serial_attach_ex_3(int port,
                    void (*format_callback)(void *priv, int baud, int data_bits, int parity, int stop_bits),
                    void *priv)
 {
-    if ((port < 0) || (port >= SERIAL_MAX))
+    serial_device_t *sd = NULL;
+    ser_port_t *sp = serial_get_port(port, &sd);
+    if (sp == NULL)
         return NULL;
 
     /* Make sure this port becomes non-hotunpluggable if a hotunpluggable dropdown
        device and a non-hotunpluggable external device are both trying to claim it. */
-    uint8_t hotunplug         = com_ports[port].hotunplug;
-    com_ports[port].hotunplug = CHAR_PORT_NOHOTUNPLUG;
+    uint8_t hotunplug = sp->hotunplug;
+    sp->hotunplug = CHAR_PORT_NOHOTUNPLUG;
     if (hotunplug != CHAR_PORT_DETACHED)
         return NULL;
-
-    serial_device_t *sd = &pending[port];
 
     sd->rcr_callback             = rcr_callback;
     sd->dtr_callback             = dtr_callback;
@@ -226,7 +289,7 @@ serial_attach_ex_3(int port,
 
     serial_device_attach(port);
 
-    return (com_ports[port].ep != NULL) ? &com_ports[port] : NULL;
+    return ((port >= SERIAL_MULTIPORT_PORT_BASE) || (sp->ep != NULL)) ? sp : NULL;
 }
 
 void
@@ -328,7 +391,20 @@ serial_port_get_line(ser_port_t *port, uint32_t line)
 void
 serial_port_detach(ser_port_t *port)
 {
-    if ((port == NULL) || (port->ep == NULL))
+    if (port == NULL)
+        return;
+
+    for (uint8_t i = 0; i < SERIAL_MULTIPORT_CHANNELS; i++) {
+        if (port == &multiport_ports[i]) {
+            if (port->ep != NULL)
+                serial_endpoint_detach(port->ep);
+            memset(&multiport_pending[i], 0, sizeof(multiport_pending[i]));
+            port->hotunplug = CHAR_PORT_DETACHED;
+            return;
+        }
+    }
+
+    if (port->ep == NULL)
         return;
 
     serial_endpoint_detach(port->ep);

@@ -41,7 +41,7 @@ boca_serial_init(const device_t *info)
         return NULL;
 
     for (unsigned i = 0; i < BOCA_PORTS; i++) {
-        card->uart[i] = serial_create_board_uart(SERIAL_16550, 0x08, boca_uart_irq,
+        card->uart[i] = serial_create_board_uart(SERIAL_16550, 0x08, i, boca_uart_irq,
                                                   (void *) ((uintptr_t) card | i));
         if (card->uart[i] == NULL) {
             while (i > 0)

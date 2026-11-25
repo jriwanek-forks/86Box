@@ -950,7 +950,11 @@ sermouse_init(const device_t *info)
     dev->serial = serial_attach_ex(dev->port, rcr_callback, dev_write,
                                    transmit_period_callback, NULL, dev);
 
-    mouse_serial_log("%s: port=COM%d\n", dev->name, dev->port + 1);
+    if (dev->port >= SERIAL_MULTIPORT_PORT_BASE)
+        mouse_serial_log("%s: port=Multiport %d\n", dev->name,
+                         dev->port - SERIAL_MULTIPORT_PORT_BASE + 1);
+    else
+        mouse_serial_log("%s: port=COM%d\n", dev->name, dev->port + 1);
 
     timer_add(&dev->timer, sermouse_timer, dev, 0);
 
@@ -975,13 +979,7 @@ sermouse_init(const device_t *info)
         .default_int    = 0,                       \
         .file_filter    = NULL,                    \
         .spinner        = { 0 },                   \
-        .selection      = {                        \
-            { .description = "COM1", .value = 0 }, \
-            { .description = "COM2", .value = 1 }, \
-            { .description = "COM3", .value = 2 }, \
-            { .description = "COM4", .value = 3 }, \
-            { .description = ""                 }  \
-        },                                         \
+        .selection      = { SERIAL_PORT_CONFIG_SELECTIONS }, \
         .bios           = { { 0 } }                \
     }
 

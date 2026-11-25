@@ -1502,13 +1502,7 @@ static const device_config_t elo_config[] = {
         .default_int    = 0,
         .file_filter    = NULL,
         .spinner        = { 0 },
-        .selection      = {
-            { .description = "COM1", .value = 0 },
-            { .description = "COM2", .value = 1 },
-            { .description = "COM3", .value = 2 },
-            { .description = "COM4", .value = 3 },
-            { .description = ""                 }
-        },
+        .selection      = { SERIAL_PORT_CONFIG_SELECTIONS },
         .bios           = { { 0 } }
     },
     {

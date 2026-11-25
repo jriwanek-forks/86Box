@@ -75,7 +75,7 @@ ast_fourport_init(const device_t *info)
     card->irq_port = AST_IRQ_PORT(card->base);
     card->irq_enabled = 1;
     for (unsigned i = 0; i < AST_PORTS; i++) {
-        card->uart[i] = serial_create_board_uart(SERIAL_8250, 0x04, ast_uart_irq,
+        card->uart[i] = serial_create_board_uart(SERIAL_8250, 0x04, i, ast_uart_irq,
                                                   (void *) ((uintptr_t) card | i));
         if (card->uart[i] == NULL) {
             while (i > 0)

@@ -1291,7 +1291,7 @@ serial_init(const device_t *info)
 }
 
 serial_t *
-serial_create_board_uart(uint8_t type, uint8_t irq_mctrl_mask,
+serial_create_board_uart(uint8_t type, uint8_t irq_mctrl_mask, uint8_t channel,
                          void (*irq_callback)(void *, int), void *priv)
 {
     serial_t *dev = (serial_t *) calloc(1, sizeof(serial_t));
@@ -1304,6 +1304,7 @@ serial_create_board_uart(uint8_t type, uint8_t irq_mctrl_mask,
     dev->board_owned = 1;
     dev->board_irq_callback = irq_callback;
     dev->board_irq_priv = priv;
+    dev->board_channel = channel;
     dev->irq = 0xff;
     serial_endpoint_init(&dev->ep, dev, &serial_chip_ops);
     dev->ep.on_attach = serial_backend_changed;
@@ -1331,12 +1332,15 @@ serial_create_board_uart(uint8_t type, uint8_t irq_mctrl_mask,
     fifo_reset_evt(dev->xmit_fifo);
     fifo_set_len(dev->xmit_fifo, 16);
     serial_reset_port(dev);
+    serial_multiport_register_uart(channel, dev);
     return dev;
 }
 
 void
 serial_destroy_board_uart(serial_t *dev)
 {
+    if (dev != NULL)
+        serial_multiport_unregister_uart(dev->board_channel, dev);
     if (dev != NULL)
         serial_close(dev);
 }
