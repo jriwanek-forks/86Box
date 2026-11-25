@@ -176,15 +176,19 @@ serial_log(const char *fmt, ...)
 void
 serial_reset_port(serial_t *dev)
 {
-    if (dev->type >= SERIAL_16550) {
-        if (dev->fifo_enabled)
-            fifo_reset_evt(dev->xmit_fifo);
-        else
-            fifo_reset(dev->xmit_fifo);
-    }
+    if (dev->xmit_fifo != NULL)
+        fifo_reset(dev->xmit_fifo);
+    if (dev->rcvr_fifo != NULL)
+        fifo_reset(dev->rcvr_fifo);
+    timer_disable(&dev->transmit_timer);
+    timer_disable(&dev->timeout_timer);
 
     dev->lsr = 0x60; /* Mark that both THR/FIFO and TXSR are empty. */
-    dev->iir = dev->ier = dev->lcr = dev->fcr = 0;
+    dev->iir = dev->ier = dev->lcr = dev->fcr = dev->int_status = 0;
+    dev->mctrl = dev->rcr = dev->msr = dev->msr_set = 0;
+    dev->dat = dev->thr = dev->txsr = 0;
+    dev->dlab = 1;
+    dev->transmit_enabled = 0;
 
     dev->fifo_enabled                         = 0;
     dev->fifo_64_mode                         = 0;
@@ -1215,6 +1219,16 @@ serial_write(uint16_t addr, uint8_t val, void *priv)
             if (dev->type == SERIAL_16950) {
                 if (dev->icr_index == 0)
                     dev->acr = val;
+                else if (dev->icr_index == 0x0c) {
+                    if (val == 0) {
+                        const uint8_t cks = dev->icr[3];
+                        serial_reset_port(dev);
+                        dev->icr[3] = cks;
+                        serial_transmit_period(dev);
+                        serial_update_speed(dev);
+                    }
+                    break;
+                }
                 else if (dev->icr_index < 20 && (dev->icr_index < 8 || dev->icr_index > 11))
                     dev->icr[dev->icr_index] = val;
                 if (dev->icr_index == 1 || dev->icr_index == 2) {
