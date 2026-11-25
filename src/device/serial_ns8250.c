@@ -66,7 +66,7 @@ serial_fifo_capacity(const serial_t *dev)
         case SERIAL_16650V2:
             return 32;
         case SERIAL_16750:
-            return ((dev->lcr & 0x80) && (dev->fcr & 0x20)) ? 64 : 16;
+            return dev->fifo_64_mode ? 64 : 16;
         case SERIAL_16850:
         case SERIAL_16950:
             return 128;
@@ -120,6 +120,7 @@ serial_reset_port(serial_t *dev)
     dev->iir = dev->ier = dev->lcr = dev->fcr = 0;
 
     dev->fifo_enabled                         = 0;
+    dev->fifo_64_mode                         = 0;
     dev->efr                                  = 0;
     dev->acr                                  = 0;
     dev->icr_index                            = 0;
@@ -259,7 +260,7 @@ static int
 serial_auto_cts_enabled(const serial_t *dev)
 {
     if (dev->type == SERIAL_16750)
-        return !!(dev->mctrl & 0x20);
+        return dev->fifo_enabled && !!(dev->mctrl & 0x20);
     return serial_enhanced_mode(dev) && !!(dev->efr & 0x80);
 }
 
@@ -269,7 +270,7 @@ serial_auto_rts_enabled(const serial_t *dev)
     if (!(dev->mctrl & 0x02))
         return 0;
     if (dev->type == SERIAL_16750)
-        return !!(dev->mctrl & 0x20);
+        return dev->fifo_enabled && !!(dev->mctrl & 0x20);
     return serial_enhanced_mode(dev) && !!(dev->efr & 0x40);
 }
 
@@ -896,6 +897,8 @@ serial_write(uint16_t addr, uint8_t val, void *priv)
                 break;
             }
             if (dev->type >= SERIAL_16550) {
+                if (dev->type == SERIAL_16750 && (dev->lcr & 0x80))
+                    dev->fifo_64_mode = !!(val & 0x20);
                 if ((val ^ dev->fcr) & 0x01)
                     serial_reset_fifo(dev);
                 dev->fcr          = val & 0xf9;
@@ -931,7 +934,7 @@ serial_write(uint16_t addr, uint8_t val, void *priv)
                     static const int trigger_16[4] = { 1, 4, 8, 14 };
                     static const int trigger_32[4] = { 1, 8, 16, 28 };
                     static const int trigger_64[4] = { 1, 16, 32, 56 };
-                    const int *trigger = (dev->type == SERIAL_16750) ? trigger_64 :
+                    const int *trigger = (dev->type == SERIAL_16750 && dev->fifo_size == 64) ? trigger_64 :
                                          (dev->type == SERIAL_16650V2) ? trigger_32 : trigger_16;
                     fifo_set_trigger_len(dev->rcvr_fifo, trigger[(val >> 6) & 3]);
                 } else switch ((val >> 6) & 0x03) {
@@ -1191,7 +1194,7 @@ serial_read(uint16_t addr, void *priv)
             }
             if (dev->fcr & 1)
                 ret |= 0xc0;
-            if ((dev->type == SERIAL_16750) && (dev->fifo_size == 64))
+            if ((dev->type == SERIAL_16750) && dev->fifo_enabled && (dev->fifo_size == 64))
                 ret |= 0x20;
             break;
         case 3:
