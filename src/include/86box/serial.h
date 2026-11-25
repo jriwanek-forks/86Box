@@ -221,6 +221,11 @@ typedef struct serial_s {
     uint8_t efr;
     uint8_t fifo_size;
     uint8_t fifo_64_mode;
+    uint8_t fctr;
+    uint8_t emsr;
+    uint8_t trg_rx;
+    uint8_t trg_tx;
+    uint8_t tx_fifo_count;
     uint8_t acr;
     uint8_t icr_index;
     uint8_t icr[20];
