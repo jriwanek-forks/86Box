@@ -10,7 +10,12 @@ typedef struct multiport_serial_entry_s {
 /* Append supported boards here; IDs are persisted in configs by name. */
 static const multiport_serial_entry_t devices[] = {
     { NULL },
-    { &stallion_easyio_device }
+    { &stallion_easyio_device },
+    { &ast_fourport_device },
+    { &accent_async_device },
+    { &boca_serial_device },
+    { &hub6_serial_device },
+    { &exar_st16c554_device }
 };
 
 int
