@@ -238,6 +238,8 @@ typedef struct serial_s {
     uint8_t flow_tx_pending;
     uint8_t flow_tx_char;
     uint8_t auto_rts_deasserted;
+    uint8_t auto_dtr_deasserted;
+    uint8_t dtr_output_state;
     uint8_t irq;
     uint8_t type;
     uint8_t inst;

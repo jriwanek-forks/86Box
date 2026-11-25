@@ -208,6 +208,7 @@ serial_reset_port(serial_t *dev)
     dev->xoff2 = 0x00;
     dev->flow_remote_paused = dev->flow_local_paused = dev->flow_tx_pending = 0;
     dev->auto_rts_deasserted = 0;
+    dev->auto_dtr_deasserted = 0;
     dev->baud_cycles                          = 0;
     dev->out_new                              = 0xffff;
 
@@ -356,6 +357,13 @@ serial_rts_output(const serial_t *dev)
     return !!(dev->mctrl & 0x02) && !(serial_auto_rts_enabled(dev) && dev->auto_rts_deasserted);
 }
 
+static int
+serial_dtr_output(const serial_t *dev)
+{
+    const int auto_dtr = dev->type == SERIAL_16950 && ((dev->acr & 0x18) == 0x08);
+    return !!(dev->mctrl & 0x01) && !(auto_dtr && dev->auto_dtr_deasserted);
+}
+
 static void
 serial_queue_flow_char(serial_t *dev, uint8_t value)
 {
@@ -421,8 +429,23 @@ serial_update_auto_flow(serial_t *dev)
     } else
         dev->auto_rts_deasserted = 0;
 
+    if (dev->type == SERIAL_16950 && ((dev->acr & 0x18) == 0x08)) {
+        if (rx_count >= upper)
+            dev->auto_dtr_deasserted = 1;
+        else if (rx_count < lower)
+            dev->auto_dtr_deasserted = 0;
+    } else
+        dev->auto_dtr_deasserted = 0;
+
+    if (dev->dtr_output_state != serial_dtr_output(dev)) {
+        dev->dtr_output_state = (uint8_t) serial_dtr_output(dev);
+        if (dev->ep.be != NULL && dev->ep.be->dtr != NULL)
+            dev->ep.be->dtr(dev->ep.be->priv, dev->dtr_output_state);
+    }
+
     if (dev->ep.be != NULL && dev->ep.be->control != NULL) {
-        flags = (dev->mctrl & 0x01) | (serial_rts_output(dev) ? 0x02 : 0) | (dev->lcr & 0x40);
+        flags = (serial_dtr_output(dev) ? 0x01 : 0) | (serial_rts_output(dev) ? 0x02 : 0) |
+                (dev->lcr & 0x40);
         dev->ep.be->control(dev->ep.be->priv, flags);
     }
 
@@ -1105,7 +1128,7 @@ serial_write(uint16_t addr, uint8_t val, void *priv)
             if (!(old & 0x40) && (val & 0x40) && (dev->mctrl & 0x10))
                 serial_receive_loopback_break(dev);
             if (((old ^ val) & 0x40) && (dev->ep.be != NULL) && (dev->ep.be->control != NULL))
-                dev->ep.be->control(dev->ep.be->priv, (dev->mctrl & 0x01) |
+                dev->ep.be->control(dev->ep.be->priv, (serial_dtr_output(dev) ? 0x01 : 0) |
                                     (serial_rts_output(dev) ? 0x02 : 0) | (val & 0x40));
             serial_update_auto_flow(dev);
             break;
@@ -1123,8 +1146,6 @@ serial_write(uint16_t addr, uint8_t val, void *priv)
             }
             if (!(val & dev->irq_mctrl_mask) && (dev->mctrl & dev->irq_mctrl_mask) && !dev->irq_direct)
                 serial_do_irq(dev, 0);
-            if ((dev->ep.be != NULL) && (dev->ep.be->dtr != NULL) && ((val ^ dev->mctrl) & 1))
-                dev->ep.be->dtr(dev->ep.be->priv, val & 1);
             dev->mctrl = val & ((dev->type == SERIAL_16750 ||
                                  (dev->type == SERIAL_16950 && !serial_enhanced_mode(dev))) ? 0x3f :
                                 serial_enhanced_mode(dev) ? 0xff : 0x1f);
@@ -1305,7 +1326,7 @@ serial_read(uint16_t addr, void *priv)
                 ret = (dev->txsr_empty && (dev->fifo_enabled ? fifo_get_empty(dev->xmit_fifo) : dev->thr_empty))
                           ? 0x80 : 0;
                 ret |= (dev->flow_remote_paused ? 0x01 : 0) | (dev->flow_local_paused ? 0x02 : 0) |
-                       (serial_rts_output(dev) ? 0x04 : 0) | ((dev->mctrl & 0x01) ? 0x08 : 0) |
+                       (serial_rts_output(dev) ? 0x04 : 0) | (serial_dtr_output(dev) ? 0x08 : 0) |
                        ((dev->int_status & SERIAL_INT_SPECIAL) ? 0x10 : 0) |
                        ((dev->fifo_size == 128) ? 0x40 : 0);
                 dev->int_status &= ~SERIAL_INT_SPECIAL;
@@ -1587,7 +1608,7 @@ serial_chip_get_line(void *chip, uint32_t line)
     serial_t *dev = (serial_t *) chip;
 
     if (line == CHAR_COM_DTR)
-        return (dev->mctrl & 0x01) ? 1 : 0;
+        return serial_dtr_output(dev);
     if (line == CHAR_COM_RTS)
         return serial_rts_output(dev);
 
@@ -1609,8 +1630,10 @@ serial_backend_changed(void *priv)
     serial_t *dev = (serial_t *) priv;
 
     if ((dev->ep.be != NULL) && (dev->ep.be->control != NULL))
-        dev->ep.be->control(dev->ep.be->priv, (dev->mctrl & 0x01) |
+        dev->ep.be->control(dev->ep.be->priv, (serial_dtr_output(dev) ? 0x01 : 0) |
                             (serial_rts_output(dev) ? 0x02 : 0) | (dev->lcr & 0x40));
+    if ((dev->ep.be != NULL) && (dev->ep.be->dtr != NULL))
+        dev->ep.be->dtr(dev->ep.be->priv, serial_dtr_output(dev));
 }
 
 /* A device backend is attached when any of its callbacks is present. */
@@ -1618,7 +1641,8 @@ static int
 serial_has_device(serial_t *dev)
 {
     return (dev->ep.dev.rcr_callback != NULL) || (dev->ep.dev.dev_write != NULL) ||
-           (dev->ep.dev.dtr_callback != NULL) || (dev->ep.dev.lcr_callback != NULL) ||
+           (dev->ep.dev.dtr_callback != NULL) || (dev->ep.dev.control_callback != NULL) ||
+           (dev->ep.dev.lcr_callback != NULL) ||
            (dev->ep.dev.transmit_period_callback != NULL);
 }
 
