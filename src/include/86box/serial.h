@@ -222,7 +222,16 @@ typedef struct serial_s {
     uint8_t fifo_size;
     uint8_t acr;
     uint8_t icr_index;
-    uint8_t icr[16];
+    uint8_t icr[20];
+    uint8_t xon1;
+    uint8_t xon2;
+    uint8_t xoff1;
+    uint8_t xoff2;
+    uint8_t flow_remote_paused;
+    uint8_t flow_local_paused;
+    uint8_t flow_tx_pending;
+    uint8_t flow_tx_char;
+    uint8_t auto_rts_deasserted;
     uint8_t irq;
     uint8_t type;
     uint8_t inst;
