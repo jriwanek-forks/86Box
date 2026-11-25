@@ -932,7 +932,7 @@ serial_write(uint16_t addr, uint8_t val, void *priv)
                 } else if (dev->type == SERIAL_16650V2 || dev->type == SERIAL_16750 ||
                     dev->type == SERIAL_16850 || dev->type == SERIAL_16950) {
                     static const int trigger_16[4] = { 1, 4, 8, 14 };
-                    static const int trigger_32[4] = { 1, 8, 16, 28 };
+                    static const int trigger_32[4] = { 8, 16, 24, 28 };
                     static const int trigger_64[4] = { 1, 16, 32, 56 };
                     const int *trigger = (dev->type == SERIAL_16750 && dev->fifo_size == 64) ? trigger_64 :
                                          (dev->type == SERIAL_16650V2) ? trigger_32 : trigger_16;
